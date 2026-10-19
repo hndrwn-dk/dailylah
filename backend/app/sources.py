@@ -59,3 +59,42 @@ class Sources:
 
     async def bus_arrival(self, stop_code: str) -> dict:
         return await self.lta("v3/BusArrival", {"BusStopCode": stop_code})
+
+    async def crowd(self, line: str, kind: str) -> dict:
+        """Platform crowd density for one train line. kind: "realtime" or "forecast"."""
+        path = "PCDRealTime" if kind == "realtime" else "PCDForecast"
+        return await self.lta(path, {"TrainLine": line})
+
+    async def bus_stops(self, page_size: int = 500, max_pages: int = 40) -> list[dict]:
+        """All bus stops. LTA pages results 500 at a time via $skip."""
+        stops: list[dict] = []
+        for page in range(max_pages):
+            batch = (await self.lta("BusStops", {"$skip": page * page_size})).get("value", [])
+            stops.extend(batch)
+            if len(batch) < page_size:
+                break
+        return stops
+
+
+# Train line codes accepted by LTA's platform crowd density APIs.
+TRAIN_LINES = {"CCL", "CEL", "CGL", "DTL", "EWL", "NEL", "NSL", "TEL", "BPL", "SLRT", "PLRT"}
+
+
+def compact_bus_stops(raw: list[dict]) -> list[dict]:
+    """Shrink LTA BusStops rows for the app's offline bundle (~5k stops)."""
+    out = []
+    for s in raw:
+        try:
+            out.append(
+                {
+                    "c": s["BusStopCode"],
+                    "n": s["Description"],
+                    "r": s.get("RoadName", ""),
+                    "la": round(float(s["Latitude"]), 6),
+                    "lo": round(float(s["Longitude"]), 6),
+                }
+            )
+        except (KeyError, TypeError, ValueError):
+            continue
+    out.sort(key=lambda x: x["c"])
+    return out
