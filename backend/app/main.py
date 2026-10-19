@@ -14,7 +14,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 
 from .cache import Cache
 from .config import Settings, get_settings
-from .sources import LTA_DATASETS, NEA_DATASETS, Dataset, Sources
+from .sources import LTA_DATASETS, NEA_DATASETS, TRAIN_LINES, Dataset, Sources
 
 log = logging.getLogger("dailylah")
 STOP_RE = re.compile(r"^\d{5}$")
@@ -95,6 +95,32 @@ async def bus_arrival(
         raise HTTPException(502, "upstream LTA error") from e
     data = {"fetched_at": int(time.time()), "data": data}
     c.set_memory_only(key, data, s.bus_arrival_ttl)  # memory only: saves Redis commands
+    return data
+
+
+@app.get("/v1/crowd/{line}")
+async def crowd(
+    line: str,
+    kind: str = "realtime",
+    c: Cache = Depends(cache),
+    src: Sources = Depends(sources),
+) -> dict:
+    """Platform crowd density per line, on demand. LTA refreshes realtime every 10 min."""
+    line = line.upper()
+    if line not in TRAIN_LINES:
+        raise HTTPException(404, f"unknown train line: {line}")
+    if kind not in ("realtime", "forecast"):
+        raise HTTPException(422, "kind must be realtime or forecast")
+    key = f"lta:crowd:{kind}:{line}"
+    hit = await c.get(key)
+    if hit is not None:
+        return hit
+    try:
+        data = await src.crowd(line, kind)
+    except httpx.HTTPError as e:
+        raise HTTPException(502, "upstream LTA error") from e
+    data = {"fetched_at": int(time.time()), "data": data}
+    c.set_memory_only(key, data, 600 if kind == "realtime" else 1800)
     return data
 
 

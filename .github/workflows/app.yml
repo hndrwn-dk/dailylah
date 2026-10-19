@@ -11,7 +11,7 @@ jobs:
       run:
         working-directory: app
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Check app id is com.tursinalabs.dailylah
         working-directory: .
         run: ./scripts/check-app-id.sh
@@ -22,3 +22,9 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Build debug APK (compiles Kotlin, manifest and plugins)
+        run: flutter build apk --debug
