@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+.pytest_cache/
+.ruff_cache/
+
+# Flutter / Dart
+app/.dart_tool/
+app/build/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/pubspec.lock
+*.jks
+*.keystore
+key.properties
+google-services.json
+GoogleService-Info.plist
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+.vercel

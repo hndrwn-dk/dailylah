@@ -1,0 +1,31 @@
+# Render Blueprint — free web service in Singapore.
+# Secrets are set in the Render dashboard (sync: false = never stored in git).
+services:
+  - type: web
+    name: dailylah-api
+    runtime: python
+    plan: free
+    region: singapore
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: ENV
+        value: prod
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: DATAGOV_API_KEY
+        sync: false
+      - key: LTA_ACCOUNT_KEY
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: QSTASH_CURRENT_SIGNING_KEY
+        sync: false
+      - key: QSTASH_NEXT_SIGNING_KEY
+        sync: false
