@@ -6,6 +6,14 @@ Read `docs/PRD.md` first. It is the source of truth for scope, phases and constr
 Product: free Android app (Flutter) for Singapore residents. Daily morning/evening cards
 built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of scope.
 
+## App identity (permanent — never change)
+- Android `applicationId` and `namespace`: `com.tursinalabs.dailylah`
+- iOS bundle identifier: `com.tursinalabs.dailylah`
+- Dart package name: `dailylah`. Display name: `DailyLah`.
+- Generate platform folders only with:
+  `cd app && flutter create . --org com.tursinalabs --project-name dailylah --platforms android,ios`
+- `scripts/check-app-id.sh` enforces this in CI. Do not rename the package or the folders.
+
 ## Repo layout
 - `backend/` — Python 3.12, FastAPI. Deployed to Render (free) via `render.yaml`.
 - `app/` — Flutter app (Riverpod, dio). Platform folders are generated with `flutter create`.

@@ -32,9 +32,12 @@ curl localhost:8000/v1/weather/forecast
 ```
 
 ### App
+App ID (Android and iOS): **`com.tursinalabs.dailylah`**. It is permanent once published.
+
 ```bash
 cd app
 flutter create . --org com.tursinalabs --project-name dailylah --platforms android,ios
+cd .. && ./scripts/check-app-id.sh && cd app   # verifies com.tursinalabs.dailylah
 flutter pub get
 flutter run --dart-define=API_URL=http://10.0.2.2:8000
 ```
