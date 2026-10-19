@@ -1,53 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'api.dart';
+import 'background.dart';
+import 'providers.dart';
+import 'store.dart';
+import 'ui/home.dart';
+import 'ui/setup.dart';
 
-final apiProvider = Provider((ref) => DailyLahApi());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final favorites = await FavoritesStore().load();
+  await initNotifications();
+  if (favorites.onboarded) await registerBackgroundWork();
+  runApp(ProviderScope(
+    overrides: [initialFavoritesProvider.overrideWithValue(favorites)],
+    child: const DailyLahApp(),
+  ));
+}
 
-final trainAlertsProvider = FutureProvider.autoDispose(
-  (ref) => ref.watch(apiProvider).trainAlerts(),
-);
-
-void main() => runApp(const ProviderScope(child: DailyLahApp()));
-
-class DailyLahApp extends StatelessWidget {
+class DailyLahApp extends ConsumerWidget {
   const DailyLahApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final onboarded = ref.watch(favoritesProvider.select((f) => f.onboarded));
     return MaterialApp(
       title: 'DailyLah',
       theme: ThemeData(colorSchemeSeed: const Color(0xFFD9480F), useMaterial3: true),
-      home: const MorningCardPage(),
-    );
-  }
-}
-
-/// Placeholder for the "kartu pagi" (morning card). See docs/PRD.md, Fase 1.
-class MorningCardPage extends ConsumerWidget {
-  const MorningCardPage({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final alerts = ref.watch(trainAlertsProvider);
-    return Scaffold(
-      appBar: AppBar(title: const Text('DailyLah')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Card(
-            child: ListTile(
-              title: const Text('MRT'),
-              subtitle: alerts.when(
-                data: (d) => Text('Status: ${d['data']?['value']?['Status'] ?? '-'}'),
-                loading: () => const Text('Loading…'),
-                error: (e, _) => const Text('Belum ada data'),
-              ),
-            ),
-          ),
-        ],
+      darkTheme: ThemeData(
+        colorSchemeSeed: const Color(0xFFD9480F),
+        brightness: Brightness.dark,
+        useMaterial3: true,
       ),
+      home: onboarded ? const HomePage() : const SetupPage(firstRun: true),
     );
   }
 }
