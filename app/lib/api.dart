@@ -14,7 +14,15 @@ const apiUrl = String.fromEnvironment(
 );
 
 /// Static site (Vercel) that serves /data/manifest.json and /data/bus_stops.json.
-const webUrl = String.fromEnvironment('WEB_URL', defaultValue: 'https://dailylah-web.vercel.app');
+/// Override with --dart-define=WEB_URL=... to use a single base URL.
+const webUrlOverride = String.fromEnvironment('WEB_URL');
+
+/// Tried in order: our own domain first, then the Vercel URL in case DNS for the
+/// custom domain breaks. Both serve the same deployment.
+const webUrls = <String>[
+  'https://dailylah.tursinalabs.com',
+  'https://dailylah-web.vercel.app',
+];
 
 class DailyLahApi {
   DailyLahApi([Dio? dio])
@@ -42,15 +50,36 @@ class DailyLahApi {
 }
 
 /// Offline bus stop list. Cached as a file on the device and refreshed only when the
-/// manifest version on Vercel changes.
+/// manifest version changes. Tries each base URL in [webUrls] until one answers.
 class BusStopRepository {
-  BusStopRepository([Dio? dio]) : _dio = dio ?? Dio(BaseOptions(baseUrl: webUrl));
+  BusStopRepository({Dio? dio, List<String>? baseUrls, Future<Directory> Function()? storageDir})
+      : _dio = dio ??
+            Dio(BaseOptions(
+              connectTimeout: const Duration(seconds: 10),
+              receiveTimeout: const Duration(seconds: 30),
+            )),
+        _baseUrls = baseUrls ?? (webUrlOverride.isNotEmpty ? [webUrlOverride] : webUrls),
+        _storageDir = storageDir ?? getApplicationSupportDirectory;
 
   final Dio _dio;
+  final List<String> _baseUrls;
+  final Future<Directory> Function() _storageDir;
   List<BusStop>? _memory;
 
-  Future<File> _file(String name) async =>
-      File('${(await getApplicationSupportDirectory()).path}/$name');
+  Future<File> _file(String name) async => File('${(await _storageDir()).path}/$name');
+
+  /// Returns the manifest and the base URL that served it, or null if all failed.
+  Future<(String, Map<String, dynamic>)?> _manifest() async {
+    for (final base in _baseUrls) {
+      try {
+        final res = await _dio.get<Map<String, dynamic>>('$base/data/manifest.json');
+        if (res.data != null) return (base, res.data!);
+      } on DioException {
+        continue; // try the next base URL
+      }
+    }
+    return null;
+  }
 
   Future<List<BusStop>> load() async {
     if (_memory != null) return _memory!;
@@ -60,18 +89,21 @@ class BusStopRepository {
     if (await versionFile.exists()) localVersion = await versionFile.readAsString();
 
     try {
-      final manifest = (await _dio.get<Map<String, dynamic>>('/data/manifest.json')).data!;
-      final remoteVersion = manifest['version'] as String;
-      if (remoteVersion != localVersion || !await cached.exists()) {
-        final res = await _dio.get<String>(
-          '/data/bus_stops.json',
-          options: Options(responseType: ResponseType.plain),
-        );
-        await cached.writeAsString(res.data!);
-        await versionFile.writeAsString(remoteVersion);
+      final found = await _manifest();
+      if (found != null) {
+        final (base, manifest) = found;
+        final remoteVersion = manifest['version'] as String;
+        if (remoteVersion != localVersion || !await cached.exists()) {
+          final res = await _dio.get<String>(
+            '$base/data/bus_stops.json',
+            options: Options(responseType: ResponseType.plain),
+          );
+          await cached.writeAsString(res.data!);
+          await versionFile.writeAsString(remoteVersion);
+        }
       }
     } on DioException {
-      // Offline or Vercel down: fall back to the cached copy below.
+      // Offline or both hosts down: fall back to the cached copy below.
     }
 
     if (!await cached.exists()) return const [];

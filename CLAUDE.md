@@ -29,8 +29,10 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - Alerts in Phase 1 run on-device: WorkManager every 15 min (`lib/background.dart`) calls
   the API and shows local notifications. FCM topics come later; keep the alert rules
   (quiet hours, one per event, max 3 rain alerts a day) in `logic.dart` either way.
-- The offline bus stop list comes from `WEB_URL/data/manifest.json` + `bus_stops.json`,
-  rebuilt daily by `.github/workflows/data.yml` (needs repo secret `LTA_ACCOUNT_KEY`).
+- The offline bus stop list comes from `/data/manifest.json` + `bus_stops.json` on
+  `https://dailylah.tursinalabs.com`, falling back to `https://dailylah-web.vercel.app`
+  (same Vercel deployment). Never hard-code a single host; use `webUrls` in `lib/api.dart`.
+  The list is rebuilt daily by `.github/workflows/data.yml` (needs repo secret `LTA_ACCOUNT_KEY`).
 - CI builds a debug APK, so native changes (manifest, Kotlin widget) are compile-checked.
 
 ## Commands
