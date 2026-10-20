@@ -76,7 +76,7 @@ async def test_build_static_paginates_and_writes(tmp_path, monkeypatch):
 
     route = respx.get(f"{LTA}/BusStops").mock(side_effect=page)
     async with httpx.AsyncClient() as c:
-        manifest = await build_static.build(tmp_path, c)
+        manifest = await build_static.build(tmp_path, c, only_bus_stops=True)
     assert route.call_count == 9  # 8 full pages + 1 partial
     assert manifest["files"]["bus_stops"]["count"] == 4200
     stops = json.loads((tmp_path / "bus_stops.json").read_text())

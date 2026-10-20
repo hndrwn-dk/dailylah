@@ -1,5 +1,7 @@
 """Thin async clients for data.gov.sg and LTA DataMall."""
 
+import json
+import re
 from dataclasses import dataclass
 
 import httpx
@@ -65,6 +67,52 @@ class Sources:
         path = "PCDRealTime" if kind == "realtime" else "PCDForecast"
         return await self.lta(path, {"TrainLine": line})
 
+    async def carpark_availability(self) -> dict[str, list[int]]:
+        """All HDB car parks: {"ACB": [total_car_lots, available_car_lots]}."""
+        r = await self.http.get(self.s.carpark_url, headers=self._datagov_headers())
+        r.raise_for_status()
+        return compact_carparks(r.json())
+
+    async def taxis(self, page_size: int = 500, max_pages: int = 20) -> list[list[float]]:
+        """Available taxi positions, rounded to ~10 m: [[lat, lng], ...]."""
+        pts: list[dict] = []
+        for page in range(max_pages):
+            batch = (await self.lta("Taxi-Availability", {"$skip": page * page_size})).get(
+                "value", []
+            )
+            pts.extend(batch)
+            if len(batch) < page_size:
+                break
+        return compact_taxis(pts)
+
+    async def cea_agent(self, reg_no: str) -> list[dict]:
+        """CEA salesperson register rows for one registration number."""
+        r = await self.http.get(
+            self.s.datastore_url,
+            params={
+                "resource_id": self.s.cea_dataset_id,
+                "filters": json.dumps({"registration_no": reg_no}),
+                "limit": 5,
+            },
+            headers=self._datagov_headers(),
+        )
+        r.raise_for_status()
+        rows = r.json().get("result", {}).get("records", [])
+        return [
+            {
+                "name": row.get("salesperson_name", ""),
+                "registration_no": row.get("registration_no", ""),
+                "start": row.get("registration_start_date", ""),
+                "end": row.get("registration_end_date", ""),
+                "agency": row.get("estate_agent_name", ""),
+                "agency_licence": row.get("estate_agent_license_no", ""),
+            }
+            for row in rows
+        ]
+
+    def _datagov_headers(self) -> dict:
+        return {"x-api-key": self.s.datagov_api_key} if self.s.datagov_api_key else {}
+
     async def bus_stops(self, page_size: int = 500, max_pages: int = 40) -> list[dict]:
         """All bus stops. LTA pages results 500 at a time via $skip."""
         stops: list[dict] = []
@@ -97,4 +145,35 @@ def compact_bus_stops(raw: list[dict]) -> list[dict]:
         except (KeyError, TypeError, ValueError):
             continue
     out.sort(key=lambda x: x["c"])
+    return out
+
+
+CEA_REG_RE = re.compile(r"^[A-Z]\d{6}[A-Z]$")
+
+
+def compact_carparks(payload: dict) -> dict[str, list[int]]:
+    """data.gov.sg v1 carpark-availability -> {"ACB": [total, available]} for car lots."""
+    out: dict[str, list[int]] = {}
+    items = payload.get("items") or []
+    if not items:
+        return out
+    for cp in items[0].get("carpark_data", []):
+        for info in cp.get("carpark_info", []):
+            if info.get("lot_type") != "C":
+                continue
+            try:
+                out[cp["carpark_number"]] = [int(info["total_lots"]), int(info["lots_available"])]
+            except (KeyError, TypeError, ValueError):
+                continue
+    return out
+
+
+def compact_taxis(points: list[dict]) -> list[list[float]]:
+    """LTA Taxi-Availability rows -> [[lat, lng]] rounded to 4 decimals (~11 m)."""
+    out = []
+    for p in points:
+        try:
+            out.append([round(float(p["Latitude"]), 4), round(float(p["Longitude"]), 4)])
+        except (KeyError, TypeError, ValueError):
+            continue
     return out

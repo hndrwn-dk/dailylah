@@ -4,6 +4,7 @@ library;
 enum PlaceKind { home, work, school }
 
 extension PlaceKindLabel on PlaceKind {
+  /// Indonesian label, kept for older call sites. Prefer S.placeLabel(kind.name).
   String get label => switch (this) {
         PlaceKind.home => 'Rumah',
         PlaceKind.work => 'Kantor',
@@ -89,7 +90,16 @@ class Favorites {
     this.leaveWork = const TimeOfDayHM(18, 0),
     this.mrtAlerts = true,
     this.rainAlerts = true,
+    this.hawkerAlerts = true,
+    this.dengueAlerts = true,
+    this.heatAlerts = true,
+    this.homesAlerts = true,
     this.onboarded = false,
+    this.lang,
+    this.hawkers = const {},
+    this.carparks = const {},
+    this.watchedBlocks = const {},
+    this.compareBlocks = const [],
   });
 
   final Map<PlaceKind, Place> places;
@@ -98,9 +108,28 @@ class Favorites {
   final TimeOfDayHM leaveWork;
   final bool mrtAlerts;
   final bool rainAlerts;
+  final bool hawkerAlerts;
+  final bool dengueAlerts;
+  final bool heatAlerts;
+  final bool homesAlerts;
 
   /// True after the user finished the first-run setup.
   final bool onboarded;
+
+  /// "en" or "id"; null follows the phone's language.
+  final String? lang;
+
+  /// Favourite hawker centre ids (hawkers.json "id").
+  final Set<String> hawkers;
+
+  /// Saved HDB car park numbers (carparks.json "id").
+  final Set<String> carparks;
+
+  /// Watched HDB blocks: "BLOCK|STREET" -> resale transactions seen so far.
+  final Map<String, int> watchedBlocks;
+
+  /// Blocks picked for side-by-side comparison (max 3).
+  final List<String> compareBlocks;
 
   bool get isSetUp => places.containsKey(PlaceKind.home);
 
@@ -111,7 +140,16 @@ class Favorites {
     TimeOfDayHM? leaveWork,
     bool? mrtAlerts,
     bool? rainAlerts,
+    bool? hawkerAlerts,
+    bool? dengueAlerts,
+    bool? heatAlerts,
+    bool? homesAlerts,
     bool? onboarded,
+    String? lang,
+    Set<String>? hawkers,
+    Set<String>? carparks,
+    Map<String, int>? watchedBlocks,
+    List<String>? compareBlocks,
   }) =>
       Favorites(
         places: places ?? this.places,
@@ -120,7 +158,16 @@ class Favorites {
         leaveWork: leaveWork ?? this.leaveWork,
         mrtAlerts: mrtAlerts ?? this.mrtAlerts,
         rainAlerts: rainAlerts ?? this.rainAlerts,
+        hawkerAlerts: hawkerAlerts ?? this.hawkerAlerts,
+        dengueAlerts: dengueAlerts ?? this.dengueAlerts,
+        heatAlerts: heatAlerts ?? this.heatAlerts,
+        homesAlerts: homesAlerts ?? this.homesAlerts,
         onboarded: onboarded ?? this.onboarded,
+        lang: lang ?? this.lang,
+        hawkers: hawkers ?? this.hawkers,
+        carparks: carparks ?? this.carparks,
+        watchedBlocks: watchedBlocks ?? this.watchedBlocks,
+        compareBlocks: compareBlocks ?? this.compareBlocks,
       );
 
   Map<String, dynamic> toJson() => {
@@ -130,7 +177,16 @@ class Favorites {
         'leaveWork': leaveWork.toString(),
         'mrtAlerts': mrtAlerts,
         'rainAlerts': rainAlerts,
+        'hawkerAlerts': hawkerAlerts,
+        'dengueAlerts': dengueAlerts,
+        'heatAlerts': heatAlerts,
+        'homesAlerts': homesAlerts,
         'onboarded': onboarded,
+        if (lang != null) 'lang': lang,
+        'hawkers': hawkers.toList()..sort(),
+        'carparks': carparks.toList()..sort(),
+        'watchedBlocks': watchedBlocks,
+        'compareBlocks': compareBlocks,
       };
 
   factory Favorites.fromJson(Map<String, dynamic> j) {
@@ -139,14 +195,26 @@ class Favorites {
       final place = Place.fromJson(p as Map<String, dynamic>);
       places[place.kind] = place;
     }
+    Set<String> strings(String k) => {for (final v in (j[k] as List? ?? const [])) '$v'};
     return Favorites(
       places: places,
-      lines: {for (final l in (j['lines'] as List? ?? const [])) l as String},
+      lines: strings('lines'),
       leaveHome: TimeOfDayHM.parse((j['leaveHome'] ?? '7:30') as String),
       leaveWork: TimeOfDayHM.parse((j['leaveWork'] ?? '18:0') as String),
       mrtAlerts: (j['mrtAlerts'] ?? true) as bool,
       rainAlerts: (j['rainAlerts'] ?? true) as bool,
+      hawkerAlerts: (j['hawkerAlerts'] ?? true) as bool,
+      dengueAlerts: (j['dengueAlerts'] ?? true) as bool,
+      heatAlerts: (j['heatAlerts'] ?? true) as bool,
+      homesAlerts: (j['homesAlerts'] ?? true) as bool,
       onboarded: (j['onboarded'] ?? false) as bool,
+      lang: j['lang'] as String?,
+      hawkers: strings('hawkers'),
+      carparks: strings('carparks'),
+      watchedBlocks: {
+        for (final e in ((j['watchedBlocks'] as Map?) ?? const {}).entries) '${e.key}': (e.value as num).toInt(),
+      },
+      compareBlocks: [for (final v in (j['compareBlocks'] as List? ?? const [])) '$v'],
     );
   }
 }

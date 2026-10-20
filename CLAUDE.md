@@ -19,21 +19,30 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - `docs/PRD.md` — product requirements (Bahasa Indonesia).
 - `scripts/` — one-off ops scripts (QStash schedule).
 
-## App structure (Phase 1)
-- `lib/models.dart` and `lib/logic.dart` are pure Dart (no Flutter, no I/O) so the
-  WorkManager isolate can use them. Put parsing and decision rules there, with tests in
-  `test/logic_test.dart`.
+## App structure
+- `lib/models.dart`, `lib/data.dart` (bundle models), `lib/logic.dart` and `lib/l10n.dart`
+  (EN/ID strings, class `S`) are pure Dart (no Flutter, no I/O) so the WorkManager isolate
+  can use them. Put parsing and decision rules there, with tests in `test/logic_test.dart`.
+  Every user-facing string goes through `S`, in both languages.
 - `lib/providers.dart` holds all Riverpod providers; widgets in `lib/ui/` only render.
-- Favourites are stored with SharedPreferences (`lib/store.dart`). Drift is planned for
-  Phase 2 when HDB/hawker data needs local queries.
-- Alerts in Phase 1 run on-device: WorkManager every 15 min (`lib/background.dart`) calls
-  the API and shows local notifications. FCM topics come later; keep the alert rules
-  (quiet hours, one per event, max 3 rain alerts a day) in `logic.dart` either way.
-- The offline bus stop list comes from `/data/manifest.json` + `bus_stops.json` on
+- UI: `ui/shell.dart` (tabs Today / Nearby / Homes / More), `ui/theme.dart` (design tokens
+  in `DL`, fonts Plus Jakarta Sans + Barlow Condensed in `assets/fonts/`), `ui/widgets.dart`
+  (HeroHeader, BusPlate, LineChip, BentoTile...). Keep the hero + white card language.
+- Favourites, watched/compared blocks and language are stored with SharedPreferences
+  (`lib/store.dart`). Family share is a `DL1:` code built on-device (`encodeShareCode`).
+- Alerts run on-device: WorkManager every 15 min (`lib/background.dart`) calls the API and
+  reads the cached bundles, then shows local notifications. Keep the alert rules (quiet
+  hours, one per event, max 3 rain alerts a day) in `logic.dart` / `AlertLog`.
+- Static bundles (`/data/manifest.json` + `<name>.json`) come from
   `https://dailylah.tursinalabs.com`, falling back to `https://dailylah-web.vercel.app`
   (same Vercel deployment). Never hard-code a single host; use `webUrls` in `lib/api.dart`.
-  The list is rebuilt daily by `.github/workflows/data.yml` (needs repo secret `LTA_ACCOUNT_KEY`).
+  `backend/app/build_static.py` + `backend/app/bundles.py` build them daily in
+  `.github/workflows/data.yml` (secret `LTA_ACCOUNT_KEY`, optional `DATAGOV_API_KEY`).
+  OneMap geocodes are cached in `backend/data/geocode.json` (committed by the workflow).
+  Optional bundles are best effort: a failing upstream keeps yesterday's file.
+- Homes (HDB) data is computed on the phone from bundles; only CEA lookups hit the API.
 - CI builds a debug APK, so native changes (manifest, Kotlin widget) are compile-checked.
+  Analyze and test failures are emitted as annotations on the commit.
 
 ## Commands
 - Backend: `cd backend && pip install -r requirements-dev.txt && pytest && ruff check . && ruff format --check .`

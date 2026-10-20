@@ -4,8 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'background.dart';
 import 'providers.dart';
 import 'store.dart';
-import 'ui/home.dart';
 import 'ui/setup.dart';
+import 'ui/shell.dart';
+import 'ui/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,13 +27,10 @@ class DailyLahApp extends ConsumerWidget {
     final onboarded = ref.watch(favoritesProvider.select((f) => f.onboarded));
     return MaterialApp(
       title: 'DailyLah',
-      theme: ThemeData(colorSchemeSeed: const Color(0xFFD9480F), useMaterial3: true),
-      darkTheme: ThemeData(
-        colorSchemeSeed: const Color(0xFFD9480F),
-        brightness: Brightness.dark,
-        useMaterial3: true,
-      ),
-      home: onboarded ? const HomePage() : const SetupPage(firstRun: true),
+      debugShowCheckedModeBanner: false,
+      theme: buildTheme(Brightness.light),
+      darkTheme: buildTheme(Brightness.dark),
+      home: onboarded ? const AppShell() : const SetupPage(firstRun: true),
     );
   }
 }

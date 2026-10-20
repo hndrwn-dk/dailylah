@@ -13,7 +13,7 @@ const apiUrl = String.fromEnvironment(
   defaultValue: 'https://dailylah-api.onrender.com',
 );
 
-/// Static site (Vercel) that serves /data/manifest.json and /data/bus_stops.json.
+/// Static site (Vercel) that serves /data/manifest.json and the data bundles.
 /// Override with --dart-define=WEB_URL=... to use a single base URL.
 const webUrlOverride = String.fromEnvironment('WEB_URL');
 
@@ -41,22 +41,34 @@ class DailyLahApi {
 
   Future<Map<String, dynamic>> forecast() => _get('/v1/weather/forecast');
 
+  Future<Map<String, dynamic>> weather(String kind) => _get('/v1/weather/$kind');
+
   Future<Map<String, dynamic>> trainAlerts() => _get('/v1/train-alerts');
 
   Future<Map<String, dynamic>> busArrival(String stopCode) => _get('/v1/bus-arrival/$stopCode');
 
   Future<Map<String, dynamic>> crowd(String line, {String kind = 'realtime'}) =>
       _get('/v1/crowd/$line', {'kind': kind});
+
+  /// Live availability for all HDB car parks: {"data": {"ACB": [total, available]}}.
+  Future<Map<String, dynamic>> carparks() => _get('/v1/carpark');
+
+  /// Available taxi positions, rounded: {"data": [[lat, lng], ...]}.
+  Future<Map<String, dynamic>> taxis() => _get('/v1/taxi');
+
+  /// CEA register lookup by registration number.
+  Future<Map<String, dynamic>> agent(String regNo) => _get('/v1/agent/${Uri.encodeComponent(regNo)}');
 }
 
-/// Offline bus stop list. Cached as a file on the device and refreshed only when the
-/// manifest version changes. Tries each base URL in [webUrls] until one answers.
-class BusStopRepository {
-  BusStopRepository({Dio? dio, List<String>? baseUrls, Future<Directory> Function()? storageDir})
+/// Static data bundles listed in /data/manifest.json. Each file is cached on the
+/// device and downloaded again only when its sha256 in the manifest changes.
+/// Tries each base URL in [webUrls] until one answers.
+class BundleRepository {
+  BundleRepository({Dio? dio, List<String>? baseUrls, Future<Directory> Function()? storageDir})
       : _dio = dio ??
             Dio(BaseOptions(
               connectTimeout: const Duration(seconds: 10),
-              receiveTimeout: const Duration(seconds: 30),
+              receiveTimeout: const Duration(seconds: 60),
             )),
         _baseUrls = baseUrls ?? (webUrlOverride.isNotEmpty ? [webUrlOverride] : webUrls),
         _storageDir = storageDir ?? getApplicationSupportDirectory;
@@ -64,12 +76,15 @@ class BusStopRepository {
   final Dio _dio;
   final List<String> _baseUrls;
   final Future<Directory> Function() _storageDir;
-  List<BusStop>? _memory;
+  Future<(String, Map<String, dynamic>)?>? _manifestFuture;
+  final _memory = <String, Object?>{};
 
   Future<File> _file(String name) async => File('${(await _storageDir()).path}/$name');
 
-  /// Returns the manifest and the base URL that served it, or null if all failed.
-  Future<(String, Map<String, dynamic>)?> _manifest() async {
+  /// The manifest and the base URL that served it, or null when every host failed.
+  Future<(String, Map<String, dynamic>)?> manifest() => _manifestFuture ??= _fetchManifest();
+
+  Future<(String, Map<String, dynamic>)?> _fetchManifest() async {
     for (final base in _baseUrls) {
       try {
         final res = await _dio.get<Map<String, dynamic>>('$base/data/manifest.json');
@@ -78,24 +93,34 @@ class BusStopRepository {
         continue; // try the next base URL
       }
     }
+    _manifestFuture = null; // allow a retry later in this session
     return null;
   }
 
-  Future<List<BusStop>> load() async {
-    if (_memory != null) return _memory!;
-    final cached = await _file('bus_stops.json');
-    final versionFile = await _file('bus_stops.version');
+  /// Version string for one bundle: its sha256 from the manifest, or the manifest
+  /// version for older manifests without per-file entries.
+  static String? versionOf(Map<String, dynamic> manifest, String name) {
+    final files = manifest['files'];
+    if (files is Map && files[name] is Map) return '${(files[name] as Map)['sha256']}';
+    return manifest['version'] as String?;
+  }
+
+  /// Decoded JSON of `/data/<name>.json`, or null when never downloaded and offline.
+  Future<Object?> load(String name) async {
+    if (_memory.containsKey(name)) return _memory[name];
+    final cached = await _file('$name.json');
+    final versionFile = await _file('$name.version');
     String? localVersion;
     if (await versionFile.exists()) localVersion = await versionFile.readAsString();
 
     try {
-      final found = await _manifest();
+      final found = await manifest();
       if (found != null) {
-        final (base, manifest) = found;
-        final remoteVersion = manifest['version'] as String;
-        if (remoteVersion != localVersion || !await cached.exists()) {
+        final (base, m) = found;
+        final remoteVersion = versionOf(m, name);
+        if (remoteVersion != null && (remoteVersion != localVersion || !await cached.exists())) {
           final res = await _dio.get<String>(
-            '$base/data/bus_stops.json',
+            '$base/data/$name.json',
             options: Options(responseType: ResponseType.plain),
           );
           await cached.writeAsString(res.data!);
@@ -106,8 +131,33 @@ class BusStopRepository {
       // Offline or both hosts down: fall back to the cached copy below.
     }
 
-    if (!await cached.exists()) return const [];
-    final rows = jsonDecode(await cached.readAsString()) as List;
+    if (!await cached.exists()) return null;
+    final value = jsonDecode(await cached.readAsString());
+    _memory[name] = value;
+    return value;
+  }
+
+  /// True when the bundle changed since [knownVersion] (used to spot new HDB data).
+  Future<String?> remoteVersion(String name) async {
+    final found = await manifest();
+    return found == null ? null : versionOf(found.$2, name);
+  }
+}
+
+/// Offline bus stop list, on top of [BundleRepository].
+class BusStopRepository {
+  BusStopRepository({Dio? dio, List<String>? baseUrls, Future<Directory> Function()? storageDir})
+      : _bundles = BundleRepository(dio: dio, baseUrls: baseUrls, storageDir: storageDir);
+
+  BusStopRepository.fromBundles(this._bundles);
+
+  final BundleRepository _bundles;
+  List<BusStop>? _memory;
+
+  Future<List<BusStop>> load() async {
+    if (_memory != null) return _memory!;
+    final rows = await _bundles.load('bus_stops');
+    if (rows is! List) return const [];
     _memory = [for (final r in rows) BusStop.fromBundle(r as Map<String, dynamic>)];
     return _memory!;
   }

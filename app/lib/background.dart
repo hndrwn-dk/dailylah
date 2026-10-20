@@ -1,7 +1,9 @@
-/// Background checks (every ~15 min via WorkManager): MRT disruption and rain alerts,
-/// plus refreshing the home screen widget. Runs in its own isolate, so it only uses
+/// Background checks (every ~15 min via WorkManager): MRT, rain, hawker closures,
+/// dengue, heat/lightning and watched HDB blocks, plus refreshing the home screen widget. Runs in its own isolate, so it only uses
 /// plain Dart, SharedPreferences and plugins — no Riverpod.
 library;
+
+import 'dart:ui' show PlatformDispatcher;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -10,6 +12,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'api.dart';
+import 'data.dart';
+import 'l10n.dart';
 import 'logic.dart';
 import 'models.dart';
 import 'store.dart';
@@ -19,13 +23,13 @@ const androidWidgetName = 'DailyLahWidgetProvider';
 
 final notifications = FlutterLocalNotificationsPlugin();
 
-const _channel = AndroidNotificationDetails(
-  'dailylah_alerts',
-  'Peringatan DailyLah',
-  channelDescription: 'Gangguan MRT dan hujan sebelum berangkat',
-  importance: Importance.high,
-  priority: Priority.high,
-);
+AndroidNotificationDetails _channel(S s) => AndroidNotificationDetails(
+      'dailylah_alerts',
+      s.channelName,
+      channelDescription: s.channelDesc,
+      importance: Importance.high,
+      priority: Priority.high,
+    );
 
 Future<void> initNotifications() async {
   const settings = InitializationSettings(
@@ -65,40 +69,59 @@ void callbackDispatcher() {
 }
 
 /// One background pass. Public for testing.
-Future<void> runChecks(DailyLahApi api, DateTime now) async {
-  final fav = await FavoritesStore().load();
+Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles}) async {
+  final store = FavoritesStore();
+  var fav = await store.load();
   if (!fav.isSetUp) return;
   await initNotifications();
+  final s = S(langFromCode(fav.lang ?? PlatformDispatcher.instance.locale.languageCode));
   final log = AlertLog(await SharedPreferences.getInstance());
   final day = dayKey(now);
   final kind = cardFor(now);
+  final quiet = isQuietHour(now);
+  final repo = bundles ?? BundleRepository();
+
+  Future<void> notify(int id, String title, String body) => notifications.show(
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: NotificationDetails(android: _channel(s)),
+      );
+
+  // Each block runs on its own so one failing endpoint does not stop the rest.
+  Future<void> guard(Future<void> Function() f) async {
+    try {
+      await f();
+    } on Object catch (e) {
+      debugPrint('background step failed: $e');
+    }
+  }
 
   String weatherLine = '';
   String mrtLine = '';
 
-  // MRT: always allowed from 06:00, one notification per distinct disruption text.
-  if (fav.lines.isNotEmpty) {
-    final statuses = lineStatuses(await api.trainAlerts(), fav.lines);
-    final bad = statuses.where((s) => s.disrupted).toList();
-    mrtLine = bad.isEmpty ? 'MRT normal' : 'Gangguan ${bad.map((s) => s.line).join(', ')}';
-    if (fav.mrtAlerts && bad.isNotEmpty && !isQuietHour(now)) {
-      final id = 'mrt:$day:${bad.map((s) => '${s.line}${s.detail}').join('|').hashCode}';
-      if (!await log.alreadySent(id)) {
-        await _notify(1, 'Gangguan ${bad.map((s) => s.line).join(', ')}',
-            bad.first.detail?.isNotEmpty == true ? bad.first.detail! : 'Cek jalur alternatif.');
-        await log.markSent(id);
-      }
-    }
-  }
+  // MRT: one notification per distinct disruption text.
+  await guard(() async {
+    if (fav.lines.isEmpty) return;
+    final bad = lineStatuses(await api.trainAlerts(), fav.lines).where((x) => x.disrupted).toList();
+    final lines = bad.map((x) => x.line).join(', ');
+    mrtLine = bad.isEmpty ? 'MRT: ${s.mrtNormal}' : s.mrtAlert(lines);
+    if (!fav.mrtAlerts || bad.isEmpty || quiet) return;
+    final id = 'mrt:$day:${bad.map((x) => '${x.line}${x.detail}').join('|').hashCode}';
+    if (await log.alreadySent(id)) return;
+    await notify(1, s.mrtAlert(lines), bad.first.detail?.isNotEmpty == true ? bad.first.detail! : s.checkAlternatives);
+    await log.markSent(id);
+  });
 
-  // Rain: only in the hour before the usual departure, once per window per day, max 3/day.
+  // Rain: only in the hour before the usual departure, once per window, max 3 a day.
   final origin = fav.places[originFor(kind, fav)];
-  final body = await api.forecast();
-  if (origin != null) {
-    final here = forecastNear(body, origin.lat, origin.lng);
-    if (here != null) weatherLine = '${here.area}: ${here.forecast}';
-  }
-  if (fav.rainAlerts && !isQuietHour(now)) {
+  await guard(() async {
+    final body = await api.forecast();
+    if (origin != null) {
+      final here = forecastNear(body, origin.lat, origin.lng);
+      if (here != null) weatherLine = '${here.area}: ${here.forecast}';
+    }
+    if (!fav.rainAlerts || quiet) return;
     final leave = kind == CardKind.morning ? fav.leaveHome : fav.leaveWork;
     final dest = destinationFor(kind, fav);
     final destPlace = dest == null ? null : fav.places[dest];
@@ -106,32 +129,102 @@ Future<void> runChecks(DailyLahApi api, DateTime now) async {
       if (origin != null) origin,
       if (destPlace != null) destPlace,
     ];
-    if (inRainWindow(now, leave) && log.sentToday(day) < 3) {
-      for (final p in checkPlaces) {
-        final f = forecastNear(body, p.lat, p.lng);
-        if (f == null || !f.isRainy) continue;
-        final id = '$day:rain:${kind.name}';
-        if (await log.alreadySent(id)) break;
-        await _notify(2, 'Bawa payung', '${p.kind.label} (${f.area}): ${f.forecast}');
+    if (!inRainWindow(now, leave) || log.sentToday(day) >= 3) return;
+    for (final p in checkPlaces) {
+      final f = forecastNear(body, p.lat, p.lng);
+      if (f == null || !f.isRainy) continue;
+      final id = '$day:rain:${kind.name}';
+      if (await log.alreadySent(id)) break;
+      await notify(2, s.bringUmbrella, '${s.placeLabel(p.kind.name)} (${f.area}): ${f.forecast}');
+      await log.markSent(id);
+      break;
+    }
+  });
+
+  // Favourite hawker closed tomorrow: in the evening, once per hawker per day.
+  await guard(() async {
+    if (!fav.hawkerAlerts || fav.hawkers.isEmpty || now.hour < 18 || now.hour >= 22) return;
+    final raw = await repo.load('hawkers');
+    if (raw is! List) return;
+    final tomorrow = dateOnly(now).add(const Duration(days: 1));
+    for (final r in raw) {
+      final h = Hawker.fromBundle(r as Map<String, dynamic>);
+      if (!fav.hawkers.contains(h.id) || h.closureOn(tomorrow) == null) continue;
+      final id = 'hawker:$day:${h.id}';
+      if (await log.alreadySent(id)) continue;
+      await notify(3, s.hawkerTomorrowTitle, s.hawkerClosedTomorrow(h.name));
+      await log.markSent(id);
+    }
+  });
+
+  // New dengue cluster within 1 km of home or school: once per cluster.
+  await guard(() async {
+    if (!fav.dengueAlerts || quiet) return;
+    final raw = await repo.load('dengue');
+    final list = raw is Map ? raw['clusters'] : null;
+    if (list is! List) return;
+    final clusters = [for (final c in list) DengueCluster.fromBundle(c as Map<String, dynamic>)];
+    for (final kindToCheck in const [PlaceKind.home, PlaceKind.school]) {
+      final p = fav.places[kindToCheck];
+      if (p == null) continue;
+      for (final (c, _) in dengueNear(clusters, p.lat, p.lng, km: 1)) {
+        final id = 'dengue:${c.locality.hashCode}';
+        if (await log.alreadySent(id)) continue;
+        await notify(4, s.dengueTitle, '${c.locality} · ${s.dengueCases(c.cases)}');
         await log.markSent(id);
-        break;
       }
     }
-  }
+  });
+
+  // High heat stress or lightning near school (or home) during the day.
+  await guard(() async {
+    if (!fav.heatAlerts || now.hour < 7 || now.hour >= 19) return;
+    final p = fav.places[PlaceKind.school] ?? fav.places[PlaceKind.home];
+    if (p == null) return;
+    final place = s.placeLabel(p.kind.name);
+    final heat = heatStressNear(await api.weather('wbgt'), p.lat, p.lng);
+    if (isHighHeat(heat) && !await log.alreadySent('heat:$day')) {
+      await notify(5, s.heatTitle, s.heatAt(place, heat!.toLowerCase()));
+      await log.markSent('heat:$day');
+    }
+    if (lightningNear(await api.weather('lightning'), p.lat, p.lng)) {
+      final id = 'lightning:$day:${now.hour}';
+      if (!await log.alreadySent(id)) {
+        await notify(6, s.heatTitle, s.lightningNear);
+        await log.markSent(id);
+      }
+    }
+  });
+
+  // New resale transactions at watched blocks, checked once a day after 09:00.
+  await guard(() async {
+    if (!fav.homesAlerts || fav.watchedBlocks.isEmpty || now.hour < 9 || quiet) return;
+    if (await log.alreadySent('homes:$day')) return;
+    final raw = await repo.load('hdb_resale');
+    if (raw is! Map<String, dynamic>) return;
+    final resale = ResaleData.fromBundle(raw);
+    final updated = {...fav.watchedBlocks};
+    for (final e in fav.watchedBlocks.entries) {
+      final n = resale.countFor(e.key);
+      if (n > e.value) await notify(7, s.homesTitle, s.newSales(e.key.replaceAll('|', ' '), n - e.value));
+      updated[e.key] = n;
+    }
+    fav = fav.copyWith(watchedBlocks: updated);
+    await store.save(fav);
+    await log.markSent('homes:$day');
+  });
 
   await updateWidget(
-    title: kind == CardKind.morning ? 'Pagi' : 'Sore',
-    body: [weatherLine, mrtLine].where((s) => s.isNotEmpty).join('\n'),
+    title: kind == CardKind.morning ? s.morningCard : s.eveningCard,
+    body: [weatherLine, mrtLine].where((x) => x.isNotEmpty).join('\n'),
+    emptyText: s.loading,
   );
 }
 
-Future<void> _notify(int id, String title, String body) =>
-    notifications.show(id: id, title: title, body: body, notificationDetails: const NotificationDetails(android: _channel));
-
-Future<void> updateWidget({required String title, required String body}) async {
+Future<void> updateWidget({required String title, required String body, String emptyText = 'DailyLah'}) async {
   try {
     await HomeWidget.saveWidgetData<String>('title', 'DailyLah · $title');
-    await HomeWidget.saveWidgetData<String>('body', body.isEmpty ? 'Buka app untuk memuat' : body);
+    await HomeWidget.saveWidgetData<String>('body', body.isEmpty ? emptyText : body);
     await HomeWidget.updateWidget(androidName: androidWidgetName);
   } on Object catch (e) {
     // No widget support (tests, iOS without an extension): nothing to update.

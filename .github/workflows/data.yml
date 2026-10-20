@@ -1,6 +1,7 @@
 name: data
 # Rebuilds static bundles in web/data/ once a day and commits them if they changed.
-# Vercel redeploys web/ on push. Needs repo secret LTA_ACCOUNT_KEY.
+# Vercel redeploys web/ on push. Needs repo secret LTA_ACCOUNT_KEY; DATAGOV_API_KEY is optional.
+# backend/data/geocode.json caches OneMap lookups between runs.
 on:
   schedule:
     - cron: "17 20 * * *" # 04:17 SGT
@@ -11,6 +12,7 @@ on:
       - ".github/workflows/data.yml"
       - "backend/app/build_static.py"
       - "backend/app/sources.py"
+      - "backend/app/bundles.py"
 permissions:
   contents: write
 concurrency:
@@ -19,6 +21,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # The first run geocodes ~13,000 HDB blocks through OneMap (cached afterwards).
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -31,12 +35,14 @@ jobs:
         working-directory: backend
         env:
           LTA_ACCOUNT_KEY: ${{ secrets.LTA_ACCOUNT_KEY }}
+          # Optional: raises data.gov.sg rate limits so the build finishes faster.
+          DATAGOV_API_KEY: ${{ secrets.DATAGOV_API_KEY }}
         run: python -m app.build_static ../web/data
       - name: Commit if changed
         run: |
           # Stage first: plain `git diff` ignores new (untracked) files.
-          git add web/data
-          if git diff --cached --quiet -- web/data; then
+          git add web/data backend/data
+          if git diff --cached --quiet -- web/data backend/data; then
             echo "No data changes"; exit 0
           fi
           git config user.name "dailylah-bot"
