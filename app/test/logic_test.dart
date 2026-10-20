@@ -375,4 +375,20 @@ void main() {
     expect(psiLevel(301), AirLevel.hazardous);
     expect(airNear(null, null, 1.3, 103.8), isNull);
   });
+
+  test('taxi bands and radar offsets', () {
+    final pts = taxiPoints({
+      'data': [
+        [1.3000, 103.8000],
+        [1.3015, 103.8000],
+        [1.3080, 103.8000],
+        'bad',
+      ],
+    });
+    expect(pts, hasLength(3));
+    expect(taxiBands(pts, 1.3, 103.8), (1, 2, 3));
+    final (e, n) = offsetMetres(1.3, 103.8, 1.301, 103.801);
+    expect(n, closeTo(110.5, 1));
+    expect(e, closeTo(111.2, 1));
+  });
 }

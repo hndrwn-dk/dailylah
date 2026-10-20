@@ -820,3 +820,32 @@ AirQuality? airNear(Map<String, dynamic>? psiBody, Map<String, dynamic>? pm25Bod
 /// Nearest points of one emergency layer.
 List<(EPoint, double)> nearestPoints(List<EPoint> all, double lat, double lng, {int limit = 3, double radius = 30000}) =>
     within(all, lat, lng, radius, latOf: (p) => p.lat, lngOf: (p) => p.lng, limit: limit);
+
+
+// ---------------------------------------------------------------- taxis (detail)
+
+/// Taxi positions from /v1/taxi as (lat, lng).
+List<(double, double)> taxiPoints(Map<String, dynamic> apiBody) {
+  final pts = apiBody['data'];
+  if (pts is! List) return const [];
+  return [
+    for (final p in pts)
+      if (p is List && p.length >= 2) ((p[0] as num).toDouble(), (p[1] as num).toDouble()),
+  ];
+}
+
+/// Taxis within 200 m, 500 m and 1 km of a point.
+(int, int, int) taxiBands(List<(double, double)> pts, double lat, double lng) {
+  var a = 0, b = 0, c = 0;
+  for (final (la, lo) in pts) {
+    final d = distanceMeters(lat, lng, la, lo);
+    if (d <= 200) a++;
+    if (d <= 500) b++;
+    if (d <= 1000) c++;
+  }
+  return (a, b, c);
+}
+
+/// Offset in metres (east, north) of a point from an origin; good enough within a few km.
+(double, double) offsetMetres(double lat0, double lng0, double lat, double lng) =>
+    ((lng - lng0) * 111320 * math.cos(lat0 * math.pi / 180), (lat - lat0) * 110540);

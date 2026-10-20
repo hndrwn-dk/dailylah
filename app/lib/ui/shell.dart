@@ -49,6 +49,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
       rentProvider,
       prayerProvider,
       emergencyProvider,
+      taxiStandsProvider,
       busStopsProvider,
     ]) {
       ref.invalidate(p);

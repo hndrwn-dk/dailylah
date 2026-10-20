@@ -13,6 +13,7 @@ Writes (all compact JSON, keys documented in app/lib/data.dart):
     hdb_resale.json  resale medians per block and town, last 24 months
     hdb_rent.json    median rent per town, last 6 months
     prayer.json      MUIS prayer times for the year
+    taxi_stands.json LTA taxi stands and stops
     emergency.json   AEDs, A&E hospitals, fire stations, CHAS clinics, CD shelters
     manifest.json    {"version", "files": {name: {path, count, sha256}}}
 
@@ -31,7 +32,7 @@ import httpx
 
 from . import bundles as b
 from .config import get_settings
-from .sources import Sources, compact_bus_stops
+from .sources import Sources, compact_bus_stops, compact_taxi_stands
 
 log = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ MIN_EXPECTED_STOPS = 4000  # Singapore has ~5,000; fewer means a broken upstream
 GEOCODE_CACHE = Path(__file__).resolve().parent.parent / "data" / "geocode.json"
 
 # Minimum sizes below which a fresh bundle is treated as broken and not published.
-MIN_COUNTS = {"hawkers": 80, "carparks": 1500, "hdb_blocks": 100, "prayer": 300}
+MIN_COUNTS = {"taxi_stands": 100, "hawkers": 80, "carparks": 1500, "hdb_blocks": 100, "prayer": 300}
 
 
 def _dump(obj) -> bytes:
@@ -96,6 +97,10 @@ async def build(
                     return
                 results[name] = data
 
+            async def taxi_stands() -> list[dict]:
+                return compact_taxi_stands(await Sources(settings, client).taxi_stands())
+
+            await attempt("taxi_stands", taxi_stands())
             await attempt("hawkers", b.build_hawkers(dg))
             await attempt("dengue", b.build_dengue(dg))
             await attempt("carparks", b.build_carparks(dg))

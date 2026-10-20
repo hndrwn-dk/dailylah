@@ -96,7 +96,7 @@ void main() {
     expect(find.text('Bring an umbrella'), findsOneWidget);
     expect(find.text('Running normally'), findsOneWidget);
     expect(find.text('Tampines Int · 75009'), findsOneWidget);
-    expect(find.text('Taxis nearby'), findsOneWidget);
+    expect(find.textContaining('Taxis near Home'), findsOneWidget);
     // Bottom navigation with four tabs.
     expect(find.text('Nearby'), findsOneWidget);
     expect(find.text('More'), findsOneWidget);

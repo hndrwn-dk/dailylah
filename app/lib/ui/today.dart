@@ -484,9 +484,14 @@ class _QuickTiles extends ConsumerWidget {
           child: BentoTile(
             icon: Icons.local_taxi_outlined,
             value: '${taxisWithin(taxis, origin.lat, origin.lng)}',
-            caption: s.taxisNearby,
+            caption: '${s.taxisNear(placeTitle(s.placeLabel, origin))} · 500 m',
             tint: DL.amber,
-            onTap: () => _showTaxi(context, s),
+            onTap: () => showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              showDragHandle: true,
+              builder: (_) => _TaxiSheet(origin: origin),
+            ),
           ),
         ),
       if (near != null)
@@ -621,48 +626,186 @@ const _rideApps = [
   ('TADA', 'com.mvlchain.tada'),
 ];
 
-Future<void> _showTaxi(BuildContext context, S s) => showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) {
-        final t = Theme.of(ctx).textTheme;
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(s.bookTaxi, style: t.titleLarge),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    for (final (name, id) in _rideApps)
-                      OutlinedButton(
-                        onPressed: () async {
-                          final ok = await launchUrl(Uri.parse('market://launch?id=$id'));
-                          if (!ok) {
-                            await launchUrl(Uri.parse('https://play.google.com/store/apps/details?id=$id'),
-                                mode: LaunchMode.externalApplication);
-                          }
-                        },
-                        child: Text(name),
+/// Taxi detail: live counts, a small radar of free taxis and stands, nearest stands,
+/// and shortcuts to booking apps.
+class _TaxiSheet extends ConsumerWidget {
+  const _TaxiSheet({required this.origin});
+  final Place origin;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final body = ref.watch(taxiProvider).valueOrNull;
+    final pts = body == null ? const <(double, double)>[] : taxiPoints(body);
+    final (n200, n500, n1k) = taxiBands(pts, origin.lat, origin.lng);
+    final stands = ref.watch(taxiStandsProvider).valueOrNull ?? const <EPoint>[];
+    final nearStands = nearestPoints(stands, origin.lat, origin.lng, limit: 3, radius: 1500);
+    final where = origin.address ?? placeTitle(s.placeLabel, origin);
+
+    Widget count(int n, String label) => Expanded(
+          child: Column(
+            children: [
+              Text('$n', style: t.displaySmall),
+              Text(label, style: t.bodySmall, textAlign: TextAlign.center),
+            ],
+          ),
+        );
+
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.85,
+      maxChildSize: 0.95,
+      builder: (context, controller) => ListView(
+        controller: controller,
+        padding: const EdgeInsets.fromLTRB(18, 0, 22, 24),
+        children: [
+          Text(s.taxisNear(placeTitle(s.placeLabel, origin)), style: t.titleLarge),
+          Text(where, style: t.bodySmall),
+          const SizedBox(height: 14),
+          Panel(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Row(children: [count(n200, s.within200), count(n500, s.within500), count(n1k, s.within1km)]),
+            ),
+          ),
+          Panel(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                children: [
+                  AspectRatio(
+                    aspectRatio: 1,
+                    child: CustomPaint(
+                      painter: _TaxiRadar(
+                        origin: origin,
+                        taxis: pts,
+                        stands: [for (final (p, _) in nearestPoints(stands, origin.lat, origin.lng, limit: 30, radius: 1000)) p],
+                        edge: DL.edge(context),
+                        ring: Theme.of(context).colorScheme.outlineVariant,
                       ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                FilledButton.icon(
-                  icon: const Icon(Icons.call),
-                  label: Text(s.callCdg),
-                  onPressed: () => launchUrl(Uri(scheme: 'tel', path: '65521111')),
-                ),
-                const SizedBox(height: 8),
-                Text(s.bookTaxiNote, style: t.bodySmall),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(s.taxiMapLegend, style: t.bodySmall, textAlign: TextAlign.center),
+                ],
+              ),
+            ),
+          ),
+          SectionTitle(s.taxiStands, padding: const EdgeInsets.fromLTRB(4, 4, 4, 10)),
+          Panel(
+            child: Column(
+              children: [
+                if (nearStands.isEmpty) EmptyNote(stands.isEmpty ? s.bundlesLoading : s.notAvailable),
+                for (final (p, d) in nearStands)
+                  ListTile(
+                    leading: const Icon(Icons.local_taxi_outlined),
+                    title: Text(p.name),
+                    subtitle: Text('${s.metres(d)} · ${p.detail}'),
+                    trailing: IconButton(
+                      tooltip: s.directions,
+                      icon: const Icon(Icons.directions_walk),
+                      onPressed: () => launchUrl(
+                        Uri.parse('https://www.google.com/maps/dir/?api=1&travelmode=walking&destination=${p.lat},${p.lng}'),
+                        mode: LaunchMode.externalApplication,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
-        );
-      },
+          SectionTitle(s.bookTaxi, padding: const EdgeInsets.fromLTRB(4, 4, 4, 10)),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              for (final (name, id) in _rideApps)
+                OutlinedButton(
+                  onPressed: () async {
+                    final ok = await launchUrl(Uri.parse('market://launch?id=$id'));
+                    if (!ok) {
+                      await launchUrl(Uri.parse('https://play.google.com/store/apps/details?id=$id'),
+                          mode: LaunchMode.externalApplication);
+                    }
+                  },
+                  child: Text(name),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            icon: const Icon(Icons.call),
+            label: Text(s.callCdg),
+            onPressed: () => launchUrl(Uri(scheme: 'tel', path: '65521111')),
+          ),
+          const SizedBox(height: 10),
+          Text('${s.taxiLive} ${s.bookTaxiNote}', style: t.bodySmall),
+        ],
+      ),
     );
+  }
+}
+
+/// 1 km radar around a place: rings, free taxis as dots, taxi stands as squares.
+class _TaxiRadar extends CustomPainter {
+  _TaxiRadar({required this.origin, required this.taxis, required this.stands, required this.edge, required this.ring});
+  final Place origin;
+  final List<(double, double)> taxis;
+  final List<EPoint> stands;
+  final Color edge;
+  final Color ring;
+
+  static const _range = 1000.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero);
+    final r = size.shortestSide / 2 - 6;
+    final ringPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..color = ring;
+    for (final m in const [250.0, 500.0, 1000.0]) {
+      canvas.drawCircle(c, r * m / _range, ringPaint);
+    }
+    Offset at(double lat, double lng) {
+      final (e, n) = offsetMetres(origin.lat, origin.lng, lat, lng);
+      return c + Offset(e / _range * r, -n / _range * r);
+    }
+
+    final stand = Paint()..color = DL.teal;
+    final standEdge = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..color = edge;
+    for (final p in stands) {
+      final o = at(p.lat, p.lng);
+      if ((o - c).distance > r) continue;
+      final rect = Rect.fromCenter(center: o, width: 12, height: 12);
+      canvas.drawRect(rect, stand);
+      canvas.drawRect(rect, standEdge);
+    }
+    final dot = Paint()..color = DL.amber;
+    final dotEdge = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..color = edge;
+    for (final (la, lo) in taxis) {
+      final o = at(la, lo);
+      if ((o - c).distance > r) continue;
+      canvas.drawCircle(o, 5, dot);
+      canvas.drawCircle(o, 5, dotEdge);
+    }
+    // You are here.
+    canvas.drawCircle(c, 9, Paint()..color = edge);
+    canvas.drawCircle(c, 5, Paint()..color = DL.card);
+    final tp = TextPainter(
+      text: TextSpan(text: 'N', style: TextStyle(color: edge, fontSize: 12, fontWeight: FontWeight.w800)),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset(c.dx - tp.width / 2, 0));
+  }
+
+  @override
+  bool shouldRepaint(_TaxiRadar old) => old.taxis != taxis || old.stands != stands || old.edge != edge;
+}

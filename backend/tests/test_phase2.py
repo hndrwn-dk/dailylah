@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.config import get_settings
 from app.main import app
-from app.sources import compact_carparks, compact_taxis
+from app.sources import compact_carparks, compact_taxi_stands, compact_taxis
 
 LTA = "https://datamall2.mytransport.sg/ltaodataservice"
 CARPARK = "https://api.data.gov.sg/v1/transport/carpark-availability"
@@ -131,3 +131,26 @@ def test_agent_not_found_returns_empty(client):
 
 def test_agent_validates_format(client):
     assert client.get("/v1/agent/12345").status_code == 422
+
+
+def test_compact_taxi_stands():
+    rows = [
+        {
+            "TaxiCode": "A01",
+            "Latitude": 1.30365,
+            "Longitude": 103.83253,
+            "Bfa": "Yes",
+            "Ownership": "LTA",
+            "Type": "Stand",
+            "Name": "Orchard Rd along Ion Orchard",
+        },
+        {"TaxiCode": "B02", "Latitude": "x", "Longitude": 103.8},
+    ]
+    assert compact_taxi_stands(rows) == [
+        {
+            "n": "Orchard Rd along Ion Orchard",
+            "la": 1.30365,
+            "lo": 103.83253,
+            "d": "Taxi stand · Barrier-free",
+        }
+    ]
