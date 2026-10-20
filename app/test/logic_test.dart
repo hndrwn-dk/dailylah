@@ -2,7 +2,7 @@ import 'package:dailylah/data.dart';
 import 'package:dailylah/l10n.dart';
 import 'package:dailylah/logic.dart';
 import 'package:dailylah/models.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_test/flutter_test.dart' hide within;
 
 const tampines = BusStop(code: '75009', name: 'Tampines Int', road: 'Tampines Ctrl 1', lat: 1.354, lng: 103.943);
 const raffles = BusStop(code: '03011', name: 'Raffles Pl', road: 'Collyer Quay', lat: 1.284, lng: 103.851);
