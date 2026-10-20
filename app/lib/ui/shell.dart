@@ -60,15 +60,31 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   Widget build(BuildContext context) {
     final s = ref.watch(stringsProvider);
     final index = ref.watch(shellTabProvider);
+    final paper = Theme.of(context).scaffoldBackgroundColor;
     return Scaffold(
+      // Content scrolls behind the floating pill instead of stopping at a hard edge.
+      extendBody: true,
       body: IndexedStack(
         index: index,
         children: const [TodayPage(), NearbyPage(), HomesPage(), MorePage()],
       ),
-      bottomNavigationBar: SafeArea(
+      bottomNavigationBar: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [paper.withValues(alpha: 0), paper.withValues(alpha: 0.92)],
+            stops: const [0, 0.55],
+          ),
+        ),
+        child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 6, 22, 12),
-          child: PillNav(
+          padding: const EdgeInsets.fromLTRB(18, 14, 22, 12),
+          child: Center(
+            heightFactor: 1,
+            child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: PillNav(
             index: index,
             onTap: (i) => ref.read(shellTabProvider.notifier).state = i,
             items: [
@@ -78,6 +94,9 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
               (Icons.more_horiz, Icons.more_horiz, s.tabMore),
             ],
           ),
+            ),
+          ),
+        ),
         ),
       ),
     );

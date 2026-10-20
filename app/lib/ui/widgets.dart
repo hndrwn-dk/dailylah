@@ -599,6 +599,9 @@ class _PulseState extends State<Pulse> with SingleTickerProviderStateMixin {
 }
 
 
+/// Space to leave under scrolling content so the floating nav never covers it.
+const kNavClearance = 96.0;
+
 /// Floating pill navigation: an outlined capsule with a hard shadow; the selected tab
 /// grows into an amber pill with its label.
 class PillNav extends StatelessWidget {

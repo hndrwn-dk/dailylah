@@ -191,21 +191,36 @@ double? highCrowdShare(Map<String, dynamic> apiBody) {
 
 enum CardKind { morning, evening }
 
-/// Morning card until halfway between the usual departure times (14:00 without
+/// Work or school place in use today: work if today is one of its days, else school.
+Place? commutePlace(Favorites fav, DateTime now) {
+  for (final k in const [PlaceKind.work, PlaceKind.school]) {
+    final p = fav.places[k];
+    if (p != null && p.days.contains(now.weekday)) return p;
+  }
+  return null;
+}
+
+/// Usual (go, back) times for today's commute, falling back to the global defaults.
+(TimeOfDayHM, TimeOfDayHM) commuteTimes(Favorites fav, DateTime now) {
+  final p = commutePlace(fav, now) ?? fav.places[PlaceKind.work] ?? fav.places[PlaceKind.school];
+  return (p?.go ?? fav.leaveHome, p?.back ?? fav.leaveWork);
+}
+
+/// Morning card until halfway between the usual go and back times (14:00 without
 /// settings), evening card after.
 CardKind cardFor(DateTime now, [Favorites? fav]) {
   final m = now.hour * 60 + now.minute;
-  if (fav == null || fav.leaveWork.minutes <= fav.leaveHome.minutes) {
-    return m < 14 * 60 ? CardKind.morning : CardKind.evening;
-  }
-  final switchAt = (fav.leaveHome.minutes + fav.leaveWork.minutes) ~/ 2;
-  return m < switchAt ? CardKind.morning : CardKind.evening;
+  if (fav == null) return m < 14 * 60 ? CardKind.morning : CardKind.evening;
+  final (go, back) = commuteTimes(fav, now);
+  if (back.minutes <= go.minutes) return m < 14 * 60 ? CardKind.morning : CardKind.evening;
+  return m < (go.minutes + back.minutes) ~/ 2 ? CardKind.morning : CardKind.evening;
 }
 
-/// True on the user's work or school days when they have a work or school place.
-bool isCommuteDay(Favorites fav, DateTime now) =>
-    fav.workDays.contains(now.weekday) &&
-    (fav.places.containsKey(PlaceKind.work) || fav.places.containsKey(PlaceKind.school));
+/// True when today is a work or school day for one of those places.
+bool isCommuteDay(Favorites fav, DateTime now) => commutePlace(fav, now) != null;
+
+/// MRT lines to watch for alerts: the starred ones, or every line when none is starred.
+Set<String> watchedLines(Favorites fav) => fav.lines.isEmpty ? trainLines.keys.toSet() : fav.lines;
 
 /// Custom places that fit today (weekday or weekend).
 List<int> extrasForToday(Favorites fav, DateTime now) {
@@ -219,8 +234,10 @@ List<int> extrasForToday(Favorites fav, DateTime now) {
 }
 
 /// The place whose stops/weather the card should show.
-PlaceKind originFor(CardKind kind, Favorites fav) {
+PlaceKind originFor(CardKind kind, Favorites fav, [DateTime? now]) {
   if (kind == CardKind.evening) {
+    final p = commutePlace(fav, now ?? DateTime.now());
+    if (p != null) return p.kind;
     if (fav.places.containsKey(PlaceKind.work)) return PlaceKind.work;
     if (fav.places.containsKey(PlaceKind.school)) return PlaceKind.school;
   }
@@ -228,8 +245,10 @@ PlaceKind originFor(CardKind kind, Favorites fav) {
 }
 
 /// The place the user is heading to (used for rain at destination).
-PlaceKind? destinationFor(CardKind kind, Favorites fav) {
+PlaceKind? destinationFor(CardKind kind, Favorites fav, [DateTime? now]) {
   if (kind == CardKind.morning) {
+    final p = commutePlace(fav, now ?? DateTime.now());
+    if (p != null) return p.kind;
     if (fav.places.containsKey(PlaceKind.work)) return PlaceKind.work;
     if (fav.places.containsKey(PlaceKind.school)) return PlaceKind.school;
     return null;
@@ -574,8 +593,8 @@ List<TodayAlert> todayAlerts({
     }
   }
 
-  if (trainAlerts != null && fav.lines.isNotEmpty) {
-    final bad = lineStatuses(trainAlerts, fav.lines).where((l) => l.disrupted).map((l) => l.line).toList();
+  if (trainAlerts != null) {
+    final bad = lineStatuses(trainAlerts, watchedLines(fav)).where((l) => l.disrupted).map((l) => l.line).toList();
     if (bad.isNotEmpty) out.add(TodayAlert(AlertKind.mrt, s.mrtAlert(bad.join(', '))));
   }
 
@@ -589,8 +608,8 @@ List<TodayAlert> todayAlerts({
   }
 
   if (forecast != null) {
-    final dest = destinationFor(kind, fav);
-    final candidates = [fav.places[originFor(kind, fav)], if (dest != null) fav.places[dest]];
+    final dest = destinationFor(kind, fav, now);
+    final candidates = [fav.places[originFor(kind, fav, now)], if (dest != null) fav.places[dest]];
     for (final p in candidates) {
       if (p == null) continue;
       final f = forecastNear(forecast, p.lat, p.lng);

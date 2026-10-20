@@ -33,7 +33,7 @@ class MorePage extends ConsumerWidget {
 
     return Scaffold(
       body: ListView(
-        padding: EdgeInsets.zero,
+        padding: const EdgeInsets.only(bottom: kNavClearance),
         children: [
           HeroHeader(
             child: Column(
@@ -93,7 +93,12 @@ class MorePage extends ConsumerWidget {
                 ),
                 SectionTitle(s.extras),
                 Panel(
-                  child: toggle(s.showPrayer, fav.showPrayer, (f, v) => f.copyWith(showPrayer: v), sub: s.showPrayerSub),
+                  child: Column(
+                    children: [
+                      toggle(s.showPrayer, fav.showPrayer, (f, v) => f.copyWith(showPrayer: v), sub: s.showPrayerSub),
+                      toggle(s.showHalal, fav.showHalal, (f, v) => f.copyWith(showHalal: v), sub: s.showHalalSub),
+                    ],
+                  ),
                 ),
                 Panel(
                   child: _NavTile(
