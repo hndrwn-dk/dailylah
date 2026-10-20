@@ -84,14 +84,19 @@ class DataGov:
         return resp
 
     async def rows(
-        self, resource_id: str, sort: str | None = None, stop=None, max_rows: int = 400_000
+        self,
+        resource_id: str,
+        sort: str | None = None,
+        stop=None,
+        max_rows: int = 400_000,
+        page: int = PAGE,
     ) -> list[dict]:
         """All rows of a datastore table, page by page. `stop(row)` ends paging early
         (used with a descending sort to fetch only recent rows)."""
         out: list[dict] = []
         offset = 0
         while offset < max_rows:
-            params: dict[str, Any] = {"resource_id": resource_id, "limit": PAGE, "offset": offset}
+            params: dict[str, Any] = {"resource_id": resource_id, "limit": page, "offset": offset}
             if sort:
                 params["sort"] = sort
             result = (await self._get(DATASTORE_URL, params)).json().get("result", {})
@@ -100,9 +105,9 @@ class DataGov:
                 if stop and stop(row):
                     return out
                 out.append(row)
-            if len(records) < PAGE:
+            if len(records) < page:
                 break
-            offset += PAGE
+            offset += page
         return out
 
     async def geojson(self, dataset_id: str) -> dict:
@@ -680,7 +685,8 @@ async def build_rent(dg: DataGov, today: date) -> dict:
 
 
 async def build_blocks(dg: DataGov, geo: Geocoder, block_town: dict[str, str]) -> list[dict]:
-    blocks = residential_blocks(await dg.rows(HDB_PROPERTY), block_town)
+    # Wide rows: smaller pages, or the API answers 413 Payload Too Large.
+    blocks = residential_blocks(await dg.rows(HDB_PROPERTY, page=2000), block_town)
     buildings = compact_buildings(await dg.geojson(HDB_BUILDINGS))
     # One OneMap lookup per street (~600, cached) helps tell apart streets with the
     # same block numbers.
