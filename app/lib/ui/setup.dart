@@ -102,7 +102,7 @@ class SetupPage extends ConsumerWidget {
 
     Widget placeCard(PlaceKind kind, {required bool required}) {
       final place = fav.places[kind];
-      return Card(
+      return Panel(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 8, 6),
           child: Column(
@@ -221,6 +221,8 @@ class SetupPage extends ConsumerWidget {
                 placeCard(PlaceKind.home, required: true),
                 placeCard(PlaceKind.work, required: false),
                 placeCard(PlaceKind.school, required: false),
+                SectionTitle(s.otherPlaces),
+                const _ExtraPlaces(),
                 SectionTitle(s.yourLines),
                 Wrap(
                   spacing: 8,
@@ -236,7 +238,7 @@ class SetupPage extends ConsumerWidget {
                   ],
                 ),
                 SectionTitle(s.departureTimes),
-                Card(
+                Panel(
                   child: Column(
                     children: [
                       ListTile(
@@ -287,6 +289,127 @@ class _LanguagePills extends ConsumerWidget {
             selected: lang == l,
             onSelected: (_) => ref.read(favoritesProvider.notifier).update((f) => f.copyWith(lang: l.name)),
           ),
+      ],
+    );
+  }
+}
+
+
+/// Custom favourite places with their own names (max [Favorites.maxExtraPlaces]).
+class _ExtraPlaces extends ConsumerWidget {
+  const _ExtraPlaces();
+
+  Future<String?> _askName(BuildContext context, WidgetRef ref, {String? initial}) {
+    final s = ref.read(stringsProvider);
+    final ctrl = TextEditingController(text: initial);
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(s.placeName),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          maxLength: 24,
+          decoration: InputDecoration(hintText: s.placeNameHint),
+          onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text(s.cancel)),
+          FilledButton(onPressed: () => Navigator.of(ctx).pop(ctrl.text.trim()), child: Text(s.save)),
+        ],
+      ),
+    );
+  }
+
+  Future<Place?> _withAddress(BuildContext context, WidgetRef ref, String name) async {
+    final s = ref.read(stringsProvider);
+    final hit = await Navigator.of(context).push<AddressHit>(
+      MaterialPageRoute(builder: (_) => AddressPickerPage(title: s.addressFor(name))),
+    );
+    if (hit == null) return null;
+    final all = await ref.read(busStopsProvider.future).catchError((_) => const <BusStop>[]);
+    final stops = nearestStops(all, hit.lat, hit.lng, limit: 2)
+        .where((st) => distanceMeters(hit.lat, hit.lng, st.lat, st.lng) <= 600)
+        .toList();
+    return Place(
+      kind: PlaceKind.other,
+      name: name,
+      stops: stops,
+      address: hit.label,
+      postal: hit.postal.isEmpty ? null : hit.postal,
+      addrLat: hit.lat,
+      addrLng: hit.lng,
+    );
+  }
+
+  Future<void> _add(BuildContext context, WidgetRef ref) async {
+    final name = await _askName(context, ref);
+    if (name == null || name.isEmpty || !context.mounted) return;
+    final place = await _withAddress(context, ref, name);
+    if (place != null) await ref.read(favoritesProvider.notifier).addExtra(place);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final fav = ref.watch(favoritesProvider);
+    final n = ref.read(favoritesProvider.notifier);
+    final t = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(s.otherPlacesHint, style: t.bodySmall)),
+        for (var i = 0; i < fav.extraPlaces.length; i++)
+          Panel(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+              child: Row(
+                children: [
+                  const Icon(Icons.star_outline),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(fav.extraPlaces[i].name ?? '', style: t.titleSmall),
+                        Text(fav.extraPlaces[i].address ?? '', style: t.bodySmall),
+                        if (fav.extraPlaces[i].stops.isNotEmpty)
+                          Text(fav.extraPlaces[i].stops.map((x) => x.name).join(' · '), style: t.bodySmall),
+                      ],
+                    ),
+                  ),
+                  PopupMenuButton<String>(
+                    onSelected: (v) async {
+                      final p = fav.extraPlaces[i];
+                      if (v == 'rename') {
+                        final name = await _askName(context, ref, initial: p.name);
+                        if (name != null && name.isNotEmpty) await n.setExtra(i, p.copyWith(name: name));
+                      } else if (v == 'address') {
+                        final np = await _withAddress(context, ref, p.name ?? '');
+                        if (np != null) await n.setExtra(i, np);
+                      } else {
+                        await n.removeExtra(i);
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      PopupMenuItem(value: 'rename', child: Text(s.rename)),
+                      PopupMenuItem(value: 'address', child: Text(s.changeAddress)),
+                      PopupMenuItem(value: 'remove', child: Text(s.remove)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (fav.extraPlaces.length < Favorites.maxExtraPlaces)
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            icon: const Icon(Icons.add_location_alt_outlined),
+            label: Text(s.addPlace),
+            onPressed: () => _add(context, ref),
+          )
+        else
+          Text(s.maxPlaces(Favorites.maxExtraPlaces), style: t.bodySmall),
       ],
     );
   }

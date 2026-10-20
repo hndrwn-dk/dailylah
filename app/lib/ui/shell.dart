@@ -5,6 +5,7 @@ import '../providers.dart';
 import 'homes.dart';
 import 'more.dart';
 import 'nearby.dart';
+import 'theme.dart';
 import 'today.dart';
 
 final _tabProvider = StateProvider<int>((ref) => 0);
@@ -65,11 +66,14 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
       ),
       bottomNavigationBar: DecoratedBox(
         decoration: BoxDecoration(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 20, offset: const Offset(0, -4)),
+            BoxShadow(color: DL.ink.withValues(alpha: 0.22), blurRadius: 30, spreadRadius: -18, offset: const Offset(0, -14)),
           ],
         ),
-        child: NavigationBar(
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          child: NavigationBar(
           selectedIndex: index,
           onDestinationSelected: (i) => ref.read(_tabProvider.notifier).state = i,
           destinations: [
@@ -78,6 +82,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
             NavigationDestination(icon: const Icon(Icons.apartment_outlined), selectedIcon: const Icon(Icons.apartment), label: s.tabHomes),
             NavigationDestination(icon: const Icon(Icons.more_horiz), selectedIcon: const Icon(Icons.more_horiz), label: s.tabMore),
           ],
+          ),
         ),
       ),
     );

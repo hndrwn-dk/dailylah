@@ -40,7 +40,7 @@ class AboutDailyLahPage extends ConsumerWidget {
           const SizedBox(height: 12),
           Text(s.aboutIntro, style: t.bodyLarge),
           const SizedBox(height: 16),
-          Card(
+          Panel(
             child: Column(
               children: [
                 ListTile(

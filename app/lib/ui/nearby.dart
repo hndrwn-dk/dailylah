@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data.dart';
@@ -15,12 +16,77 @@ import 'widgets.dart';
 class NearbyPage extends ConsumerWidget {
   const NearbyPage({super.key});
 
+  /// The place the tab is about, from the selected key.
+  static Place? resolve(String key, Favorites fav, Place? adhoc) {
+    if (key == 'adhoc') return adhoc;
+    if (key.startsWith('extra:')) {
+      final i = int.tryParse(key.substring(6)) ?? -1;
+      return i >= 0 && i < fav.extraPlaces.length ? fav.extraPlaces[i] : null;
+    }
+    final kind = PlaceKind.values.where((k) => k.name == key).firstOrNull;
+    return kind == null ? null : fav.places[kind];
+  }
+
+  Future<void> _useHere(BuildContext context, WidgetRef ref) async {
+    final s = ref.read(stringsProvider);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
+      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
+        messenger.showSnackBar(SnackBar(content: Text(s.locationDenied)));
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      ref.read(adhocPlaceProvider.notifier).state = Place(
+        kind: PlaceKind.other,
+        name: s.hereNow,
+        address: s.myLocation,
+        addrLat: pos.latitude,
+        addrLng: pos.longitude,
+      );
+      ref.read(nearbyKeyProvider.notifier).state = 'adhoc';
+    } on Object {
+      messenger.showSnackBar(SnackBar(content: Text(s.locationUnavailable)));
+    }
+  }
+
+  Future<void> _search(BuildContext context, WidgetRef ref) async {
+    final s = ref.read(stringsProvider);
+    final hit = await Navigator.of(context).push<AddressHit>(
+      MaterialPageRoute(builder: (_) => AddressPickerPage(title: s.searchPlace)),
+    );
+    if (hit == null) return;
+    ref.read(adhocPlaceProvider.notifier).state = Place(
+      kind: PlaceKind.other,
+      name: hit.label,
+      address: hit.label,
+      postal: hit.postal.isEmpty ? null : hit.postal,
+      addrLat: hit.lat,
+      addrLng: hit.lng,
+    );
+    ref.read(nearbyKeyProvider.notifier).state = 'adhoc';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final fav = ref.watch(favoritesProvider);
-    final selected = ref.watch(nearbyPlaceProvider);
-    final place = fav.places[selected] ?? fav.places[PlaceKind.home];
+    final key = ref.watch(nearbyKeyProvider);
+    final adhoc = ref.watch(adhocPlaceProvider);
+    final place = resolve(key, fav, adhoc) ?? fav.places[PlaceKind.home];
+    String label(String k) => s.placeLabel(k);
+
+    final pills = <(String, IconData, String)>[
+      for (final p in fav.places.values) (p.kind.name, PlaceSelector.iconOf(p.kind), label(p.kind.name)),
+      for (var i = 0; i < fav.extraPlaces.length; i++)
+        ('extra:$i', Icons.star_outline, placeTitle(label, fav.extraPlaces[i])),
+      if (adhoc != null) ('adhoc', adhoc.address == s.myLocation ? Icons.near_me : Icons.place, adhoc.name ?? ''),
+      ('here', Icons.my_location, s.hereNow),
+      ('search', Icons.search, s.searchPlace),
+    ];
 
     return DefaultTabController(
       length: 6,
@@ -32,14 +98,21 @@ class NearbyPage extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 8),
-                  PageTitle(s.tabNearby, subtitle: place == null ? null : s.placeLabel(place.kind.name)),
+                  PageTitle(s.tabNearby, subtitle: place == null ? null : (place.address ?? placeTitle(label, place))),
                   const SizedBox(height: 14),
-                  PlaceSelector(
-                    places: fav.places.keys,
-                    selected: selected,
-                    labelOf: (k) => s.placeLabel(k.name),
-                    onChanged: (k) => ref.read(nearbyPlaceProvider.notifier).state = k,
+                  PillRow(
+                    items: pills,
+                    selected: place == null ? '' : (key == 'adhoc' || key.startsWith('extra:') ? key : place.kind.name),
                     onDark: true,
+                    onTap: (k) {
+                      if (k == 'here') {
+                        _useHere(context, ref);
+                      } else if (k == 'search') {
+                        _search(context, ref);
+                      } else {
+                        ref.read(nearbyKeyProvider.notifier).state = k;
+                      }
+                    },
                   ),
                 ],
               ),
@@ -47,7 +120,7 @@ class NearbyPage extends ConsumerWidget {
             TabBar(
               isScrollable: true,
               tabAlignment: TabAlignment.start,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
               tabs: [
                 Tab(text: s.hawkers),
                 Tab(text: s.parking),
@@ -114,7 +187,7 @@ class _HawkerTab extends ConsumerWidget {
           final next = h.nextClosure(today);
           final isFav = fav.hawkers.contains(h.id);
           final alt = closedToday == null ? const <(Hawker, double)>[] : openAlternatives(all, h, today, limit: 1);
-          return Card(
+          return Panel(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 4, 12),
               child: Row(
@@ -215,9 +288,9 @@ class _ParkingTab extends ConsumerWidget {
             ),
           Text(s.parkingHint, style: t.bodySmall),
           const SizedBox(height: 10),
-          if (list.isEmpty) Card(child: EmptyNote(all.isEmpty ? s.bundlesLoading : s.notAvailable)),
+          if (list.isEmpty) Panel(child: EmptyNote(all.isEmpty ? s.bundlesLoading : s.notAvailable)),
           for (final (c, d) in list)
-            Card(
+            Panel(
               child: InkWell(
                 onTap: () => ref.read(favoritesProvider.notifier).toggleCarpark(c.id),
                 child: Padding(
@@ -294,7 +367,7 @@ class _SchoolsTab extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SectionTitle(title),
-            Card(
+            Panel(
               child: Column(
                 children: [
                   if (items.isEmpty) EmptyNote(s.bundlesLoading, icon: Icons.cloud_download_outlined),
@@ -365,10 +438,10 @@ class _DengueTab extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           if (near.isEmpty)
-            Card(child: EmptyNote(s.dengueNone, icon: Icons.check_circle_outline))
+            Panel(child: EmptyNote(s.dengueNone, icon: Icons.check_circle_outline))
           else
             for (final (c, d) in near)
-              Card(
+              Panel(
                 child: ListTile(
                   leading: Icon(Icons.bug_report_outlined, color: d <= 1000 ? DL.amber : null),
                   title: Text(c.locality),
@@ -410,7 +483,7 @@ class _WeekendTab extends ConsumerWidget {
           ),
           for (final (title, kind, icon) in groups) ...[
             SectionTitle(title),
-            Card(
+            Panel(
               child: Column(
                 children: [
                   for (final (p, d) in within(pois.of(kind), place.lat, place.lng, 5000,
@@ -453,9 +526,9 @@ class _PrayerTab extends ConsumerWidget {
         children: [
           SectionTitle(s.prayerTimes, padding: const EdgeInsets.fromLTRB(4, 4, 4, 10)),
           if (times == null)
-            Card(child: EmptyNote(s.notAvailable))
+            Panel(child: EmptyNote(s.notAvailable))
           else
-            Card(
+            Panel(
               child: Column(
                 children: [
                   for (var i = 0; i < times.length && i < s.prayerNames.length; i++)

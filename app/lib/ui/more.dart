@@ -62,7 +62,7 @@ class MorePage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 SectionTitle(s.yourSetup),
-                Card(
+                Panel(
                   child: Column(
                     children: [
                       _NavTile(
@@ -81,7 +81,7 @@ class MorePage extends ConsumerWidget {
                   ),
                 ),
                 SectionTitle(s.alertsTitle),
-                Card(
+                Panel(
                   child: Column(
                     children: [
                       toggle(s.alertMrt, fav.mrtAlerts, (f, v) => f.copyWith(mrtAlerts: v)),
@@ -94,7 +94,7 @@ class MorePage extends ConsumerWidget {
                   ),
                 ),
                 SectionTitle(s.language),
-                Card(
+                Panel(
                   child: RadioGroup<AppLang>(
                     groupValue: lang,
                     onChanged: (v) {
@@ -109,7 +109,7 @@ class MorePage extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-                Card(
+                Panel(
                   child: _NavTile(
                     icon: Icons.info_outline,
                     title: s.about,
@@ -223,9 +223,9 @@ class _FamilySharePageState extends ConsumerState<FamilySharePage> {
           Text(s.familyShareIntro, style: t.bodyMedium),
           const SizedBox(height: 16),
           if (code == null)
-            Card(child: EmptyNote(s.pickHomeFirst))
+            Panel(child: EmptyNote(s.pickHomeFirst))
           else
-            Card(
+            Panel(
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
