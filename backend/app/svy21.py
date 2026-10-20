@@ -26,7 +26,9 @@ _A6 = 35 * _E6 / 3072
 
 def _meridian_distance(lat_deg: float) -> float:
     r = math.radians(lat_deg)
-    return _A * ((_A0 * r) - (_A2 * math.sin(2 * r)) + (_A4 * math.sin(4 * r)) - (_A6 * math.sin(6 * r)))
+    return _A * (
+        (_A0 * r) - (_A2 * math.sin(2 * r)) + (_A4 * math.sin(4 * r)) - (_A6 * math.sin(6 * r))
+    )
 
 
 def to_latlon(northing: float, easting: float) -> tuple[float, float]:
@@ -64,9 +66,7 @@ def to_latlon(northing: float, easting: float) -> tuple[float, float]:
     lat = (
         lat_prime
         - lat_factor * ((e_prime * x) / 2)
-        + lat_factor
-        * ((e_prime * x3) / 24)
-        * ((-4 * psi2) + (9 * psi) * (1 - t2) + (12 * t2))
+        + lat_factor * ((e_prime * x3) / 24) * ((-4 * psi2) + (9 * psi) * (1 - t2) + (12 * t2))
         - lat_factor
         * ((e_prime * x5) / 720)
         * (

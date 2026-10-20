@@ -102,6 +102,11 @@ class S {
   String get closedNow => _t('Closed today', 'Tutup hari ini');
   String closedRange(String from, String to, String reason) =>
       _t('Closed $from–$to ($reason)', 'Tutup $from–$to ($reason)');
+  String closureReason(String code) => switch (code) {
+        'cleaning' => _t('cleaning', 'pembersihan'),
+        'works' => _t('repairs', 'perbaikan'),
+        _ => code,
+      };
   String get favourite => _t('Favourite', 'Favorit');
   String get noUpcomingClosure => _t('No closure scheduled', 'Tidak ada jadwal tutup');
   String get dengueNone => _t('No active dengue cluster within 2 km.', 'Tidak ada cluster dengue aktif dalam 2 km.');

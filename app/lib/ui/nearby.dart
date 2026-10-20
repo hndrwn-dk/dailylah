@@ -118,7 +118,7 @@ class _HawkerTab extends ConsumerWidget {
                   ? s.closedNow
                   : next == null
                       ? '${s.metres(d)} · ${s.noUpcomingClosure}'
-                      : '${s.metres(d)} · ${s.closedRange(shortDate(next.from), shortDate(next.to), next.reason)}',
+                      : '${s.metres(d)} · ${s.closedRange(shortDate(next.from), shortDate(next.to), s.closureReason(next.reason))}',
               style: closedToday != null ? t.bodySmall?.copyWith(color: const Color(0xFFB45309)) : t.bodySmall,
             ),
             trailing: IconButton(
