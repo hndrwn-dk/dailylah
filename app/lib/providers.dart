@@ -150,6 +150,15 @@ final busRoutesProvider = FutureProvider<BusRoutes>((ref) async {
   return m == null ? BusRoutes.empty : BusRoutes.fromBundle(m);
 });
 
+final mrtStationsProvider =
+    FutureProvider<List<MrtStation>>((ref) => _list(ref, 'mrt_stations', MrtStation.fromBundle));
+
+/// One-off destination for "Go somewhere" (a searched address), memory only.
+final goAdhocDestProvider = StateProvider<Place?>((ref) => null);
+
+/// Start of a "Go somewhere" trip: "home", "work", "school" or "here".
+final goFromKeyProvider = StateProvider<String>((ref) => 'home');
+
 final bicycleRacksProvider =
     FutureProvider<List<EPoint>>((ref) => _list(ref, 'bicycle_racks', EPoint.fromBundle));
 

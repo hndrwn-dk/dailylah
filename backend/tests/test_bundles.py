@@ -438,3 +438,35 @@ def test_emergency_layers():
         "lo": 103.68,
         "t": "68615755",
     }
+
+
+def test_mrt_stations_merge_codes_and_exits():
+    exits = {
+        "features": [
+            {
+                "properties": {"STATION_NA": "MARINE PARADE MRT STATION"},
+                "geometry": {"type": "Point", "coordinates": [103.905, 1.302]},
+            },
+            {
+                "properties": {"STATION_NA": "PROMENADE MRT STATION"},
+                "geometry": {"type": "Point", "coordinates": [103.861, 1.293]},
+            },
+            {
+                "properties": {"STATION_NA": "PROMENADE MRT STATION"},
+                "geometry": {"type": "Point", "coordinates": [103.861, 1.295]},
+            },
+            {
+                "properties": {"STATION_NA": "NOWHERE MRT STATION"},
+                "geometry": {"type": "Point", "coordinates": [103.8, 1.3]},
+            },
+        ]
+    }
+    rows = [
+        {"stn_code": "CC4", "mrt_station_english": "Promenade"},
+        {"stn_code": "DT15", "mrt_station_english": "Promenade"},
+    ]
+    out = {x["n"]: x for x in b.compact_mrt_stations(exits, rows)}
+    assert out["Promenade"]["c"] == ["CC4", "DT15"]
+    assert out["Promenade"]["la"] == 1.294
+    assert out["Marine Parade"]["c"] == ["TE26"]
+    assert "Nowhere" not in out

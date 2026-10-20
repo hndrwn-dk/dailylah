@@ -201,6 +201,18 @@ class S {
   String get taxiFromHere => 'Taxi from';
   String get addPlacesHint => 'Add places like your favourite food spot in Setup to see them here.';
 
+  String get mrtOption => 'By MRT';
+  String walkTo(String station, String dist) => 'Walk $dist to $station';
+  String rideLine(String line, int? stops) => stops == null ? 'Ride $line' : 'Ride $line · ~$stops stops';
+  String get changeTrains => 'Change trains on the way';
+  String alightAt(String station, String dist) => 'Get off at $station · $dist walk';
+  String get mrtRouteInMaps => 'MRT route in Google Maps';
+  String get noMrtNearby => 'No MRT station within a 15-minute walk of both ends.';
+  String mrtLineDisrupted(String line) => '$line is disrupted right now';
+  String get from => 'From';
+  String get to => 'To';
+  String get anyAddress => 'Search';
+
   // emergency
   String get emergency => 'Emergency';
   String get call995 => '995 Ambulance & fire';

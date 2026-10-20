@@ -16,6 +16,7 @@ Writes (all compact JSON, keys documented in app/lib/data.dart):
     taxi_stands.json LTA taxi stands and stops
     bus_routes.json  stop order per bus service and direction (for "buses that go home")
     bicycle_racks.json LTA bicycle racks
+    mrt_stations.json MRT/LRT stations with line codes (for the MRT part of a trip)
     emergency.json   AEDs, A&E hospitals, fire stations, CHAS clinics, CD shelters
     manifest.json    {"version", "files": {name: {path, count, sha256}}}
 
@@ -117,6 +118,7 @@ async def build(
 
             await attempt("bus_routes", bus_routes())
             await attempt("bicycle_racks", b.build_racks(dg))
+            await attempt("mrt_stations", b.build_mrt_stations(dg))
             await attempt("hawkers", b.build_hawkers(dg))
             await attempt("dengue", b.build_dengue(dg))
             await attempt("carparks", b.build_carparks(dg))

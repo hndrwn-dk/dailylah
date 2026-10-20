@@ -470,4 +470,40 @@ void main() {
     }, a, b);
     expect(hits.single.$2, 'On the way');
   });
+
+  test('station codes map to lines', () {
+    expect(lineOfCode('TE26'), 'TEL');
+    expect(lineOfCode('CG1'), 'EWL');
+    expect(lineOfCode('STC'), 'SLRT');
+    expect(lineOfCode('XX1'), isNull);
+  });
+
+  test('mrt plan finds a direct line and stop count', () {
+    const stations = [
+      MrtStation(name: 'Marine Parade', codes: ['TE26'], lat: 1.3027, lng: 103.9066),
+      MrtStation(name: 'Marina Bay', codes: ['NS27', 'CE2', 'TE20'], lat: 1.2762, lng: 103.8546),
+      MrtStation(name: 'Promenade', codes: ['CC4', 'DT15'], lat: 1.2931, lng: 103.8610),
+    ];
+    const home = Place(kind: PlaceKind.home, addrLat: 1.3030, addrLng: 103.9060);
+    const office = Place(kind: PlaceKind.work, addrLat: 1.2765, addrLng: 103.8550);
+    final plan = mrtPlan(stations, home, office)!;
+    expect(plan.board.name, 'Marine Parade');
+    expect(plan.alight.name, 'Marina Bay');
+    expect(plan.line, 'TEL');
+    expect(plan.stops, 6);
+    const temasek = Place(kind: PlaceKind.work, addrLat: 1.2935, addrLng: 103.8612);
+    expect(mrtPlan(stations, home, temasek)!.direct, isFalse);
+  });
+
+  test('trip start stops keep only the side with a direct bus', () {
+    const towardWork = BusStop(code: '92059', name: 'A', road: 'R', lat: 1.3, lng: 103.9);
+    const towardHome = BusStop(code: '92051', name: 'B', road: 'R', lat: 1.3001, lng: 103.9001);
+    final routes = BusRoutes.fromBundle({
+      '36|1': [['92059', 0], ['02151', 8]],
+      '36|2': [['02159', 0], ['92051', 8]],
+    });
+    expect(tripStartStops([towardWork, towardHome], routes, {'02151'}).map((x) => x.code), ['92059']);
+    expect(tripStartStops([towardWork, towardHome], routes, {'99999'}).map((x) => x.code), ['92059']);
+    expect(tripStartStops([towardWork, towardHome], BusRoutes.empty, {'02151'}).length, 2);
+  });
 }

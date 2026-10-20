@@ -1017,3 +1017,78 @@ List<(String, String)> incidentsOnTrip(Map<String, dynamic>? apiBody, Place from
         ('${r[0]}', '${r[3]}'),
   ];
 }
+
+
+/// Start stops for a trip: those with a direct bus to [destStops] (the right side of the road),
+/// or the first [fallback] candidates when none have one or routes are not loaded.
+/// [unknown] caps the list when routes are not loaded (default: all).
+List<BusStop> tripStartStops(List<BusStop> candidates, BusRoutes routes, Set<String> destStops,
+    {int fallback = 1, int? unknown}) {
+  if (routes.routes.isEmpty || destStops.isEmpty) return candidates.take(unknown ?? candidates.length).toList();
+  final good = [for (final st in candidates) if (directRides(routes, st.code, destStops).isNotEmpty) st];
+  return good.isNotEmpty ? good.take(3).toList() : candidates.take(fallback).toList();
+}
+
+// ---------------------------------------------------------------- trips: MRT
+
+/// Line key (as in [trainLines]) for a station code like "TE26" or "CG1".
+String? lineOfCode(String code) {
+  final m = RegExp(r'^([A-Z]+)').firstMatch(code);
+  return switch (m?.group(1)) {
+    'NS' => 'NSL',
+    'EW' || 'CG' => 'EWL',
+    'CC' || 'CE' => 'CCL',
+    'DT' => 'DTL',
+    'NE' => 'NEL',
+    'TE' => 'TEL',
+    'BP' => 'BPL',
+    'SE' || 'SW' || 'STC' => 'SLRT',
+    'PE' || 'PW' || 'PTC' => 'PLRT',
+    _ => null,
+  };
+}
+
+/// Nearest stations at both ends and, when they share a line, the rough number of stops.
+class MrtPlan {
+  const MrtPlan({
+    required this.board,
+    required this.walkToBoard,
+    required this.alight,
+    required this.walkFromAlight,
+    this.line,
+    this.stops,
+  });
+  final MrtStation board;
+  final double walkToBoard;
+  final MrtStation alight;
+  final double walkFromAlight;
+
+  /// Shared line (e.g. "TEL") when no change of train is needed.
+  final String? line;
+  final int? stops;
+  bool get direct => line != null;
+}
+
+MrtPlan? mrtPlan(List<MrtStation> stations, Place from, Place to, {double maxWalk = 1200}) {
+  final a = nearest(stations, from.lat, from.lng, latOf: (x) => x.lat, lngOf: (x) => x.lng);
+  final b = nearest(stations, to.lat, to.lng, latOf: (x) => x.lat, lngOf: (x) => x.lng);
+  if (a == null || b == null || a.$2 > maxWalk || b.$2 > maxWalk || a.$1.name == b.$1.name) return null;
+  String? line;
+  int? stops;
+  int? num(String c) => int.tryParse(RegExp(r'(\d+)').firstMatch(c)?.group(1) ?? '');
+  for (final ca in a.$1.codes) {
+    for (final cb in b.$1.codes) {
+      final la = lineOfCode(ca);
+      final pa = RegExp(r'^[A-Z]+').firstMatch(ca)?.group(0);
+      final pb = RegExp(r'^[A-Z]+').firstMatch(cb)?.group(0);
+      if (la == null || pa != pb || la != lineOfCode(cb)) continue;
+      final na = num(ca), nb = num(cb);
+      final n = na == null || nb == null ? null : (na - nb).abs();
+      if (line == null || (n != null && (stops == null || n < stops))) {
+        line = la;
+        stops = n;
+      }
+    }
+  }
+  return MrtPlan(board: a.$1, walkToBoard: a.$2, alight: b.$1, walkFromAlight: b.$2, line: line, stops: stops);
+}
