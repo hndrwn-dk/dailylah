@@ -1,0 +1,17 @@
+{
+ "counts": {
+  "bus_stops": 5209,
+  "carparks": 2273,
+  "dengue": 7,
+  "hawkers": 108,
+  "hdb_rent": 26,
+  "hdb_resale": 9232,
+  "poi": 5100,
+  "prayer": 365
+ },
+ "errors": {
+  "hdb_blocks": "HTTPStatusError(\"Client error '413 Payload Too Large' for url 'https://data.gov.sg/api/action/datastore_search?resource_id=d_17f5382f26140b1fdae0ba2ef6239d2f&limit=10000&offset=0'\\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/413\")"
+ },
+ "geocode_cache": 179,
+ "geocoded_new": 59
+}
