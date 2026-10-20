@@ -44,6 +44,7 @@ HDB_PROPERTY = "d_17f5382f26140b1fdae0ba2ef6239d2f"
 RESALE = "d_8b84c4ee58e3cfc0ece0d773c8ca6abc"
 RENTING_OUT = "d_c9f57187485a850908655db0e8cfe651"
 PRAYER_TIMES = "d_d441e7242e78efc566024dd5b0d9829c"  # 2026 timetable
+BICYCLE_RACKS = "d_937424cca6d1617288a82a7aeb89f76d"  # LTA racks near MRT stations
 AEDS = "d_4e6b82c58a8a832f6f1fee5dfa6d47ea"  # SCDF public access AEDs
 FIRE_STATIONS = "d_5d3d2c4f3556edb5d8c995f42e603b24"
 CHAS_CLINICS = "d_548c33ea2d99e29ec63a7cc9edcccedc"
@@ -839,3 +840,24 @@ async def build_emergency(dg: DataGov, geo: Geocoder) -> dict:
     await safe("shelter", shelters())
     await safe("ae", hospitals())
     return out
+
+
+def compact_racks(geo: dict) -> list[dict]:
+    """LTA bicycle racks: {"n": "12 racks · sheltered", "la", "lo"}."""
+    out = []
+    for f in geo.get("features", []):
+        desc = str((f.get("properties") or {}).get("Description", ""))
+        c = centroid(f.get("geometry"))
+        if not c:
+            continue
+        count = html_field(desc, "RACK_CNT")
+        sheltered = html_field(desc, "SHLTR_IND").lower() == "yes"
+        label = f"{count} bicycle racks" if count else "Bicycle racks"
+        out.append(
+            {"n": label + (" · sheltered" if sheltered else ""), "la": _r(c[0]), "lo": _r(c[1])}
+        )
+    return out
+
+
+async def build_racks(dg: DataGov) -> list[dict]:
+    return compact_racks(await dg.geojson(BICYCLE_RACKS))

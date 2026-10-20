@@ -22,8 +22,8 @@ String oneMapStatic(double lat, double lng, {int zoom = 17, int width = 512, int
 
 /// Directions in the phone's Google Maps app (falls back to the browser). The origin is
 /// left out, so Maps uses the current location on the phone itself.
-Future<void> openDirections(double lat, double lng, {double? distance}) {
-  final mode = distance != null && distance <= 1500 ? 'walking' : 'transit';
+Future<void> openDirections(double lat, double lng, {double? distance, String? mode}) {
+  mode ??= distance != null && distance <= 1500 ? 'walking' : 'transit';
   return launchUrl(
     Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=$mode'),
     mode: LaunchMode.externalApplication,

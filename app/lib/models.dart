@@ -41,6 +41,15 @@ class BusStop {
   Map<String, dynamic> toJson() => {'c': code, 'n': name, 'r': road, 'la': lat, 'lo': lng};
 }
 
+/// How someone usually travels to a place.
+enum TravelMode { transit, car, motorcycle, bicycle, taxi }
+
+TravelMode travelModeFrom(String v) =>
+    TravelMode.values.firstWhere((m) => m.name == v, orElse: () => TravelMode.transit);
+
+/// When a custom place is usually visited.
+enum PlaceWhen { anytime, weekdays, weekends }
+
 /// One OneMap search result.
 class AddressHit {
   const AddressHit({
@@ -74,9 +83,18 @@ class Place {
     this.addrLat,
     this.addrLng,
     this.name,
+    this.modes = const [TravelMode.transit],
+    this.when = PlaceWhen.anytime,
   });
 
   final PlaceKind kind;
+
+  /// How the user usually gets here; the first one is the default for the trip card.
+  final List<TravelMode> modes;
+  TravelMode get mode => modes.isEmpty ? TravelMode.transit : modes.first;
+
+  /// For custom places: when it is usually visited.
+  final PlaceWhen when;
 
   /// User's own name for a custom place, e.g. "Mum's house".
   final String? name;
@@ -95,9 +113,11 @@ class Place {
   /// What to show for this place: the address, else the first stop's name.
   String get label => address ?? (stops.isEmpty ? '' : stops.first.name);
 
-  Place copyWith({List<BusStop>? stops, String? name}) => Place(
+  Place copyWith({List<BusStop>? stops, String? name, List<TravelMode>? modes, PlaceWhen? when}) => Place(
         kind: kind,
         name: name ?? this.name,
+        modes: modes ?? this.modes,
+        when: when ?? this.when,
         stops: stops ?? this.stops,
         address: address,
         postal: postal,
@@ -113,6 +133,8 @@ class Place {
         if (addrLat != null) 'la': addrLat,
         if (addrLng != null) 'lo': addrLng,
         if (name != null) 'name': name,
+        'modes': [for (final m in modes) m.name],
+        if (when != PlaceWhen.anytime) 'when': when.name,
       };
 
   factory Place.fromJson(Map<String, dynamic> j) => Place(
@@ -125,6 +147,10 @@ class Place {
         addrLat: (j['la'] as num?)?.toDouble(),
         addrLng: (j['lo'] as num?)?.toDouble(),
         name: j['name'] as String?,
+        modes: j['modes'] is List && (j['modes'] as List).isNotEmpty
+            ? [for (final m in j['modes'] as List) travelModeFrom('$m')]
+            : const [TravelMode.transit],
+        when: PlaceWhen.values.firstWhere((w) => w.name == j['when'], orElse: () => PlaceWhen.anytime),
       );
 }
 
@@ -166,6 +192,7 @@ class Favorites {
     this.watchedBlocks = const {},
     this.compareBlocks = const [],
     this.extraPlaces = const [],
+    this.workDays = const {1, 2, 3, 4, 5},
   });
 
   final Map<PlaceKind, Place> places;
@@ -201,6 +228,9 @@ class Favorites {
   final List<Place> extraPlaces;
   static const maxExtraPlaces = 5;
 
+  /// Weekdays (1 = Monday … 7 = Sunday) the user goes to work or school.
+  final Set<int> workDays;
+
   bool get isSetUp => places.containsKey(PlaceKind.home);
 
   Favorites copyWith({
@@ -221,6 +251,7 @@ class Favorites {
     Map<String, int>? watchedBlocks,
     List<String>? compareBlocks,
     List<Place>? extraPlaces,
+    Set<int>? workDays,
   }) =>
       Favorites(
         places: places ?? this.places,
@@ -240,6 +271,7 @@ class Favorites {
         watchedBlocks: watchedBlocks ?? this.watchedBlocks,
         compareBlocks: compareBlocks ?? this.compareBlocks,
         extraPlaces: extraPlaces ?? this.extraPlaces,
+        workDays: workDays ?? this.workDays,
       );
 
   Map<String, dynamic> toJson() => {
@@ -260,6 +292,7 @@ class Favorites {
         'watchedBlocks': watchedBlocks,
         'compareBlocks': compareBlocks,
         if (extraPlaces.isNotEmpty) 'extra': [for (final p in extraPlaces) p.toJson()],
+        'workDays': workDays.toList()..sort(),
       };
 
   factory Favorites.fromJson(Map<String, dynamic> j) {
@@ -291,6 +324,9 @@ class Favorites {
       extraPlaces: [
         for (final p in (j['extra'] as List? ?? const [])) Place.fromJson(p as Map<String, dynamic>),
       ],
+      workDays: j['workDays'] is List
+          ? {for (final d in j['workDays'] as List) (d as num).toInt()}
+          : const {1, 2, 3, 4, 5},
     );
   }
 }

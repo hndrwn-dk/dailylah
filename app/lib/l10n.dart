@@ -144,6 +144,50 @@ class S {
   String get moreAtHaze => 'More at haze.gov.sg';
   String get seeHawkers => 'See hawkers nearby';
 
+  // trips and routines
+  String modeLabel(String mode) => switch (mode) {
+        'transit' => 'Bus/MRT',
+        'car' => 'Car',
+        'motorcycle' => 'Motorbike',
+        'bicycle' => 'Bicycle',
+        _ => 'Taxi',
+      };
+  String get usuallyBy => 'Usually by';
+  String get usuallyByHint => 'Pick one or more. The first is used on the Today card.';
+  String get whenLabel => 'When';
+  String whenName(String w) => switch (w) {
+        'weekdays' => 'Weekdays',
+        'weekends' => 'Weekends',
+        _ => 'Anytime',
+      };
+  String get workDaysTitle => 'Work or school days';
+  List<String> get dayShort => const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  String tripTitle(String from, String to) => '$from → $to';
+  String busesTo(String place) => 'Buses to $place';
+  String rideInfo(int stops, double km, String alight) =>
+      '$stops stops · ${km.toStringAsFixed(1)} km · get off at $alight';
+  String get noDirectBus => 'No direct bus from this stop. Check the full route in Google Maps.';
+  String get routeInMaps => 'Route in Google Maps';
+  String get otherBuses => 'Other buses at this stop';
+  String get changeStop => 'Change stop';
+  String get goSomewhere => 'Go somewhere';
+  String get goSomewhereHint => 'Pick a place to see how to get there now.';
+  String get fromHome => 'From Home';
+  String get fromHere => 'From here';
+  String parkingAt(String place) => 'Parking near $place';
+  String get carLots => 'car lots';
+  String get bikeLots => 'motorbike lots';
+  String get noParkingData => 'No live parking data near this place.';
+  String get trafficOnWay => 'Traffic on the way';
+  String get noIncidents => 'No reported incidents near your route.';
+  String get driveInMaps => 'Drive with Google Maps';
+  String get rideInMaps => 'Ride with Google Maps';
+  String get bicycleParking => 'Bicycle parking near';
+  String get noRacks => 'No LTA bicycle racks within 800 m.';
+  String get cycleWeatherTip => 'Check rain, haze and heat above before you ride.';
+  String get taxiFromHere => 'Taxi from';
+  String get addPlacesHint => 'Add places like your favourite food spot in Setup to see them here.';
+
   // emergency
   String get emergency => 'Emergency';
   String get call995 => '995 Ambulance & fire';
@@ -263,6 +307,7 @@ class S {
   String get pickStop => 'Pick a stop';
   String get addAnotherStop => 'Add another stop';
   String get yourLines => 'MRT/LRT lines you use';
+  String get departureTimesSub => 'The Today card switches from the morning to the evening trip halfway between these times.';
   String get departureTimes => 'Usual departure times';
   String get leaveHome => 'Leave home';
   String get leaveWork => 'Leave work';

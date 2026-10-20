@@ -154,3 +154,129 @@ def test_compact_taxi_stands():
             "d": "Taxi stand · Barrier-free",
         }
     ]
+
+
+def test_compact_parking_incidents_routes():
+    from app.sources import compact_bus_routes, compact_incidents, compact_parking
+
+    rows = [
+        {
+            "CarParkID": "1",
+            "Development": "Suntec City",
+            "Location": "1.29375 103.85718",
+            "AvailableLots": 2206,
+            "LotType": "C",
+            "Agency": "LTA",
+        },
+        {
+            "CarParkID": "ACB",
+            "Development": "BLK 270/271",
+            "Location": "1.30 103.85",
+            "AvailableLots": 12,
+            "LotType": "Y",
+            "Agency": "HDB",
+        },
+        {"CarParkID": "H1", "Location": "1.3 103.8", "AvailableLots": 3, "LotType": "H"},
+        {"CarParkID": "bad", "Location": "", "AvailableLots": 1, "LotType": "C"},
+    ]
+    assert compact_parking(rows) == [
+        ["1", "LTA", 1.29375, 103.85718, "C", 2206, "Suntec City"],
+        ["ACB", "HDB", 1.3, 103.85, "Y", 12, "BLK 270/271"],
+    ]
+    assert compact_incidents(
+        [
+            {
+                "Type": "Accident",
+                "Latitude": 1.4264,
+                "Longitude": 103.7818,
+                "Message": "Accident on SLE",
+            }
+        ]
+    ) == [["Accident", 1.4264, 103.7818, "Accident on SLE"]]
+    routes = compact_bus_routes(
+        [
+            {
+                "ServiceNo": "10",
+                "Direction": 1,
+                "StopSequence": 2,
+                "BusStopCode": "76059",
+                "Distance": 0.6,
+            },
+            {
+                "ServiceNo": "10",
+                "Direction": 1,
+                "StopSequence": 1,
+                "BusStopCode": "75009",
+                "Distance": 0,
+            },
+            {
+                "ServiceNo": "10",
+                "Direction": 2,
+                "StopSequence": 1,
+                "BusStopCode": "10009",
+                "Distance": 0,
+            },
+        ]
+    )
+    assert routes == {"10|1": [["75009", 0.0], ["76059", 0.6]], "10|2": [["10009", 0.0]]}
+
+
+@respx.mock
+def test_poll_fills_parking_and_incidents(client):
+    respx.get(url__startswith="https://api-open.data.gov.sg").mock(
+        return_value=httpx.Response(200, json={"code": 0, "data": {}})
+    )
+    respx.get(CARPARK).mock(return_value=httpx.Response(200, json=CARPARK_PAYLOAD))
+    respx.get(f"{LTA}/TrainServiceAlerts").mock(
+        return_value=httpx.Response(200, json={"value": {}})
+    )
+    respx.get(f"{LTA}/Taxi-Availability").mock(return_value=httpx.Response(200, json={"value": []}))
+    respx.get(f"{LTA}/CarParkAvailabilityv2").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [
+                    {
+                        "CarParkID": "1",
+                        "Location": "1.29 103.85",
+                        "AvailableLots": 5,
+                        "LotType": "C",
+                        "Agency": "LTA",
+                        "Development": "X",
+                    }
+                ]
+            },
+        )
+    )
+    respx.get(f"{LTA}/TrafficIncidents").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [{"Type": "Roadwork", "Latitude": 1.3, "Longitude": 103.8, "Message": "M"}]
+            },
+        )
+    )
+    result = client.post("/internal/poll").json()
+    assert result["lta:parking"] == "changed"
+    assert client.get("/v1/parking").json()["data"][0][0] == "1"
+    assert client.get("/v1/traffic-incidents").json()["data"][0][0] == "Roadwork"
+
+
+def test_compact_racks():
+    from app import bundles as b
+
+    desc = (
+        "<table><tr> <th>SHLTR_IND</th> <td>Yes</td> </tr>"
+        "<tr> <th>RACK_CNT</th> <td>12</td> </tr></table>"
+    )
+    out = b.compact_racks(
+        {
+            "features": [
+                {
+                    "properties": {"Description": desc},
+                    "geometry": {"type": "Point", "coordinates": [103.8, 1.3]},
+                }
+            ]
+        }
+    )
+    assert out == [{"n": "12 bicycle racks · sheltered", "la": 1.3, "lo": 103.8}]

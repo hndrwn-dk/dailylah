@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+const office = BusStop(code: '03011', name: 'Raffles Pl', road: 'Collyer Quay', lat: 1.284, lng: 103.851);
 const home = BusStop(code: '75009', name: 'Tampines Int', road: 'Tampines Ctrl 1', lat: 1.354, lng: 103.943);
 
 class FakeApi extends DailyLahApi {
@@ -53,6 +54,12 @@ class FakeApi extends DailyLahApi {
       };
 
   @override
+  Future<Map<String, dynamic>> parking() async => {'data': []};
+
+  @override
+  Future<Map<String, dynamic>> trafficIncidents() async => {'data': []};
+
+  @override
   Future<Map<String, dynamic>> crowd(String line, {String kind = 'realtime'}) async => {'data': {}};
 }
 
@@ -85,7 +92,10 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     const fav = Favorites(
-      places: {PlaceKind.home: Place(kind: PlaceKind.home, stops: [home])},
+      places: {
+        PlaceKind.home: Place(kind: PlaceKind.home, stops: [home]),
+        PlaceKind.work: Place(kind: PlaceKind.work, stops: [office]),
+      },
       lines: {'NSL'},
       onboarded: true,
     );
@@ -96,6 +106,8 @@ void main() {
     expect(find.text('Bring an umbrella'), findsOneWidget);
     expect(find.text('Running normally'), findsOneWidget);
     expect(find.text('Tampines Int · 75009'), findsOneWidget);
+    expect(find.text('Home → Work'), findsOneWidget);
+    expect(find.text('Go somewhere'), findsOneWidget);
     expect(find.textContaining('Taxis near Home'), findsOneWidget);
     // Bottom navigation with four tabs.
     expect(find.text('Nearby'), findsOneWidget);

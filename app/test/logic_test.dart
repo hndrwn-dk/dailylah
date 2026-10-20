@@ -391,4 +391,73 @@ void main() {
     expect(n, closeTo(110.5, 1));
     expect(e, closeTo(111.2, 1));
   });
+
+  test('routines: card switch, commute days, extras, direct buses', () {
+    const fav = Favorites(
+      places: {
+        PlaceKind.home: Place(kind: PlaceKind.home, stops: [tampines]),
+        PlaceKind.work: Place(kind: PlaceKind.work, stops: [raffles], modes: [TravelMode.car, TravelMode.transit]),
+      },
+      leaveHome: TimeOfDayHM(8, 0),
+      leaveWork: TimeOfDayHM(20, 0),
+      extraPlaces: [
+        Place(kind: PlaceKind.other, name: 'Makan', addrLat: 1.3, addrLng: 103.85, when: PlaceWhen.weekends),
+        Place(kind: PlaceKind.other, name: 'Gym', addrLat: 1.31, addrLng: 103.86),
+      ],
+    );
+    // Halfway between 08:00 and 20:00 is 14:00.
+    expect(cardFor(DateTime(2026, 10, 20, 13, 59), fav), CardKind.morning);
+    expect(cardFor(DateTime(2026, 10, 20, 14, 0), fav), CardKind.evening);
+    expect(isCommuteDay(fav, DateTime(2026, 10, 20)), isTrue); // Tuesday
+    expect(isCommuteDay(fav, DateTime(2026, 10, 24)), isFalse); // Saturday
+    expect(extrasForToday(fav, DateTime(2026, 10, 20)), [1]);
+    expect(extrasForToday(fav, DateTime(2026, 10, 24)), [0, 1]);
+    final back = Favorites.fromJson(fav.toJson());
+    expect(back.places[PlaceKind.work]!.mode, TravelMode.car);
+    expect(back.extraPlaces.first.when, PlaceWhen.weekends);
+    expect(back.workDays, {1, 2, 3, 4, 5});
+
+    final routes = BusRoutes.fromBundle({
+      '10|1': [
+        ['A', 0.0],
+        ['B', 1.0],
+        ['C', 2.5],
+      ],
+      '10|2': [
+        ['C', 0.0],
+        ['A', 2.5],
+      ],
+      '20|1': [
+        ['B', 0.0],
+        ['A', 1.0],
+      ],
+    });
+    final rides = directRides(routes, 'A', {'C'});
+    expect(rides.keys, ['10']);
+    expect(rides['10']!.stops, 2);
+    expect(rides['10']!.km, 2.5);
+    expect(directRides(routes, 'C', {'A'})['10']!.alightAt, 'A');
+    expect(directRides(routes, 'B', {'C', 'A'}).keys.toSet(), {'10', '20'});
+  });
+
+  test('parking and incidents on the way', () {
+    final lots = parseParking({
+      'data': [
+        ['1', 'LTA', 1.3005, 103.8, 'C', 120, 'Mall'],
+        ['2', 'HDB', 1.3006, 103.8, 'Y', 8, 'Blk 1'],
+        ['3', 'LTA', 1.4, 103.8, 'C', 50, 'Far'],
+      ],
+    });
+    expect(parkingNear(lots, 1.3, 103.8, 'C').single.$1.name, 'Mall');
+    expect(parkingNear(lots, 1.3, 103.8, 'Y').single.$1.available, 8);
+    const a = Place(kind: PlaceKind.home, addrLat: 1.30, addrLng: 103.80);
+    const b = Place(kind: PlaceKind.work, addrLat: 1.30, addrLng: 103.90);
+    final hits = incidentsOnTrip({
+      'data': [
+        ['Accident', 1.301, 103.85, 'On the way'],
+        ['Roadwork', 1.40, 103.85, 'Far away'],
+      ],
+    }, a, b);
+    expect(hits.single.$2, 'On the way');
+  });
 }

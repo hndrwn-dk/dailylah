@@ -11,6 +11,7 @@ import '../providers.dart';
 import 'place_sheet.dart';
 import 'stop_picker.dart';
 import 'theme.dart';
+import 'trip.dart';
 import 'widgets.dart';
 
 /// Today: morning card before 14:00, evening card after.
@@ -24,6 +25,9 @@ class TodayPage extends ConsumerWidget {
     final kind = ref.watch(cardKindProvider);
     final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
     final origin = fav.places[originFor(kind, fav)];
+    final commute = isCommuteDay(fav, now);
+    final destKind = destinationFor(kind, fav);
+    final dest = destKind == null ? null : fav.places[destKind];
     final alerts = ref.watch(todayAlertsProvider);
     final t = Theme.of(context).textTheme;
 
@@ -52,16 +56,25 @@ class TodayPage extends ConsumerWidget {
       ref.invalidate(pm25Provider);
       ref.invalidate(carparkLiveProvider);
       ref.invalidate(taxiProvider);
+      ref.invalidate(parkingLiveProvider);
+      ref.invalidate(incidentsProvider);
       await ref.read(forecastProvider.future).catchError((_) => <String, dynamic>{});
     }
 
     final dests = <Widget>[
       for (final a in alerts) AlertBanner(icon: _alertIcon(a.kind), text: a.text),
       if (origin != null) _WeatherTiles(origin: origin),
-      if (fav.lines.isNotEmpty) _MrtCard(lines: fav.lines, showCrowd: kind == CardKind.evening),
-      if (origin != null)
-        for (final stop in origin.stops)
-          BusStopCard(stop: stop, title: s.busFrom(s.placeLabel(origin.kind.name))),
+      if (commute && origin != null && dest != null)
+        TripSection(
+          fromKey: origin.kind.name,
+          from: origin,
+          to: dest,
+          modeKey: (kind == CardKind.morning ? dest : origin).kind.name,
+          modePlace: kind == CardKind.morning ? dest : origin,
+        ),
+      if (fav.lines.isNotEmpty && (!commute || ref.watch(modeOverrideProvider)[(kind == CardKind.morning ? dest : origin)?.kind.name] == TravelMode.transit || ((kind == CardKind.morning ? dest : origin)?.mode ?? TravelMode.transit) == TravelMode.transit))
+        _MrtCard(lines: fav.lines, showCrowd: kind == CardKind.evening),
+      const GoSomewhere(),
       if (origin != null) _QuickTiles(origin: origin),
       if (fav.carparks.isNotEmpty) const _SavedParking(),
       const SizedBox(height: 8),
@@ -328,7 +341,10 @@ class BusStopCard extends ConsumerWidget {
               error: (_, __) => EmptyNote(s.busesUnavailable),
               data: (list) => list.isEmpty
                   ? EmptyNote(s.noBusesNow)
-                  : Column(children: [for (final e in list.take(8)) _BusRow(eta: e)]),
+                  : Column(children: [
+                      for (final (i, e) in list.take(8).indexed)
+                        BusRow(eta: e, pulse: i == list.indexWhere((x) => x.minutes == 0)),
+                    ]),
             ),
           ],
         ),
@@ -337,18 +353,36 @@ class BusStopCard extends ConsumerWidget {
   }
 }
 
-class _BusRow extends ConsumerWidget {
-  const _BusRow({required this.eta});
+class BusRow extends ConsumerWidget {
+  const BusRow({super.key, required this.eta, this.pulse = true, this.note});
   final BusEta eta;
+
+  /// Blink "Arr"; only the first arriving bus in a list blinks to keep it calm.
+  final bool pulse;
+
+  /// Optional line under the row, e.g. where to get off.
+  final String? note;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
     final arriving = eta.minutes == 0;
+    final arr = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      decoration: BoxDecoration(
+        color: DL.amber,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: DL.edge(context), width: 2),
+      ),
+      child: Text(s.minutesAway(0), style: t.displaySmall?.copyWith(color: DL.ink, fontSize: 26)),
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+      Row(
         children: [
           BusPlate(eta.service),
           const SizedBox(width: 14),
@@ -359,17 +393,7 @@ class _BusRow extends ConsumerWidget {
               textBaseline: TextBaseline.alphabetic,
               children: [
                 if (arriving)
-                  Pulse(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      decoration: BoxDecoration(
-                        color: DL.amber,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: DL.edge(context), width: 2),
-                      ),
-                      child: Text(s.minutesAway(0), style: t.displaySmall?.copyWith(color: DL.ink, fontSize: 26)),
-                    ),
-                  )
+                  pulse ? Pulse(child: arr) : arr
                 else
                   Text(s.minutesAway(eta.minutes), style: t.displaySmall),
                 if (!arriving) ...[
@@ -381,6 +405,13 @@ class _BusRow extends ConsumerWidget {
           ),
           const Spacer(),
           LoadMeter(eta.load, label: s.loadLabel(eta.load)),
+        ],
+      ),
+          if (note != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 74, top: 2),
+              child: Text(note!, style: t.bodySmall),
+            ),
         ],
       ),
     );
@@ -491,7 +522,7 @@ class _QuickTiles extends ConsumerWidget {
               context: context,
               isScrollControlled: true,
               showDragHandle: true,
-              builder: (_) => _TaxiSheet(origin: origin),
+              builder: (_) => TaxiSheet(origin: origin),
             ),
           ),
         ),
@@ -662,8 +693,8 @@ const _rideApps = [
 
 /// Taxi detail: live counts, a small radar of free taxis and stands, nearest stands,
 /// and shortcuts to booking apps.
-class _TaxiSheet extends ConsumerWidget {
-  const _TaxiSheet({required this.origin});
+class TaxiSheet extends ConsumerWidget {
+  const TaxiSheet({required this.origin});
   final Place origin;
 
   @override

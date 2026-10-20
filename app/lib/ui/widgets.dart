@@ -572,7 +572,7 @@ class Pulse extends StatefulWidget {
 
 class _PulseState extends State<Pulse> with SingleTickerProviderStateMixin {
   late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
 
   @override
   void didChangeDependencies() {
@@ -593,7 +593,7 @@ class _PulseState extends State<Pulse> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) => FadeTransition(
-        opacity: Tween<double>(begin: 0.25, end: 1).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut)),
+        opacity: Tween<double>(begin: 0.55, end: 1).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut)),
         child: widget.child,
       );
 }

@@ -56,6 +56,12 @@ class DailyLahApi {
   /// Available taxi positions, rounded: {"data": [[lat, lng], ...]}.
   Future<Map<String, dynamic>> taxis() => _get('/v1/taxi');
 
+  /// Live lots for LTA/URA/HDB car parks, cars (C) and motorcycles (Y).
+  Future<Map<String, dynamic>> parking() => _get('/v1/parking');
+
+  /// Current traffic incidents.
+  Future<Map<String, dynamic>> trafficIncidents() => _get('/v1/traffic-incidents');
+
   /// CEA register lookup by registration number.
   Future<Map<String, dynamic>> agent(String regNo) => _get('/v1/agent/${Uri.encodeComponent(regNo)}');
 }

@@ -67,6 +67,24 @@ class FavoritesNotifier extends Notifier<Favorites> {
   Future<void> removeExtra(int i) =>
       update((f) => f.copyWith(extraPlaces: [...f.extraPlaces]..removeAt(i)));
 
+  /// Replace one stop of a place (by trip key: "home", "work", "school" or "extra:<i>").
+  Future<void> replaceStop(String key, String oldCode, BusStop stop) => update((f) {
+        List<BusStop> swap(List<BusStop> stops) => [
+              for (final x in stops)
+                if (x.code == oldCode) stop else x,
+            ];
+        if (key.startsWith('extra:')) {
+          final i = int.parse(key.substring(6));
+          final list = [...f.extraPlaces];
+          list[i] = list[i].copyWith(stops: swap(list[i].stops));
+          return f.copyWith(extraPlaces: list);
+        }
+        final kind = PlaceKind.values.byName(key);
+        final p = f.places[kind];
+        if (p == null) return f;
+        return f.copyWith(places: {...f.places, kind: p.copyWith(stops: swap(p.stops))});
+      });
+
   Future<void> toggleCompare(String key) => update((f) {
         final l = [...f.compareBlocks];
         if (!l.remove(key)) {
@@ -127,6 +145,28 @@ final rentProvider = FutureProvider<RentData>((ref) async {
   return m == null ? RentData.empty : RentData.fromBundle(m);
 });
 
+final busRoutesProvider = FutureProvider<BusRoutes>((ref) async {
+  final m = await _map(ref, 'bus_routes');
+  return m == null ? BusRoutes.empty : BusRoutes.fromBundle(m);
+});
+
+final bicycleRacksProvider =
+    FutureProvider<List<EPoint>>((ref) => _list(ref, 'bicycle_racks', EPoint.fromBundle));
+
+final parkingLiveProvider =
+    FutureProvider.autoDispose<List<ParkingLot>>((ref) async => parseParking(await ref.watch(apiProvider).parking()));
+
+final incidentsProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).trafficIncidents());
+
+/// Today's mode override per trip key (e.g. "work", "extra:0"); in memory only.
+final modeOverrideProvider = StateProvider<Map<String, TravelMode>>((ref) => const {});
+
+/// Destination picked in the "Go somewhere" card: "home", "work", "school", "extra:<i>" or null.
+final goKeyProvider = StateProvider<String?>((ref) => null);
+
+/// Start of a "Go somewhere" trip: null = Home, otherwise the phone's location (memory only).
+final goFromHereProvider = StateProvider<Place?>((ref) => null);
+
 final taxiStandsProvider =
     FutureProvider<List<EPoint>>((ref) => _list(ref, 'taxi_stands', EPoint.fromBundle));
 
@@ -149,7 +189,7 @@ final clockProvider = StreamProvider<DateTime>(
 
 DateTime nowOf(Ref ref) => ref.watch(clockProvider).valueOrNull ?? DateTime.now();
 
-final cardKindProvider = Provider<CardKind>((ref) => cardFor(nowOf(ref)));
+final cardKindProvider = Provider<CardKind>((ref) => cardFor(nowOf(ref), ref.watch(favoritesProvider)));
 
 final forecastProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).forecast());
 

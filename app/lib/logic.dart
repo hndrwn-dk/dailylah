@@ -191,12 +191,39 @@ double? highCrowdShare(Map<String, dynamic> apiBody) {
 
 enum CardKind { morning, evening }
 
-/// Morning card until 14:00, evening card after.
-CardKind cardFor(DateTime now) => now.hour < 14 ? CardKind.morning : CardKind.evening;
+/// Morning card until halfway between the usual departure times (14:00 without
+/// settings), evening card after.
+CardKind cardFor(DateTime now, [Favorites? fav]) {
+  final m = now.hour * 60 + now.minute;
+  if (fav == null || fav.leaveWork.minutes <= fav.leaveHome.minutes) {
+    return m < 14 * 60 ? CardKind.morning : CardKind.evening;
+  }
+  final switchAt = (fav.leaveHome.minutes + fav.leaveWork.minutes) ~/ 2;
+  return m < switchAt ? CardKind.morning : CardKind.evening;
+}
+
+/// True on the user's work or school days when they have a work or school place.
+bool isCommuteDay(Favorites fav, DateTime now) =>
+    fav.workDays.contains(now.weekday) &&
+    (fav.places.containsKey(PlaceKind.work) || fav.places.containsKey(PlaceKind.school));
+
+/// Custom places that fit today (weekday or weekend).
+List<int> extrasForToday(Favorites fav, DateTime now) {
+  final weekend = now.weekday >= 6;
+  return [
+    for (var i = 0; i < fav.extraPlaces.length; i++)
+      if (fav.extraPlaces[i].when == PlaceWhen.anytime ||
+          (weekend ? fav.extraPlaces[i].when == PlaceWhen.weekends : fav.extraPlaces[i].when == PlaceWhen.weekdays))
+        i,
+  ];
+}
 
 /// The place whose stops/weather the card should show.
 PlaceKind originFor(CardKind kind, Favorites fav) {
-  if (kind == CardKind.evening && fav.places.containsKey(PlaceKind.work)) return PlaceKind.work;
+  if (kind == CardKind.evening) {
+    if (fav.places.containsKey(PlaceKind.work)) return PlaceKind.work;
+    if (fav.places.containsKey(PlaceKind.school)) return PlaceKind.school;
+  }
   return PlaceKind.home;
 }
 
@@ -537,7 +564,7 @@ List<TodayAlert> todayAlerts({
   Map<String, dynamic>? pm25,
 }) {
   final out = <TodayAlert>[];
-  final kind = cardFor(now);
+  final kind = cardFor(now, fav);
 
   final homePlace = fav.places[PlaceKind.home];
   if (homePlace != null && (psi != null || pm25 != null)) {
@@ -849,3 +876,125 @@ List<(double, double)> taxiPoints(Map<String, dynamic> apiBody) {
 /// Offset in metres (east, north) of a point from an origin; good enough within a few km.
 (double, double) offsetMetres(double lat0, double lng0, double lat, double lng) =>
     ((lng - lng0) * 111320 * math.cos(lat0 * math.pi / 180), (lat - lat0) * 110540);
+
+
+// ---------------------------------------------------------------- trips: buses that go there
+
+/// LTA bus routes bundle: "<service>|<direction>" -> stops in order with km from start.
+class BusRoutes {
+  const BusRoutes(this.routes);
+  final Map<String, List<(String, double)>> routes;
+  static const empty = BusRoutes({});
+
+  factory BusRoutes.fromBundle(Map<String, dynamic> j) => BusRoutes({
+        for (final e in j.entries)
+          if (e.value is List)
+            e.key: [
+              for (final r in e.value as List)
+                if (r is List && r.length >= 2) ('${r[0]}', (r[1] as num).toDouble()),
+            ],
+      });
+}
+
+/// How a service gets from the origin stop to the destination.
+class DirectRide {
+  const DirectRide({required this.service, required this.alightAt, required this.stops, required this.km});
+  final String service;
+  final String alightAt; // bus stop code to get off
+  final int stops;
+  final double km;
+}
+
+/// Services that stop at [origin] and later at one of [destStops], best option per service.
+Map<String, DirectRide> directRides(BusRoutes routes, String origin, Set<String> destStops) {
+  final out = <String, DirectRide>{};
+  routes.routes.forEach((key, stops) {
+    final service = key.split('|').first;
+    final i = stops.indexWhere((s) => s.$1 == origin);
+    if (i < 0) return;
+    for (var j = i + 1; j < stops.length; j++) {
+      if (!destStops.contains(stops[j].$1)) continue;
+      final ride = DirectRide(service: service, alightAt: stops[j].$1, stops: j - i, km: stops[j].$2 - stops[i].$2);
+      final best = out[service];
+      if (best == null || ride.km < best.km) out[service] = ride;
+      break;
+    }
+  });
+  return out;
+}
+
+/// Stops to look for at the destination: the place's own stops plus any within [radius] m.
+Set<String> destinationStops(Place dest, List<BusStop> all, {double radius = 400}) => {
+      for (final s in dest.stops) s.code,
+      for (final (s, _) in within(all, dest.lat, dest.lng, radius, latOf: (s) => s.lat, lngOf: (s) => s.lng)) s.code,
+    };
+
+// ---------------------------------------------------------------- trips: driving and cycling
+
+/// One car park with live lots: from /v1/parking.
+class ParkingLot {
+  const ParkingLot({
+    required this.id,
+    required this.agency,
+    required this.lat,
+    required this.lng,
+    required this.lotType,
+    required this.available,
+    required this.name,
+  });
+  final String id;
+  final String agency;
+  final double lat;
+  final double lng;
+  final String lotType; // C car, Y motorcycle
+  final int available;
+  final String name;
+}
+
+List<ParkingLot> parseParking(Map<String, dynamic> apiBody) {
+  final rows = apiBody['data'];
+  if (rows is! List) return const [];
+  return [
+    for (final r in rows)
+      if (r is List && r.length >= 7)
+        ParkingLot(
+          id: '${r[0]}',
+          agency: '${r[1]}',
+          lat: (r[2] as num).toDouble(),
+          lng: (r[3] as num).toDouble(),
+          lotType: '${r[4]}',
+          available: (r[5] as num).toInt(),
+          name: '${r[6]}',
+        ),
+  ];
+}
+
+/// Car parks with [lotType] lots near a point, nearest first.
+List<(ParkingLot, double)> parkingNear(List<ParkingLot> all, double lat, double lng, String lotType,
+        {double radius = 600, int limit = 5}) =>
+    within(all.where((p) => p.lotType == lotType), lat, lng, radius,
+        latOf: (p) => p.lat, lngOf: (p) => p.lng, limit: limit);
+
+/// Distance in metres from a point to the straight segment a–b (good enough in Singapore).
+double distanceToSegment(double lat, double lng, double aLat, double aLng, double bLat, double bLng) {
+  final (px, py) = offsetMetres(aLat, aLng, lat, lng);
+  final (bx, by) = offsetMetres(aLat, aLng, bLat, bLng);
+  final len2 = bx * bx + by * by;
+  final t = len2 == 0 ? 0.0 : ((px * bx + py * by) / len2).clamp(0.0, 1.0);
+  final dx = px - t * bx, dy = py - t * by;
+  return math.sqrt(dx * dx + dy * dy);
+}
+
+/// Traffic incidents ([[type, lat, lng, message]]) within [corridor] m of the trip line.
+List<(String, String)> incidentsOnTrip(Map<String, dynamic>? apiBody, Place from, Place to, {double corridor = 2500}) {
+  final rows = apiBody?['data'];
+  if (rows is! List) return const [];
+  return [
+    for (final r in rows)
+      if (r is List &&
+          r.length >= 4 &&
+          distanceToSegment((r[1] as num).toDouble(), (r[2] as num).toDouble(), from.lat, from.lng, to.lat, to.lng) <=
+              corridor)
+        ('${r[0]}', '${r[3]}'),
+  ];
+}
