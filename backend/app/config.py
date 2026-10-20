@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     datagov_api_key: str | None = None
     datagov_base_url: str = "https://api-open.data.gov.sg/v2/real-time/api"
 
+    # data.gov.sg v1 real-time (car park availability) and dataset search (CEA register)
+    carpark_url: str = "https://api.data.gov.sg/v1/transport/carpark-availability"
+    datastore_url: str = "https://data.gov.sg/api/action/datastore_search"
+    cea_dataset_id: str = "d_07c63be0f37e6e59c07a4ddc2fd87fcb"
+
     # LTA DataMall — required for bus/train endpoints (header: AccountKey)
     lta_account_key: str | None = None
     lta_base_url: str = "https://datamall2.mytransport.sg/ltaodataservice"
@@ -31,6 +36,7 @@ class Settings(BaseSettings):
 
     # Cache TTLs (seconds)
     bus_arrival_ttl: int = 20
+    agent_ttl: int = 86400
     http_timeout: float = 10.0
 
 

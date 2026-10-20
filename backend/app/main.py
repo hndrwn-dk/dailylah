@@ -14,7 +14,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 
 from .cache import Cache
 from .config import Settings, get_settings
-from .sources import LTA_DATASETS, NEA_DATASETS, TRAIN_LINES, Dataset, Sources
+from .sources import CEA_REG_RE, LTA_DATASETS, NEA_DATASETS, TRAIN_LINES, Dataset, Sources
 
 log = logging.getLogger("dailylah")
 STOP_RE = re.compile(r"^\d{5}$")
@@ -124,6 +124,52 @@ async def crowd(
     return data
 
 
+CARPARK_KEY = "dg:carpark"
+TAXI_KEY = "lta:taxi"
+
+
+@app.get("/v1/carpark")
+async def carpark(c: Cache = Depends(cache)) -> dict:
+    """All HDB car parks: {"data": {"ACB": [total, available]}}. Polled every 3 min."""
+    data = await c.get(CARPARK_KEY)
+    if data is None:
+        raise HTTPException(503, "data not polled yet")
+    return data
+
+
+@app.get("/v1/taxi")
+async def taxi(c: Cache = Depends(cache)) -> dict:
+    """Available taxi positions [[lat, lng]], rounded. Polled every 5 min."""
+    data = await c.get(TAXI_KEY)
+    if data is None:
+        raise HTTPException(503, "data not polled yet")
+    return data
+
+
+@app.get("/v1/agent/{reg_no}")
+async def agent(
+    reg_no: str,
+    c: Cache = Depends(cache),
+    src: Sources = Depends(sources),
+    s: Settings = Depends(get_settings),
+) -> dict:
+    """CEA salesperson register lookup. Public register data, cached for a day."""
+    reg = reg_no.strip().upper()
+    if not CEA_REG_RE.match(reg):
+        raise HTTPException(422, "registration number looks like R012345A")
+    key = f"cea:{reg}"
+    hit = await c.get(key)
+    if hit is not None:
+        return hit
+    try:
+        rows = await src.cea_agent(reg)
+    except httpx.HTTPError as e:
+        raise HTTPException(502, "upstream data.gov.sg error") from e
+    data = {"fetched_at": int(time.time()), "data": rows}
+    c.set_memory_only(key, data, s.agent_ttl)
+    return data
+
+
 async def verify_qstash(request: Request, s: Settings = Depends(get_settings)) -> None:
     if s.env == "dev" and not s.qstash_current_signing_key:
         return  # local dev: allow manual curl
@@ -143,22 +189,26 @@ async def verify_qstash(request: Request, s: Settings = Depends(get_settings)) -
         raise HTTPException(401, "invalid signature") from e
 
 
-async def _poll_one(request: Request, ds: Dataset, kind: str) -> str:
+async def _poll_key(request: Request, key: str, every_s: int, ttl_s: int, fetch) -> str:
+    """Runs fetch() if [key] is due, and caches its result. One bad source never stops the rest."""
     st = request.app.state
     now = time.monotonic()
-    if now - st.last_poll.get(ds.key, -1e9) < ds.every_s:
+    if now - st.last_poll.get(key, -1e9) < every_s:
         return "skipped"
     try:
-        if kind == "nea":
-            data = await st.sources.datagov(ds)
-        else:
-            data = await st.sources.lta(ds.path)
-    except Exception as e:  # noqa: BLE001 - one bad source must not stop the rest
-        log.warning("poll %s failed: %s", ds.key, e)
+        data = await fetch()
+    except Exception as e:  # noqa: BLE001
+        log.warning("poll %s failed: %s", key, e)
         return "error"
-    st.last_poll[ds.key] = now
-    changed = await st.cache.set(ds.key, {"fetched_at": int(time.time()), "data": data}, ds.ttl_s)
+    st.last_poll[key] = now
+    changed = await st.cache.set(key, {"fetched_at": int(time.time()), "data": data}, ttl_s)
     return "changed" if changed else "unchanged"
+
+
+async def _poll_one(request: Request, ds: Dataset, kind: str) -> str:
+    src = request.app.state.sources
+    fetch = (lambda: src.datagov(ds)) if kind == "nea" else (lambda: src.lta(ds.path))
+    return await _poll_key(request, ds.key, ds.every_s, ds.ttl_s, fetch)
 
 
 @app.post("/internal/poll", dependencies=[Depends(verify_qstash)])
@@ -167,7 +217,10 @@ async def poll(request: Request) -> dict:
     result = {}
     for ds in NEA_DATASETS:
         result[ds.key] = await _poll_one(request, ds, "nea")
-    for ds in LTA_DATASETS:
-        if get_settings().lta_account_key:
+    src = request.app.state.sources
+    result[CARPARK_KEY] = await _poll_key(request, CARPARK_KEY, 180, 900, src.carpark_availability)
+    if get_settings().lta_account_key:
+        for ds in LTA_DATASETS:
             result[ds.key] = await _poll_one(request, ds, "lta")
+        result[TAXI_KEY] = await _poll_key(request, TAXI_KEY, 300, 900, src.taxis)
     return result
