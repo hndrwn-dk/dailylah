@@ -44,6 +44,10 @@ HDB_PROPERTY = "d_17f5382f26140b1fdae0ba2ef6239d2f"
 RESALE = "d_8b84c4ee58e3cfc0ece0d773c8ca6abc"
 RENTING_OUT = "d_c9f57187485a850908655db0e8cfe651"
 PRAYER_TIMES = "d_d441e7242e78efc566024dd5b0d9829c"  # 2026 timetable
+AEDS = "d_4e6b82c58a8a832f6f1fee5dfa6d47ea"  # SCDF public access AEDs
+FIRE_STATIONS = "d_5d3d2c4f3556edb5d8c995f42e603b24"
+CHAS_CLINICS = "d_548c33ea2d99e29ec63a7cc9edcccedc"
+CD_SHELTERS = "d_291795a678b8cf82f108780a6235ce18"  # no coordinates: geocoded by postal code
 HDB_BUILDINGS = "d_16b157c52ed637edd6ba1232e026258d"  # footprints with BLK_NO, ST_COD, POSTAL_COD
 
 PAGE = 10000
@@ -696,3 +700,142 @@ async def build_blocks(dg: DataGov, geo: Geocoder, block_town: dict[str, str]) -
         if hit:
             points[street] = hit
     return match_blocks(blocks, buildings, points)
+
+
+# ---------------------------------------------------------------- emergency points
+
+# Public hospitals with a 24-hour Emergency Department (A&E). Located through OneMap.
+AE_HOSPITALS = [
+    "Singapore General Hospital",
+    "National University Hospital",
+    "Tan Tock Seng Hospital",
+    "Changi General Hospital",
+    "Khoo Teck Puat Hospital",
+    "Ng Teng Fong General Hospital",
+    "Sengkang General Hospital",
+    "KK Women's and Children's Hospital",
+]
+
+
+def _clean(v: Any) -> str:
+    s = str(v or "").strip()
+    return "" if s.lower() in ("null", "none", "nil", "na") else s
+
+
+def compact_aeds(geo: dict) -> list[dict]:
+    out = []
+    for f in geo.get("features", []):
+        p = f.get("properties") or {}
+        c = centroid(f.get("geometry"))
+        lat, lng = (
+            (p.get("LATITUDE"), p.get("LONGITUDE"))
+            if p.get("LATITUDE")
+            else (c[0], c[1])
+            if c
+            else (None, None)
+        )
+        if lat is None or lng is None:
+            continue
+        name = _clean(p.get("BUILDING_NAME")) or " ".join(
+            x for x in (_clean(p.get("HOUSE_NUMBER")), _clean(p.get("ROAD_NAME"))) if x
+        )
+        floor = _clean(p.get("AED_LOCATION_FLOOR_LEVEL"))
+        desc = _clean(p.get("AED_LOCATION_DESCRIPTION"))
+        item = {"n": name, "la": _r(lat), "lo": _r(lng)}
+        detail = " · ".join(
+            x for x in (f"Level {floor}" if floor and floor not in desc else "", desc) if x
+        )
+        if detail:
+            item["d"] = detail[:140]
+        hours = _clean(p.get("OPERATING_HOURS")).rstrip(";")
+        if hours:
+            item["h"] = hours[:80]
+        out.append(item)
+    return out
+
+
+def compact_fire_stations(geo: dict) -> list[dict]:
+    out = []
+    for f in geo.get("features", []):
+        p = f.get("properties") or {}
+        c = centroid(f.get("geometry"))
+        if not c:
+            continue
+        tel = re.search(r"Tel:?\s*([\d ]{8,9})", str(p.get("DESCRIPTION", "")))
+        item = {
+            "n": _clean(p.get("NAME")),
+            "a": _clean(p.get("ADDRESS")),
+            "la": _r(c[0]),
+            "lo": _r(c[1]),
+        }
+        if tel:
+            item["t"] = tel[1].replace(" ", "")
+        out.append(item)
+    return out
+
+
+def compact_clinics(geo: dict) -> list[dict]:
+    out = []
+    for f in geo.get("features", []):
+        desc = str((f.get("properties") or {}).get("Description", ""))
+        c = centroid(f.get("geometry"))
+        name = html_field(desc, "HCI_NAME")
+        if not c or not name:
+            continue
+        addr = " ".join(
+            x
+            for x in (
+                html_field(desc, "BLK_HSE_NO"),
+                html_field(desc, "STREET_NAME").title(),
+                html_field(desc, "BUILDING_NAME").title(),
+            )
+            if _clean(x)
+        )
+        item = {"n": name, "a": addr, "la": _r(c[0]), "lo": _r(c[1])}
+        tel = re.sub(r"\D", "", html_field(desc, "HCI_TEL"))
+        if len(tel) == 8:
+            item["t"] = tel
+        out.append(item)
+    return out
+
+
+async def build_emergency(dg: DataGov, geo: Geocoder) -> dict:
+    out: dict[str, list] = {}
+
+    async def safe(key: str, coro) -> None:
+        try:
+            out[key] = await coro
+        except Exception as e:
+            log.warning("emergency %s failed: %s", key, e)
+
+    await safe("aed", _wrap(compact_aeds, dg.geojson(AEDS)))
+    await safe("fire", _wrap(compact_fire_stations, dg.geojson(FIRE_STATIONS)))
+    await safe("clinic", _wrap(compact_clinics, dg.geojson(CHAS_CLINICS)))
+
+    async def shelters() -> list[dict]:
+        items = []
+        for r in await dg.rows(CD_SHELTERS):
+            pc = _clean(r.get("POSTALCODE")).zfill(6)
+            hit = await geo.find(pc) if pc.strip("0") else None
+            if hit:
+                items.append(
+                    {
+                        "n": _clean(r.get("NAME")),
+                        "a": _clean(r.get("ADDRESS")),
+                        "la": hit[0],
+                        "lo": hit[1],
+                    }
+                )
+        return items
+
+    async def hospitals() -> list[dict]:
+        items = []
+        for name in AE_HOSPITALS:
+            hit = await geo.find(name)
+            if hit:
+                items.append({"n": name, "la": hit[0], "lo": hit[1]})
+        return items
+
+    await safe("shelter", shelters())
+    await safe("ae", hospitals())
+    return out

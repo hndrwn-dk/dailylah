@@ -22,6 +22,7 @@ WEATHER_KEYS = {
     "forecast": "nea:two-hr-forecast",
     "rainfall": "nea:rainfall",
     "psi": "nea:psi",
+    "pm25": "nea:pm25",
     "uv": "nea:uv",
     "wbgt": "nea:wbgt",
     "lightning": "nea:lightning",

@@ -286,3 +286,51 @@ class PrayerTimes {
 
   static const empty = PrayerTimes({});
 }
+
+
+/// One emergency point: AED, A&E hospital, fire station, CHAS clinic or CD shelter.
+/// {"n","la","lo","a"?,"d"?,"h"?,"t"?}
+class EPoint {
+  const EPoint({
+    required this.name,
+    required this.lat,
+    required this.lng,
+    this.address = '',
+    this.detail = '',
+    this.hours = '',
+    this.tel = '',
+  });
+
+  final String name;
+  final double lat;
+  final double lng;
+  final String address;
+  final String detail;
+  final String hours;
+  final String tel;
+
+  factory EPoint.fromBundle(Map<String, dynamic> j) => EPoint(
+        name: '${j['n'] ?? ''}',
+        lat: _d(j['la']),
+        lng: _d(j['lo']),
+        address: '${j['a'] ?? ''}',
+        detail: '${j['d'] ?? ''}',
+        hours: '${j['h'] ?? ''}',
+        tel: '${j['t'] ?? ''}',
+      );
+}
+
+enum EmergencyKind { ae, aed, fire, clinic, shelter }
+
+class EmergencySet {
+  const EmergencySet(this.byKind);
+  final Map<EmergencyKind, List<EPoint>> byKind;
+
+  static const empty = EmergencySet({});
+  List<EPoint> of(EmergencyKind k) => byKind[k] ?? const [];
+
+  factory EmergencySet.fromBundle(Map<String, dynamic> j) => EmergencySet({
+        for (final k in EmergencyKind.values)
+          k: [for (final r in (j[k.name] as List? ?? const [])) EPoint.fromBundle(r as Map<String, dynamic>)],
+      });
+}

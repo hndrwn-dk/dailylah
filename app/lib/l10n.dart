@@ -4,6 +4,9 @@ library;
 
 enum AppLang { en, id }
 
+/// NEA health advisory bands for haze (24-hour PSI and 1-hour PM2.5).
+enum AirLevel { good, moderate, unhealthy, veryUnhealthy, hazardous }
+
 AppLang langFromCode(String? code) => code == 'id' ? AppLang.id : AppLang.en;
 
 class S {
@@ -115,6 +118,46 @@ class S {
       };
   String get weatherNow => _t('Weather now', 'Cuaca sekarang');
   String nearestStation(String name) => _t('Nearest station: $name', 'Stasiun terdekat: $name');
+
+  // air quality
+  String get airLabel => _t('Air (PSI)', 'Udara (PSI)');
+  String airLevel(AirLevel l) => switch (l) {
+        AirLevel.good => _t('Good', 'Baik'),
+        AirLevel.moderate => _t('Moderate', 'Sedang'),
+        AirLevel.unhealthy => _t('Unhealthy', 'Tidak sehat'),
+        AirLevel.veryUnhealthy => _t('Very unhealthy', 'Sangat tidak sehat'),
+        AirLevel.hazardous => _t('Hazardous', 'Berbahaya'),
+      };
+  String airAdviceShort(AirLevel level) => switch (level) {
+        AirLevel.unhealthy => _t('Haze: reduce strenuous outdoor activity. Elderly, children and people with heart or lung conditions should limit time outside.',
+            'Kabut asap: kurangi aktivitas berat di luar. Lansia, anak, dan penderita penyakit jantung atau paru sebaiknya membatasi waktu di luar.'),
+        AirLevel.veryUnhealthy => _t('Haze very unhealthy: avoid strenuous outdoor activity. Wear an N95 mask if you must be outside for long.',
+            'Kabut asap sangat tidak sehat: hindari aktivitas berat di luar. Pakai masker N95 kalau harus lama di luar.'),
+        AirLevel.hazardous => _t('Haze hazardous: stay indoors where possible. Wear an N95 mask if you go out.',
+            'Kabut asap berbahaya: sebisa mungkin di dalam ruangan. Pakai masker N95 kalau keluar.'),
+        AirLevel.good || AirLevel.moderate => _t('Air quality is fine. No mask needed.', 'Kualitas udara baik. Tidak perlu masker.'),
+      };
+  String get maskNeeded => _t('Mask advised', 'Disarankan masker');
+  String get noMask => _t('No mask needed', 'Tidak perlu masker');
+  String get hazeTitle => _t('Haze', 'Kabut asap');
+  String get hazeSource => _t('PSI and PM2.5: NEA. Health advice follows NEA guidelines; see haze.gov.sg.',
+      'PSI dan PM2.5: NEA. Saran kesehatan mengikuti panduan NEA; lihat haze.gov.sg.');
+
+  // emergency
+  String get emergency => _t('Emergency', 'Darurat');
+  String get call995 => _t('995 Ambulance & fire', '995 Ambulans & kebakaran');
+  String get call999 => _t('999 Police', '999 Polisi');
+  String get call1777 => _t('1777 Non-emergency ambulance', '1777 Ambulans non-darurat');
+  String get aeHospitals => _t('Hospital A&E (24 hours)', 'IGD rumah sakit (24 jam)');
+  String get aeds => _t('Nearest AEDs', 'AED terdekat');
+  String get fireStations => _t('Fire stations', 'Pos pemadam kebakaran');
+  String get chasClinics => _t('CHAS clinics', 'Klinik CHAS');
+  String get shelters => _t('Civil Defence shelters', 'Shelter Civil Defence');
+  String get emergencyNote => _t(
+      'In a life-threatening emergency, call 995 first. Locations are from SCDF, MOH and OneMap and may be out of date.',
+      'Dalam keadaan darurat yang mengancam nyawa, telepon 995 dulu. Lokasi dari SCDF, MOH, dan OneMap dan bisa saja tidak mutakhir.');
+  String get callLabel => _t('Call', 'Telepon');
+  String get directions => _t('Directions', 'Rute');
 
   // ---------------------------------------------------------------- nearby
   String get hawkers => 'Hawker';
@@ -242,7 +285,7 @@ class S {
   String get alertRainSub => _t('At most 3 a day, none 10 pm–6 am', 'Maksimal 3 per hari, tidak ada 22.00–06.00');
   String get alertHawker => _t('Favourite hawker closed tomorrow', 'Hawker favorit tutup besok');
   String get alertDengue => _t('New dengue cluster near home or school', 'Cluster dengue baru dekat rumah/sekolah');
-  String get alertHeat => _t('High heat stress or lightning near school', 'Panas tinggi atau petir dekat sekolah');
+  String get alertHeat => _t('Heat, lightning or haze', 'Panas, petir, atau kabut asap');
   String get alertHomes => _t('New resale transactions at watched blocks', 'Transaksi resale baru di blok dipantau');
   String get language => _t('Language', 'Bahasa');
   String get pickHomeFirst => _t('Set your home address first.', 'Atur alamat rumah dulu.');

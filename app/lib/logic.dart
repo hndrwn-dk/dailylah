@@ -513,7 +513,7 @@ Favorites? decodeShareCode(String code, Favorites current) {
 
 // ---------------------------------------------------------------- today alerts
 
-enum AlertKind { rain, mrt, hawker, dengue, heat, lightning }
+enum AlertKind { rain, mrt, hawker, dengue, heat, lightning, haze }
 
 class TodayAlert {
   const TodayAlert(this.kind, this.text);
@@ -533,9 +533,19 @@ List<TodayAlert> todayAlerts({
   List<DengueCluster> dengue = const [],
   Map<String, dynamic>? wbgt,
   Map<String, dynamic>? lightning,
+  Map<String, dynamic>? psi,
+  Map<String, dynamic>? pm25,
 }) {
   final out = <TodayAlert>[];
   final kind = cardFor(now);
+
+  final homePlace = fav.places[PlaceKind.home];
+  if (homePlace != null && (psi != null || pm25 != null)) {
+    final air = airNear(psi, pm25, homePlace.lat, homePlace.lng);
+    if (air != null && air.level.index >= AirLevel.unhealthy.index) {
+      out.add(TodayAlert(AlertKind.haze, s.airAdviceShort(air.level)));
+    }
+  }
 
   if (trainAlerts != null && fav.lines.isNotEmpty) {
     final bad = lineStatuses(trainAlerts, fav.lines).where((l) => l.disrupted).map((l) => l.line).toList();
@@ -735,3 +745,78 @@ List<(Hawker, double)> openAlternatives(List<Hawker> all, Hawker closed, DateTim
   final all = within(schools, lat, lng, 2000, latOf: (p) => p.lat, lngOf: (p) => p.lng);
   return (all.where((e) => e.$2 <= 1000).toList(), all.where((e) => e.$2 > 1000).toList());
 }
+
+
+// ---------------------------------------------------------------- air quality (haze)
+
+class AirQuality {
+  const AirQuality({required this.region, this.psi24, this.pm25, required this.level});
+  final String region; // north, south, east, west, central
+  final int? psi24;
+  final int? pm25; // 1-hour PM2.5 concentration, µg/m³
+  final AirLevel level;
+}
+
+AirLevel psiLevel(int psi) => psi > 300
+    ? AirLevel.hazardous
+    : psi > 200
+        ? AirLevel.veryUnhealthy
+        : psi > 100
+            ? AirLevel.unhealthy
+            : psi > 50
+                ? AirLevel.moderate
+                : AirLevel.good;
+
+/// NEA 1-hour PM2.5 bands: I 0–55, II 56–150, III 151–250, IV 251+.
+AirLevel pm25Level(int v) => v > 250
+    ? AirLevel.hazardous
+    : v > 150
+        ? AirLevel.veryUnhealthy
+        : v > 55
+            ? AirLevel.unhealthy
+            : AirLevel.good;
+
+/// Air quality for the NEA region nearest a point, from /v1/weather/psi and /pm25.
+/// The level is the worse of the 24-hour PSI band and the 1-hour PM2.5 band.
+AirQuality? airNear(Map<String, dynamic>? psiBody, Map<String, dynamic>? pm25Body, double lat, double lng) {
+  Map? inner(Map<String, dynamic>? b) => (b?['data'] is Map) ? (b!['data'] as Map)['data'] as Map? : null;
+  final psi = inner(psiBody);
+  final pm = inner(pm25Body);
+  final meta = (psi?['regionMetadata'] ?? pm?['regionMetadata']) as List?;
+  if (meta == null) return null;
+  String? region;
+  var best = double.infinity;
+  for (final r in meta) {
+    if (r is! Map || r['name'] == 'national') continue;
+    final loc = r['labelLocation'] as Map?;
+    final la = double.tryParse('${loc?['latitude']}');
+    final lo = double.tryParse('${loc?['longitude']}');
+    if (la == null || lo == null) continue;
+    final d = distanceMeters(lat, lng, la, lo);
+    if (d < best) {
+      best = d;
+      region = '${r['name']}';
+    }
+  }
+  if (region == null) return null;
+  int? reading(Map? data, String key) {
+    final items = data?['items'] as List?;
+    if (items == null || items.isEmpty) return null;
+    final readings = (items.last as Map)['readings'] as Map?;
+    final v = (readings?[key] as Map?)?[region];
+    return v is num ? v.round() : int.tryParse('$v');
+  }
+
+  final psi24 = reading(psi, 'psi_twenty_four_hourly');
+  final pm25 = reading(pm, 'pm25_one_hourly');
+  if (psi24 == null && pm25 == null) return null;
+  final a = psi24 == null ? AirLevel.good : psiLevel(psi24);
+  final b = pm25 == null ? AirLevel.good : pm25Level(pm25);
+  return AirQuality(region: region, psi24: psi24, pm25: pm25, level: a.index >= b.index ? a : b);
+}
+
+// ---------------------------------------------------------------- emergency
+
+/// Nearest points of one emergency layer.
+List<(EPoint, double)> nearestPoints(List<EPoint> all, double lat, double lng, {int limit = 3, double radius = 30000}) =>
+    within(all, lat, lng, radius, latOf: (p) => p.lat, lngOf: (p) => p.lng, limit: limit);

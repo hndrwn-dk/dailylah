@@ -13,6 +13,7 @@ Writes (all compact JSON, keys documented in app/lib/data.dart):
     hdb_resale.json  resale medians per block and town, last 24 months
     hdb_rent.json    median rent per town, last 6 months
     prayer.json      MUIS prayer times for the year
+    emergency.json   AEDs, A&E hospitals, fire stations, CHAS clinics, CD shelters
     manifest.json    {"version", "files": {name: {path, count, sha256}}}
 
 Optional bundles are best effort: if one upstream fails, the previous file stays.
@@ -100,6 +101,7 @@ async def build(
             await attempt("carparks", b.build_carparks(dg))
             await attempt("prayer", b.build_prayer(dg))
             await attempt("poi", b.build_poi(dg, geo))
+            await attempt("emergency", b.build_emergency(dg, geo))
             block_town: dict[str, str] = {}
             try:
                 resale = await b.build_resale(dg, today or date.today())

@@ -38,11 +38,13 @@ To show live information, the app sends requests to the DailyLah API operated by
 - The 5-digit **bus stop code** you are viewing, to get bus arrival times
 - The **MRT/LRT line code** (for example `NSL`), to get platform crowd levels
 - A **CEA registration number** you type into "Check a property agent", to look it up in the public CEA register. This number identifies the agent, not you
-- Requests for the weather forecast, heat stress, lightning, train service alerts, HDB car park availability and taxi availability, which contain no personal data
+- Requests for the weather forecast, haze (PSI and PM2.5), heat stress, lightning, train service alerts, HDB car park availability and taxi availability, which contain no personal data
 
 Searching HDB blocks, comparing blocks, nearby hawker centres, dengue clusters and weekend ideas are all computed on your phone from the public data bundles, so the server does not learn which places you look at.
 
 The app also downloads these public data bundles from our website. Like any web service, our hosting providers record technical request logs (IP address, time, requested path and app version) for operations and security, and keep them for a limited period. We do not combine these logs with any other data and we do not use them to identify you. The server never receives your saved places, home or work location, or GPS coordinates.
+
+The **Emergency** tab lists AEDs, A&E hospitals, CHAS clinics, fire stations and Civil Defence shelters near the place you pick, computed on your phone. Tapping a phone number opens your dialer; tapping directions opens Google Maps with the destination only.
 
 ### 6. Notifications
 Alerts for MRT disruptions, rain before your usual departure, favourite hawker centres closing tomorrow, dengue clusters near home or school, high heat stress or lightning, and new resale transactions at blocks you watch are decided **on your phone**. Every 15 minutes or so, the app checks the latest public alerts and forecast and, if they match your settings, shows a local notification. No push token or device identifier is sent to Tursina Labs. You can turn alerts off in the app settings or in Android settings.
@@ -108,11 +110,13 @@ Untuk menampilkan informasi real-time, aplikasi mengirim permintaan ke API Daily
 - **Kode halte bus** 5 digit yang sedang Anda lihat, untuk mendapatkan jadwal kedatangan bus
 - **Kode jalur MRT/LRT** (misalnya `NSL`), untuk mendapatkan tingkat kepadatan peron
 - **Nomor registrasi CEA** yang Anda ketik di "Cek agen properti", untuk dicocokkan dengan register CEA publik. Nomor ini mengidentifikasi agen, bukan Anda
-- Permintaan prakiraan cuaca, tingkat panas, petir, status layanan kereta, ketersediaan parkir HDB, dan ketersediaan taksi, yang tidak berisi data pribadi
+- Permintaan prakiraan cuaca, kabut asap (PSI dan PM2.5), tingkat panas, petir, status layanan kereta, ketersediaan parkir HDB, dan ketersediaan taksi, yang tidak berisi data pribadi
 
 Pencarian blok HDB, perbandingan blok, hawker terdekat, cluster dengue, dan ide akhir pekan dihitung di HP Anda dari bundel data publik, sehingga server tidak tahu tempat mana yang Anda lihat.
 
 Aplikasi juga mengunduh bundel data publik tersebut dari situs kami. Seperti layanan web pada umumnya, penyedia hosting kami mencatat log teknis (alamat IP, waktu, path yang diminta, dan versi aplikasi) untuk operasional dan keamanan, dan menyimpannya untuk jangka waktu terbatas. Kami tidak menggabungkan log ini dengan data lain dan tidak memakainya untuk mengidentifikasi Anda. Server tidak pernah menerima tempat yang Anda simpan, lokasi rumah atau kantor, maupun koordinat GPS.
+
+Tab **Darurat** menampilkan AED, IGD rumah sakit, klinik CHAS, pos pemadam kebakaran, dan shelter Civil Defence di sekitar tempat yang Anda pilih, dihitung di HP Anda. Menekan nomor telepon membuka aplikasi telepon; menekan rute membuka Google Maps dengan tujuan saja.
 
 ### 6. Notifikasi
 Notifikasi gangguan MRT, hujan sebelum jam berangkat, hawker favorit yang tutup besok, cluster dengue dekat rumah atau sekolah, panas tinggi atau petir, dan transaksi resale baru di blok yang Anda pantau diputuskan **di HP Anda**. Kira-kira setiap 15 menit, aplikasi mengecek status dan prakiraan publik terbaru, lalu menampilkan notifikasi lokal jika sesuai dengan pengaturan Anda. Tidak ada token push atau pengenal perangkat yang dikirim ke Tursina Labs. Notifikasi bisa dimatikan di pengaturan aplikasi atau pengaturan Android.

@@ -89,7 +89,7 @@ class NearbyPage extends ConsumerWidget {
     ];
 
     return DefaultTabController(
-      length: 6,
+      length: 7,
       child: Scaffold(
         body: Column(
           children: [
@@ -128,6 +128,7 @@ class NearbyPage extends ConsumerWidget {
                 Tab(text: s.dengue),
                 Tab(text: s.weekend),
                 Tab(text: s.prayerTab),
+                Tab(text: s.emergency),
               ],
             ),
             Expanded(
@@ -141,6 +142,7 @@ class NearbyPage extends ConsumerWidget {
                         _DengueTab(place: place),
                         _WeekendTab(place: place),
                         const _PrayerTab(),
+                        _EmergencyTab(place: place),
                       ],
                     ),
             ),
@@ -467,7 +469,9 @@ class _WeekendTab extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final forecast = ref.watch(forecastProvider).valueOrNull;
     final here = forecast == null ? null : forecastNear(forecast, place.lat, place.lng);
-    final indoor = preferIndoor(here);
+    final air = airNear(ref.watch(psiProvider).valueOrNull, ref.watch(pm25Provider).valueOrNull, place.lat, place.lng);
+    final hazy = air != null && air.level.index >= AirLevel.unhealthy.index;
+    final indoor = preferIndoor(here) || hazy;
     return _loadingOr(ref.watch(poisProvider), s, (pois) {
       final groups = indoor
           ? [(s.libraries, PoiKind.library, Icons.local_library_outlined), (s.communityClubs, PoiKind.cc, Icons.groups_outlined), (s.sports, PoiKind.sport, Icons.pool_outlined)]
@@ -478,7 +482,7 @@ class _WeekendTab extends ConsumerWidget {
         children: [
           AlertBanner(
             icon: indoor ? Icons.umbrella : Icons.wb_sunny_outlined,
-            text: indoor ? s.weekendRainy : s.weekendSunny,
+            text: hazy ? s.airAdviceShort(air.level) : indoor ? s.weekendRainy : s.weekendSunny,
             tone: indoor ? AlertTone.warning : AlertTone.info,
           ),
           for (final (title, kind, icon) in groups) ...[
@@ -568,5 +572,107 @@ class _PrayerTab extends ConsumerWidget {
         ],
       );
     });
+  }
+}
+
+// ---------------------------------------------------------------- emergency
+
+class _EmergencyTab extends ConsumerWidget {
+  const _EmergencyTab({required this.place});
+  final Place place;
+
+  static Future<void> _call(String number) => launchUrl(Uri(scheme: 'tel', path: number));
+
+  static Future<void> _directions(EPoint p) => launchUrl(
+        Uri.parse('https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}'),
+        mode: LaunchMode.externalApplication,
+      );
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final em = ref.watch(emergencyProvider).valueOrNull ?? EmergencySet.empty;
+
+    Widget callButton(String number, String label, Color color) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Panel(
+            margin: EdgeInsets.zero,
+            color: color,
+            child: InkWell(
+              onTap: () => _call(number),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Row(
+                  children: [
+                    Icon(Icons.call, color: color == DL.stop ? Colors.white : DL.ink),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(label,
+                          style: t.titleMedium?.copyWith(color: color == DL.stop ? Colors.white : DL.ink)),
+                    ),
+                    Icon(Icons.chevron_right, color: color == DL.stop ? Colors.white : DL.ink),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+
+    Widget group(String title, IconData icon, EmergencyKind kind, {int limit = 3}) {
+      final list = nearestPoints(em.of(kind), place.lat, place.lng, limit: limit);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SectionTitle(title),
+          Panel(
+            child: Column(
+              children: [
+                if (list.isEmpty) EmptyNote(s.bundlesLoading, icon: Icons.cloud_download_outlined),
+                for (final (p, d) in list)
+                  ListTile(
+                    leading: Icon(icon),
+                    title: Text(p.name),
+                    subtitle: Text(
+                      [s.metres(d), if (p.detail.isNotEmpty) p.detail, if (p.address.isNotEmpty) p.address, if (p.hours.isNotEmpty) p.hours]
+                          .join(' · '),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (p.tel.isNotEmpty)
+                          IconButton(tooltip: s.callLabel, icon: const Icon(Icons.call_outlined), onPressed: () => _call(p.tel)),
+                        IconButton(
+                          tooltip: s.directions,
+                          icon: const Icon(Icons.directions_outlined),
+                          onPressed: () => _directions(p),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(14, 12, 18, 24),
+      children: [
+        callButton('995', s.call995, DL.stop),
+        callButton('999', s.call999, DL.amber),
+        callButton('1777', s.call1777, DL.card),
+        group(s.aeHospitals, Icons.local_hospital_outlined, EmergencyKind.ae),
+        group(s.aeds, Icons.monitor_heart_outlined, EmergencyKind.aed),
+        group(s.chasClinics, Icons.medical_services_outlined, EmergencyKind.clinic),
+        group(s.fireStations, Icons.fire_truck_outlined, EmergencyKind.fire, limit: 2),
+        group(s.shelters, Icons.shield_outlined, EmergencyKind.shelter, limit: 2),
+        const SizedBox(height: 4),
+        Text(s.emergencyNote, style: t.bodySmall),
+      ],
+    );
   }
 }

@@ -46,6 +46,8 @@ class TodayPage extends ConsumerWidget {
       ref.invalidate(lightningProvider);
       ref.invalidate(rainfallProvider);
       ref.invalidate(uvProvider);
+      ref.invalidate(psiProvider);
+      ref.invalidate(pm25Provider);
       ref.invalidate(carparkLiveProvider);
       ref.invalidate(taxiProvider);
       await ref.read(forecastProvider.future).catchError((_) => <String, dynamic>{});
@@ -133,6 +135,7 @@ IconData _alertIcon(AlertKind k) => switch (k) {
       AlertKind.dengue => Icons.bug_report_outlined,
       AlertKind.heat => Icons.thermostat,
       AlertKind.lightning => Icons.bolt,
+      AlertKind.haze => Icons.masks_outlined,
     };
 
 /// Weather for the trip, set in large type inside the hero.
@@ -384,11 +387,21 @@ class _WeatherTiles extends ConsumerWidget {
     final rain = ref.watch(rainfallProvider).valueOrNull;
     final uv = ref.watch(uvProvider).valueOrNull;
     final wbgt = ref.watch(wbgtProvider).valueOrNull;
+    final air = airNear(ref.watch(psiProvider).valueOrNull, ref.watch(pm25Provider).valueOrNull, origin.lat, origin.lng);
     final r = rain == null ? null : rainfallNear(rain, origin.lat, origin.lng);
     final u = uv == null ? null : uvIndex(uv);
     final w = wbgt == null ? null : wbgtNear(wbgt, origin.lat, origin.lng);
-    if (r == null && u == null && w == null) return const SizedBox.shrink();
+    if (r == null && u == null && w == null && air == null) return const SizedBox.shrink();
     final tiles = <Widget>[
+      if (air != null)
+        Expanded(
+          child: BentoTile(
+            icon: Icons.masks_outlined,
+            value: air.psi24 != null ? '${air.psi24}' : '${air.pm25}',
+            caption: '${s.airLabel} · ${air.level.index >= AirLevel.unhealthy.index ? s.maskNeeded : s.noMask}',
+            tint: air.level.index >= AirLevel.unhealthy.index ? DL.amber : null,
+          ),
+        ),
       if (r != null)
         Expanded(
           child: BentoTile(
@@ -417,19 +430,27 @@ class _WeatherTiles extends ConsumerWidget {
           ),
         ),
     ];
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (var i = 0; i < tiles.length; i++) ...[
-              if (i > 0) const SizedBox(width: 10),
-              tiles[i],
-            ],
-          ],
-        ),
-      ),
+    // Two tiles per row so numbers stay large.
+    final rows = [for (var i = 0; i < tiles.length; i += 2) tiles.sublist(i, i + 2 > tiles.length ? tiles.length : i + 2)];
+    return Column(
+      children: [
+        for (final row in rows)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < row.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 12),
+                    row[i],
+                  ],
+                  if (row.length == 1) ...[const SizedBox(width: 12), const Expanded(child: SizedBox())],
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

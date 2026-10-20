@@ -194,6 +194,14 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
       await notify(5, s.heatTitle, s.heatAt(place, heat!.toLowerCase()));
       await log.markSent('heat:$day');
     }
+    final air = airNear(await api.weather('psi'), await api.weather('pm25'), p.lat, p.lng);
+    if (air != null && air.level.index >= AirLevel.unhealthy.index) {
+      final id = 'haze:$day:${air.level.name}';
+      if (!await log.alreadySent(id)) {
+        await notify(8, s.hazeTitle, s.airAdviceShort(air.level));
+        await log.markSent(id);
+      }
+    }
     if (lightningNear(await api.weather('lightning'), p.lat, p.lng)) {
       final id = 'lightning:$day:${now.hour}';
       if (!await log.alreadySent(id)) {
