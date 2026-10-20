@@ -270,4 +270,82 @@ void main() {
     expect(back.stops, isEmpty);
     expect(back.label, '66 Marine Drive');
   });
+
+  test('weather details and hawker alternatives', () {
+    final rain = {
+      'data': {
+        'data': {
+          'stations': [
+            {'id': 'S1', 'name': 'Tampines Ave 5', 'location': {'latitude': 1.354, 'longitude': 103.943}},
+            {'id': 'S2', 'name': 'Raffles', 'location': {'latitude': 1.284, 'longitude': 103.851}},
+          ],
+          'readings': [
+            {
+              'timestamp': '2026-10-20T13:00:00+08:00',
+              'data': [
+                {'stationId': 'S1', 'value': 0.4},
+                {'stationId': 'S2', 'value': 0},
+              ],
+            },
+          ],
+        },
+      },
+    };
+    final r = rainfallNear(rain, 1.355, 103.944)!;
+    expect(r.$1, 'Tampines Ave 5');
+    expect(r.$2, 0.4);
+    final uv = {
+      'data': {
+        'data': {
+          'records': [
+            {
+              'index': [
+                {'hour': '2026-10-20T12:00:00+08:00', 'value': 9},
+                {'hour': '2026-10-20T11:00:00+08:00', 'value': 7},
+              ],
+            },
+          ],
+        },
+      },
+    };
+    expect(uvIndex(uv), 9);
+    final wbgt = {
+      'data': {
+        'data': {
+          'records': [
+            {
+              'item': {
+                'readings': [
+                  {'location': {'latitude': '1.36', 'longitude': '103.94'}, 'wbgt': '31.5', 'heatStress': 'High'},
+                ],
+              },
+            },
+          ],
+        },
+      },
+    };
+    expect(wbgtNear(wbgt, 1.35, 103.94), (31.5, 'High'));
+
+    Hawker h(String id, double lat, List<List<String>> c) =>
+        Hawker.fromBundle({'id': id, 'n': id, 'la': lat, 'lo': 103.9, 'c': c});
+    final a = h('a', 1.30, [
+      ['2026-10-20', '2026-10-21', 'cleaning'],
+    ]);
+    final b = h('b', 1.301, [
+      ['2026-10-20', '2026-10-20', 'cleaning'],
+    ]);
+    final c = h('c', 1.305, []);
+    final alt = openAlternatives([a, b, c], a, DateTime(2026, 10, 20));
+    expect(alt.single.$1.id, 'c');
+    expect(openAlternatives([a, b, c], a, DateTime(2026, 10, 21)).first.$1.id, 'b');
+
+    const pois = [
+      Poi(name: 'Near', lat: 1.3005, lng: 103.9),
+      Poi(name: 'Mid', lat: 1.312, lng: 103.9),
+      Poi(name: 'Far', lat: 1.4, lng: 103.9),
+    ];
+    final (near, far) = schoolsByBand(pois, 1.30, 103.9);
+    expect(near.single.$1.name, 'Near');
+    expect(far.single.$1.name, 'Mid');
+  });
 }

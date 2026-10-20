@@ -147,12 +147,19 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     final raw = await repo.load('hawkers');
     if (raw is! List) return;
     final tomorrow = dateOnly(now).add(const Duration(days: 1));
-    for (final r in raw) {
-      final h = Hawker.fromBundle(r as Map<String, dynamic>);
+    final all = [for (final r in raw) Hawker.fromBundle(r as Map<String, dynamic>)];
+    for (final h in all) {
       if (!fav.hawkers.contains(h.id) || h.closureOn(tomorrow) == null) continue;
       final id = 'hawker:$day:${h.id}';
       if (await log.alreadySent(id)) continue;
-      await notify(3, s.hawkerTomorrowTitle, s.hawkerClosedTomorrow(h.name));
+      final alt = openAlternatives(all, h, tomorrow, limit: 1);
+      await notify(
+        3,
+        s.hawkerTomorrowTitle,
+        alt.isEmpty
+            ? s.hawkerClosedTomorrow(h.name)
+            : '${s.hawkerClosedTomorrow(h.name)}. ${s.tryInstead(alt.first.$1.name, s.metres(alt.first.$2))}',
+      );
       await log.markSent(id);
     }
   });

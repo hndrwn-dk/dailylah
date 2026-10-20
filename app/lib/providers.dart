@@ -147,6 +147,10 @@ final trainAlertsProvider =
 
 final wbgtProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).weather('wbgt'));
 
+final rainfallProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).weather('rainfall'));
+
+final uvProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).weather('uv'));
+
 final lightningProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).weather('lightning'));
 
 final carparkLiveProvider = FutureProvider.autoDispose((ref) async => carparkLots(await ref.watch(apiProvider).carparks()));

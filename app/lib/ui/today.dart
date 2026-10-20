@@ -44,6 +44,8 @@ class TodayPage extends ConsumerWidget {
       ref.invalidate(crowdShareProvider);
       ref.invalidate(wbgtProvider);
       ref.invalidate(lightningProvider);
+      ref.invalidate(rainfallProvider);
+      ref.invalidate(uvProvider);
       ref.invalidate(carparkLiveProvider);
       ref.invalidate(taxiProvider);
       await ref.read(forecastProvider.future).catchError((_) => <String, dynamic>{});
@@ -51,6 +53,7 @@ class TodayPage extends ConsumerWidget {
 
     final dests = <Widget>[
       for (final a in alerts) AlertBanner(icon: _alertIcon(a.kind), text: a.text),
+      if (origin != null) _WeatherTiles(origin: origin),
       if (fav.lines.isNotEmpty) _MrtCard(lines: fav.lines, showCrowd: kind == CardKind.evening),
       if (origin != null)
         for (final stop in origin.stops)
@@ -368,6 +371,67 @@ class _BusRow extends ConsumerWidget {
           const Spacer(),
           LoadMeter(eta.load, label: s.loadLabel(eta.load)),
         ],
+      ),
+    );
+  }
+}
+
+/// Bento row with live readings near the origin: rain gauge, UV and heat stress.
+class _WeatherTiles extends ConsumerWidget {
+  const _WeatherTiles({required this.origin});
+  final Place origin;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final rain = ref.watch(rainfallProvider).valueOrNull;
+    final uv = ref.watch(uvProvider).valueOrNull;
+    final wbgt = ref.watch(wbgtProvider).valueOrNull;
+    final r = rain == null ? null : rainfallNear(rain, origin.lat, origin.lng);
+    final u = uv == null ? null : uvIndex(uv);
+    final w = wbgt == null ? null : wbgtNear(wbgt, origin.lat, origin.lng);
+    if (r == null && u == null && w == null) return const SizedBox.shrink();
+    final tiles = <Widget>[
+      if (r != null)
+        Expanded(
+          child: BentoTile(
+            icon: Icons.water_drop_outlined,
+            value: s.rainMm(r.$2),
+            caption: s.rainNow,
+            tint: r.$2 > 0 ? DL.amber : null,
+          ),
+        ),
+      if (u != null)
+        Expanded(
+          child: BentoTile(
+            icon: Icons.wb_sunny_outlined,
+            value: '$u',
+            caption: '${s.uvLabel} · ${s.uvLevel(u)}',
+            tint: u >= 8 ? DL.amber : null,
+          ),
+        ),
+      if (w != null)
+        Expanded(
+          child: BentoTile(
+            icon: Icons.thermostat,
+            value: '${w.$1.toStringAsFixed(1)}°',
+            caption: '${s.heatLabel} · ${s.heatLevel(w.$2)}',
+            tint: isHighHeat(w.$2) ? DL.amber : null,
+          ),
+        ),
+    ];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < tiles.length; i++) ...[
+              if (i > 0) const SizedBox(width: 10),
+              tiles[i],
+            ],
+          ],
+        ),
       ),
     );
   }

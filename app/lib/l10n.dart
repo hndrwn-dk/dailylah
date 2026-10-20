@@ -79,6 +79,7 @@ class S {
   String get taxisNearby => _t('Taxis nearby', 'Taksi di sekitar');
   String taxisWithin(int n) => _t('$n available within 500 m', '$n tersedia dalam 500 m');
   String get parkingAt => _t('Parking', 'Parkir');
+  String get freeLots => _t('free', 'kosong');
   String lotsFree(int n) => _t('$n lots free', '$n slot kosong');
   String get pullToRefresh => _t('Pull down to refresh.', 'Tarik ke bawah untuk memperbarui.');
 
@@ -90,6 +91,29 @@ class S {
   String get lightningNear => _t('Lightning nearby. Stay indoors.', 'Ada petir di sekitar. Tetap di dalam ruangan.');
   String mrtAlert(String lines) => _t('Disruption on $lines', 'Gangguan di $lines');
   String rainAt(String place) => _t('Rain expected near $place', 'Hujan diperkirakan di sekitar $place');
+
+  String tryInstead(String name, String dist) => _t('Try $name ($dist)', 'Coba $name ($dist)');
+  String get rainNow => _t('Rain now', 'Hujan sekarang');
+  String rainMm(double mm) => mm == 0 ? _t('Dry', 'Kering') : '${mm.toStringAsFixed(1)} mm';
+  String get uvLabel => 'UV';
+  String uvLevel(int v) => v >= 11
+      ? _t('Extreme', 'Ekstrem')
+      : v >= 8
+          ? _t('Very high', 'Sangat tinggi')
+          : v >= 6
+              ? _t('High', 'Tinggi')
+              : v >= 3
+                  ? _t('Moderate', 'Sedang')
+                  : _t('Low', 'Rendah');
+  String get heatLabel => _t('Heat stress', 'Tingkat panas');
+  String heatLevel(String c) => switch (c.toLowerCase()) {
+        'low' => _t('Low', 'Rendah'),
+        'moderate' => _t('Moderate', 'Sedang'),
+        'high' => _t('High', 'Tinggi'),
+        _ => c,
+      };
+  String get weatherNow => _t('Weather now', 'Cuaca sekarang');
+  String nearestStation(String name) => _t('Nearest station: $name', 'Stasiun terdekat: $name');
 
   // ---------------------------------------------------------------- nearby
   String get hawkers => 'Hawker';
@@ -120,6 +144,20 @@ class S {
   String get nightParking => _t('Night parking', 'Parkir malam');
   String get weekendSunny => _t('Dry weather: good time to head outdoors.', 'Cuaca kering: waktunya keluar rumah.');
   String get weekendRainy => _t('Rain expected: indoor ideas nearby.', 'Diperkirakan hujan: ide kegiatan di dalam ruangan.');
+  String get schools => _t('Schools', 'Sekolah');
+  String get primarySchools => _t('Primary schools', 'Sekolah dasar');
+  String get secondarySchools => _t('Secondary schools', 'Sekolah menengah');
+  String get preschools => _t('Preschools', 'Preschool');
+  String get within1km => _t('Within 1 km', 'Dalam 1 km');
+  String get between1and2km => _t('1 to 2 km', '1 sampai 2 km');
+  String get p1Note => _t(
+      'Straight-line distance from your saved address. MOE uses its own home-to-school measurement for P1 priority, so confirm on SchoolFinder.',
+      'Jarak garis lurus dari alamat tersimpan. MOE memakai pengukuran sendiri untuk prioritas P1, jadi cek di SchoolFinder.');
+  String get openSchoolFinder => _t('Open MOE SchoolFinder', 'Buka MOE SchoolFinder');
+  String get setAddressForSchools => _t('Set your home address for accurate school distances.',
+      'Atur alamat rumah supaya jarak sekolah akurat.');
+  String get parkingElsewhere => _t('Check parking at another address', 'Cek parkir di alamat lain');
+  String parkingNear(String place) => _t('Parking near $place', 'Parkir dekat $place');
   String get parks => _t('Parks', 'Taman');
   String get libraries => _t('Libraries', 'Perpustakaan');
   String get communityClubs => _t('Community clubs', 'Community club');
