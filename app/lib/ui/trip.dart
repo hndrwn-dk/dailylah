@@ -528,7 +528,7 @@ class GoSomewhere extends ConsumerWidget {
       for (final i in extrasForToday(fav, now)) ('extra:$i', Icons.star_outline, placeTitle(s.placeLabel, fav.extraPlaces[i])),
       for (final k in [PlaceKind.work, PlaceKind.school, PlaceKind.home])
         if (fav.places[k] != null) (k.name, PlaceSelector.iconOf(k), s.placeLabel(k.name)),
-      if (adhoc != null) ('adhoc', Icons.place_outlined, adhoc.name),
+      if (adhoc != null) ('adhoc', Icons.place_outlined, adhoc.name ?? s.anyAddress),
       ('search', Icons.search, s.anyAddress),
     ];
     Place? dest;
