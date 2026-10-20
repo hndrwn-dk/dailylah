@@ -529,7 +529,7 @@ class _Pill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = selected ? DL.amber : (onDark ? DL.card : Theme.of(context).colorScheme.surfaceContainerLowest);
-    final fg = DL.ink;
+    const fg = DL.ink;
     final r = BorderRadius.circular(12);
     return DecoratedBox(
       decoration: BoxDecoration(
