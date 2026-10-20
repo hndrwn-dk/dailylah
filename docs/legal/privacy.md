@@ -18,7 +18,7 @@ DailyLah is a free daily companion for people in Singapore. It shows bus arrival
 
 ### 3. Data stored only on your phone
 - Your saved places (Home, Work, School): the address you chose (label, postal code and coordinates) and the bus stops you picked for it
-- The MRT/LRT lines you selected, your usual departure times, your alert settings and optional extras
+- The MRT/LRT lines you selected, your usual departure times, your alert settings, your work days and how you usually travel to each place (bus/MRT, car, motorbike, bicycle or taxi), and optional extras
 - Favourite hawker centres, saved car parks, and HDB blocks you watch or compare
 - A short log of alerts already shown, so the same alert is not sent twice
 - Copies of public data bundles (bus stops, hawker centres, dengue clusters, schools, parks, car parks, HDB blocks, resale and rent statistics, prayer times), and the text shown on the home screen widget
@@ -38,9 +38,9 @@ To show live information, the app sends requests to the DailyLah API operated by
 - The 5-digit **bus stop code** you are viewing, to get bus arrival times
 - The **MRT/LRT line code** (for example `NSL`), to get platform crowd levels
 - A **CEA registration number** you type into "Check a property agent", to look it up in the public CEA register. This number identifies the agent, not you
-- Requests for the weather forecast, haze (PSI and PM2.5), heat stress, lightning, train service alerts, HDB car park availability and taxi availability, which contain no personal data
+- Requests for the weather forecast, haze (PSI and PM2.5), heat stress, lightning, train service alerts, HDB car park availability, car park availability for LTA, URA and HDB car parks, traffic incidents and taxi availability, which contain no personal data
 
-Searching HDB blocks, comparing blocks, nearby hawker centres, dengue clusters and weekend ideas are all computed on your phone from the public data bundles, so the server does not learn which places you look at.
+Which buses go to your destination, parking near it and incidents on the way are worked out on your phone; the server only sends the full public lists. Searching HDB blocks, comparing blocks, nearby hawker centres, dengue clusters and weekend ideas are all computed on your phone from the public data bundles, so the server does not learn which places you look at.
 
 The app also downloads these public data bundles from our website. Like any web service, our hosting providers record technical request logs (IP address, time, requested path and app version) for operations and security, and keep them for a limited period. We do not combine these logs with any other data and we do not use them to identify you. The server never receives your saved places, home or work location, or GPS coordinates.
 
@@ -90,7 +90,7 @@ DailyLah adalah teman harian gratis untuk warga Singapura. Aplikasi ini menampil
 
 ### 3. Data yang hanya tersimpan di HP Anda
 - Tempat yang Anda simpan (Rumah, Kantor, Sekolah): alamat yang Anda pilih (label, kode pos, dan koordinat) serta halte bus yang Anda pilih
-- Jalur MRT/LRT pilihan, jam berangkat biasa, pengaturan notifikasi, dan fitur tambahan opsional
+- Jalur MRT/LRT pilihan, jam berangkat biasa, pengaturan notifikasi, hari kerja, dan cara Anda biasanya bepergian ke setiap tempat (bus/MRT, mobil, motor, sepeda, atau taksi), serta fitur tambahan opsional
 - Hawker favorit, parkir yang disimpan, serta blok HDB yang Anda pantau atau bandingkan
 - Catatan singkat notifikasi yang sudah tampil, supaya notifikasi yang sama tidak dikirim dua kali
 - Salinan bundel data publik (halte bus, hawker, cluster dengue, sekolah, taman, parkir, blok HDB, statistik harga resale dan sewa, jadwal sholat), dan teks yang tampil di widget layar utama
@@ -110,9 +110,9 @@ Untuk menampilkan informasi real-time, aplikasi mengirim permintaan ke API Daily
 - **Kode halte bus** 5 digit yang sedang Anda lihat, untuk mendapatkan jadwal kedatangan bus
 - **Kode jalur MRT/LRT** (misalnya `NSL`), untuk mendapatkan tingkat kepadatan peron
 - **Nomor registrasi CEA** yang Anda ketik di "Cek agen properti", untuk dicocokkan dengan register CEA publik. Nomor ini mengidentifikasi agen, bukan Anda
-- Permintaan prakiraan cuaca, kabut asap (PSI dan PM2.5), tingkat panas, petir, status layanan kereta, ketersediaan parkir HDB, dan ketersediaan taksi, yang tidak berisi data pribadi
+- Permintaan prakiraan cuaca, kabut asap (PSI dan PM2.5), tingkat panas, petir, status layanan kereta, ketersediaan parkir HDB, ketersediaan parkir LTA, URA, dan HDB, insiden lalu lintas, dan ketersediaan taksi, yang tidak berisi data pribadi
 
-Pencarian blok HDB, perbandingan blok, hawker terdekat, cluster dengue, dan ide akhir pekan dihitung di HP Anda dari bundel data publik, sehingga server tidak tahu tempat mana yang Anda lihat.
+Bus mana yang menuju tujuan Anda, parkir di dekatnya, dan insiden di jalan dihitung di HP Anda; server hanya mengirim daftar publik lengkap. Pencarian blok HDB, perbandingan blok, hawker terdekat, cluster dengue, dan ide akhir pekan dihitung di HP Anda dari bundel data publik, sehingga server tidak tahu tempat mana yang Anda lihat.
 
 Aplikasi juga mengunduh bundel data publik tersebut dari situs kami. Seperti layanan web pada umumnya, penyedia hosting kami mencatat log teknis (alamat IP, waktu, path yang diminta, dan versi aplikasi) untuk operasional dan keamanan, dan menyimpannya untuk jangka waktu terbatas. Kami tidak menggabungkan log ini dengan data lain dan tidak memakainya untuk mengidentifikasi Anda. Server tidak pernah menerima tempat yang Anda simpan, lokasi rumah atau kantor, maupun koordinat GPS.
 

@@ -33,6 +33,11 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   in `DL`, fonts Plus Jakarta Sans + Barlow Condensed in `assets/fonts/`), `ui/widgets.dart`
   (Panel, HeroHeader, BusPlate, PillRow, BentoTile...). Keep the sticker style: ink outlines
   and hard offset shadows (`Panel`), not soft Material cards.
+- Routines: each place has travel modes (`Place.modes`, first = default) and custom places a
+  `when`; `Favorites.workDays` decides commute days. Today shows the commute trip
+  (`TripSection` in `ui/trip.dart`) and a "Go somewhere" picker. "Buses to X" uses the
+  `bus_routes.json` bundle (`directRides` in logic.dart); driving uses `/v1/parking`
+  (lot type C/Y) and `/v1/traffic-incidents`.
 - Favourites, custom places, watched/compared blocks and extras are stored with SharedPreferences
   (`lib/store.dart`). Family share is a `DL1:` code built on-device (`encodeShareCode`).
 - Alerts run on-device: WorkManager every 15 min (`lib/background.dart`) calls the API and

@@ -127,6 +127,8 @@ async def crowd(
 
 CARPARK_KEY = "dg:carpark"
 TAXI_KEY = "lta:taxi"
+PARKING_KEY = "lta:parking"
+INCIDENTS_KEY = "lta:incidents"
 
 
 @app.get("/v1/carpark")
@@ -142,6 +144,25 @@ async def carpark(c: Cache = Depends(cache)) -> dict:
 async def taxi(c: Cache = Depends(cache)) -> dict:
     """Available taxi positions [[lat, lng]], rounded. Polled every 5 min."""
     data = await c.get(TAXI_KEY)
+    if data is None:
+        raise HTTPException(503, "data not polled yet")
+    return data
+
+
+@app.get("/v1/parking")
+async def parking(c: Cache = Depends(cache)) -> dict:
+    """Live lots for LTA/URA/HDB car parks: [[id, agency, lat, lng, lot_type, available, name]].
+    lot_type C is cars, Y is motorcycles. Polled every 3 min."""
+    data = await c.get(PARKING_KEY)
+    if data is None:
+        raise HTTPException(503, "data not polled yet")
+    return data
+
+
+@app.get("/v1/traffic-incidents")
+async def traffic_incidents(c: Cache = Depends(cache)) -> dict:
+    """Current traffic incidents: [[type, lat, lng, message]]. Polled every 5 min."""
+    data = await c.get(INCIDENTS_KEY)
     if data is None:
         raise HTTPException(503, "data not polled yet")
     return data
@@ -224,4 +245,8 @@ async def poll(request: Request) -> dict:
         for ds in LTA_DATASETS:
             result[ds.key] = await _poll_one(request, ds, "lta")
         result[TAXI_KEY] = await _poll_key(request, TAXI_KEY, 300, 900, src.taxis)
+        result[PARKING_KEY] = await _poll_key(request, PARKING_KEY, 180, 900, src.parking)
+        result[INCIDENTS_KEY] = await _poll_key(
+            request, INCIDENTS_KEY, 300, 900, src.traffic_incidents
+        )
     return result

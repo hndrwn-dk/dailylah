@@ -14,6 +14,8 @@ Writes (all compact JSON, keys documented in app/lib/data.dart):
     hdb_rent.json    median rent per town, last 6 months
     prayer.json      MUIS prayer times for the year
     taxi_stands.json LTA taxi stands and stops
+    bus_routes.json  stop order per bus service and direction (for "buses that go home")
+    bicycle_racks.json LTA bicycle racks
     emergency.json   AEDs, A&E hospitals, fire stations, CHAS clinics, CD shelters
     manifest.json    {"version", "files": {name: {path, count, sha256}}}
 
@@ -40,7 +42,15 @@ MIN_EXPECTED_STOPS = 4000  # Singapore has ~5,000; fewer means a broken upstream
 GEOCODE_CACHE = Path(__file__).resolve().parent.parent / "data" / "geocode.json"
 
 # Minimum sizes below which a fresh bundle is treated as broken and not published.
-MIN_COUNTS = {"taxi_stands": 100, "hawkers": 80, "carparks": 1500, "hdb_blocks": 100, "prayer": 300}
+MIN_COUNTS = {
+    "taxi_stands": 100,
+    "bus_routes": 300,
+    "bicycle_racks": 50,
+    "hawkers": 80,
+    "carparks": 1500,
+    "hdb_blocks": 100,
+    "prayer": 300,
+}
 
 
 def _dump(obj) -> bytes:
@@ -101,6 +111,12 @@ async def build(
                 return compact_taxi_stands(await Sources(settings, client).taxi_stands())
 
             await attempt("taxi_stands", taxi_stands())
+
+            async def bus_routes() -> dict:
+                return await Sources(settings, client).bus_routes()
+
+            await attempt("bus_routes", bus_routes())
+            await attempt("bicycle_racks", b.build_racks(dg))
             await attempt("hawkers", b.build_hawkers(dg))
             await attempt("dengue", b.build_dengue(dg))
             await attempt("carparks", b.build_carparks(dg))

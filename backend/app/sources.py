@@ -124,6 +124,25 @@ class Sources:
                 break
         return rows
 
+    async def _lta_all(self, path: str, page_size: int = 500, max_pages: int = 80) -> list[dict]:
+        rows: list[dict] = []
+        for page in range(max_pages):
+            batch = (await self.lta(path, {"$skip": page * page_size})).get("value", [])
+            rows.extend(batch)
+            if len(batch) < page_size:
+                break
+        return rows
+
+    async def parking(self) -> list[list]:
+        """Live lots for LTA, URA and HDB car parks, by lot type (C car, Y motorcycle, H heavy)."""
+        return compact_parking(await self._lta_all("CarParkAvailabilityv2", max_pages=12))
+
+    async def traffic_incidents(self) -> list[list]:
+        return compact_incidents((await self.lta("TrafficIncidents")).get("value", []))
+
+    async def bus_routes(self) -> dict:
+        return compact_bus_routes(await self._lta_all("BusRoutes", max_pages=80))
+
     async def bus_stops(self, page_size: int = 500, max_pages: int = 40) -> list[dict]:
         """All bus stops. LTA pages results 500 at a time via $skip."""
         stops: list[dict] = []
@@ -177,6 +196,64 @@ def compact_carparks(payload: dict) -> dict[str, list[int]]:
             except (KeyError, TypeError, ValueError):
                 continue
     return out
+
+
+def compact_parking(rows: list[dict]) -> list[list]:
+    """[[id, agency, lat, lng, lot_type, available, name]], skipping heavy-vehicle lots."""
+    out = []
+    for r in rows:
+        lot = str(r.get("LotType", ""))
+        if lot not in ("C", "Y"):
+            continue
+        try:
+            lat, lng = (round(float(x), 5) for x in str(r["Location"]).split())
+            avail = int(r["AvailableLots"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        out.append(
+            [
+                str(r.get("CarParkID", "")),
+                str(r.get("Agency", "")),
+                lat,
+                lng,
+                lot,
+                avail,
+                str(r.get("Development", "")).strip(),
+            ]
+        )
+    return out
+
+
+def compact_incidents(rows: list[dict]) -> list[list]:
+    """[[type, lat, lng, message]] for current traffic incidents."""
+    out = []
+    for r in rows:
+        try:
+            out.append(
+                [
+                    str(r.get("Type", "")),
+                    round(float(r["Latitude"]), 5),
+                    round(float(r["Longitude"]), 5),
+                    str(r.get("Message", "")).strip(),
+                ]
+            )
+        except (KeyError, TypeError, ValueError):
+            continue
+    return out
+
+
+def compact_bus_routes(rows: list[dict]) -> dict:
+    """{"<service>|<direction>": [[stop_code, km_from_start], ...]} in stop order."""
+    routes: dict[str, list[tuple[int, str, float]]] = {}
+    for r in rows:
+        try:
+            key = f"{r['ServiceNo']}|{int(r['Direction'])}"
+            seq = int(r["StopSequence"])
+            dist = round(float(r.get("Distance") or 0), 1)
+        except (KeyError, TypeError, ValueError):
+            continue
+        routes.setdefault(key, []).append((seq, str(r.get("BusStopCode", "")), dist))
+    return {k: [[code, dist] for _, code, dist in sorted(v)] for k, v in sorted(routes.items())}
 
 
 def compact_taxi_stands(rows: list[dict]) -> list[dict]:

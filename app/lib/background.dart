@@ -75,7 +75,7 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
   const s = S();
   final log = AlertLog(await SharedPreferences.getInstance());
   final day = dayKey(now);
-  final kind = cardFor(now);
+  final kind = cardFor(now, fav);
   final quiet = isQuietHour(now);
   final repo = bundles ?? BundleRepository();
 

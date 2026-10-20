@@ -8,6 +8,7 @@ import '../providers.dart';
 import 'address_picker.dart';
 import 'stop_picker.dart';
 import 'theme.dart';
+import 'trip.dart';
 import 'widgets.dart';
 
 /// Onboarding and setup in one page: places (by bus stop), MRT lines and departure
@@ -187,6 +188,16 @@ class SetupPage extends ConsumerWidget {
                 label: Text(place == null || place.stops.isEmpty ? s.pickStop : s.addAnotherStop),
                 onPressed: (place?.stops.length ?? 0) >= 2 ? null : () => _pickStop(context, ref, kind),
               ),
+              if (kind != PlaceKind.home && place != null) ...[
+                const Divider(height: 16),
+                Text(s.usuallyBy, style: t.labelMedium),
+                const SizedBox(height: 6),
+                ModeChips(
+                  selected: place.modes,
+                  onChanged: (m) => notifier.setPlace(place.copyWith(modes: m)),
+                ),
+                const SizedBox(height: 8),
+              ],
             ],
           ),
         ),
@@ -232,7 +243,26 @@ class SetupPage extends ConsumerWidget {
                       ),
                   ],
                 ),
+                SectionTitle(s.workDaysTitle),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (var d = 1; d <= 7; d++)
+                      FilterChip(
+                        label: Text(s.dayShort[d - 1]),
+                        selected: fav.workDays.contains(d),
+                        onSelected: (on) => notifier.update((f) => f.copyWith(
+                              workDays: on ? {...f.workDays, d} : ({...f.workDays}..remove(d)),
+                            )),
+                      ),
+                  ],
+                ),
                 SectionTitle(s.departureTimes),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+                  child: Text(s.departureTimesSub, style: t.bodySmall),
+                ),
                 Panel(
                   child: Column(
                     children: [
@@ -353,6 +383,28 @@ class _ExtraPlaces extends ConsumerWidget {
                         Text(fav.extraPlaces[i].address ?? '', style: t.bodySmall),
                         if (fav.extraPlaces[i].stops.isNotEmpty)
                           Text(fav.extraPlaces[i].stops.map((x) => x.name).join(' · '), style: t.bodySmall),
+                        const SizedBox(height: 8),
+                        Text(s.whenLabel, style: t.labelMedium),
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            for (final w in PlaceWhen.values)
+                              ChoiceChip(
+                                label: Text(s.whenName(w.name)),
+                                selected: fav.extraPlaces[i].when == w,
+                                onSelected: (_) => n.setExtra(i, fav.extraPlaces[i].copyWith(when: w)),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(s.usuallyBy, style: t.labelMedium),
+                        const SizedBox(height: 4),
+                        ModeChips(
+                          selected: fav.extraPlaces[i].modes,
+                          onChanged: (m) => n.setExtra(i, fav.extraPlaces[i].copyWith(modes: m)),
+                        ),
                       ],
                     ),
                   ),
@@ -388,6 +440,43 @@ class _ExtraPlaces extends ConsumerWidget {
           )
         else
           Text(s.maxPlaces(Favorites.maxExtraPlaces), style: t.bodySmall),
+      ],
+    );
+  }
+}
+
+
+/// Multi-select travel modes; order of picking decides the default (first).
+class ModeChips extends ConsumerWidget {
+  const ModeChips({super.key, required this.selected, required this.onChanged});
+  final List<TravelMode> selected;
+  final ValueChanged<List<TravelMode>> onChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (final m in TravelMode.values)
+              FilterChip(
+                avatar: Icon(modeIcon(m), size: 16),
+                label: Text(selected.isNotEmpty && selected.first == m ? '${s.modeLabel(m.name)} ★' : s.modeLabel(m.name)),
+                selected: selected.contains(m),
+                showCheckmark: false,
+                onSelected: (on) {
+                  final next = on ? [...selected, m] : selected.where((x) => x != m).toList();
+                  if (next.isNotEmpty) onChanged(next);
+                },
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(s.usuallyByHint, style: Theme.of(context).textTheme.bodySmall),
       ],
     );
   }
