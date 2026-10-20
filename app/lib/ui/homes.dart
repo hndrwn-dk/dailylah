@@ -52,16 +52,9 @@ class HomesPage extends ConsumerWidget {
                 TextField(
                   onChanged: (v) => ref.read(_homesQueryProvider.notifier).state = v,
                   textInputAction: TextInputAction.search,
-                  style: t.bodyLarge?.copyWith(color: DL.ink),
                   decoration: InputDecoration(
                     hintText: s.blockSearchHint,
-                    hintStyle: t.bodyMedium?.copyWith(color: DL.mist),
-                    prefixIcon: const Icon(Icons.search, color: DL.ink),
-                    fillColor: Colors.white,
-                    filled: true,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),
-                    enabledBorder:
-                        OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),
+                    prefixIcon: const Icon(Icons.search),
                   ),
                 ),
               ],
@@ -195,8 +188,9 @@ class _BlockNumber extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: large ? Colors.white : DL.mint,
-        borderRadius: BorderRadius.circular(large ? 22 : 16),
+        color: large ? DL.amber : DL.mint,
+        borderRadius: BorderRadius.circular(large ? 18 : 14),
+        border: Border.all(color: DL.edge(context), width: DL.stroke),
       ),
       child: Text(
         number,
@@ -240,7 +234,7 @@ class BlockPage extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const BackButton(color: Colors.white),
+                const BackButton(),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -250,9 +244,9 @@ class BlockPage extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(block.street, style: t.headlineSmall?.copyWith(color: Colors.white)),
+                          Text(block.street, style: t.headlineSmall),
                           const SizedBox(height: 4),
-                          Text(block.town, style: t.bodyMedium?.copyWith(color: Colors.white70)),
+                          Text(block.town, style: t.bodyMedium?.copyWith(color: t.bodySmall?.color)),
                         ],
                       ),
                     ),
@@ -274,8 +268,8 @@ class BlockPage extends ConsumerWidget {
                     Expanded(
                       child: FilledButton.icon(
                         style: FilledButton.styleFrom(
-                          backgroundColor: watching ? DL.amber : Colors.white,
-                          foregroundColor: DL.ink,
+                          backgroundColor: watching ? DL.amber : DL.ink,
+                          foregroundColor: watching ? DL.ink : DL.card,
                         ),
                         icon: Icon(watching ? Icons.visibility : Icons.visibility_outlined),
                         label: Text(watching ? s.watching : s.watch),
@@ -288,10 +282,7 @@ class BlockPage extends ConsumerWidget {
                     Expanded(
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(52),
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: Colors.white38),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          minimumSize: const Size.fromHeight(54),
                         ),
                         icon: Icon(comparing ? Icons.check : Icons.add),
                         label: Text(comparing ? s.inCompare : s.compare),
@@ -359,16 +350,16 @@ class _HeroChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white24),
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: DL.edge(context), width: 2),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 15, color: Colors.white70),
+          Icon(icon, size: 15),
           const SizedBox(width: 6),
-          Text(text, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.white)),
+          Text(text, style: Theme.of(context).textTheme.labelMedium),
         ],
       ),
     );

@@ -105,7 +105,6 @@ class NearbyPage extends ConsumerWidget {
                   PillRow(
                     items: pills,
                     selected: place == null ? '' : (key == 'adhoc' || key.startsWith('extra:') ? key : place.kind.name),
-                    onDark: true,
                     onTap: (k) {
                       if (k == 'here') {
                         _useHere(context, ref);

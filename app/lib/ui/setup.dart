@@ -201,7 +201,7 @@ class SetupPage extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (!firstRun) const BackButton(color: Colors.white) else const SizedBox(height: 24),
+                if (!firstRun) const BackButton() else const SizedBox(height: 16),
                 const SizedBox(height: 8),
                 PageTitle(firstRun ? s.welcome : s.yourSetup, subtitle: firstRun ? s.welcomeIntro : s.editSetup),
               ],

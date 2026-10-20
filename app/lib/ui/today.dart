@@ -83,18 +83,17 @@ class TodayPage extends ConsumerWidget {
                       Expanded(
                         child: Text(
                           '${kind == CardKind.morning ? s.morningCard : s.eveningCard} · ${_dateLabel(now)}',
-                          style: t.labelMedium?.copyWith(color: Colors.white70),
+                          style: t.labelMedium?.copyWith(color: t.bodySmall?.color),
                         ),
                       ),
-                      IconButton(
+                      StickerIconButton(
                         tooltip: s.checkBuses,
-                        style: IconButton.styleFrom(backgroundColor: Colors.white.withValues(alpha: 0.12)),
-                        icon: const Icon(Icons.search, color: Colors.white),
+                        icon: Icons.search,
                         onPressed: () => _searchStop(context, s),
                       ),
                     ],
                   ),
-                  Text(s.greeting(now.hour), style: t.displayMedium?.copyWith(color: Colors.white)),
+                  Text(s.greeting(now.hour), style: t.displayLarge),
                   const SizedBox(height: 18),
                   if (origin != null) _HeroWeather(origin: origin, kind: kind),
                 ],
@@ -150,7 +149,7 @@ class _HeroWeather extends ConsumerWidget {
     final destPlace = dest == null ? null : fav.places[dest];
     final body = ref.watch(forecastProvider);
     final t = Theme.of(context).textTheme;
-    final dim = t.bodyMedium?.copyWith(color: Colors.white70);
+    final dim = t.bodyMedium;
 
     return body.when(
       loading: () => Text(s.loading, style: dim),
@@ -160,13 +159,12 @@ class _HeroWeather extends ConsumerWidget {
         final there = destPlace == null ? null : forecastNear(json, destPlace.lat, destPlace.lng);
         if (here == null) return Text(s.notAvailable, style: dim);
         final rainy = here.isRainy || (there?.isRainy ?? false);
-        return Container(
+        // Sky panel when dry, amber when rain is expected.
+        return Panel(
+          margin: EdgeInsets.zero,
+          color: rainy ? DL.amber : DL.sky,
+          child: Padding(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -174,11 +172,11 @@ class _HeroWeather extends ConsumerWidget {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: rainy ? DL.amber : DL.tealLight.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(16),
+                  color: DL.card,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: DL.ink, width: 2),
                 ),
-                child: Icon(rainy ? Icons.umbrella : Icons.wb_sunny_outlined,
-                    size: 28, color: rainy ? DL.ink : Colors.white),
+                child: Icon(rainy ? Icons.umbrella : Icons.wb_sunny_outlined, size: 28, color: DL.ink),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -186,7 +184,7 @@ class _HeroWeather extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(rainy ? s.bringUmbrella : s.noRain,
-                        style: t.titleLarge?.copyWith(color: Colors.white)),
+                        style: t.titleLarge?.copyWith(color: DL.ink)),
                     const SizedBox(height: 6),
                     _ForecastLine(label: s.placeLabel(origin.kind.name), f: here),
                     if (there != null && destPlace != null)
@@ -194,12 +192,13 @@ class _HeroWeather extends ConsumerWidget {
                     if (here.validText != null) ...[
                       const SizedBox(height: 4),
                       Text('${s.weather2h} · ${s.validUntil(here.validText!)}',
-                          style: t.bodySmall?.copyWith(color: Colors.white60)),
+                          style: t.bodySmall?.copyWith(color: DL.ink.withValues(alpha: 0.7))),
                     ],
                   ],
                 ),
               ),
             ],
+          ),
           ),
         );
       },
@@ -218,8 +217,8 @@ class _ForecastLine extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 2),
       child: Text.rich(TextSpan(children: [
-        TextSpan(text: '$label · ${f.area}  ', style: t.bodySmall?.copyWith(color: Colors.white60)),
-        TextSpan(text: f.forecast, style: t.labelLarge?.copyWith(color: Colors.white)),
+        TextSpan(text: '$label · ${f.area}  ', style: t.bodySmall?.copyWith(color: DL.ink.withValues(alpha: 0.7))),
+        TextSpan(text: f.forecast, style: t.labelLarge?.copyWith(color: DL.ink)),
       ])),
     );
   }

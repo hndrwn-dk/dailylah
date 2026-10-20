@@ -15,6 +15,7 @@ class DL {
   static const amber = Color(0xFFEDAD2B); // alerts and highlights
   static const stop = Color(0xFFDC4A37); // disruptions
   static const mint = Color(0xFFCFEDEA); // quiet tinted surfaces
+  static const sky = Color(0xFFBFE4F1); // weather panel when dry
   static const mist = Color(0xFF798E95); // secondary text
   static const shield = Color(0xFFA4B9C0);
 
