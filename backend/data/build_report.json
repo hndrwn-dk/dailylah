@@ -1,11 +1,13 @@
 {
  "counts": {
+  "bicycle_racks": 396,
+  "bus_routes": 26833,
   "bus_stops": 5209,
   "carparks": 2273,
   "dengue": 7,
-  "emergency": 11312,
+  "emergency": 11453,
   "hawkers": 108,
-  "hdb_blocks": 10738,
+  "hdb_blocks": 10735,
   "hdb_rent": 26,
   "hdb_resale": 9232,
   "poi": 5100,
@@ -13,6 +15,6 @@
   "taxi_stands": 316
  },
  "errors": {},
- "geocode_cache": 839,
- "geocoded_new": 227
+ "geocode_cache": 1045,
+ "geocoded_new": 206
 }
