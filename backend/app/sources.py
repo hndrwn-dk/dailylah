@@ -114,6 +114,16 @@ class Sources:
     def _datagov_headers(self) -> dict:
         return {"x-api-key": self.s.datagov_api_key} if self.s.datagov_api_key else {}
 
+    async def taxi_stands(self, page_size: int = 500, max_pages: int = 10) -> list[dict]:
+        """All taxi stands and stops (static, refreshed daily in the data bundle)."""
+        rows: list[dict] = []
+        for page in range(max_pages):
+            batch = (await self.lta("TaxiStands", {"$skip": page * page_size})).get("value", [])
+            rows.extend(batch)
+            if len(batch) < page_size:
+                break
+        return rows
+
     async def bus_stops(self, page_size: int = 500, max_pages: int = 40) -> list[dict]:
         """All bus stops. LTA pages results 500 at a time via $skip."""
         stops: list[dict] = []
@@ -166,6 +176,21 @@ def compact_carparks(payload: dict) -> dict[str, list[int]]:
                 out[cp["carpark_number"]] = [int(info["total_lots"]), int(info["lots_available"])]
             except (KeyError, TypeError, ValueError):
                 continue
+    return out
+
+
+def compact_taxi_stands(rows: list[dict]) -> list[dict]:
+    """LTA TaxiStands -> [{"n": name, "la", "lo", "d": "Taxi stand · Barrier-free"}]."""
+    out = []
+    for r in rows:
+        try:
+            lat, lng = round(float(r["Latitude"]), 5), round(float(r["Longitude"]), 5)
+        except (KeyError, TypeError, ValueError):
+            continue
+        kind = "Taxi stop" if str(r.get("Type", "")).lower() == "stop" else "Taxi stand"
+        detail = kind + (" · Barrier-free" if str(r.get("Bfa", "")).lower() == "yes" else "")
+        name = str(r.get("Name") or r.get("TaxiCode") or "").strip()
+        out.append({"n": name, "la": lat, "lo": lng, "d": detail})
     return out
 
 

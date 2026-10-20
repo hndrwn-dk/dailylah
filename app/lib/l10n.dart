@@ -130,6 +130,13 @@ class S {
   String get hazeTitle => 'Haze';
   String get hazeSource => 'PSI and PM2.5: NEA. Health advice follows NEA guidelines; see haze.gov.sg.';
 
+  String taxisNear(String place) => 'Taxis near $place';
+  String get within200 => 'within 200 m';
+  String get within500 => 'within 500 m';
+  String get taxiWithin1km => 'within 1 km';
+  String get taxiStands => 'Nearest taxi stands';
+  String get taxiLive => 'Free taxis right now, from LTA. Updated every few minutes.';
+  String get taxiMapLegend => 'Dots are free taxis, squares are taxi stands. Rings at 250 m, 500 m and 1 km.';
   String get bookTaxi => 'Book a ride';
   String get bookTaxiNote => 'Opens the app if installed, otherwise its Play Store page.';
   String get callCdg => 'Call ComfortDelGro 6552 1111';

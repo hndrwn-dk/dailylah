@@ -127,6 +127,9 @@ final rentProvider = FutureProvider<RentData>((ref) async {
   return m == null ? RentData.empty : RentData.fromBundle(m);
 });
 
+final taxiStandsProvider =
+    FutureProvider<List<EPoint>>((ref) => _list(ref, 'taxi_stands', EPoint.fromBundle));
+
 final emergencyProvider = FutureProvider<EmergencySet>((ref) async {
   final m = await _map(ref, 'emergency');
   return m == null ? EmergencySet.empty : EmergencySet.fromBundle(m);
