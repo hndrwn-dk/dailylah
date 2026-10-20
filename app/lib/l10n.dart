@@ -143,6 +143,16 @@ class S {
   String get hazeSource => _t('PSI and PM2.5: NEA. Health advice follows NEA guidelines; see haze.gov.sg.',
       'PSI dan PM2.5: NEA. Saran kesehatan mengikuti panduan NEA; lihat haze.gov.sg.');
 
+  String get bookTaxi => _t('Book a ride', 'Pesan taksi');
+  String get bookTaxiNote => _t('Opens the app if installed, otherwise its Play Store page.',
+      'Membuka aplikasinya kalau sudah terpasang, kalau belum ke halaman Play Store.');
+  String get callCdg => _t('Call ComfortDelGro 6552 1111', 'Telepon ComfortDelGro 6552 1111');
+  String airDetail(String region, int? psi, int? pm) => _t(
+      'Region: $region${psi == null ? '' : ' · PSI (24h) $psi'}${pm == null ? '' : ' · PM2.5 (1h) $pm µg/m³'}',
+      'Wilayah: $region${psi == null ? '' : ' · PSI (24 jam) $psi'}${pm == null ? '' : ' · PM2.5 (1 jam) $pm µg/m³'}');
+  String get moreAtHaze => _t('More at haze.gov.sg', 'Selengkapnya di haze.gov.sg');
+  String get seeHawkers => _t('See hawkers nearby', 'Lihat hawker di sekitar');
+
   // emergency
   String get emergency => _t('Emergency', 'Darurat');
   String get call995 => _t('995 Ambulance & fire', '995 Ambulans & kebakaran');

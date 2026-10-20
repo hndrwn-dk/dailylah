@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../background.dart';
 import '../data.dart';
@@ -355,12 +356,25 @@ class _BusRow extends ConsumerWidget {
           BusPlate(eta.service),
           const SizedBox(width: 14),
           SizedBox(
-            width: 64,
+            width: 72,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
-                Text(s.minutesAway(eta.minutes), style: arriving ? t.displaySmall?.copyWith(color: DL.teal) : t.displaySmall),
+                if (arriving)
+                  Pulse(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      decoration: BoxDecoration(
+                        color: DL.amber,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: DL.edge(context), width: 2),
+                      ),
+                      child: Text(s.minutesAway(0), style: t.displaySmall?.copyWith(color: DL.ink, fontSize: 26)),
+                    ),
+                  )
+                else
+                  Text(s.minutesAway(eta.minutes), style: t.displaySmall),
                 if (!arriving) ...[
                   const SizedBox(width: 3),
                   Text(s.min, style: t.bodySmall),
@@ -400,6 +414,7 @@ class _WeatherTiles extends ConsumerWidget {
             value: air.psi24 != null ? '${air.psi24}' : '${air.pm25}',
             caption: '${s.airLabel} · ${air.level.index >= AirLevel.unhealthy.index ? s.maskNeeded : s.noMask}',
             tint: air.level.index >= AirLevel.unhealthy.index ? DL.amber : null,
+            onTap: () => _showAir(context, s, air),
           ),
         ),
       if (r != null)
@@ -475,6 +490,7 @@ class _QuickTiles extends ConsumerWidget {
             value: '${taxisWithin(taxis, origin.lat, origin.lng)}',
             caption: s.taxisNearby,
             tint: DL.amber,
+            onTap: () => _showTaxi(context, s),
           ),
         ),
       if (near != null)
@@ -483,6 +499,11 @@ class _QuickTiles extends ConsumerWidget {
             icon: Icons.ramen_dining_outlined,
             value: s.metres(near.$2),
             caption: '${near.$1.name}${near.$1.closureOn(today) != null ? ' · ${s.closedNow}' : ''}',
+            onTap: () {
+              // Open Nearby > Hawker for the same place.
+              ref.read(nearbyKeyProvider.notifier).state = origin.kind.name;
+              ref.read(shellTabProvider.notifier).state = 1;
+            },
           ),
         ),
     ];
@@ -558,3 +579,94 @@ class StopArrivalsPage extends ConsumerWidget {
     );
   }
 }
+
+
+Future<void> _showAir(BuildContext context, S s, AirQuality air) => showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        final t = Theme.of(ctx).textTheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${s.hazeTitle} · ${s.airLevel(air.level)}', style: t.titleLarge),
+                const SizedBox(height: 6),
+                Text(s.airDetail(air.region, air.psi24, air.pm25), style: t.bodySmall),
+                const SizedBox(height: 14),
+                AlertBanner(
+                  icon: Icons.masks_outlined,
+                  text: s.airAdviceShort(air.level),
+                  tone: air.level.index >= AirLevel.unhealthy.index ? AlertTone.warning : AlertTone.info,
+                ),
+                TextButton.icon(
+                  style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                  icon: const Icon(Icons.open_in_new, size: 18),
+                  label: Text(s.moreAtHaze),
+                  onPressed: () => launchUrl(Uri.parse('https://www.haze.gov.sg'), mode: LaunchMode.externalApplication),
+                ),
+                Text(s.hazeSource, style: t.bodySmall),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+/// Ride-hailing apps in Singapore (Play Store package ids). market://launch opens
+/// the app when installed, otherwise its store page.
+const _rideApps = [
+  ('Grab', 'com.grabtaxi.passenger'),
+  ('Gojek', 'com.gojek.app'),
+  ('CDG Zig', 'com.codigo.comfort'),
+  ('TADA', 'com.mvlchain.tada'),
+];
+
+Future<void> _showTaxi(BuildContext context, S s) => showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        final t = Theme.of(ctx).textTheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(s.bookTaxi, style: t.titleLarge),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (final (name, id) in _rideApps)
+                      OutlinedButton(
+                        onPressed: () async {
+                          final ok = await launchUrl(Uri.parse('market://launch?id=$id'));
+                          if (!ok) {
+                            await launchUrl(Uri.parse('https://play.google.com/store/apps/details?id=$id'),
+                                mode: LaunchMode.externalApplication);
+                          }
+                        },
+                        child: Text(name),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                FilledButton.icon(
+                  icon: const Icon(Icons.call),
+                  label: Text(s.callCdg),
+                  onPressed: () => launchUrl(Uri(scheme: 'tel', path: '65521111')),
+                ),
+                const SizedBox(height: 8),
+                Text(s.bookTaxiNote, style: t.bodySmall),
+              ],
+            ),
+          ),
+        );
+      },
+    );

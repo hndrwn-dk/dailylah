@@ -60,6 +60,11 @@
             <action android:name="android.intent.action.SENDTO" />
             <data android:scheme="mailto" />
         </intent>
+        <!-- url_launcher: open ride-hailing apps (or their Play Store page). -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="market" />
+        </intent>
         <!-- url_launcher: emergency numbers and clinic phone numbers open the dialer. -->
         <intent>
             <action android:name="android.intent.action.DIAL" />
