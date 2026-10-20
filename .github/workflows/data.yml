@@ -48,4 +48,9 @@ jobs:
           git config user.name "dailylah-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "Update static data bundles"
-          git push
+          # main may have moved while the build ran (it can take ~40 min).
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push && exit 0
+            sleep 10
+          done
+          exit 1
