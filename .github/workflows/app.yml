@@ -27,4 +27,10 @@ jobs:
           distribution: temurin
           java-version: "17"
       - name: Build debug APK (compiles Kotlin, manifest and plugins)
-        run: flutter build apk --debug
+        run: flutter build apk --debug --dart-define=APP_VERSION=0.1.0-${GITHUB_SHA::7}
+      - name: Upload APK for testing on a phone
+        uses: actions/upload-artifact@v7
+        with:
+          name: dailylah-debug-apk
+          path: app/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 14

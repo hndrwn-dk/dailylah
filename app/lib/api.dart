@@ -14,7 +14,7 @@ const apiUrl = String.fromEnvironment(
 );
 
 /// Static site (Vercel) that serves /data/manifest.json and /data/bus_stops.json.
-const webUrl = String.fromEnvironment('WEB_URL', defaultValue: 'https://dailylah.vercel.app');
+const webUrl = String.fromEnvironment('WEB_URL', defaultValue: 'https://dailylah-web.vercel.app');
 
 class DailyLahApi {
   DailyLahApi([Dio? dio])
