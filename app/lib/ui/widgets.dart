@@ -627,6 +627,7 @@ class PillNav extends StatelessWidget {
         boxShadow: DL.hard(context),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < items.length; i++)
             Expanded(
@@ -643,11 +644,14 @@ class PillNav extends StatelessWidget {
                     child: AnimatedContainer(
                       duration: reduce ? Duration.zero : const Duration(milliseconds: 220),
                       curve: Curves.easeOutCubic,
-                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      margin: EdgeInsets.fromLTRB(2, 0, i == index ? 5 : 2, i == index ? 3 : 0),
+                      // Same look as the selected place pill: full-height amber sticker
+                      // with an ink outline and a hard shadow.
                       decoration: BoxDecoration(
                         color: i == index ? DL.amber : Colors.transparent,
                         borderRadius: BorderRadius.circular(30),
-                        border: Border.all(color: i == index ? DL.ink : Colors.transparent, width: 2),
+                        border: Border.all(color: i == index ? DL.ink : Colors.transparent, width: DL.stroke),
+                        boxShadow: i == index ? const [BoxShadow(color: DL.ink, offset: Offset(3, 3))] : null,
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
