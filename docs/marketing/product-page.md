@@ -73,5 +73,5 @@ Get DailyLah on Google Play and set up your stops in under two minutes.
 - Privacy Policy → https://www.tursinalabs.com/dailylah/privacy
 - Terms of Service → https://www.tursinalabs.com/dailylah/terms
 
-**Short description (Play Store, max 80 chars, 65 used):**
+**Short description (Play Store, max 80 chars, 66 used):**
 Next bus, MRT alerts and rain warnings for your Singapore commute.
