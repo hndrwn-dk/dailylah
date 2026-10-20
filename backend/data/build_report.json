@@ -3,15 +3,16 @@
   "bus_stops": 5209,
   "carparks": 2273,
   "dengue": 7,
-  "emergency": 11085,
+  "emergency": 11312,
   "hawkers": 108,
   "hdb_blocks": 10738,
   "hdb_rent": 26,
   "hdb_resale": 9232,
   "poi": 5100,
-  "prayer": 365
+  "prayer": 365,
+  "taxi_stands": 316
  },
  "errors": {},
- "geocode_cache": 612,
- "geocoded_new": 224
+ "geocode_cache": 839,
+ "geocoded_new": 227
 }
