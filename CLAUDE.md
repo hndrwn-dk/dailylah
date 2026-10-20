@@ -53,6 +53,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - Vercel Hobby cron runs once per day only. Daily data rebuilds run in GitHub Actions.
 
 ## Privacy rules
+- Published policy and terms: https://www.tursinalabs.com/dailylah/privacy and /terms.
+  Source text lives in `docs/legal/`. Any change to what data the app or server handles
+  (new permission, SDK, endpoint, log field) must update `docs/legal/privacy.md` in the same PR.
 - User locations and favourites stay on the device. The server only sees stop codes and FCM topics.
 - No accounts, no identifying analytics.
 - Secrets only via env vars. Never commit `.env`, API keys, or keystores.
