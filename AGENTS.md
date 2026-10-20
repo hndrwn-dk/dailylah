@@ -31,7 +31,8 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - `lib/providers.dart` holds all Riverpod providers; widgets in `lib/ui/` only render.
 - UI: `ui/shell.dart` (tabs Today / Nearby / Homes / More), `ui/theme.dart` (design tokens
   in `DL`, fonts Plus Jakarta Sans + Barlow Condensed in `assets/fonts/`), `ui/widgets.dart`
-  (HeroHeader, BusPlate, LineChip, BentoTile...). Keep the hero + white card language.
+  (Panel, HeroHeader, BusPlate, PillRow, BentoTile...). Keep the sticker style: ink outlines
+  and hard offset shadows (`Panel`), not soft Material cards.
 - Favourites, custom places, watched/compared blocks and extras are stored with SharedPreferences
   (`lib/store.dart`). Family share is a `DL1:` code built on-device (`encodeShareCode`).
 - Alerts run on-device: WorkManager every 15 min (`lib/background.dart`) calls the API and
