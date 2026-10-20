@@ -436,7 +436,7 @@ class HalalButton extends ConsumerWidget {
             style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
             icon: const Icon(Icons.verified_outlined),
             label: Text(s.halalCheck),
-            onPressed: () => launchUrl(Uri.parse('https://www.muis.gov.sg/halal'), mode: LaunchMode.externalApplication),
+            onPressed: () => launchUrl(Uri.parse('https://halal.muis.gov.sg/halal/establishments'), mode: LaunchMode.externalApplication),
           ),
           const SizedBox(height: 4),
           Text(s.halalNote, style: Theme.of(context).textTheme.bodySmall),
