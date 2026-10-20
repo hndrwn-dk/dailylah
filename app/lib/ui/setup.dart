@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../background.dart';
 import '../l10n.dart';
+import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
+import 'address_picker.dart';
 import 'stop_picker.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -15,17 +17,59 @@ class SetupPage extends ConsumerWidget {
   const SetupPage({super.key, this.firstRun = false});
   final bool firstRun;
 
+  Future<void> _pickAddress(BuildContext context, WidgetRef ref, PlaceKind kind) async {
+    final s = ref.read(stringsProvider);
+    final hit = await Navigator.of(context).push<AddressHit>(
+      MaterialPageRoute(builder: (_) => AddressPickerPage(title: s.addressFor(s.placeLabel(kind.name)))),
+    );
+    if (hit == null) return;
+    final existing = ref.read(favoritesProvider).places[kind]?.stops ?? const <BusStop>[];
+    var stops = existing;
+    var autoPicked = false;
+    if (stops.isEmpty) {
+      // Suggest the two nearest stops; the user can change them below.
+      final all = await ref.read(busStopsProvider.future).catchError((_) => const <BusStop>[]);
+      stops = nearestStops(all, hit.lat, hit.lng, limit: 2)
+          .where((st) => distanceMeters(hit.lat, hit.lng, st.lat, st.lng) <= 600)
+          .toList();
+      autoPicked = stops.isNotEmpty;
+    }
+    await ref.read(favoritesProvider.notifier).setPlace(Place(
+          kind: kind,
+          stops: stops,
+          address: hit.label,
+          postal: hit.postal.isEmpty ? null : hit.postal,
+          addrLat: hit.lat,
+          addrLng: hit.lng,
+        ));
+    if (autoPicked && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.stopsAutoPicked)));
+    }
+  }
+
   Future<void> _pickStop(BuildContext context, WidgetRef ref, PlaceKind kind) async {
     final s = ref.read(stringsProvider);
     final stop = await Navigator.of(context).push<BusStop>(
       MaterialPageRoute(builder: (_) => StopPickerPage(title: s.pickStopNear(s.placeLabel(kind.name)))),
     );
     if (stop == null) return;
-    final fav = ref.read(favoritesProvider);
-    final existing = fav.places[kind]?.stops ?? const <BusStop>[];
+    final place = ref.read(favoritesProvider).places[kind];
+    final existing = place?.stops ?? const <BusStop>[];
     if (existing.any((x) => x.code == stop.code)) return;
     final stops = [...existing, stop].take(2).toList(); // max 2 stops per place
-    await ref.read(favoritesProvider.notifier).setPlace(Place(kind: kind, stops: stops));
+    await ref
+        .read(favoritesProvider.notifier)
+        .setPlace(place == null ? Place(kind: kind, stops: stops) : place.copyWith(stops: stops));
+  }
+
+  Future<void> _removeStop(WidgetRef ref, Place place, BusStop stop) async {
+    final stops = place.stops.where((x) => x.code != stop.code).toList();
+    final n = ref.read(favoritesProvider.notifier);
+    if (stops.isEmpty && !place.hasAddress) {
+      await n.removePlace(place.kind);
+    } else {
+      await n.setPlace(place.copyWith(stops: stops));
+    }
   }
 
   Future<void> _pickTime(BuildContext context, WidgetRef ref, bool home) async {
@@ -90,19 +134,58 @@ class SetupPage extends ConsumerWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: 8),
-              if (place == null)
+              const SizedBox(height: 10),
+              // Address
+              InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => _pickAddress(context, ref, kind),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.place_outlined, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: place?.hasAddress == true
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(place!.address ?? s.myLocation, style: t.titleSmall),
+                                  if (place.postal != null) Text('Singapore ${place.postal}', style: t.bodySmall),
+                                ],
+                              )
+                            : Text(s.setAddress, style: t.labelLarge?.copyWith(color: Theme.of(context).colorScheme.primary)),
+                      ),
+                      Icon(place?.hasAddress == true ? Icons.edit_outlined : Icons.chevron_right, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+              const Divider(height: 16),
+              // Bus stops
+              Text(s.busStopsHere, style: t.labelMedium),
+              const SizedBox(height: 4),
+              if (place == null || place.stops.isEmpty)
                 Text(s.pickStopNear(s.placeLabel(kind.name).toLowerCase()), style: t.bodySmall)
               else
                 for (final st in place.stops)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text('${st.name} · ${st.code}', style: t.bodyMedium),
+                  Row(
+                    children: [
+                      const Icon(Icons.directions_bus_outlined, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text('${st.name} · ${st.code}', style: t.bodyMedium)),
+                      IconButton(
+                        tooltip: s.remove,
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: () => _removeStop(ref, place, st),
+                      ),
+                    ],
                   ),
               TextButton.icon(
                 style: TextButton.styleFrom(padding: EdgeInsets.zero),
                 icon: const Icon(Icons.add),
-                label: Text(place == null ? s.pickStop : s.addAnotherStop),
+                label: Text(place == null || place.stops.isEmpty ? s.pickStop : s.addAnotherStop),
                 onPressed: (place?.stops.length ?? 0) >= 2 ? null : () => _pickStop(context, ref, kind),
               ),
             ],

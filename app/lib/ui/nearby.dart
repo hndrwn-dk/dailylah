@@ -77,7 +77,7 @@ class NearbyPage extends ConsumerWidget {
 
 Widget _loadingOr<T>(AsyncValue<T> v, S s, Widget Function(T) data) => v.when(
       loading: () => const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator())),
-      error: (_, __) => EmptyNote(s.notAvailable),
+      error: (_, __) => EmptyNote(s.bundlesLoading, icon: Icons.cloud_download_outlined),
       data: data,
     );
 
@@ -100,7 +100,7 @@ class _HawkerTab extends ConsumerWidget {
         final fb = fav.hawkers.contains(b.$1.id) ? 0 : 1;
         return fa != fb ? fa - fb : a.$2.compareTo(b.$2);
       });
-      if (list.isEmpty) return EmptyNote(s.notAvailable);
+      if (list.isEmpty) return EmptyNote(all.isEmpty ? s.bundlesLoading : s.notAvailable);
       final t = Theme.of(context).textTheme;
       return ListView.separated(
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -151,7 +151,7 @@ class _ParkingTab extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
           Padding(padding: const EdgeInsets.fromLTRB(16, 4, 16, 8), child: Text(s.parkingHint, style: t.bodySmall)),
-          if (list.isEmpty) EmptyNote(s.notAvailable),
+          if (list.isEmpty) EmptyNote(all.isEmpty ? s.bundlesLoading : s.notAvailable),
           for (final (c, d) in list)
             ListTile(
               leading: Icon(fav.carparks.contains(c.id) ? Icons.bookmark : Icons.bookmark_border),

@@ -24,7 +24,18 @@ class HomesPage extends ConsumerWidget {
     final t = Theme.of(context).textTheme;
     final byKey = {for (final b in blocks.valueOrNull ?? const <HdbBlock>[]) b.key: b};
 
-    final results = query.trim().length < 2 ? const <HdbBlock>[] : searchBlocks(blocks.valueOrNull ?? const [], query);
+    final all = blocks.valueOrNull ?? const <HdbBlock>[];
+    final postal = isPostalCode(query);
+    final byPostal = postal ? searchBlocks(all, query) : const <HdbBlock>[];
+    // Postal codes not in the bundle are resolved on OneMap, then matched to a block.
+    final postalHit = postal && byPostal.isEmpty && all.isNotEmpty ? ref.watch(addressSearchProvider(query.trim())) : null;
+    final postalBlock = postalHit?.valueOrNull?.isNotEmpty == true ? blockForAddress(all, postalHit!.value!.first) : null;
+    final results = postal
+        ? (byPostal.isNotEmpty ? byPostal : [if (postalBlock != null) postalBlock])
+        : query.trim().length < 2
+            ? const <HdbBlock>[]
+            : searchBlocks(all, query);
+    final empty = blocks.hasError || (blocks.hasValue && all.isEmpty);
 
     return Scaffold(
       body: ListView(
@@ -62,9 +73,11 @@ class HomesPage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (blocks.isLoading) const LinearProgressIndicator(),
-                if (blocks.hasError || (blocks.hasValue && blocks.value!.isEmpty)) Card(child: EmptyNote(s.notAvailable)),
+                if (empty) Card(child: EmptyNote(s.bundlesLoading, icon: Icons.cloud_download_outlined)),
                 if (query.trim().length >= 2) ...[
-                  if (results.isEmpty && blocks.hasValue) Card(child: EmptyNote(s.notAvailable)),
+                  if (postalHit?.isLoading == true) const LinearProgressIndicator(),
+                  if (!empty && results.isEmpty && !(postalHit?.isLoading ?? false))
+                    Card(child: EmptyNote(postal ? s.blockNotInData : s.notAvailable)),
                   for (final b in results) _BlockTile(block: b),
                 ] else ...[
                   if (fav.compareBlocks.length >= 2)

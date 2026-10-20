@@ -97,7 +97,7 @@ def test_points_from_html_description_and_mrt_dedupe():
         ]
     }
     mrt = b.compact_mrt(exits)
-    assert mrt == [{"n": "Tampines Mrt Station", "la": 1.354, "lo": 103.945}]
+    assert mrt == [{"n": "Tampines MRT Station", "la": 1.354, "lo": 103.945}]
 
 
 def test_sports_filter():
@@ -341,3 +341,31 @@ async def test_build_keeps_previous_bundle_when_upstream_fails(tmp_path, monkeyp
 @pytest.mark.parametrize("value", ["", "31/02/2026", "2026-01-01"])
 def test_bad_dates_are_ignored(value):
     assert b._dmy(value) is None
+
+
+def test_match_blocks_uses_street_codes_and_prefix():
+    blocks = [
+        {"b": "1", "s": "BEDOK STH AVE 1", "t": "BEDOK", "y": 1975, "f": 14},
+        {"b": "2", "s": "BEDOK STH AVE 1", "t": "BEDOK", "y": 1975, "f": 14},
+        {"b": "1", "s": "BEACH RD", "t": "KALLANG/WHAMPOA", "y": 1970, "f": 16},
+        {"b": "9", "s": "NOWHERE ST", "t": "X", "y": 1990, "f": 10},
+    ]
+    buildings = b.compact_buildings(
+        {
+            "features": [
+                {
+                    "properties": {"BLK_NO": blk, "ST_COD": code, "POSTAL_COD": pc},
+                    "geometry": {"type": "Point", "coordinates": [lng, lat]},
+                }
+                for blk, code, pc, lat, lng in [
+                    ("1", "BED05S", "460001", 1.321, 103.94),
+                    ("2", "BED05S", "460002", 1.322, 103.94),
+                    ("1", "BEA01R", "190001", 1.30, 103.86),
+                ]
+            ]
+        }
+    )
+    out = {(x["b"], x["s"]): x for x in b.match_blocks(blocks, buildings)}
+    assert out[("1", "BEDOK STH AVE 1")]["p"] == "460001"
+    assert out[("1", "BEACH RD")]["p"] == "190001"
+    assert ("9", "NOWHERE ST") not in out

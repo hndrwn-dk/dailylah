@@ -44,6 +44,7 @@ HDB_PROPERTY = "d_17f5382f26140b1fdae0ba2ef6239d2f"
 RESALE = "d_8b84c4ee58e3cfc0ece0d773c8ca6abc"
 RENTING_OUT = "d_c9f57187485a850908655db0e8cfe651"
 PRAYER_TIMES = "d_d441e7242e78efc566024dd5b0d9829c"  # 2026 timetable
+HDB_BUILDINGS = "d_16b157c52ed637edd6ba1232e026258d"  # footprints with BLK_NO, ST_COD, POSTAL_COD
 
 PAGE = 10000
 
@@ -141,9 +142,12 @@ class Geocoder:
             return None
         params = {"searchVal": query, "returnGeom": "Y", "getAddrDetails": "Y", "pageNum": 1}
         try:
-            resp = await self.client.get(ONEMAP_SEARCH_URL, params=params)
-            if resp.status_code == 429:
-                await asyncio.sleep(30)
+            for attempt in range(4):
+                resp = await self.client.get(ONEMAP_SEARCH_URL, params=params)
+                if resp.status_code != 429:
+                    break
+                await asyncio.sleep(20 * (attempt + 1))
+            if resp.status_code != 200:
                 return None
             results = resp.json().get("results") or []
         except (httpx.HTTPError, ValueError):
@@ -310,7 +314,8 @@ def compact_mrt(geo: dict) -> list[dict]:
     for name, pts in sorted(by_station.items()):
         lat = sum(p[0] for p in pts) / len(pts)
         lng = sum(p[1] for p in pts) / len(pts)
-        out.append({"n": name.title(), "la": _r(lat), "lo": _r(lng)})
+        title = name.title().replace("Mrt", "MRT").replace("Lrt", "LRT")
+        out.append({"n": title, "la": _r(lat), "lo": _r(lng)})
     return out
 
 
@@ -578,26 +583,110 @@ async def _wrap(fn, coro):
     return fn(await coro)
 
 
-async def build_homes(dg: DataGov, geo: Geocoder, today: date) -> tuple[list[dict], dict, dict]:
-    """(hdb_blocks, hdb_resale, hdb_rent). Resale uses the last 24 months, rent the last 6."""
-    since = months_back(today, 24)
-    resale_rows = await dg.rows(
-        RESALE, sort="month desc", stop=lambda r: str(r.get("month", "")) < since
-    )
-    resale = summarise_resale(resale_rows, since)
-    block_town = resale.pop("block_town")
+def compact_buildings(geo: dict) -> list[dict]:
+    """HDB building footprints -> [{"b": block, "st": street code, "p": postal, "la", "lo"}]."""
+    out = []
+    for f in geo.get("features", []):
+        props = f.get("properties") or {}
+        c = centroid(f.get("geometry"))
+        b = str(props.get("BLK_NO") or "").strip().upper()
+        if not c or not b:
+            continue
+        out.append(
+            {
+                "b": b,
+                "st": str(props.get("ST_COD") or "").strip().upper(),
+                "p": str(props.get("POSTAL_COD") or "").strip(),
+                "la": _r(c[0]),
+                "lo": _r(c[1]),
+            }
+        )
+    return out
 
-    rent_since = months_back(today, 6)
-    rent_rows = await dg.rows(
+
+def _street_prefix(street: str) -> str:
+    return re.sub(r"[^A-Z]", "", street.upper())[:3]
+
+
+def match_blocks(
+    blocks: list[dict],
+    buildings: list[dict],
+    street_points: dict[str, tuple[float, float]] | None = None,
+) -> list[dict]:
+    """Give each HDB block (from Property Information) coordinates and a postal code.
+
+    The footprint layer has block numbers and street *codes* but no street names, so
+    each street name is matched to the street code whose block numbers overlap most,
+    preferring codes that start like the street name (BEDOK NTH ST 2 -> "BED...") and
+    lie near the street's geocoded point when one is known."""
+    street_points = street_points or {}
+    by_code: dict[str, dict[str, dict]] = defaultdict(dict)
+    for bl in buildings:
+        by_code[bl["st"]].setdefault(bl["b"], bl)
+    code_centre = {
+        code: (
+            sum(x["la"] for x in bs.values()) / len(bs),
+            sum(x["lo"] for x in bs.values()) / len(bs),
+        )
+        for code, bs in by_code.items()
+    }
+    by_street: dict[str, list[dict]] = defaultdict(list)
+    for b in blocks:
+        by_street[b["s"]].append(b)
+
+    out = []
+    for street, items in by_street.items():
+        nums = {b["b"].upper() for b in items}
+        point = street_points.get(street)
+        best, best_score = None, 0.0
+        for code, bs in by_code.items():
+            overlap = len(nums & bs.keys()) / len(nums)
+            if overlap == 0:
+                continue
+            score = overlap
+            if code.startswith(_street_prefix(street)):
+                score += 0.6
+            if point:
+                d = _haversine(point[0], point[1], *code_centre[code])
+                if d > 3000:
+                    continue
+                score += 0.4 * (1 - d / 3000)
+            if score > best_score:
+                best, best_score = code, score
+        if best is None or best_score < 0.5:
+            continue
+        for b in items:
+            bl = by_code[best].get(b["b"].upper())
+            if bl:
+                out.append({**b, "p": bl["p"], "la": bl["la"], "lo": bl["lo"]})
+    return out
+
+
+async def build_resale(dg: DataGov, today: date) -> dict:
+    """Resale medians for the last 24 months (keeps "block_town" for build_blocks)."""
+    since = months_back(today, 24)
+    rows = await dg.rows(RESALE, sort="month desc", stop=lambda r: str(r.get("month", "")) < since)
+    return summarise_resale(rows, since)
+
+
+async def build_rent(dg: DataGov, today: date) -> dict:
+    since = months_back(today, 6)
+    rows = await dg.rows(
         RENTING_OUT,
         sort="rent_approval_date desc",
-        stop=lambda r: str(r.get("rent_approval_date", "")) < rent_since,
+        stop=lambda r: str(r.get("rent_approval_date", "")) < since,
     )
-    rent = summarise_rent(rent_rows, rent_since)
+    return summarise_rent(rows, since)
 
-    blocks = []
-    for b in residential_blocks(await dg.rows(HDB_PROPERTY), block_town):
-        hit = await geo.find(f"{b['b']} {b['s']}", block=b["b"])
+
+async def build_blocks(dg: DataGov, geo: Geocoder, block_town: dict[str, str]) -> list[dict]:
+    blocks = residential_blocks(await dg.rows(HDB_PROPERTY), block_town)
+    buildings = compact_buildings(await dg.geojson(HDB_BUILDINGS))
+    # One OneMap lookup per street (~600, cached) helps tell apart streets with the
+    # same block numbers.
+    points = {}
+    for street in sorted({b["s"] for b in blocks}):
+        hit = await geo.find(street)
         if hit:
-            blocks.append({**b, "la": hit[0], "lo": hit[1]})
-    return blocks, resale, rent
+            points[street] = hit
+    return match_blocks(blocks, buildings, points)

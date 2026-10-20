@@ -17,7 +17,7 @@ This policy covers only the DailyLah app by Tursina Labs. Other Tursina Labs pro
 DailyLah is a free daily companion for people in Singapore. It shows bus arrivals at your saved stops, MRT/LRT service status, platform crowd levels and the 2-hour weather forecast, using public data from LTA DataMall and data.gov.sg. There is no DailyLah account and no sign-in.
 
 ### 3. Data stored only on your phone
-- Your saved places (Home, Work, School), each stored as the bus stop you chose for it
+- Your saved places (Home, Work, School): the address you chose (label, postal code and coordinates) and the bus stops you picked for it
 - The MRT/LRT lines you selected, your usual departure times, your alert settings and your language
 - Favourite hawker centres, saved car parks, and HDB blocks you watch or compare
 - A short log of alerts already shown, so the same alert is not sent twice
@@ -29,6 +29,9 @@ This data never leaves your phone. It is not backed up to Tursina Labs.
 
 ### 4. Location
 DailyLah asks for location permission only when you tap **"Nearest stops to my location"**. Your position is used once, on the phone, to list nearby bus stops, and is then discarded. It is not stored and is not sent to Tursina Labs or anyone else. DailyLah does not use your location in the background. You can deny the permission and still search stops by name, road or code.
+
+### 4a. Address search
+When you set an address or search a postal code, the text you type is sent directly from your phone to **OneMap**, the map service of the Singapore Land Authority, to find matching addresses. It is not sent to Tursina Labs. The address you pick is saved only on your phone. You can also choose **"Use my current location"**, which reads your position once and saves it as the address.
 
 ### 5. What our server receives
 To show live information, the app sends requests to the DailyLah API operated by Tursina Labs:
@@ -84,7 +87,7 @@ Kebijakan ini hanya berlaku untuk aplikasi DailyLah dari Tursina Labs. Produk Tu
 DailyLah adalah teman harian gratis untuk warga Singapura. Aplikasi ini menampilkan kedatangan bus di halte favorit, status layanan MRT/LRT, tingkat kepadatan peron, dan prakiraan cuaca 2 jam, memakai data publik dari LTA DataMall dan data.gov.sg. Tidak ada akun DailyLah dan tidak perlu login.
 
 ### 3. Data yang hanya tersimpan di HP Anda
-- Tempat yang Anda simpan (Rumah, Kantor, Sekolah), masing-masing disimpan sebagai halte bus yang Anda pilih
+- Tempat yang Anda simpan (Rumah, Kantor, Sekolah): alamat yang Anda pilih (label, kode pos, dan koordinat) serta halte bus yang Anda pilih
 - Jalur MRT/LRT pilihan, jam berangkat biasa, pengaturan notifikasi, dan bahasa
 - Hawker favorit, parkir yang disimpan, serta blok HDB yang Anda pantau atau bandingkan
 - Catatan singkat notifikasi yang sudah tampil, supaya notifikasi yang sama tidak dikirim dua kali
@@ -96,6 +99,9 @@ Data ini tidak pernah keluar dari HP Anda dan tidak dicadangkan ke Tursina Labs.
 
 ### 4. Lokasi
 DailyLah hanya meminta izin lokasi saat Anda menekan **"Halte terdekat dari lokasi saya"**. Posisi Anda dipakai sekali, di HP, untuk menampilkan halte terdekat, lalu dibuang. Posisi tidak disimpan dan tidak dikirim ke Tursina Labs atau pihak lain. DailyLah tidak memakai lokasi di latar belakang. Anda boleh menolak izin ini dan tetap bisa mencari halte lewat nama, jalan, atau kode.
+
+### 4a. Pencarian alamat
+Saat Anda mengatur alamat atau mencari kode pos, teks yang Anda ketik dikirim langsung dari HP ke **OneMap**, layanan peta Singapore Land Authority, untuk mencari alamat yang cocok. Teks ini tidak dikirim ke Tursina Labs. Alamat yang Anda pilih hanya disimpan di HP. Anda juga bisa memilih **"Pakai lokasi saya sekarang"**, yang membaca posisi Anda sekali lalu menyimpannya sebagai alamat.
 
 ### 5. Data yang diterima server kami
 Untuk menampilkan informasi real-time, aplikasi mengirim permintaan ke API DailyLah yang dioperasikan Tursina Labs:

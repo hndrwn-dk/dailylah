@@ -10,11 +10,52 @@ import 'today.dart';
 final _tabProvider = StateProvider<int>((ref) => 0);
 
 /// Four tabs: Today, Nearby, Homes, More. Pages are kept alive between switches.
-class AppShell extends ConsumerWidget {
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver {
+  DateTime _lastRefresh = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Back in the foreground after a while: look for new data bundles.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    if (DateTime.now().difference(_lastRefresh) < const Duration(minutes: 10)) return;
+    _lastRefresh = DateTime.now();
+    ref.read(bundleRepoProvider).refresh();
+    for (final p in <ProviderOrFamily>[
+      hawkersProvider,
+      dengueProvider,
+      poisProvider,
+      carparkInfoProvider,
+      hdbBlocksProvider,
+      resaleProvider,
+      rentProvider,
+      prayerProvider,
+      busStopsProvider,
+    ]) {
+      ref.invalidate(p);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final s = ref.watch(stringsProvider);
     final index = ref.watch(_tabProvider);
     return Scaffold(

@@ -206,7 +206,7 @@ class S {
   String get alertHeat => _t('High heat stress or lightning near school', 'Panas tinggi atau petir dekat sekolah');
   String get alertHomes => _t('New resale transactions at watched blocks', 'Transaksi resale baru di blok dipantau');
   String get language => _t('Language', 'Bahasa');
-  String get pickHomeFirst => _t('Pick a stop near home first.', 'Pilih halte dekat rumah dulu.');
+  String get pickHomeFirst => _t('Set your home address first.', 'Atur alamat rumah dulu.');
   String get familyShare => _t('Share with family', 'Bagikan ke keluarga');
   String get familyShareSub => _t('Copy your places and lines to another phone', 'Salin tempat dan jalur ke HP lain');
   String get familyShareIntro => _t(
@@ -243,6 +243,28 @@ class S {
   String get editSetup => _t('Places, lines and times', 'Tempat, jalur, dan jam');
   String get alertsTitle => _t('Alerts', 'Peringatan');
   String get systemLanguage => _t('Phone default', 'Ikuti HP');
+
+  // address
+  String get address => _t('Address', 'Alamat');
+  String get setAddress => _t('Set address', 'Atur alamat');
+  String get changeAddress => _t('Change address', 'Ubah alamat');
+  String addressFor(String place) => _t('Address of $place', 'Alamat $place');
+  String get addressHint => _t('Postal code, block and street, or building', 'Kode pos, blok dan jalan, atau nama gedung');
+  String get useMyLocation => _t('Use my current location', 'Pakai lokasi saya sekarang');
+  String get myLocation => _t('My location', 'Lokasi saya');
+  String get noAddressFound => _t('No address found. Try a postal code.', 'Alamat tidak ditemukan. Coba pakai kode pos.');
+  String get addressPrivacy => _t(
+      'Search uses OneMap (Singapore Land Authority). Your saved address stays on this phone.',
+      'Pencarian memakai OneMap (Singapore Land Authority). Alamat yang disimpan tetap di HP ini.');
+  String get busStopsHere => _t('Bus stops', 'Halte bus');
+  String get stopsAutoPicked => _t('Nearest stops picked for you. Change them any time.',
+      'Halte terdekat sudah dipilih otomatis. Bisa diganti kapan saja.');
+  String get pickAddressFirst => _t('Set your home address first.', 'Atur alamat rumah dulu.');
+  String get bundlesLoading => _t(
+      'Downloading local data. Pull down or reopen the app in a moment.',
+      'Sedang mengunduh data lokal. Tarik ke bawah atau buka ulang app sebentar lagi.');
+  String get blockNotInData => _t('This address is not in the HDB block data yet.',
+      'Alamat ini belum ada di data blok HDB.');
 
   // stop picker
   String get stopSearchHint => _t('Stop name, road or 5-digit code', 'Nama halte, jalan, atau kode 5 digit');
