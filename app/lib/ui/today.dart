@@ -8,6 +8,7 @@ import '../l10n.dart';
 import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
+import 'place_sheet.dart';
 import 'stop_picker.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -501,9 +502,42 @@ class _QuickTiles extends ConsumerWidget {
             value: s.metres(near.$2),
             caption: '${near.$1.name}${near.$1.closureOn(today) != null ? ' · ${s.closedNow}' : ''}',
             onTap: () {
-              // Open Nearby > Hawker for the same place.
-              ref.read(nearbyKeyProvider.notifier).state = origin.kind.name;
-              ref.read(shellTabProvider.notifier).state = 1;
+              final h = near.$1;
+              final closed = h.closureOn(today);
+              final next = h.nextClosure(today);
+              final alt = closed == null ? const <(Hawker, double)>[] : openAlternatives(hawkers, h, today, limit: 1);
+              showPlaceSheet(
+                context,
+                s: s,
+                title: h.name,
+                subtitle: h.address,
+                lat: h.lat,
+                lng: h.lng,
+                distance: near.$2,
+                extra: [
+                  AlertBanner(
+                    icon: closed != null ? Icons.event_busy : Icons.event_available,
+                    tone: closed != null ? AlertTone.warning : AlertTone.info,
+                    text: closed != null
+                        ? [s.closedNow, if (alt.isNotEmpty) s.tryInstead(alt.first.$1.name, s.metres(alt.first.$2))].join('. ')
+                        : next == null
+                            ? s.noUpcomingClosure
+                            : s.closedRange(shortDate(next.from), shortDate(next.to), s.closureReason(next.reason)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: TextButton.icon(
+                      icon: const Icon(Icons.ramen_dining_outlined),
+                      label: Text(s.seeHawkers),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        ref.read(nearbyKeyProvider.notifier).state = origin.kind.name;
+                        ref.read(shellTabProvider.notifier).state = 1;
+                      },
+                    ),
+                  ),
+                ],
+              );
             },
           ),
         ),
@@ -705,11 +739,9 @@ class _TaxiSheet extends ConsumerWidget {
                     trailing: IconButton(
                       tooltip: s.directions,
                       icon: const Icon(Icons.directions_walk),
-                      onPressed: () => launchUrl(
-                        Uri.parse('https://www.google.com/maps/dir/?api=1&travelmode=walking&destination=${p.lat},${p.lng}'),
-                        mode: LaunchMode.externalApplication,
-                      ),
+                      onPressed: () => openDirections(p.lat, p.lng, distance: d),
                     ),
+                    onTap: () => showPlaceSheet(context, s: s, title: p.name, subtitle: p.detail, lat: p.lat, lng: p.lng, distance: d),
                   ),
               ],
             ),

@@ -9,6 +9,7 @@ import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
 import 'address_picker.dart';
+import 'place_sheet.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -191,7 +192,28 @@ class _HawkerTab extends ConsumerWidget {
           final isFav = fav.hawkers.contains(h.id);
           final alt = closedToday == null ? const <(Hawker, double)>[] : openAlternatives(all, h, today, limit: 1);
           return Panel(
-            child: Padding(
+            child: InkWell(
+              onTap: () => showPlaceSheet(
+                context,
+                s: s,
+                title: h.name,
+                subtitle: h.address,
+                lat: h.lat,
+                lng: h.lng,
+                distance: d,
+                extra: [
+                  AlertBanner(
+                    icon: closedToday != null ? Icons.event_busy : Icons.event_available,
+                    tone: closedToday != null ? AlertTone.warning : AlertTone.info,
+                    text: closedToday != null
+                        ? [s.closedNow, if (alt.isNotEmpty) s.tryInstead(alt.first.$1.name, s.metres(alt.first.$2))].join('. ')
+                        : next == null
+                            ? s.noUpcomingClosure
+                            : s.closedRange(shortDate(next.from), shortDate(next.to), s.closureReason(next.reason)),
+                  ),
+                ],
+              ),
+              child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 4, 12),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,6 +258,7 @@ class _HawkerTab extends ConsumerWidget {
                   ),
                 ],
               ),
+            ),
             ),
           );
         },
@@ -295,7 +318,41 @@ class _ParkingTab extends ConsumerWidget {
           for (final (c, d) in list)
             Panel(
               child: InkWell(
-                onTap: () => ref.read(favoritesProvider.notifier).toggleCarpark(c.id),
+                onTap: () => showPlaceSheet(
+                  context,
+                  s: s,
+                  title: c.address,
+                  subtitle: [
+                    c.type.toLowerCase(),
+                    if (c.freeParking.isNotEmpty && c.freeParking != 'NO') '${s.freeParking}: ${c.freeParking.toLowerCase()}',
+                    if (c.nightParking.isNotEmpty) '${s.nightParking}: ${c.nightParking.toLowerCase()}',
+                  ].join(' · '),
+                  lat: c.lat,
+                  lng: c.lng,
+                  distance: d,
+                  extra: [
+                    if (lots[c.id] != null)
+                      AlertBanner(
+                        icon: Icons.local_parking,
+                        tone: lots[c.id]!.$2 == 0 ? AlertTone.warning : AlertTone.info,
+                        text: s.lotsFree(lots[c.id]!.$2),
+                      ),
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final saved = ref.watch(favoritesProvider).carparks.contains(c.id);
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                            icon: Icon(saved ? Icons.bookmark : Icons.bookmark_border),
+                            label: Text(saved ? s.savedCarpark : s.saveCarpark),
+                            onPressed: () => ref.read(favoritesProvider.notifier).toggleCarpark(c.id),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(14),
                   child: Row(
@@ -390,6 +447,7 @@ class _SchoolsTab extends ConsumerWidget {
                           leading: Icon(icon, size: 20),
                           title: Text(p.name),
                           trailing: Text(s.metres(d), style: t.labelLarge),
+                          onTap: () => showPlaceSheet(context, s: s, title: p.name, lat: p.lat, lng: p.lng, distance: d),
                         ),
                     ],
                   if (items.isNotEmpty && near.isEmpty && far.isEmpty) EmptyNote(s.notAvailable),
@@ -498,6 +556,8 @@ class _WeekendTab extends ConsumerWidget {
                       title: Text(p.name),
                       subtitle: Text([s.metres(d), if (p.detail.isNotEmpty) p.detail].join(' · '),
                           maxLines: 1, overflow: TextOverflow.ellipsis),
+                      onTap: () => showPlaceSheet(context,
+                          s: s, title: p.name, subtitle: p.detail, lat: p.lat, lng: p.lng, distance: d),
                     ),
                   if (pois.of(kind).isEmpty) EmptyNote(s.notAvailable),
                 ],
@@ -584,11 +644,6 @@ class _EmergencyTab extends ConsumerWidget {
 
   static Future<void> _call(String number) => launchUrl(Uri(scheme: 'tel', path: number));
 
-  static Future<void> _directions(EPoint p) => launchUrl(
-        Uri.parse('https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}'),
-        mode: LaunchMode.externalApplication,
-      );
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
@@ -640,17 +695,18 @@ class _EmergencyTab extends ConsumerWidget {
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (p.tel.isNotEmpty)
-                          IconButton(tooltip: s.callLabel, icon: const Icon(Icons.call_outlined), onPressed: () => _call(p.tel)),
-                        IconButton(
-                          tooltip: s.directions,
-                          icon: const Icon(Icons.directions_outlined),
-                          onPressed: () => _directions(p),
-                        ),
-                      ],
+                    trailing: p.tel.isEmpty
+                        ? const Icon(Icons.chevron_right)
+                        : IconButton(tooltip: s.callLabel, icon: const Icon(Icons.call_outlined), onPressed: () => _call(p.tel)),
+                    onTap: () => showPlaceSheet(
+                      context,
+                      s: s,
+                      title: p.name,
+                      subtitle: [p.detail, p.address, p.hours].where((x) => x.isNotEmpty).join(' · '),
+                      lat: p.lat,
+                      lng: p.lng,
+                      distance: d,
+                      phone: p.tel,
                     ),
                   ),
               ],
