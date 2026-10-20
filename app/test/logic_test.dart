@@ -154,11 +154,11 @@ void main() {
     );
     final code = encodeShareCode(fav);
     expect(code, startsWith('DL1:'));
-    final back = decodeShareCode(code, const Favorites(lang: 'id'))!;
+    final back = decodeShareCode(code, const Favorites(showPrayer: true))!;
     expect(back.places[PlaceKind.home]!.stops.single.code, '75009');
     expect(back.lines, {'EWL'});
     expect(back.leaveHome.format(), '06.45');
-    expect(back.lang, 'id'); // keeps the receiver's own settings
+    expect(back.showPrayer, isTrue); // keeps the receiver's own settings
     expect(decodeShareCode('hello', const Favorites()), isNull);
     expect(decodeShareCode('DL1:!!!', const Favorites()), isNull);
   });
@@ -234,15 +234,11 @@ void main() {
     expect(r.towns['BEDOK']!['4 ROOM'], 520000);
   });
 
-  test('strings exist in both languages', () {
-    const en = S(AppLang.en);
-    const id = S(AppLang.id);
-    expect(en.tabToday, 'Today');
-    expect(id.tabToday, 'Hari ini');
-    expect(id.greeting(7), 'Selamat pagi');
-    expect(en.newSales('123 BEDOK', 2), contains('2 new'));
-    expect(langFromCode('id'), AppLang.id);
-    expect(langFromCode('zh'), AppLang.en);
+  test('strings', () {
+    const s = S();
+    expect(s.tabToday, 'Today');
+    expect(s.greeting(7), 'Good morning');
+    expect(s.newSales('123 BEDOK', 2), contains('2 new'));
   });
 
   test('OneMap results and postal matching', () {

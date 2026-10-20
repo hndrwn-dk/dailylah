@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../background.dart';
-import '../l10n.dart';
 import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
@@ -205,10 +204,6 @@ class SetupPage extends ConsumerWidget {
                 if (!firstRun) const BackButton(color: Colors.white) else const SizedBox(height: 24),
                 const SizedBox(height: 8),
                 PageTitle(firstRun ? s.welcome : s.yourSetup, subtitle: firstRun ? s.welcomeIntro : s.editSetup),
-                if (firstRun) ...[
-                  const SizedBox(height: 16),
-                  _LanguagePills(),
-                ],
               ],
             ),
           ),
@@ -276,23 +271,6 @@ class SetupPage extends ConsumerWidget {
   }
 }
 
-class _LanguagePills extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final lang = ref.watch(langProvider);
-    return Wrap(
-      spacing: 8,
-      children: [
-        for (final (l, label) in const [(AppLang.en, 'English'), (AppLang.id, 'Bahasa Indonesia')])
-          ChoiceChip(
-            label: Text(label),
-            selected: lang == l,
-            onSelected: (_) => ref.read(favoritesProvider.notifier).update((f) => f.copyWith(lang: l.name)),
-          ),
-      ],
-    );
-  }
-}
 
 
 /// Custom favourite places with their own names (max [Favorites.maxExtraPlaces]).

@@ -21,14 +21,16 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 
 ## App structure
 - `lib/models.dart`, `lib/data.dart` (bundle models), `lib/logic.dart` and `lib/l10n.dart`
-  (EN/ID strings, class `S`) are pure Dart (no Flutter, no I/O) so the WorkManager isolate
+  (strings, class `S`) are pure Dart (no Flutter, no I/O) so the WorkManager isolate
   can use them. Put parsing and decision rules there, with tests in `test/logic_test.dart`.
-  Every user-facing string goes through `S`, in both languages.
+  The app is English only; every user-facing string still goes through `S`.
+- Religion-neutral by default: no onboarding question about religion. Faith-specific
+  features (MUIS prayer times) are opt-in under More > Extras.
 - `lib/providers.dart` holds all Riverpod providers; widgets in `lib/ui/` only render.
 - UI: `ui/shell.dart` (tabs Today / Nearby / Homes / More), `ui/theme.dart` (design tokens
   in `DL`, fonts Plus Jakarta Sans + Barlow Condensed in `assets/fonts/`), `ui/widgets.dart`
   (HeroHeader, BusPlate, LineChip, BentoTile...). Keep the hero + white card language.
-- Favourites, watched/compared blocks and language are stored with SharedPreferences
+- Favourites, custom places, watched/compared blocks and extras are stored with SharedPreferences
   (`lib/store.dart`). Family share is a `DL1:` code built on-device (`encodeShareCode`).
 - Alerts run on-device: WorkManager every 15 min (`lib/background.dart`) calls the API and
   reads the cached bundles, then shows local notifications. Keep the alert rules (quiet

@@ -3,8 +3,6 @@
 /// plain Dart, SharedPreferences and plugins — no Riverpod.
 library;
 
-import 'dart:ui' show PlatformDispatcher;
-
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:home_widget/home_widget.dart';
@@ -74,7 +72,7 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
   var fav = await store.load();
   if (!fav.isSetUp) return;
   await initNotifications();
-  final s = S(langFromCode(fav.lang ?? PlatformDispatcher.instance.locale.languageCode));
+  const s = S();
   final log = AlertLog(await SharedPreferences.getInstance());
   final day = dayKey(now);
   final kind = cardFor(now);

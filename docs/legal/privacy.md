@@ -18,7 +18,7 @@ DailyLah is a free daily companion for people in Singapore. It shows bus arrival
 
 ### 3. Data stored only on your phone
 - Your saved places (Home, Work, School): the address you chose (label, postal code and coordinates) and the bus stops you picked for it
-- The MRT/LRT lines you selected, your usual departure times, your alert settings and your language
+- The MRT/LRT lines you selected, your usual departure times, your alert settings and optional extras
 - Favourite hawker centres, saved car parks, and HDB blocks you watch or compare
 - A short log of alerts already shown, so the same alert is not sent twice
 - Copies of public data bundles (bus stops, hawker centres, dengue clusters, schools, parks, car parks, HDB blocks, resale and rent statistics, prayer times), and the text shown on the home screen widget
@@ -90,7 +90,7 @@ DailyLah adalah teman harian gratis untuk warga Singapura. Aplikasi ini menampil
 
 ### 3. Data yang hanya tersimpan di HP Anda
 - Tempat yang Anda simpan (Rumah, Kantor, Sekolah): alamat yang Anda pilih (label, kode pos, dan koordinat) serta halte bus yang Anda pilih
-- Jalur MRT/LRT pilihan, jam berangkat biasa, pengaturan notifikasi, dan bahasa
+- Jalur MRT/LRT pilihan, jam berangkat biasa, pengaturan notifikasi, dan fitur tambahan opsional
 - Hawker favorit, parkir yang disimpan, serta blok HDB yang Anda pantau atau bandingkan
 - Catatan singkat notifikasi yang sudah tampil, supaya notifikasi yang sama tidak dikirim dua kali
 - Salinan bundel data publik (halte bus, hawker, cluster dengue, sekolah, taman, parkir, blok HDB, statistik harga resale dan sewa, jadwal sholat), dan teks yang tampil di widget layar utama

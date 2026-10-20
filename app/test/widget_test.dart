@@ -73,17 +73,11 @@ Widget app(Favorites fav, DateTime now) => ProviderScope(
     );
 
 void main() {
-  testWidgets('first run shows setup in the chosen language', (tester) async {
-    await tester.pumpWidget(app(const Favorites(lang: 'id'), DateTime(2026, 10, 20, 7)));
-    await tester.pumpAndSettle();
-    expect(find.text('Selamat datang di DailyLah'), findsOneWidget);
-    expect(find.text('Rumah'), findsOneWidget);
-  });
-
-  testWidgets('first run in English', (tester) async {
-    await tester.pumpWidget(app(const Favorites(lang: 'en'), DateTime(2026, 10, 20, 7)));
+  testWidgets('first run shows setup', (tester) async {
+    await tester.pumpWidget(app(const Favorites(), DateTime(2026, 10, 20, 7)));
     await tester.pumpAndSettle();
     expect(find.text('Welcome to DailyLah'), findsOneWidget);
+    expect(find.text('Home'), findsOneWidget);
   });
 
   testWidgets('morning card shows rain, MRT status, bus stop and taxis', (tester) async {
@@ -94,26 +88,24 @@ void main() {
       places: {PlaceKind.home: Place(kind: PlaceKind.home, stops: [home])},
       lines: {'NSL'},
       onboarded: true,
-      lang: 'id',
     );
     await tester.pumpWidget(app(fav, DateTime(2026, 10, 20, 7)));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Kartu pagi'), findsOneWidget);
-    expect(find.text('Selamat pagi'), findsOneWidget);
-    expect(find.text('Bawa payung'), findsOneWidget);
-    expect(find.text('Berjalan normal'), findsOneWidget);
+    expect(find.textContaining('Morning card'), findsOneWidget);
+    expect(find.text('Good morning'), findsOneWidget);
+    expect(find.text('Bring an umbrella'), findsOneWidget);
+    expect(find.text('Running normally'), findsOneWidget);
     expect(find.text('Tampines Int · 75009'), findsOneWidget);
-    expect(find.text('Taksi di sekitar'), findsOneWidget);
+    expect(find.text('Taxis nearby'), findsOneWidget);
     // Bottom navigation with four tabs.
-    expect(find.text('Sekitar'), findsOneWidget);
-    expect(find.text('Lainnya'), findsOneWidget);
+    expect(find.text('Nearby'), findsOneWidget);
+    expect(find.text('More'), findsOneWidget);
   });
 
   testWidgets('tabs open Nearby, Homes and More', (tester) async {
     const fav = Favorites(
       places: {PlaceKind.home: Place(kind: PlaceKind.home, stops: [home])},
       onboarded: true,
-      lang: 'en',
     );
     await tester.pumpWidget(app(fav, DateTime(2026, 10, 20, 19)));
     await tester.pumpAndSettle();
@@ -130,12 +122,12 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(ProviderScope(
-      overrides: [initialFavoritesProvider.overrideWithValue(const Favorites(lang: 'id'))],
+      overrides: [initialFavoritesProvider.overrideWithValue(const Favorites())],
       child: const MaterialApp(home: AboutDailyLahPage()),
     ));
-    expect(find.text('Kebijakan privasi'), findsOneWidget);
-    expect(find.text('Ketentuan layanan'), findsOneWidget);
+    expect(find.text('Privacy policy'), findsOneWidget);
+    expect(find.text('Terms of service'), findsOneWidget);
     expect(find.textContaining('Singapore Open Data Licence'), findsWidgets);
-    expect(find.textContaining('tidak berafiliasi'), findsOneWidget);
+    expect(find.textContaining('not affiliated'), findsOneWidget);
   });
 }

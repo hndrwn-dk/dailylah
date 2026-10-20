@@ -308,9 +308,11 @@ Risiko terbesar adalah diposisikan sebagai "app bus lagi" di pasar yang sudah ra
 
 ## Keputusan implementasi (Oktober 2026)
 
-- **Semua fase dibangun sekaligus** (versi 0.2.0): Hari ini, Sekitar (hawker, parkir, dengue, akhir pekan, sholat), Rumah (cari blok, harga resale, sewa, skor kehidupan sehari-hari, bandingkan, pantau blok, cek agen CEA), Lainnya (notifikasi, bahasa EN/ID, bagikan ke keluarga, tentang).
+- **Semua fase dibangun sekaligus** (versi 0.2.0): Hari ini, Sekitar (hawker, parkir, dengue, akhir pekan, sholat), Rumah (cari blok, harga resale, sewa, skor kehidupan sehari-hari, bandingkan, pantau blok, cek agen CEA), Lainnya (notifikasi, extras, bagikan ke keluarga, tentang).
 - **Neon belum dipakai.** Data statis dan spasial dihitung di HP dari bundle JSON harian di Vercel (`web/data/`). Ini lebih murah dan lebih privat: server tidak tahu blok atau tempat yang dilihat pengguna. Neon tetap opsi kalau nanti butuh query yang terlalu berat untuk HP.
 - **Notifikasi tetap on-device** (WorkManager 15 menit), termasuk hawker tutup besok, dengue, panas/petir, dan transaksi resale baru di blok yang dipantau. FCM belum diperlukan.
+- **App hanya berbahasa Inggris** (keputusan 20 Okt 2026). Bahasa Indonesia dihapus.
+- **Netral agama:** onboarding tidak menanyakan agama. Jadwal sholat MUIS bersifat opt-in (Lainnya > Extras), mati secara default.
 - **Modul Muslim = jadwal sholat MUIS + catatan Jumat + tautan direktori masjid MUIS.** Tidak ada dataset lokasi masjid di data.gov.sg.
 - **Bagikan ke keluarga** memakai kode `DL1:` (QR atau teks) tanpa server dan tanpa akun. Impor dengan tempel kode, tanpa izin kamera.
 - **Geocoding blok HDB dan sekolah** memakai OneMap saat build harian, dengan cache di `backend/data/geocode.json`. Run pertama bisa butuh lebih dari satu hari untuk semua ~13.000 blok.

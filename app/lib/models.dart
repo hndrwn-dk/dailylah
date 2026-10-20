@@ -160,7 +160,7 @@ class Favorites {
     this.heatAlerts = true,
     this.homesAlerts = true,
     this.onboarded = false,
-    this.lang,
+    this.showPrayer = false,
     this.hawkers = const {},
     this.carparks = const {},
     this.watchedBlocks = const {},
@@ -182,8 +182,8 @@ class Favorites {
   /// True after the user finished the first-run setup.
   final bool onboarded;
 
-  /// "en" or "id"; null follows the phone's language.
-  final String? lang;
+  /// Show MUIS prayer times in Nearby (opt-in, off by default).
+  final bool showPrayer;
 
   /// Favourite hawker centre ids (hawkers.json "id").
   final Set<String> hawkers;
@@ -215,7 +215,7 @@ class Favorites {
     bool? heatAlerts,
     bool? homesAlerts,
     bool? onboarded,
-    String? lang,
+    bool? showPrayer,
     Set<String>? hawkers,
     Set<String>? carparks,
     Map<String, int>? watchedBlocks,
@@ -234,7 +234,7 @@ class Favorites {
         heatAlerts: heatAlerts ?? this.heatAlerts,
         homesAlerts: homesAlerts ?? this.homesAlerts,
         onboarded: onboarded ?? this.onboarded,
-        lang: lang ?? this.lang,
+        showPrayer: showPrayer ?? this.showPrayer,
         hawkers: hawkers ?? this.hawkers,
         carparks: carparks ?? this.carparks,
         watchedBlocks: watchedBlocks ?? this.watchedBlocks,
@@ -254,7 +254,7 @@ class Favorites {
         'heatAlerts': heatAlerts,
         'homesAlerts': homesAlerts,
         'onboarded': onboarded,
-        if (lang != null) 'lang': lang,
+        'showPrayer': showPrayer,
         'hawkers': hawkers.toList()..sort(),
         'carparks': carparks.toList()..sort(),
         'watchedBlocks': watchedBlocks,
@@ -281,7 +281,7 @@ class Favorites {
       heatAlerts: (j['heatAlerts'] ?? true) as bool,
       homesAlerts: (j['homesAlerts'] ?? true) as bool,
       onboarded: (j['onboarded'] ?? false) as bool,
-      lang: j['lang'] as String?,
+      showPrayer: (j['showPrayer'] ?? false) as bool,
       hawkers: strings('hawkers'),
       carparks: strings('carparks'),
       watchedBlocks: {
