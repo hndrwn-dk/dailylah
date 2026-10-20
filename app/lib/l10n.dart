@@ -156,6 +156,11 @@ class S {
   String get shelters => 'Civil Defence shelters';
   String get emergencyNote => 'In a life-threatening emergency, call 995 first. Locations are from SCDF, MOH and OneMap and may be out of date.';
   String get callLabel => 'Call';
+  String get openInMaps => 'Open in Maps';
+  String get mapUnavailable => 'Map preview not available. Directions still work.';
+  String get mapNote => 'Map: OneMap, Singapore Land Authority. Directions open in Google Maps from where you are.';
+  String get saveCarpark => 'Save car park';
+  String get savedCarpark => 'Saved';
   String get directions => 'Directions';
 
   // ---------------------------------------------------------------- nearby
