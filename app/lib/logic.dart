@@ -2,8 +2,11 @@
 /// safe to call from the background isolate.
 library;
 
+import 'dart:convert';
 import 'dart:math' as math;
 
+import 'data.dart';
+import 'l10n.dart';
 import 'models.dart';
 
 // ---------------------------------------------------------------- geo
@@ -217,3 +220,367 @@ bool inRainWindow(DateTime now, TimeOfDayHM leave) {
 
 String dayKey(DateTime now) =>
     '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+// ================================================================ Phase 2, 3 and Homes
+// Everything below works on the static bundles (lib/data.dart) and live endpoints.
+
+/// Items within [radius] metres of a point, nearest first, with their distance.
+List<(T, double)> within<T>(
+  Iterable<T> items,
+  double lat,
+  double lng,
+  double radius, {
+  required double Function(T) latOf,
+  required double Function(T) lngOf,
+  int? limit,
+}) {
+  final out = <(T, double)>[];
+  for (final it in items) {
+    final d = distanceMeters(lat, lng, latOf(it), lngOf(it));
+    if (d <= radius) out.add((it, d));
+  }
+  out.sort((a, b) => a.$2.compareTo(b.$2));
+  return limit == null ? out : out.take(limit).toList();
+}
+
+/// Nearest item and its distance, or null when the list is empty.
+(T, double)? nearest<T>(
+  Iterable<T> items,
+  double lat,
+  double lng, {
+  required double Function(T) latOf,
+  required double Function(T) lngOf,
+}) {
+  (T, double)? best;
+  for (final it in items) {
+    final d = distanceMeters(lat, lng, latOf(it), lngOf(it));
+    if (best == null || d < best.$2) best = (it, d);
+  }
+  return best;
+}
+
+DateTime dateOnly(DateTime t) => DateTime(t.year, t.month, t.day);
+
+String shortDate(DateTime d) => '${d.day}/${d.month}';
+
+/// "S$612,000" → compact "S$612k", "S$1.05M".
+String sgd(int amount, {bool compact = false}) {
+  if (compact) {
+    if (amount >= 1000000) return 'S\$${(amount / 1000000).toStringAsFixed(2)}M';
+    if (amount >= 1000) return 'S\$${(amount / 1000).round()}k';
+  }
+  final s = amount.toString();
+  final b = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) b.write(',');
+    b.write(s[i]);
+  }
+  return 'S\$$b';
+}
+
+/// "2026-08" → "Aug 2026".
+String monthLabel(String ym) {
+  const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  final p = ym.split('-');
+  if (p.length < 2) return ym;
+  final i = int.tryParse(p[1]) ?? 0;
+  return i < 1 || i > 12 ? ym : '${m[i - 1]} ${p[0]}';
+}
+
+// ---------------------------------------------------------------- dengue
+
+/// Clusters whose area comes within [km] of a point (distance minus cluster radius).
+List<(DengueCluster, double)> dengueNear(List<DengueCluster> all, double lat, double lng, {double km = 1}) {
+  final out = <(DengueCluster, double)>[];
+  for (final c in all) {
+    final d = distanceMeters(lat, lng, c.lat, c.lng) - c.radius;
+    if (d <= km * 1000) out.add((c, d < 0 ? 0 : d));
+  }
+  out.sort((a, b) => a.$2.compareTo(b.$2));
+  return out;
+}
+
+// ---------------------------------------------------------------- taxis and parking
+
+/// Counts taxi coordinates ([[lat, lng], ...] from /v1/taxi) within [radius] metres.
+int taxisWithin(Map<String, dynamic> apiBody, double lat, double lng, {double radius = 500}) {
+  final pts = apiBody['data'];
+  if (pts is! List) return 0;
+  var n = 0;
+  for (final p in pts) {
+    if (p is List && p.length >= 2) {
+      if (distanceMeters(lat, lng, (p[0] as num).toDouble(), (p[1] as num).toDouble()) <= radius) n++;
+    }
+  }
+  return n;
+}
+
+/// Available car lots per car park id from /v1/carpark: {"data": {"ACB": [total, available]}}.
+Map<String, (int, int)> carparkLots(Map<String, dynamic> apiBody) {
+  final d = apiBody['data'];
+  if (d is! Map) return const {};
+  return {
+    for (final e in d.entries)
+      if (e.value is List && (e.value as List).length >= 2)
+        '${e.key}': (((e.value as List)[0] as num).toInt(), ((e.value as List)[1] as num).toInt()),
+  };
+}
+
+// ---------------------------------------------------------------- heat and lightning
+
+/// Heat stress category from /v1/weather/wbgt for the station nearest a point,
+/// e.g. "Low", "Moderate", "High". Null when unavailable.
+String? heatStressNear(Map<String, dynamic> apiBody, double lat, double lng) {
+  final readings = _wbgtReadings(apiBody);
+  (String, double)? best;
+  for (final r in readings) {
+    final d = distanceMeters(lat, lng, r.$1, r.$2);
+    if (best == null || d < best.$2) best = (r.$3, d);
+  }
+  return best?.$1;
+}
+
+bool isHighHeat(String? category) {
+  final c = (category ?? '').toLowerCase();
+  return c.contains('high') || c.contains('extreme');
+}
+
+/// (lat, lng, heatStress) from data.gov.sg v2 weather?api=wbgt.
+List<(double, double, String)> _wbgtReadings(Map<String, dynamic> apiBody) {
+  final out = <(double, double, String)>[];
+  final data = (apiBody['data'] is Map) ? (apiBody['data'] as Map)['data'] : null;
+  final records = data is Map ? data['records'] : null;
+  if (records is! List || records.isEmpty) return out;
+  final item = (records.last as Map)['item'];
+  final readings = item is Map ? item['readings'] : null;
+  if (readings is! List) return out;
+  for (final r in readings) {
+    if (r is! Map) continue;
+    final loc = (r['location'] ?? r['station']) as Map?;
+    final la = loc?['latitude'] ?? (loc?['location'] as Map?)?['latitude'];
+    final lo = loc?['longitude'] ?? (loc?['location'] as Map?)?['longitude'];
+    final hs = r['heatStress'] ?? r['heat_stress'];
+    if (la == null || lo == null || hs == null) continue;
+    out.add((double.parse('$la'), double.parse('$lo'), '$hs'));
+  }
+  return out;
+}
+
+/// True when a lightning strike was observed within [km] of a point in the latest
+/// /v1/weather/lightning reading.
+bool lightningNear(Map<String, dynamic> apiBody, double lat, double lng, {double km = 5}) {
+  final data = (apiBody['data'] is Map) ? (apiBody['data'] as Map)['data'] : null;
+  final records = data is Map ? data['records'] : null;
+  if (records is! List || records.isEmpty) return false;
+  final item = (records.last as Map)['item'];
+  final readings = item is Map ? item['readings'] : null;
+  if (readings is! List) return false;
+  for (final r in readings) {
+    if (r is! Map) continue;
+    final loc = r['location'] as Map?;
+    final la = loc?['latitude'];
+    final lo = loc?['longitude'] ?? loc?['longtitude'];
+    if (la == null || lo == null) continue;
+    if (distanceMeters(lat, lng, double.parse('$la'), double.parse('$lo')) <= km * 1000) return true;
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------- weekend and prayer
+
+/// Indoor ideas when rain is expected at home, outdoor otherwise.
+bool preferIndoor(AreaForecast? homeForecast) => homeForecast?.isRainy ?? false;
+
+/// Index (0..5) of the next prayer after [now], or null when all have passed.
+int? nextPrayerIndex(List<String> times, DateTime now) {
+  final m = now.hour * 60 + now.minute;
+  for (var i = 0; i < times.length; i++) {
+    final p = times[i].split(':');
+    if (p.length < 2) continue;
+    final t = int.parse(p[0]) * 60 + int.parse(p[1]);
+    if (t > m) return i;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------- homes
+
+class BlockScore {
+  const BlockScore({
+    required this.nearestMrt,
+    required this.busStops400,
+    required this.hawkers1km,
+    required this.primary1km,
+    required this.primary2km,
+    required this.parks1km,
+    required this.dengue1km,
+  });
+
+  final (Poi, double)? nearestMrt;
+  final int busStops400;
+  final int hawkers1km;
+  final int primary1km;
+  final int primary2km;
+  final int parks1km;
+  final int dengue1km;
+}
+
+BlockScore scoreBlock(
+  HdbBlock b, {
+  required PoiSet pois,
+  required List<BusStop> stops,
+  required List<Hawker> hawkers,
+  required List<DengueCluster> dengue,
+}) {
+  double pLat(Poi p) => p.lat;
+  double pLng(Poi p) => p.lng;
+  final primary = pois.of(PoiKind.primarySchool);
+  return BlockScore(
+    nearestMrt: nearest(pois.of(PoiKind.mrt), b.lat, b.lng, latOf: pLat, lngOf: pLng),
+    busStops400: within(stops, b.lat, b.lng, 400, latOf: (s) => s.lat, lngOf: (s) => s.lng).length,
+    hawkers1km: within(hawkers, b.lat, b.lng, 1000, latOf: (h) => h.lat, lngOf: (h) => h.lng).length,
+    primary1km: within(primary, b.lat, b.lng, 1000, latOf: pLat, lngOf: pLng).length,
+    primary2km: within(primary, b.lat, b.lng, 2000, latOf: pLat, lngOf: pLng).length,
+    parks1km: within(pois.of(PoiKind.park), b.lat, b.lng, 1000, latOf: pLat, lngOf: pLng).length,
+    dengue1km: dengueNear(dengue, b.lat, b.lng, km: 1).length,
+  );
+}
+
+/// Matches blocks by "block street" words, e.g. "123 bedok nth" or "bedok north 123".
+List<HdbBlock> searchBlocks(List<HdbBlock> all, String query, {int limit = 30}) {
+  final words = query
+      .toUpperCase()
+      .replaceAll('NORTH', 'NTH')
+      .replaceAll('SOUTH', 'STH')
+      .replaceAll('AVENUE', 'AVE')
+      .replaceAll('STREET', 'ST')
+      .replaceAll('ROAD', 'RD')
+      .split(RegExp(r'\s+'))
+      .where((w) => w.isNotEmpty)
+      .toList();
+  if (words.isEmpty) return const [];
+  final out = <HdbBlock>[];
+  for (final b in all) {
+    final hay = '${b.block} ${b.street} ${b.town}';
+    if (words.every((w) => b.block == w || hay.contains(w))) {
+      out.add(b);
+      if (out.length >= limit) break;
+    }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------- family share
+
+const _sharePrefix = 'DL1:';
+
+/// Compact share code with places, lines and departure times. No account or server.
+String encodeShareCode(Favorites fav) {
+  final payload = {
+    'p': [for (final p in fav.places.values) p.toJson()],
+    'l': fav.lines.toList()..sort(),
+    'h': fav.leaveHome.toString(),
+    'w': fav.leaveWork.toString(),
+  };
+  return _sharePrefix + base64Url.encode(utf8.encode(jsonEncode(payload)));
+}
+
+/// Applies a share code on top of [current]. Returns null when the code is invalid.
+Favorites? decodeShareCode(String code, Favorites current) {
+  final c = code.trim();
+  if (!c.startsWith(_sharePrefix)) return null;
+  try {
+    final j = jsonDecode(utf8.decode(base64Url.decode(base64Url.normalize(c.substring(_sharePrefix.length)))))
+        as Map<String, dynamic>;
+    final places = <PlaceKind, Place>{};
+    for (final p in (j['p'] as List? ?? const [])) {
+      final place = Place.fromJson(p as Map<String, dynamic>);
+      places[place.kind] = place;
+    }
+    if (!places.containsKey(PlaceKind.home)) return null;
+    return current.copyWith(
+      places: places,
+      lines: {for (final l in (j['l'] as List? ?? const [])) '$l'},
+      leaveHome: TimeOfDayHM.parse('${j['h'] ?? '7:30'}'),
+      leaveWork: TimeOfDayHM.parse('${j['w'] ?? '18:0'}'),
+    );
+  } on Object {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------- today alerts
+
+enum AlertKind { rain, mrt, hawker, dengue, heat, lightning }
+
+class TodayAlert {
+  const TodayAlert(this.kind, this.text);
+  final AlertKind kind;
+  final String text;
+}
+
+/// The short list of things worth knowing right now, most urgent first.
+/// Every input is optional so the list fills in as data arrives.
+List<TodayAlert> todayAlerts({
+  required Favorites fav,
+  required DateTime now,
+  required S s,
+  Map<String, dynamic>? forecast,
+  Map<String, dynamic>? trainAlerts,
+  List<Hawker> hawkers = const [],
+  List<DengueCluster> dengue = const [],
+  Map<String, dynamic>? wbgt,
+  Map<String, dynamic>? lightning,
+}) {
+  final out = <TodayAlert>[];
+  final kind = cardFor(now);
+
+  if (trainAlerts != null && fav.lines.isNotEmpty) {
+    final bad = lineStatuses(trainAlerts, fav.lines).where((l) => l.disrupted).map((l) => l.line).toList();
+    if (bad.isNotEmpty) out.add(TodayAlert(AlertKind.mrt, s.mrtAlert(bad.join(', '))));
+  }
+
+  final school = fav.places[PlaceKind.school];
+  final home = fav.places[PlaceKind.home];
+  if (lightning != null) {
+    final spots = <Place>[if (home != null) home, if (school != null) school];
+    if (spots.any((p) => lightningNear(lightning, p.lat, p.lng))) {
+      out.add(TodayAlert(AlertKind.lightning, s.lightningNear));
+    }
+  }
+
+  if (forecast != null) {
+    final dest = destinationFor(kind, fav);
+    final candidates = [fav.places[originFor(kind, fav)], if (dest != null) fav.places[dest]];
+    for (final p in candidates) {
+      if (p == null) continue;
+      final f = forecastNear(forecast, p.lat, p.lng);
+      if (f != null && f.isRainy) {
+        out.add(TodayAlert(AlertKind.rain, s.rainAt(s.placeLabel(p.kind.name))));
+        break;
+      }
+    }
+  }
+
+  if (wbgt != null && school != null) {
+    final level = heatStressNear(wbgt, school.lat, school.lng);
+    if (isHighHeat(level)) {
+      out.add(TodayAlert(AlertKind.heat, s.heatAt(s.placeLabel('school'), level!.toLowerCase())));
+    }
+  }
+
+  final today = dateOnly(now);
+  for (final h in hawkers.where((h) => fav.hawkers.contains(h.id))) {
+    if (h.closureOn(today) != null) {
+      out.add(TodayAlert(AlertKind.hawker, s.hawkerClosedToday(h.name)));
+    } else if (h.closureOn(today.add(const Duration(days: 1))) != null) {
+      out.add(TodayAlert(AlertKind.hawker, s.hawkerClosedTomorrow(h.name)));
+    }
+  }
+
+  for (final p in <Place>[if (home != null) home, if (school != null) school]) {
+    final n = dengueNear(dengue, p.lat, p.lng, km: 1).length;
+    if (n > 0) out.add(TodayAlert(AlertKind.dengue, s.dengueNear(s.placeLabel(p.kind.name), n)));
+  }
+  return out;
+}
