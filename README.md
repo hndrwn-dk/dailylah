@@ -50,7 +50,7 @@ flutter run --dart-define=API_URL=http://10.0.2.2:8000
    `QSTASH_TOKEN=... API_URL=https://<your-service>.onrender.com ./scripts/create-qstash-schedule.sh`
 4. **Neon**: create a project, enable PostGIS (`CREATE EXTENSION postgis;`) → set `DATABASE_URL`.
 5. **Vercel**: import the repo, set Root Directory to `web`, no build command.
-   The app expects `https://dailylah.vercel.app`; if the URL differs, build with
+   The app expects `https://dailylah-web.vercel.app`; if the URL differs, build with
    `--dart-define=WEB_URL=https://<your-vercel-url>`.
 6. **Bus stop bundle**: add repo secret `LTA_ACCOUNT_KEY` (Settings → Secrets → Actions),
    then run the `data` workflow once (Actions → data → Run workflow). It then runs daily.

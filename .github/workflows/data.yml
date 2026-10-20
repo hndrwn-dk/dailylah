@@ -5,6 +5,12 @@ on:
   schedule:
     - cron: "17 20 * * *" # 04:17 SGT
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/data.yml"
+      - "backend/app/build_static.py"
+      - "backend/app/sources.py"
 permissions:
   contents: write
 concurrency:
@@ -28,11 +34,12 @@ jobs:
         run: python -m app.build_static ../web/data
       - name: Commit if changed
         run: |
-          if git diff --quiet -- web/data; then
+          # Stage first: plain `git diff` ignores new (untracked) files.
+          git add web/data
+          if git diff --cached --quiet -- web/data; then
             echo "No data changes"; exit 0
           fi
           git config user.name "dailylah-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add web/data
           git commit -m "Update static data bundles"
           git push

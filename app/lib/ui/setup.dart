@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../background.dart';
 import '../models.dart';
 import '../providers.dart';
+import 'about.dart';
 import 'stop_picker.dart';
 
 /// Onboarding and settings in one page: places (by bus stop), MRT lines, departure
@@ -159,6 +160,16 @@ class SetupPage extends ConsumerWidget {
               padding: const EdgeInsets.only(top: 8),
               child: Text('Pilih halte dekat rumah dulu.', style: text.bodySmall),
             ),
+          const SizedBox(height: 16),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.info_outline),
+            title: const Text('Tentang DailyLah'),
+            subtitle: const Text('Privasi, ketentuan, dan sumber data'),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AboutDailyLahPage()),
+            ),
+          ),
         ],
       ),
     );
