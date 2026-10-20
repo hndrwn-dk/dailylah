@@ -1,7 +1,8 @@
 /// Plain data types. No Flutter imports so they are usable in background isolates.
 library;
 
-enum PlaceKind { home, work, school }
+/// `other` is a custom favourite place with its own name (Favorites.extraPlaces).
+enum PlaceKind { home, work, school, other }
 
 extension PlaceKindLabel on PlaceKind {
   /// Indonesian label, kept for older call sites. Prefer S.placeLabel(kind.name).
@@ -9,6 +10,7 @@ extension PlaceKindLabel on PlaceKind {
         PlaceKind.home => 'Rumah',
         PlaceKind.work => 'Kantor',
         PlaceKind.school => 'Sekolah',
+        PlaceKind.other => 'Tempat',
       };
 }
 
@@ -71,9 +73,13 @@ class Place {
     this.postal,
     this.addrLat,
     this.addrLng,
+    this.name,
   });
 
   final PlaceKind kind;
+
+  /// User's own name for a custom place, e.g. "Mum's house".
+  final String? name;
   final List<BusStop> stops;
 
   /// Short address label, e.g. "66 Marine Drive".
@@ -89,8 +95,9 @@ class Place {
   /// What to show for this place: the address, else the first stop's name.
   String get label => address ?? (stops.isEmpty ? '' : stops.first.name);
 
-  Place copyWith({List<BusStop>? stops}) => Place(
+  Place copyWith({List<BusStop>? stops, String? name}) => Place(
         kind: kind,
+        name: name ?? this.name,
         stops: stops ?? this.stops,
         address: address,
         postal: postal,
@@ -105,6 +112,7 @@ class Place {
         if (postal != null) 'postal': postal,
         if (addrLat != null) 'la': addrLat,
         if (addrLng != null) 'lo': addrLng,
+        if (name != null) 'name': name,
       };
 
   factory Place.fromJson(Map<String, dynamic> j) => Place(
@@ -116,6 +124,7 @@ class Place {
         postal: j['postal'] as String?,
         addrLat: (j['la'] as num?)?.toDouble(),
         addrLng: (j['lo'] as num?)?.toDouble(),
+        name: j['name'] as String?,
       );
 }
 
@@ -156,6 +165,7 @@ class Favorites {
     this.carparks = const {},
     this.watchedBlocks = const {},
     this.compareBlocks = const [],
+    this.extraPlaces = const [],
   });
 
   final Map<PlaceKind, Place> places;
@@ -187,6 +197,10 @@ class Favorites {
   /// Blocks picked for side-by-side comparison (max 3).
   final List<String> compareBlocks;
 
+  /// Custom favourite places (kind `other`), max [maxExtraPlaces].
+  final List<Place> extraPlaces;
+  static const maxExtraPlaces = 5;
+
   bool get isSetUp => places.containsKey(PlaceKind.home);
 
   Favorites copyWith({
@@ -206,6 +220,7 @@ class Favorites {
     Set<String>? carparks,
     Map<String, int>? watchedBlocks,
     List<String>? compareBlocks,
+    List<Place>? extraPlaces,
   }) =>
       Favorites(
         places: places ?? this.places,
@@ -224,6 +239,7 @@ class Favorites {
         carparks: carparks ?? this.carparks,
         watchedBlocks: watchedBlocks ?? this.watchedBlocks,
         compareBlocks: compareBlocks ?? this.compareBlocks,
+        extraPlaces: extraPlaces ?? this.extraPlaces,
       );
 
   Map<String, dynamic> toJson() => {
@@ -243,6 +259,7 @@ class Favorites {
         'carparks': carparks.toList()..sort(),
         'watchedBlocks': watchedBlocks,
         'compareBlocks': compareBlocks,
+        if (extraPlaces.isNotEmpty) 'extra': [for (final p in extraPlaces) p.toJson()],
       };
 
   factory Favorites.fromJson(Map<String, dynamic> j) {
@@ -271,6 +288,9 @@ class Favorites {
         for (final e in ((j['watchedBlocks'] as Map?) ?? const {}).entries) '${e.key}': (e.value as num).toInt(),
       },
       compareBlocks: [for (final v in (j['compareBlocks'] as List? ?? const [])) '$v'],
+      extraPlaces: [
+        for (final p in (j['extra'] as List? ?? const [])) Place.fromJson(p as Map<String, dynamic>),
+      ],
     );
   }
 }

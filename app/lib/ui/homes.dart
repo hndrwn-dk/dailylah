@@ -73,11 +73,11 @@ class HomesPage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (blocks.isLoading) const LinearProgressIndicator(),
-                if (empty) Card(child: EmptyNote(s.bundlesLoading, icon: Icons.cloud_download_outlined)),
+                if (empty) Panel(child: EmptyNote(s.bundlesLoading, icon: Icons.cloud_download_outlined)),
                 if (query.trim().length >= 2) ...[
                   if (postalHit?.isLoading == true) const LinearProgressIndicator(),
                   if (!empty && results.isEmpty && !(postalHit?.isLoading ?? false))
-                    Card(child: EmptyNote(postal ? s.blockNotInData : s.notAvailable)),
+                    Panel(child: EmptyNote(postal ? s.blockNotInData : s.notAvailable)),
                   for (final b in results) _BlockTile(block: b),
                 ] else ...[
                   if (fav.compareBlocks.length >= 2)
@@ -92,12 +92,12 @@ class HomesPage extends ConsumerWidget {
                     ),
                   SectionTitle(s.watched, padding: const EdgeInsets.fromLTRB(4, 4, 4, 10)),
                   if (fav.watchedBlocks.isEmpty)
-                    Card(child: EmptyNote(s.emptyWatch, icon: Icons.visibility_outlined))
+                    Panel(child: EmptyNote(s.emptyWatch, icon: Icons.visibility_outlined))
                   else
                     for (final k in fav.watchedBlocks.keys)
                       if (byKey[k] != null) _BlockTile(block: byKey[k]!),
                   SectionTitle(s.checkAgent),
-                  Card(
+                  Panel(
                     child: ListTile(
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                       leading: const _IconBadge(Icons.verified_user_outlined),
@@ -147,7 +147,7 @@ class _BlockTile extends ConsumerWidget {
     final stats = resale?.blocks[block.key] ?? const <ResaleStat>[];
     final t = Theme.of(context).textTheme;
     final top = stats.isEmpty ? null : (stats.toList()..sort((a, b) => b.count.compareTo(a.count))).first;
-    return Card(
+    return Panel(
       child: InkWell(
         onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => BlockPage(block: block))),
         child: Padding(
@@ -310,12 +310,12 @@ class BlockPage extends ConsumerWidget {
               children: [
                 SectionTitle(s.resalePrices),
                 if (stats.isEmpty)
-                  Card(child: EmptyNote(s.noResale))
+                  Panel(child: EmptyNote(s.noResale))
                 else
                   for (final st in stats) _ResaleCard(stat: st, townMedian: townMedians[st.flatType], town: block.town),
                 if (rents.isNotEmpty) ...[
                   SectionTitle(s.rentTitle, trailing: Text(rent!.period, style: t.bodySmall)),
-                  Card(
+                  Panel(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -388,7 +388,7 @@ class _ResaleCard extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
     final tm = townMedian;
     final maxV = [stat.median, tm ?? 0].reduce((a, b) => a > b ? a : b).toDouble();
-    return Card(
+    return Panel(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -465,7 +465,7 @@ class _ScoreCard extends ConsumerWidget {
     final hawkers = ref.watch(hawkersProvider).valueOrNull;
     final dengue = ref.watch(dengueProvider).valueOrNull ?? const <DengueCluster>[];
     if (pois == null || stops == null || hawkers == null) {
-      return const Card(child: Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator()));
+      return const Panel(child: Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator()));
     }
     final sc = scoreBlock(block, pois: pois, stops: stops, hawkers: hawkers, dengue: dengue);
     final rows = <(IconData, String, String, bool)>[
@@ -483,7 +483,7 @@ class _ScoreCard extends ConsumerWidget {
       (Icons.bug_report_outlined, s.dengue1km, '${sc.dengue1km}', sc.dengue1km > 0),
     ];
     final t = Theme.of(context).textTheme;
-    return Card(
+    return Panel(
       child: Column(
         children: [
           for (final (icon, label, value, warn) in rows)
@@ -562,7 +562,7 @@ class ComparePage extends ConsumerWidget {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                Card(
+                Panel(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Table(
@@ -657,7 +657,7 @@ class _AgentCheckPageState extends ConsumerState<AgentCheckPage> {
           const SizedBox(height: 12),
           FilledButton(onPressed: _check, child: Text(s.search)),
           const SizedBox(height: 16),
-          if (reg == '') Card(child: EmptyNote(s.agentHint)),
+          if (reg == '') Panel(child: EmptyNote(s.agentHint)),
           if (reg != null && reg.isNotEmpty) _AgentResult(reg: reg, s: s),
           const SizedBox(height: 8),
           Text(s.ceaSource, style: t.bodySmall),
@@ -677,14 +677,14 @@ class _AgentResult extends ConsumerWidget {
     final t = Theme.of(context).textTheme;
     return ref.watch(agentProvider(reg)).when(
           loading: () => const Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator()),
-          error: (_, __) => Card(child: EmptyNote(s.serverWaking)),
+          error: (_, __) => Panel(child: EmptyNote(s.serverWaking)),
           data: (body) {
             final rows = body['data'];
             if (rows is! List || rows.isEmpty) {
-              return Card(child: EmptyNote(s.agentNotFound, icon: Icons.warning_amber_outlined));
+              return Panel(child: EmptyNote(s.agentNotFound, icon: Icons.warning_amber_outlined));
             }
             final a = rows.first as Map;
-            return Card(
+            return Panel(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(

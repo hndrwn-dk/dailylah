@@ -12,11 +12,13 @@ class BusPlate extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
-      constraints: const BoxConstraints(minWidth: 58),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      constraints: const BoxConstraints(minWidth: 60),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
         color: scheme.primary,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: DL.edge(context), width: 2),
+        boxShadow: DL.hard(context, d: 2.5),
       ),
       alignment: Alignment.center,
       child: Text(
@@ -81,8 +83,12 @@ class LineChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: dense ? 6 : 8, vertical: dense ? 2 : 3),
-      decoration: BoxDecoration(color: DL.lineColor(code), borderRadius: BorderRadius.circular(6)),
+      padding: EdgeInsets.symmetric(horizontal: dense ? 6 : 8, vertical: dense ? 1 : 2),
+      decoration: BoxDecoration(
+        color: DL.lineColor(code),
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: DL.edge(context), width: 2),
+      ),
       child: Text(
         code,
         style: TextStyle(
@@ -91,6 +97,34 @@ class LineChip extends StatelessWidget {
           fontSize: dense ? 13 : 15,
           color: Colors.white,
           letterSpacing: 0.3,
+        ),
+      ),
+    );
+  }
+}
+
+/// The app's card: an outlined panel with a hard offset shadow, like a printed sticker.
+class Panel extends StatelessWidget {
+  const Panel({super.key, required this.child, this.margin = const EdgeInsets.only(bottom: 16), this.color});
+  final Widget child;
+  final EdgeInsetsGeometry margin;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final r = BorderRadius.circular(DL.radius);
+    return Padding(
+      padding: margin,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: color ?? Theme.of(context).colorScheme.surfaceContainerLowest,
+          borderRadius: r,
+          border: Border.all(color: DL.edge(context), width: DL.stroke),
+          boxShadow: DL.hard(context),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(DL.radius - DL.stroke),
+          child: Material(type: MaterialType.transparency, child: child),
         ),
       ),
     );
@@ -130,26 +164,36 @@ class AlertBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final warn = tone == AlertTone.warning;
-    final bg = warn ? DL.amber.withValues(alpha: 0.18) : scheme.primary.withValues(alpha: 0.10);
-    final fg = warn ? const Color(0xFF8A5300) : scheme.primary;
+    final r = BorderRadius.circular(12);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: bg,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: [
-                Icon(icon, size: 20, color: Theme.of(context).brightness == Brightness.dark ? DL.amber : fg),
-                const SizedBox(width: 12),
-                Expanded(child: Text(text, style: Theme.of(context).textTheme.labelLarge)),
-              ],
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: warn ? DL.amber : Theme.of(context).colorScheme.surfaceContainerLowest,
+          borderRadius: r,
+          border: Border.all(color: DL.edge(context), width: DL.stroke),
+          boxShadow: DL.hard(context, d: 3),
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            borderRadius: r,
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(icon, size: 20, color: warn ? DL.ink : null),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      text,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(color: warn ? DL.ink : null),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -230,6 +274,7 @@ class PlaceSelector extends StatelessWidget {
         PlaceKind.home => Icons.home_outlined,
         PlaceKind.work => Icons.work_outline,
         PlaceKind.school => Icons.school_outlined,
+        PlaceKind.other => Icons.star_outline,
       };
 
   @override
@@ -278,8 +323,8 @@ class PlaceSelector extends StatelessWidget {
   }
 }
 
-/// Full-bleed header at the top of a tab: a deep "night over the Straits" gradient
-/// with rounded lower corners. Content below it can overlap via [overlap].
+/// Header block at the top of a tab: a dark panel with an outline and hard shadow,
+/// sitting on the paper background. Text and icons inside are light.
 class HeroHeader extends StatelessWidget {
   const HeroHeader({super.key, required this.child, this.accent = DL.teal});
   final Widget child;
@@ -287,43 +332,49 @@ class HeroHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [DL.night, DL.ink, Color.lerp(DL.ink, accent, 0.55)!],
-          stops: const [0, 0.55, 1],
+    final r = BorderRadius.circular(22);
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 8, 18, 6),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: r,
+            border: Border.all(color: DL.ink, width: DL.stroke),
+            boxShadow: const [BoxShadow(color: DL.ink, offset: Offset(4, 4))],
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [const Color(0xFF0F1618), Color.lerp(const Color(0xFF0F1618), accent, 0.45)!],
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(22 - DL.stroke),
+            child: Stack(
+              children: [
+                Positioned(
+                  right: -50,
+                  top: -50,
+                  child: Container(
+                    width: 200,
+                    height: 200,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(colors: [accent.withValues(alpha: 0.55), accent.withValues(alpha: 0)]),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
+                  child: DefaultTextStyle.merge(
+                    style: const TextStyle(color: Colors.white),
+                    child: IconTheme.merge(data: const IconThemeData(color: Colors.white), child: child),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
-      ),
-      child: Stack(
-        children: [
-          // A soft glow, like the city lights on the horizon.
-          Positioned(
-            right: -60,
-            top: -40,
-            child: Container(
-              width: 220,
-              height: 220,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(colors: [accent.withValues(alpha: 0.45), accent.withValues(alpha: 0)]),
-              ),
-            ),
-          ),
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-              child: DefaultTextStyle.merge(
-                style: const TextStyle(color: Colors.white),
-                child: IconTheme.merge(data: const IconThemeData(color: Colors.white), child: child),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -379,26 +430,132 @@ class BentoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final c = tint ?? Theme.of(context).colorScheme.primary;
-    return Card(
+    final highlighted = tint == DL.amber;
+    return Panel(
       margin: EdgeInsets.zero,
+      color: highlighted ? DL.amber : null,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: c.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
-                child: Icon(icon, size: 20, color: c),
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: highlighted ? DL.card : (tint ?? Theme.of(context).colorScheme.primary).withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: DL.edge(context), width: 2),
+                ),
+                child: Icon(icon, size: 18, color: highlighted ? DL.ink : tint ?? Theme.of(context).colorScheme.primary),
               ),
-              const SizedBox(height: 14),
-              Text(value, style: t.displaySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 12),
+              Text(value,
+                  style: t.displaySmall?.copyWith(color: highlighted ? DL.ink : null),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
               const SizedBox(height: 2),
-              Text(caption, style: t.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
+              Text(caption,
+                  style: t.bodySmall?.copyWith(color: highlighted ? DL.ink : null),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Display name of a place: its own name for custom places, else the kind label.
+String placeTitle(String Function(String) placeLabel, Place p) =>
+    p.kind == PlaceKind.other && (p.name?.isNotEmpty ?? false) ? p.name! : placeLabel(p.kind.name);
+
+/// A horizontally scrolling row of chunky pills: (key, icon, label).
+class PillRow extends StatelessWidget {
+  const PillRow({super.key, required this.items, required this.selected, required this.onTap, this.onDark = false});
+  final List<(String, IconData, String)> items;
+  final String selected;
+  final ValueChanged<String> onTap;
+  final bool onDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final edge = onDark ? DL.ink : DL.edge(context);
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      clipBehavior: Clip.none,
+      child: Row(
+        children: [
+          for (final (key, icon, label) in items)
+            Padding(
+              padding: const EdgeInsets.only(right: 10, bottom: 3),
+              child: _Pill(
+                icon: icon,
+                label: label,
+                selected: key == selected,
+                edge: edge,
+                onDark: onDark,
+                style: t.labelLarge,
+                onTap: () => onTap(key),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.edge,
+    required this.onDark,
+    required this.style,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final Color edge;
+  final bool onDark;
+  final TextStyle? style;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = selected ? DL.amber : (onDark ? DL.card : Theme.of(context).colorScheme.surfaceContainerLowest);
+    const fg = DL.ink;
+    final r = BorderRadius.circular(12);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: r,
+        border: Border.all(color: edge, width: DL.stroke),
+        boxShadow: selected ? [BoxShadow(color: edge, offset: const Offset(3, 3))] : null,
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: r,
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 16, color: fg),
+                const SizedBox(width: 6),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 170),
+                  child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: style?.copyWith(color: fg)),
+                ),
+              ],
+            ),
           ),
         ),
       ),

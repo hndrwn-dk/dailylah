@@ -88,7 +88,7 @@ class _AddressPickerPageState extends ConsumerState<AddressPickerPage> {
             onSubmitted: (v) => setState(() => _query = v.trim()),
           ),
           const SizedBox(height: 8),
-          Card(
+          Panel(
             child: ListTile(
               leading: _locating
                   ? const SizedBox.square(dimension: 24, child: CircularProgressIndicator(strokeWidth: 2))
@@ -101,10 +101,10 @@ class _AddressPickerPageState extends ConsumerState<AddressPickerPage> {
           if (results != null)
             results.when(
               loading: () => const Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator()),
-              error: (_, __) => Card(child: EmptyNote(s.serverWaking)),
+              error: (_, __) => Panel(child: EmptyNote(s.serverWaking)),
               data: (hits) => hits.isEmpty
-                  ? Card(child: EmptyNote(s.noAddressFound))
-                  : Card(
+                  ? Panel(child: EmptyNote(s.noAddressFound))
+                  : Panel(
                       child: Column(
                         children: [
                           for (final h in hits.take(12))

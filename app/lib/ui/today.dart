@@ -97,12 +97,9 @@ class TodayPage extends ConsumerWidget {
                 ],
               ),
             ),
-            Transform.translate(
-              offset: const Offset(0, -18),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: dests),
-              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 18, 8),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: dests),
             ),
           ],
         ),
@@ -237,7 +234,7 @@ class _MrtCard extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final alerts = ref.watch(trainAlertsProvider);
     final t = Theme.of(context).textTheme;
-    return Card(
+    return Panel(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
         child: Column(
@@ -316,7 +313,7 @@ class BusStopCard extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final etas = ref.watch(busArrivalProvider(stop.code));
     final t = Theme.of(context).textTheme;
-    return Card(
+    return Panel(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
         child: Column(
@@ -498,7 +495,7 @@ class _SavedParking extends ConsumerWidget {
     final saved = info.where((c) => fav.carparks.contains(c.id)).toList();
     if (saved.isEmpty) return const SizedBox.shrink();
     final t = Theme.of(context).textTheme;
-    return Card(
+    return Panel(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
         child: Column(

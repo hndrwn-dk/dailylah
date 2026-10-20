@@ -44,7 +44,8 @@ class S {
   String placeLabel(String kind) => switch (kind) {
         'home' => _t('Home', 'Rumah'),
         'work' => _t('Work', 'Kantor'),
-        _ => _t('School', 'Sekolah'),
+        'school' => _t('School', 'Sekolah'),
+        _ => _t('Place', 'Tempat'),
       };
   String busFrom(String place) => _t('Buses from $place', 'Bus dari $place');
 
@@ -303,6 +304,19 @@ class S {
       'Sedang mengunduh data lokal. Tarik ke bawah atau buka ulang app sebentar lagi.');
   String get blockNotInData => _t('This address is not in the HDB block data yet.',
       'Alamat ini belum ada di data blok HDB.');
+
+  // custom places and "anywhere"
+  String get otherPlaces => _t('Other places', 'Tempat lain');
+  String get otherPlacesHint => _t(
+      "Save places you visit often, like your parents' home, the gym or your mosque.",
+      'Simpan tempat yang sering dikunjungi, misalnya rumah orang tua, gym, atau masjid langganan.');
+  String get addPlace => _t('Add a place', 'Tambah tempat');
+  String get placeName => _t('Name', 'Nama');
+  String get placeNameHint => _t("e.g. Mum's house, Gym", 'misal Rumah Ibu, Gym');
+  String get rename => _t('Rename', 'Ganti nama');
+  String get hereNow => _t('Here', 'Di sini');
+  String get searchPlace => _t('Search', 'Cari');
+  String maxPlaces(int n) => _t('You can save up to $n places.', 'Maksimal $n tempat.');
 
   // stop picker
   String get stopSearchHint => _t('Stop name, road or 5-digit code', 'Nama halte, jalan, atau kode 5 digit');

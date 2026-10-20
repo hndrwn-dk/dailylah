@@ -58,6 +58,17 @@ class FavoritesNotifier extends Notifier<Favorites> {
         return f.copyWith(watchedBlocks: m);
       });
 
+  Future<void> addExtra(Place p) => update((f) => f.extraPlaces.length >= Favorites.maxExtraPlaces
+      ? f
+      : f.copyWith(extraPlaces: [...f.extraPlaces, p]));
+
+  Future<void> setExtra(int i, Place p) => update((f) => f.copyWith(
+        extraPlaces: [for (var j = 0; j < f.extraPlaces.length; j++) j == i ? p : f.extraPlaces[j]],
+      ));
+
+  Future<void> removeExtra(int i) =>
+      update((f) => f.copyWith(extraPlaces: [...f.extraPlaces]..removeAt(i)));
+
   Future<void> toggleCompare(String key) => update((f) {
         final l = [...f.compareBlocks];
         if (!l.remove(key)) {
@@ -173,7 +184,12 @@ final agentProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, St
 // ---------------------------------------------------------------- derived
 
 /// The place a "Nearby" view is centred on (Home unless the user picked another).
-final nearbyPlaceProvider = StateProvider<PlaceKind>((ref) => PlaceKind.home);
+/// Which place the Nearby tab is about: "home", "work", "school", "extra:<i>" or "adhoc".
+final nearbyKeyProvider = StateProvider<String>((ref) => 'home');
+
+/// A one-off place for Nearby: the phone's current location or a searched address.
+/// Kept in memory only, never saved.
+final adhocPlaceProvider = StateProvider<Place?>((ref) => null);
 
 /// Alerts for the top of Today. Fills in as each source loads; failures are skipped.
 final todayAlertsProvider = Provider.autoDispose<List<TodayAlert>>((ref) {
