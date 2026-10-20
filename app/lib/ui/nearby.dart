@@ -202,6 +202,7 @@ class _HawkerTab extends ConsumerWidget {
                 lng: h.lng,
                 distance: d,
                 extra: [
+                  const HalalButton(),
                   AlertBanner(
                     icon: closedToday != null ? Icons.event_busy : Icons.event_available,
                     tone: closedToday != null ? AlertTone.warning : AlertTone.info,

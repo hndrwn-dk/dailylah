@@ -72,18 +72,17 @@ class SetupPage extends ConsumerWidget {
     }
   }
 
-  Future<void> _pickTime(BuildContext context, WidgetRef ref, bool home) async {
+  /// Pick the usual go (leave home) or back (leave this place) time for a work/school place.
+  Future<void> _pickTime(BuildContext context, WidgetRef ref, Place place, {required bool go}) async {
     final fav = ref.read(favoritesProvider);
-    final current = home ? fav.leaveHome : fav.leaveWork;
+    final current = go ? (place.go ?? fav.leaveHome) : (place.back ?? fav.leaveWork);
     final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay(hour: current.hour, minute: current.minute),
     );
     if (picked == null) return;
     final t = TimeOfDayHM(picked.hour, picked.minute);
-    await ref
-        .read(favoritesProvider.notifier)
-        .update((f) => home ? f.copyWith(leaveHome: t) : f.copyWith(leaveWork: t));
+    await ref.read(favoritesProvider.notifier).setPlace(go ? place.copyWith(go: t) : place.copyWith(back: t));
   }
 
   Future<void> _finish(BuildContext context, WidgetRef ref) async {
@@ -190,6 +189,54 @@ class SetupPage extends ConsumerWidget {
               ),
               if (kind != PlaceKind.home && place != null) ...[
                 const Divider(height: 16),
+                Text(s.days, style: t.labelMedium),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (var d = 1; d <= 7; d++)
+                      FilterChip(
+                        label: Text(s.dayShort[d - 1]),
+                        selected: place.days.contains(d),
+                        onSelected: (on) => notifier.setPlace(place.copyWith(
+                          days: on ? {...place.days, d} : ({...place.days}..remove(d)),
+                        )),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    for (final (go, label, icon) in [
+                      (true, s.goAt, Icons.wb_twilight),
+                      (false, s.backAt, Icons.nights_stay_outlined),
+                    ]) ...[
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            alignment: Alignment.centerLeft,
+                          ),
+                          onPressed: () => _pickTime(context, ref, place, go: go),
+                          child: Row(
+                            children: [
+                              Icon(icon, size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text(label, style: t.labelMedium, overflow: TextOverflow.ellipsis)),
+                              Text(
+                                (go ? (place.go ?? fav.leaveHome) : (place.back ?? fav.leaveWork)).format(),
+                                style: t.displaySmall?.copyWith(fontSize: 20),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (go) const SizedBox(width: 8),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 10),
                 Text(s.usuallyBy, style: t.labelMedium),
                 const SizedBox(height: 6),
                 ModeChips(
@@ -229,59 +276,6 @@ class SetupPage extends ConsumerWidget {
                 placeCard(PlaceKind.school, required: false),
                 SectionTitle(s.otherPlaces),
                 const _ExtraPlaces(),
-                SectionTitle(s.yourLines),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final e in trainLines.entries)
-                      FilterChip(
-                        avatar: CircleAvatar(backgroundColor: DL.lineColor(e.key), radius: 6),
-                        label: Text('${e.key} · ${e.value}'),
-                        selected: fav.lines.contains(e.key),
-                        onSelected: (_) => notifier.toggleLine(e.key),
-                      ),
-                  ],
-                ),
-                SectionTitle(s.workDaysTitle),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (var d = 1; d <= 7; d++)
-                      FilterChip(
-                        label: Text(s.dayShort[d - 1]),
-                        selected: fav.workDays.contains(d),
-                        onSelected: (on) => notifier.update((f) => f.copyWith(
-                              workDays: on ? {...f.workDays, d} : ({...f.workDays}..remove(d)),
-                            )),
-                      ),
-                  ],
-                ),
-                SectionTitle(s.departureTimes),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
-                  child: Text(s.departureTimesSub, style: t.bodySmall),
-                ),
-                Panel(
-                  child: Column(
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.wb_twilight),
-                        title: Text(s.leaveHome),
-                        trailing: Text(fav.leaveHome.format(), style: t.displaySmall?.copyWith(fontSize: 24)),
-                        onTap: () => _pickTime(context, ref, true),
-                      ),
-                      const Divider(indent: 16, endIndent: 16),
-                      ListTile(
-                        leading: const Icon(Icons.nights_stay_outlined),
-                        title: Text(s.leaveWork),
-                        trailing: Text(fav.leaveWork.format(), style: t.displaySmall?.copyWith(fontSize: 24)),
-                        onTap: () => _pickTime(context, ref, false),
-                      ),
-                    ],
-                  ),
-                ),
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: fav.isSetUp ? () => _finish(context, ref) : null,

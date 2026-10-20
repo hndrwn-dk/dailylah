@@ -100,8 +100,7 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
 
   // MRT: one notification per distinct disruption text.
   await guard(() async {
-    if (fav.lines.isEmpty) return;
-    final bad = lineStatuses(await api.trainAlerts(), fav.lines).where((x) => x.disrupted).toList();
+    final bad = lineStatuses(await api.trainAlerts(), watchedLines(fav)).where((x) => x.disrupted).toList();
     final lines = bad.map((x) => x.line).join(', ');
     mrtLine = bad.isEmpty ? 'MRT: ${s.mrtNormal}' : s.mrtAlert(lines);
     if (!fav.mrtAlerts || bad.isEmpty || quiet) return;
@@ -112,7 +111,7 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
   });
 
   // Rain: only in the hour before the usual departure, once per window, max 3 a day.
-  final origin = fav.places[originFor(kind, fav)];
+  final origin = fav.places[originFor(kind, fav, now)];
   await guard(() async {
     final body = await api.forecast();
     if (origin != null) {
@@ -120,8 +119,9 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
       if (here != null) weatherLine = '${here.area}: ${here.forecast}';
     }
     if (!fav.rainAlerts || quiet) return;
-    final leave = kind == CardKind.morning ? fav.leaveHome : fav.leaveWork;
-    final dest = destinationFor(kind, fav);
+    final (goAt, backAt) = commuteTimes(fav, now);
+    final leave = kind == CardKind.morning ? goAt : backAt;
+    final dest = destinationFor(kind, fav, now);
     final destPlace = dest == null ? null : fav.places[dest];
     final checkPlaces = <Place>[
       if (origin != null) origin,

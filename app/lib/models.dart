@@ -85,7 +85,17 @@ class Place {
     this.name,
     this.modes = const [TravelMode.transit],
     this.when = PlaceWhen.anytime,
+    this.days = const {1, 2, 3, 4, 5},
+    this.go,
+    this.back,
   });
+
+  /// Work/school days for this place (1 = Monday … 7 = Sunday).
+  final Set<int> days;
+
+  /// Usual time to leave home for this place, and to leave it again.
+  final TimeOfDayHM? go;
+  final TimeOfDayHM? back;
 
   final PlaceKind kind;
 
@@ -113,8 +123,20 @@ class Place {
   /// What to show for this place: the address, else the first stop's name.
   String get label => address ?? (stops.isEmpty ? '' : stops.first.name);
 
-  Place copyWith({List<BusStop>? stops, String? name, List<TravelMode>? modes, PlaceWhen? when}) => Place(
+  Place copyWith({
+    List<BusStop>? stops,
+    String? name,
+    List<TravelMode>? modes,
+    PlaceWhen? when,
+    Set<int>? days,
+    TimeOfDayHM? go,
+    TimeOfDayHM? back,
+  }) =>
+      Place(
         kind: kind,
+        days: days ?? this.days,
+        go: go ?? this.go,
+        back: back ?? this.back,
         name: name ?? this.name,
         modes: modes ?? this.modes,
         when: when ?? this.when,
@@ -135,6 +157,9 @@ class Place {
         if (name != null) 'name': name,
         'modes': [for (final m in modes) m.name],
         if (when != PlaceWhen.anytime) 'when': when.name,
+        'days': days.toList()..sort(),
+        if (go != null) 'go': go.toString(),
+        if (back != null) 'back': back.toString(),
       };
 
   factory Place.fromJson(Map<String, dynamic> j) => Place(
@@ -151,6 +176,9 @@ class Place {
             ? [for (final m in j['modes'] as List) travelModeFrom('$m')]
             : const [TravelMode.transit],
         when: PlaceWhen.values.firstWhere((w) => w.name == j['when'], orElse: () => PlaceWhen.anytime),
+        days: j['days'] is List ? {for (final d in j['days'] as List) (d as num).toInt()} : const {1, 2, 3, 4, 5},
+        go: j['go'] == null ? null : TimeOfDayHM.parse('${j['go']}'),
+        back: j['back'] == null ? null : TimeOfDayHM.parse('${j['back']}'),
       );
 }
 
@@ -187,6 +215,7 @@ class Favorites {
     this.homesAlerts = true,
     this.onboarded = false,
     this.showPrayer = false,
+    this.showHalal = false,
     this.hawkers = const {},
     this.carparks = const {},
     this.watchedBlocks = const {},
@@ -211,6 +240,9 @@ class Favorites {
 
   /// Show MUIS prayer times in Nearby (opt-in, off by default).
   final bool showPrayer;
+
+  /// Show a link to the MUIS halal directory on food places (opt-in).
+  final bool showHalal;
 
   /// Favourite hawker centre ids (hawkers.json "id").
   final Set<String> hawkers;
@@ -246,6 +278,7 @@ class Favorites {
     bool? homesAlerts,
     bool? onboarded,
     bool? showPrayer,
+    bool? showHalal,
     Set<String>? hawkers,
     Set<String>? carparks,
     Map<String, int>? watchedBlocks,
@@ -266,6 +299,7 @@ class Favorites {
         homesAlerts: homesAlerts ?? this.homesAlerts,
         onboarded: onboarded ?? this.onboarded,
         showPrayer: showPrayer ?? this.showPrayer,
+        showHalal: showHalal ?? this.showHalal,
         hawkers: hawkers ?? this.hawkers,
         carparks: carparks ?? this.carparks,
         watchedBlocks: watchedBlocks ?? this.watchedBlocks,
@@ -287,6 +321,7 @@ class Favorites {
         'homesAlerts': homesAlerts,
         'onboarded': onboarded,
         'showPrayer': showPrayer,
+        'showHalal': showHalal,
         'hawkers': hawkers.toList()..sort(),
         'carparks': carparks.toList()..sort(),
         'watchedBlocks': watchedBlocks,
@@ -315,6 +350,7 @@ class Favorites {
       homesAlerts: (j['homesAlerts'] ?? true) as bool,
       onboarded: (j['onboarded'] ?? false) as bool,
       showPrayer: (j['showPrayer'] ?? false) as bool,
+      showHalal: (j['showHalal'] ?? false) as bool,
       hawkers: strings('hawkers'),
       carparks: strings('carparks'),
       watchedBlocks: {

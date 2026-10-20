@@ -24,9 +24,9 @@ class TodayPage extends ConsumerWidget {
     final fav = ref.watch(favoritesProvider);
     final kind = ref.watch(cardKindProvider);
     final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
-    final origin = fav.places[originFor(kind, fav)];
+    final origin = fav.places[originFor(kind, fav, now)];
     final commute = isCommuteDay(fav, now);
-    final destKind = destinationFor(kind, fav);
+    final destKind = destinationFor(kind, fav, now);
     final dest = destKind == null ? null : fav.places[destKind];
     final alerts = ref.watch(todayAlertsProvider);
     final t = Theme.of(context).textTheme;
@@ -72,8 +72,8 @@ class TodayPage extends ConsumerWidget {
           modeKey: (kind == CardKind.morning ? dest : origin).kind.name,
           modePlace: kind == CardKind.morning ? dest : origin,
         ),
-      if (fav.lines.isNotEmpty && (!commute || ref.watch(modeOverrideProvider)[(kind == CardKind.morning ? dest : origin)?.kind.name] == TravelMode.transit || ((kind == CardKind.morning ? dest : origin)?.mode ?? TravelMode.transit) == TravelMode.transit))
-        _MrtCard(lines: fav.lines, showCrowd: kind == CardKind.evening),
+      if ((!commute || ref.watch(modeOverrideProvider)[(kind == CardKind.morning ? dest : origin)?.kind.name] == TravelMode.transit || ((kind == CardKind.morning ? dest : origin)?.mode ?? TravelMode.transit) == TravelMode.transit))
+        _MrtCard(showCrowd: kind == CardKind.evening),
       const GoSomewhere(),
       if (origin != null) _QuickTiles(origin: origin),
       if (fav.carparks.isNotEmpty) const _SavedParking(),
@@ -159,7 +159,7 @@ class _HeroWeather extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final fav = ref.watch(favoritesProvider);
-    final dest = destinationFor(kind, fav);
+    final dest = destinationFor(kind, fav, ref.watch(clockProvider).valueOrNull);
     final destPlace = dest == null ? null : fav.places[dest];
     final body = ref.watch(forecastProvider);
     final t = Theme.of(context).textTheme;
@@ -238,56 +238,108 @@ class _ForecastLine extends StatelessWidget {
   }
 }
 
+/// All MRT/LRT lines at a glance. Disruptions float to the top; up to three starred lines
+/// get a full row (with crowd levels in the evening) and alerts.
 class _MrtCard extends ConsumerWidget {
-  const _MrtCard({required this.lines, required this.showCrowd});
-  final Set<String> lines;
+  const _MrtCard({required this.showCrowd});
   final bool showCrowd;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
+    final starred = ref.watch(favoritesProvider.select((f) => f.lines));
     final alerts = ref.watch(trainAlertsProvider);
     final t = Theme.of(context).textTheme;
+
+    void toggle(String line) {
+      if (!starred.contains(line) && starred.length >= 3) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.maxStarredLines)));
+        return;
+      }
+      ref.read(favoritesProvider.notifier).toggleLine(line);
+    }
+
+    Widget row(LineStatus st) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: 52, child: Align(alignment: Alignment.centerLeft, child: LineChip(st.line))),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(trainLines[st.line] ?? st.line, style: t.labelLarge),
+                    Text(
+                      st.disrupted ? (st.detail?.isNotEmpty == true ? st.detail! : s.mrtDisrupted) : s.mrtNormal,
+                      style: st.disrupted ? t.bodySmall?.copyWith(color: DL.stop) : t.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              if (showCrowd && starred.contains(st.line)) _CrowdBadge(line: st.line),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: s.starLine,
+                icon: Icon(starred.contains(st.line) ? Icons.star : Icons.star_border,
+                    color: starred.contains(st.line) ? DL.amber : null),
+                onPressed: () => toggle(st.line),
+              ),
+            ],
+          ),
+        );
+
     return Panel(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(s.mrtLines, style: t.titleMedium),
-            const SizedBox(height: 8),
-            alerts.when(
-              loading: () => Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(s.loading)),
-              error: (_, __) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(s.notAvailable)),
-              data: (json) => Column(
-                children: [
-                  for (final st in lineStatuses(json, lines))
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(width: 52, child: Align(alignment: Alignment.centerLeft, child: LineChip(st.line))),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(trainLines[st.line] ?? st.line, style: t.labelLarge),
-                                Text(
-                                  st.disrupted ? (st.detail?.isNotEmpty == true ? st.detail! : s.mrtDisrupted) : s.mrtNormal,
-                                  style: st.disrupted ? t.bodySmall?.copyWith(color: const Color(0xFFB45309)) : t.bodySmall,
-                                ),
-                              ],
-                            ),
+        padding: const EdgeInsets.fromLTRB(16, 14, 8, 12),
+        child: alerts.when(
+          loading: () => Text(s.loading),
+          error: (_, __) => Text(s.notAvailable),
+          data: (json) {
+            final all = lineStatuses(json, trainLines.keys.toSet());
+            final down = all.where((x) => x.disrupted).toList();
+            final pinned = all.where((x) => !x.disrupted && starred.contains(x.line)).toList();
+            final rest = all.where((x) => !x.disrupted && !starred.contains(x.line)).toList();
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(s.mrtLinesAll, style: t.titleMedium),
+                Text(down.isEmpty ? s.allLinesNormal : s.mrtAlert(down.map((x) => x.line).join(', ')),
+                    style: t.bodySmall?.copyWith(color: down.isEmpty ? null : DL.stop)),
+                const SizedBox(height: 6),
+                for (final st in down) row(st),
+                for (final st in pinned) row(st),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final st in rest)
+                      Tooltip(
+                        message: '${trainLines[st.line]} · ${s.starLine}',
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () => toggle(st.line),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              LineChip(st.line, dense: true),
+                              const SizedBox(width: 3),
+                              const Icon(Icons.circle, size: 8, color: Color(0xFF2E9E5B)),
+                            ],
                           ),
-                          if (showCrowd) _CrowdBadge(line: st.line),
-                        ],
+                        ),
                       ),
-                    ),
-                ],
-              ),
-            ),
-          ],
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Text(starred.isEmpty ? s.starHintNone : s.starHint, style: t.bodySmall),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -546,6 +598,7 @@ class _QuickTiles extends ConsumerWidget {
                 lng: h.lng,
                 distance: near.$2,
                 extra: [
+                  const HalalButton(),
                   AlertBanner(
                     icon: closed != null ? Icons.event_busy : Icons.event_available,
                     tone: closed != null ? AlertTone.warning : AlertTone.info,

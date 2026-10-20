@@ -396,10 +396,15 @@ void main() {
     const fav = Favorites(
       places: {
         PlaceKind.home: Place(kind: PlaceKind.home, stops: [tampines]),
-        PlaceKind.work: Place(kind: PlaceKind.work, stops: [raffles], modes: [TravelMode.car, TravelMode.transit]),
+        PlaceKind.work: Place(
+          kind: PlaceKind.work,
+          stops: [raffles],
+          modes: [TravelMode.car, TravelMode.transit],
+          go: TimeOfDayHM(8, 0),
+          back: TimeOfDayHM(20, 0),
+        ),
+        PlaceKind.school: Place(kind: PlaceKind.school, stops: [raffles], days: {6}),
       },
-      leaveHome: TimeOfDayHM(8, 0),
-      leaveWork: TimeOfDayHM(20, 0),
       extraPlaces: [
         Place(kind: PlaceKind.other, name: 'Makan', addrLat: 1.3, addrLng: 103.85, when: PlaceWhen.weekends),
         Place(kind: PlaceKind.other, name: 'Gym', addrLat: 1.31, addrLng: 103.86),
@@ -409,13 +414,18 @@ void main() {
     expect(cardFor(DateTime(2026, 10, 20, 13, 59), fav), CardKind.morning);
     expect(cardFor(DateTime(2026, 10, 20, 14, 0), fav), CardKind.evening);
     expect(isCommuteDay(fav, DateTime(2026, 10, 20)), isTrue); // Tuesday
-    expect(isCommuteDay(fav, DateTime(2026, 10, 24)), isFalse); // Saturday
+    expect(isCommuteDay(fav, DateTime(2026, 10, 25)), isFalse); // Sunday
+    expect(commutePlace(fav, DateTime(2026, 10, 24))!.kind, PlaceKind.school); // Saturday school
+    expect(destinationFor(CardKind.morning, fav, DateTime(2026, 10, 24)), PlaceKind.school);
+    expect(watchedLines(const Favorites()).length, trainLines.length);
+    expect(watchedLines(const Favorites(lines: {'NSL'})), {'NSL'});
     expect(extrasForToday(fav, DateTime(2026, 10, 20)), [1]);
     expect(extrasForToday(fav, DateTime(2026, 10, 24)), [0, 1]);
     final back = Favorites.fromJson(fav.toJson());
     expect(back.places[PlaceKind.work]!.mode, TravelMode.car);
     expect(back.extraPlaces.first.when, PlaceWhen.weekends);
-    expect(back.workDays, {1, 2, 3, 4, 5});
+    expect(back.places[PlaceKind.work]!.go!.format(), '08.00');
+    expect(back.places[PlaceKind.school]!.days, {6});
 
     final routes = BusRoutes.fromBundle({
       '10|1': [

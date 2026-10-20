@@ -34,7 +34,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   (Panel, HeroHeader, BusPlate, PillRow, BentoTile...). Keep the sticker style: ink outlines
   and hard offset shadows (`Panel`), not soft Material cards.
 - Routines: each place has travel modes (`Place.modes`, first = default) and custom places a
-  `when`; `Favorites.workDays` decides commute days. Today shows the commute trip
+  `when`; work/school places carry their own `days` and `go`/`back` times (`commutePlace`,
+  `commuteTimes` in logic.dart). MRT: all lines show on Today; `Favorites.lines` are the
+  starred ones (max 3), and alerts cover every line when none is starred (`watchedLines`). Today shows the commute trip
   (`TripSection` in `ui/trip.dart`) and a "Go somewhere" picker. "Buses to X" uses the
   `bus_routes.json` bundle (`directRides` in logic.dart); driving uses `/v1/parking`
   (lot type C/Y) and `/v1/traffic-incidents`.
