@@ -24,6 +24,7 @@ NEA_DATASETS: list[Dataset] = [
     Dataset("nea:two-hr-forecast", "two-hr-forecast", every_s=600, ttl_s=1800),
     Dataset("nea:rainfall", "rainfall", every_s=300, ttl_s=900),
     Dataset("nea:psi", "psi", every_s=1800, ttl_s=3600),
+    Dataset("nea:pm25", "pm25", every_s=1800, ttl_s=3600),
     Dataset("nea:uv", "uv", every_s=1800, ttl_s=3600),
     Dataset("nea:wbgt", "weather", every_s=900, ttl_s=1800, params={"api": "wbgt"}),
     Dataset("nea:lightning", "weather", every_s=300, ttl_s=900, params={"api": "lightning"}),

@@ -348,4 +348,35 @@ void main() {
     expect(near.single.$1.name, 'Near');
     expect(far.single.$1.name, 'Mid');
   });
+
+  test('air quality picks the nearest region and the worse band', () {
+    Map<String, dynamic> wrap(Map<String, dynamic> readings) => {
+          'data': {
+            'data': {
+              'regionMetadata': [
+                {'name': 'east', 'labelLocation': {'latitude': 1.35735, 'longitude': 103.94}},
+                {'name': 'west', 'labelLocation': {'latitude': 1.35735, 'longitude': 103.7}},
+              ],
+              'items': [
+                {'readings': readings},
+              ],
+            },
+          },
+        };
+    final psi = wrap({
+      'psi_twenty_four_hourly': {'east': 106, 'west': 140},
+    });
+    final pm = wrap({
+      'pm25_one_hourly': {'east': 51, 'west': 160},
+    });
+    final east = airNear(psi, pm, 1.354, 103.943)!;
+    expect(east.region, 'east');
+    expect(east.psi24, 106);
+    expect(east.level, AirLevel.unhealthy);
+    final west = airNear(psi, pm, 1.35, 103.70)!;
+    expect(west.level, AirLevel.veryUnhealthy); // PM2.5 band III beats PSI 140
+    expect(psiLevel(45), AirLevel.good);
+    expect(psiLevel(301), AirLevel.hazardous);
+    expect(airNear(null, null, 1.3, 103.8), isNull);
+  });
 }

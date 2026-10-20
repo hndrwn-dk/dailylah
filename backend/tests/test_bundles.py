@@ -369,3 +369,72 @@ def test_match_blocks_uses_street_codes_and_prefix():
     assert out[("1", "BEDOK STH AVE 1")]["p"] == "460001"
     assert out[("1", "BEACH RD")]["p"] == "190001"
     assert ("9", "NOWHERE ST") not in out
+
+
+def test_emergency_layers():
+    aeds = b.compact_aeds(
+        {
+            "features": [
+                {
+                    "properties": {
+                        "HOUSE_NUMBER": "22",
+                        "ROAD_NAME": "Sentosa Gateway",
+                        "BUILDING_NAME": "SEA Aquarium",
+                        "AED_LOCATION_DESCRIPTION": "Open Ocean Habitat",
+                        "AED_LOCATION_FLOOR_LEVEL": "B1M",
+                        "OPERATING_HOURS": "Mon - Sun 00:00-23:59;",
+                        "LATITUDE": 1.258654,
+                        "LONGITUDE": 103.8183899,
+                    },
+                    "geometry": {"type": "Point", "coordinates": [103.81839, 1.25865]},
+                }
+            ]
+        }
+    )
+    assert aeds == [
+        {
+            "n": "SEA Aquarium",
+            "la": 1.25865,
+            "lo": 103.81839,
+            "d": "Level B1M · Open Ocean Habitat",
+            "h": "Mon - Sun 00:00-23:59",
+        }
+    ]
+    fire = b.compact_fire_stations(
+        {
+            "features": [
+                {
+                    "properties": {
+                        "NAME": "Jurong Fire Station",
+                        "ADDRESS": "22 Jurong West st 26 Singapore 648126",
+                        "DESCRIPTION": "Tel: 6267 4700/1 Fax: 6261 5614",
+                    },
+                    "geometry": {"type": "Point", "coordinates": [103.7, 1.35]},
+                }
+            ]
+        }
+    )
+    assert fire[0]["t"] == "62674700"
+    desc = (
+        "<table><tr> <th>HCI_NAME</th> <td>Acumed Medical Group</td> </tr>"
+        "<tr> <th>HCI_TEL</th> <td>68615755</td> </tr>"
+        "<tr> <th>BLK_HSE_NO</th> <td>1</td> </tr>"
+        "<tr> <th>STREET_NAME</th> <td>JOO KOON CIRCLE</td> </tr></table>"
+    )
+    clinics = b.compact_clinics(
+        {
+            "features": [
+                {
+                    "properties": {"Description": desc},
+                    "geometry": {"type": "Point", "coordinates": [103.68, 1.33]},
+                }
+            ]
+        }
+    )
+    assert clinics[0] == {
+        "n": "Acumed Medical Group",
+        "a": "1 Joo Koon Circle",
+        "la": 1.33,
+        "lo": 103.68,
+        "t": "68615755",
+    }

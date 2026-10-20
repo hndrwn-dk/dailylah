@@ -135,6 +135,11 @@ final rentProvider = FutureProvider<RentData>((ref) async {
   return m == null ? RentData.empty : RentData.fromBundle(m);
 });
 
+final emergencyProvider = FutureProvider<EmergencySet>((ref) async {
+  final m = await _map(ref, 'emergency');
+  return m == null ? EmergencySet.empty : EmergencySet.fromBundle(m);
+});
+
 final prayerProvider = FutureProvider<PrayerTimes>((ref) async {
   final m = await _map(ref, 'prayer');
   return m == null ? PrayerTimes.empty : PrayerTimes.fromBundle(m);
@@ -159,6 +164,10 @@ final trainAlertsProvider =
 final wbgtProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).weather('wbgt'));
 
 final rainfallProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).weather('rainfall'));
+
+final psiProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).weather('psi'));
+
+final pm25Provider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).weather('pm25'));
 
 final uvProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).weather('uv'));
 
@@ -203,6 +212,8 @@ final todayAlertsProvider = Provider.autoDispose<List<TodayAlert>>((ref) {
     dengue: ref.watch(dengueProvider).valueOrNull ?? const [],
     wbgt: ref.watch(wbgtProvider).valueOrNull,
     lightning: ref.watch(lightningProvider).valueOrNull,
+    psi: ref.watch(psiProvider).valueOrNull,
+    pm25: ref.watch(pm25Provider).valueOrNull,
   );
 });
 
