@@ -60,6 +60,25 @@ class DailyLahApi {
   Future<Map<String, dynamic>> agent(String regNo) => _get('/v1/agent/${Uri.encodeComponent(regNo)}');
 }
 
+/// Address search on OneMap (Singapore Land Authority). Only the text the user types
+/// is sent; used to set Home/Work/School and to look up a postal code.
+class OneMapApi {
+  OneMapApi([Dio? dio])
+      : _dio = dio ??
+            Dio(BaseOptions(
+              connectTimeout: const Duration(seconds: 10),
+              receiveTimeout: const Duration(seconds: 15),
+            ));
+
+  final Dio _dio;
+
+  Future<Map<String, dynamic>> search(String query) async => (await _dio.get<Map<String, dynamic>>(
+        'https://www.onemap.gov.sg/api/common/elastic/search',
+        queryParameters: {'searchVal': query, 'returnGeom': 'Y', 'getAddrDetails': 'Y', 'pageNum': 1},
+      ))
+          .data!;
+}
+
 /// Static data bundles listed in /data/manifest.json. Each file is cached on the
 /// device and downloaded again only when its sha256 in the manifest changes.
 /// Tries each base URL in [webUrls] until one answers.
@@ -135,6 +154,13 @@ class BundleRepository {
     final value = jsonDecode(await cached.readAsString());
     _memory[name] = value;
     return value;
+  }
+
+  /// Forget the manifest and in-memory copies so the next load checks for new data
+  /// (called when the app comes back to the foreground).
+  void refresh() {
+    _manifestFuture = null;
+    _memory.clear();
   }
 
   /// True when the bundle changed since [knownVersion] (used to spot new HDB data).

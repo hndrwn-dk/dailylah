@@ -10,6 +10,7 @@ import 'models.dart';
 import 'store.dart';
 
 final apiProvider = Provider((ref) => DailyLahApi());
+final oneMapProvider = Provider((ref) => OneMapApi());
 final bundleRepoProvider = Provider((ref) => BundleRepository());
 final busStopRepoProvider = Provider((ref) => BusStopRepository.fromBundles(ref.watch(bundleRepoProvider)));
 final favoritesStoreProvider = Provider((ref) => FavoritesStore());
@@ -183,4 +184,10 @@ final todayAlertsProvider = Provider.autoDispose<List<TodayAlert>>((ref) {
     wbgt: ref.watch(wbgtProvider).valueOrNull,
     lightning: ref.watch(lightningProvider).valueOrNull,
   );
+});
+
+/// OneMap address search, cached per query while in use.
+final addressSearchProvider = FutureProvider.autoDispose.family<List<AddressHit>, String>((ref, q) async {
+  if (q.trim().length < 3) return const [];
+  return parseOneMap(await ref.watch(oneMapProvider).search(q.trim()));
 });

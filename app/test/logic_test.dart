@@ -244,4 +244,30 @@ void main() {
     expect(langFromCode('id'), AppLang.id);
     expect(langFromCode('zh'), AppLang.en);
   });
+
+  test('OneMap results and postal matching', () {
+    final hits = parseOneMap({
+      'results': [
+        {'BLK_NO': '66', 'ROAD_NAME': 'MARINE DRIVE', 'BUILDING': 'NIL', 'POSTAL': '440066', 'LATITUDE': '1.3036', 'LONGITUDE': '103.9087'},
+        {'BLK_NO': '66', 'ROAD_NAME': 'MARINE DRIVE', 'BUILDING': 'NIL', 'POSTAL': '440066', 'LATITUDE': '1.3036', 'LONGITUDE': '103.9087'},
+        {'BLK_NO': '1', 'ROAD_NAME': 'RAFFLES PLACE', 'BUILDING': 'ONE RAFFLES PLACE', 'POSTAL': '048616', 'LATITUDE': '1.284', 'LONGITUDE': '103.851'},
+      ],
+    });
+    expect(hits, hasLength(2));
+    expect(hits.first.label, '66 Marine Drive');
+    expect(hits.last.label, '1 Raffles Place (One Raffles Place)');
+    expect(isPostalCode('440066'), isTrue);
+    expect(isPostalCode('44006'), isFalse);
+    const blocks = [
+      HdbBlock(block: '66', street: 'MARINE DR', town: 'MARINE PARADE', yearCompleted: 1975, floors: 12, lat: 1.3037, lng: 103.9088, postal: '440066'),
+    ];
+    expect(searchBlocks(blocks, '440066').single.street, 'MARINE DR');
+    expect(blockForAddress(blocks, hits.first)?.postal, '440066');
+    expect(blockForAddress(blocks, hits.last), isNull);
+    const place = Place(kind: PlaceKind.home, address: '66 Marine Drive', postal: '440066', addrLat: 1.3036, addrLng: 103.9087);
+    final back = Place.fromJson(place.toJson());
+    expect(back.lat, 1.3036);
+    expect(back.stops, isEmpty);
+    expect(back.label, '66 Marine Drive');
+  });
 }

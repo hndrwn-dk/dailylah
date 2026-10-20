@@ -169,10 +169,12 @@ class HdbBlock {
     required this.floors,
     required this.lat,
     required this.lng,
+    this.postal = '',
   });
 
   final String block;
   final String street;
+  final String postal;
   final String town;
   final int yearCompleted;
   final int floors;
@@ -186,7 +188,7 @@ class HdbBlock {
   /// HDB flats have 99-year leases; lease start is roughly the completion year.
   int leaseLeft(int year) => (yearCompleted + 99 - year).clamp(0, 99);
 
-  /// {"b","s","t","y","f","la","lo"}
+  /// {"b","s","t","y","f","la","lo","p"}
   factory HdbBlock.fromBundle(Map<String, dynamic> j) => HdbBlock(
         block: '${j['b']}',
         street: '${j['s']}',

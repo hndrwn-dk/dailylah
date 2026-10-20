@@ -448,6 +448,8 @@ BlockScore scoreBlock(
 
 /// Matches blocks by "block street" words, e.g. "123 bedok nth" or "bedok north 123".
 List<HdbBlock> searchBlocks(List<HdbBlock> all, String query, {int limit = 30}) {
+  final q = query.trim();
+  if (isPostalCode(q)) return [for (final b in all) if (b.postal == q) b];
   final words = query
       .toUpperCase()
       .replaceAll('NORTH', 'NTH')
@@ -584,3 +586,61 @@ List<TodayAlert> todayAlerts({
   }
   return out;
 }
+
+
+// ---------------------------------------------------------------- addresses (OneMap)
+
+String _titleCase(String s) => s
+    .toLowerCase()
+    .split(' ')
+    .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+    .join(' ');
+
+/// Results of https://www.onemap.gov.sg/api/common/elastic/search, de-duplicated by postal code.
+List<AddressHit> parseOneMap(Map<String, dynamic> body) {
+  final out = <AddressHit>[];
+  final seen = <String>{};
+  for (final r in (body['results'] as List? ?? const [])) {
+    if (r is! Map) continue;
+    final lat = double.tryParse('${r['LATITUDE']}');
+    final lng = double.tryParse('${r['LONGITUDE']}');
+    if (lat == null || lng == null) continue;
+    String clean(Object? v) => v == null || '$v' == 'NIL' ? '' : '$v'.trim();
+    final block = clean(r['BLK_NO']);
+    final road = clean(r['ROAD_NAME']);
+    final building = clean(r['BUILDING']);
+    final postal = clean(r['POSTAL']);
+    if (!seen.add(postal.isEmpty ? '$lat,$lng' : postal)) continue;
+    final street = _titleCase([block, road].where((x) => x.isNotEmpty).join(' '));
+    final label = building.isNotEmpty && !building.contains('HDB-') && building != road
+        ? '$street (${_titleCase(building)})'
+        : street;
+    out.add(AddressHit(
+      label: label.isEmpty ? clean(r['SEARCHVAL']) : label,
+      block: block,
+      road: road,
+      building: building,
+      postal: postal,
+      lat: lat,
+      lng: lng,
+    ));
+  }
+  return out;
+}
+
+/// The HDB block matching a OneMap hit: same block number, closest within 250 m.
+HdbBlock? blockForAddress(List<HdbBlock> blocks, AddressHit hit) {
+  HdbBlock? best;
+  var bestD = 250.0;
+  for (final b in blocks) {
+    if (b.block.toUpperCase() != hit.block.toUpperCase()) continue;
+    final d = distanceMeters(hit.lat, hit.lng, b.lat, b.lng);
+    if (d < bestD) {
+      best = b;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+bool isPostalCode(String q) => RegExp(r'^\d{6}$').hasMatch(q.trim());

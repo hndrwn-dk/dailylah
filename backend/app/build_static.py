@@ -9,7 +9,7 @@ Writes (all compact JSON, keys documented in app/lib/data.dart):
     dengue.json      NEA active dengue clusters
     poi.json         MRT stations, schools, preschools, parks, libraries, CCs, sports
     carparks.json    HDB car parks (SVY21 converted to lat/lng)
-    hdb_blocks.json  HDB residential blocks with coordinates (OneMap, cached)
+    hdb_blocks.json  HDB residential blocks with coordinates and postal codes (footprints)
     hdb_resale.json  resale medians per block and town, last 24 months
     hdb_rent.json    median rent per town, last 6 months
     prayer.json      MUIS prayer times for the year
@@ -71,6 +71,7 @@ async def build(
     client = client or httpx.AsyncClient(timeout=60)
     out_dir.mkdir(parents=True, exist_ok=True)
     results: dict[str, object] = {}
+    report: dict = {"errors": {}}
     try:
         stops = compact_bus_stops(await Sources(settings, client).bus_stops())
         if len(stops) < MIN_EXPECTED_STOPS:
@@ -86,9 +87,11 @@ async def build(
                     data = await coro
                 except Exception as e:  # keep yesterday's file
                     log.warning("bundle %s failed: %s", name, e)
+                    report["errors"][name] = repr(e)[:300]
                     return
                 if _count(data) < MIN_COUNTS.get(name, 1):
                     log.warning("bundle %s too small (%d); keeping previous", name, _count(data))
+                    report["errors"][name] = f"too small: {_count(data)}"
                     return
                 results[name] = data
 
@@ -97,22 +100,36 @@ async def build(
             await attempt("carparks", b.build_carparks(dg))
             await attempt("prayer", b.build_prayer(dg))
             await attempt("poi", b.build_poi(dg, geo))
+            block_town: dict[str, str] = {}
             try:
-                blocks, resale, rent = await b.build_homes(dg, geo, today or date.today())
-                for name, data in (
-                    ("hdb_blocks", blocks),
-                    ("hdb_resale", resale),
-                    ("hdb_rent", rent),
-                ):
-                    if _count(data) >= MIN_COUNTS.get(name, 1):
-                        results[name] = data
+                resale = await b.build_resale(dg, today or date.today())
+                block_town = resale.pop("block_town")
+                if resale["blocks"]:
+                    results["hdb_resale"] = resale
             except Exception as e:
-                log.warning("homes bundles failed: %s", e)
+                report["errors"]["hdb_resale"] = repr(e)[:300]
+            await attempt("hdb_rent", b.build_rent(dg, today or date.today()))
+            await attempt("hdb_blocks", b.build_blocks(dg, geo, block_town))
             geo.save()
             log.info("geocoded %d new addresses", geo.looked_up)
+            report["geocoded_new"] = geo.looked_up
+            report["geocode_cache"] = len(geo.cache)
     finally:
         if own:
             await client.aclose()
+
+    # Public, non-personal build notes (upstream errors and counts) for debugging, since
+    # Actions logs are not always at hand.
+    if not only_bus_stops:
+        report_path = (
+            geocode_cache.parent if geocode_cache else out_dir.parent
+        ) / "build_report.json"
+        report["counts"] = {k: _count(v) for k, v in results.items()}
+        try:
+            report_path.parent.mkdir(parents=True, exist_ok=True)
+            report_path.write_text(json.dumps(report, indent=1, sort_keys=True))
+        except OSError:
+            pass
 
     files = {}
     for name, data in results.items():

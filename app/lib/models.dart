@@ -39,27 +39,83 @@ class BusStop {
   Map<String, dynamic> toJson() => {'c': code, 'n': name, 'r': road, 'la': lat, 'lo': lng};
 }
 
-/// A saved place. Its location is the location of its main bus stop, so users can
-/// set "Kantor" without being at the office. Stored only on the device.
+/// One OneMap search result.
+class AddressHit {
+  const AddressHit({
+    required this.label,
+    required this.block,
+    required this.road,
+    required this.building,
+    required this.postal,
+    required this.lat,
+    required this.lng,
+  });
+
+  final String label;
+  final String block;
+  final String road;
+  final String building;
+  final String postal;
+  final double lat;
+  final double lng;
+}
+
+/// A saved place: an address (from OneMap or the phone's location) and/or up to two
+/// bus stops. Its location is the address when set, otherwise the first stop, so users
+/// can set Work without being at the office. Stored only on the device.
 class Place {
-  const Place({required this.kind, required this.stops});
+  const Place({
+    required this.kind,
+    this.stops = const [],
+    this.address,
+    this.postal,
+    this.addrLat,
+    this.addrLng,
+  });
 
   final PlaceKind kind;
   final List<BusStop> stops;
 
-  double get lat => stops.first.lat;
-  double get lng => stops.first.lng;
+  /// Short address label, e.g. "66 Marine Drive".
+  final String? address;
+  final String? postal;
+  final double? addrLat;
+  final double? addrLng;
+
+  bool get hasAddress => addrLat != null && addrLng != null;
+  double get lat => addrLat ?? stops.first.lat;
+  double get lng => addrLng ?? stops.first.lng;
+
+  /// What to show for this place: the address, else the first stop's name.
+  String get label => address ?? (stops.isEmpty ? '' : stops.first.name);
+
+  Place copyWith({List<BusStop>? stops}) => Place(
+        kind: kind,
+        stops: stops ?? this.stops,
+        address: address,
+        postal: postal,
+        addrLat: addrLat,
+        addrLng: addrLng,
+      );
 
   Map<String, dynamic> toJson() => {
         'kind': kind.name,
         'stops': [for (final s in stops) s.toJson()],
+        if (address != null) 'addr': address,
+        if (postal != null) 'postal': postal,
+        if (addrLat != null) 'la': addrLat,
+        if (addrLng != null) 'lo': addrLng,
       };
 
   factory Place.fromJson(Map<String, dynamic> j) => Place(
         kind: PlaceKind.values.byName(j['kind'] as String),
         stops: [
-          for (final s in (j['stops'] as List)) BusStop.fromBundle(s as Map<String, dynamic>),
+          for (final s in (j['stops'] as List? ?? const [])) BusStop.fromBundle(s as Map<String, dynamic>),
         ],
+        address: j['addr'] as String?,
+        postal: j['postal'] as String?,
+        addrLat: (j['la'] as num?)?.toDouble(),
+        addrLng: (j['lo'] as num?)?.toDouble(),
       );
 }
 
