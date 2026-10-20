@@ -33,7 +33,7 @@ class MorePage extends ConsumerWidget {
 
     return Scaffold(
       body: ListView(
-        padding: EdgeInsets.zero,
+        padding: const EdgeInsets.only(bottom: kNavClearance),
         children: [
           HeroHeader(
             child: Column(

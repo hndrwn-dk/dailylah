@@ -183,7 +183,7 @@ class _HawkerTab extends ConsumerWidget {
       if (list.isEmpty) return EmptyNote(all.isEmpty ? s.bundlesLoading : s.notAvailable);
       final t = Theme.of(context).textTheme;
       return ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + kNavClearance),
         itemCount: list.length,
         itemBuilder: (context, i) {
           final (h, d) = list[i];
@@ -300,7 +300,7 @@ class _ParkingTab extends ConsumerWidget {
       final t = Theme.of(context).textTheme;
       final scheme = Theme.of(context).colorScheme;
       return ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + kNavClearance),
         children: [
           if (showOtherAddress)
             Padding(
@@ -459,7 +459,7 @@ class _SchoolsTab extends ConsumerWidget {
       }
 
       return ListView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24 + kNavClearance),
         children: [
           if (!place.hasAddress) ...[
             const SizedBox(height: 12),
@@ -496,7 +496,7 @@ class _DengueTab extends ConsumerWidget {
       final near = dengueNear(all, place.lat, place.lng, km: 2);
       final t = Theme.of(context).textTheme;
       return ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + kNavClearance),
         children: [
           if (near.isEmpty)
             Panel(child: EmptyNote(s.dengueNone, icon: Icons.check_circle_outline))
@@ -537,7 +537,7 @@ class _WeekendTab extends ConsumerWidget {
           : [(s.parks, PoiKind.park, Icons.park_outlined), (s.sports, PoiKind.sport, Icons.pool_outlined), (s.libraries, PoiKind.library, Icons.local_library_outlined)];
       final t = Theme.of(context).textTheme;
       return ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + kNavClearance),
         children: [
           AlertBanner(
             icon: indoor ? Icons.umbrella : Icons.wb_sunny_outlined,
@@ -587,7 +587,7 @@ class _PrayerTab extends ConsumerWidget {
       final t = Theme.of(context).textTheme;
       final scheme = Theme.of(context).colorScheme;
       return ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + kNavClearance),
         children: [
           SectionTitle(s.prayerTimes, padding: const EdgeInsets.fromLTRB(4, 4, 4, 10)),
           if (times == null)
@@ -717,7 +717,7 @@ class _EmergencyTab extends ConsumerWidget {
     }
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(14, 12, 18, 24),
+      padding: const EdgeInsets.fromLTRB(14, 12, 18, 24 + kNavClearance),
       children: [
         callButton('995', s.call995, DL.stop),
         callButton('999', s.call999, DL.amber),
