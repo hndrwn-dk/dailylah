@@ -666,7 +666,7 @@ class _TaxiSheet extends ConsumerWidget {
           Panel(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 14),
-              child: Row(children: [count(n200, s.within200), count(n500, s.within500), count(n1k, s.within1km)]),
+              child: Row(children: [count(n200, s.within200), count(n500, s.within500), count(n1k, s.taxiWithin1km)]),
             ),
           ),
           Panel(
