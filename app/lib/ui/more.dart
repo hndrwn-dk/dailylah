@@ -123,16 +123,16 @@ class _GlassChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white24),
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: DL.edge(context), width: 2),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: Colors.white70),
+          Icon(icon, size: 14),
           const SizedBox(width: 5),
-          Text(text, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.white)),
+          Text(text, style: Theme.of(context).textTheme.labelMedium),
         ],
       ),
     );

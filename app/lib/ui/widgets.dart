@@ -323,56 +323,52 @@ class PlaceSelector extends StatelessWidget {
   }
 }
 
-/// Header block at the top of a tab: a dark panel with an outline and hard shadow,
-/// sitting on the paper background. Text and icons inside are light.
+/// Header at the top of a tab: big ink headline straight on the paper background,
+/// like the reference sticker UI. Content inside uses the normal (dark) text colours.
 class HeroHeader extends StatelessWidget {
   const HeroHeader({super.key, required this.child, this.accent = DL.teal});
   final Widget child;
+
+  /// Kept for call sites; the light header has no tinted background.
   final Color accent;
 
   @override
   Widget build(BuildContext context) {
-    final r = BorderRadius.circular(22);
     return SafeArea(
       bottom: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 8, 18, 6),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
+        padding: const EdgeInsets.fromLTRB(18, 10, 18, 6),
+        child: child,
+      ),
+    );
+  }
+}
+
+/// Small square sticker button (search, back) used in headers.
+class StickerIconButton extends StatelessWidget {
+  const StickerIconButton({super.key, required this.icon, required this.onPressed, this.tooltip});
+  final IconData icon;
+  final VoidCallback onPressed;
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final r = BorderRadius.circular(12);
+    return Tooltip(
+      message: tooltip ?? '',
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerLowest,
+          borderRadius: r,
+          border: Border.all(color: DL.edge(context), width: DL.stroke),
+          boxShadow: DL.hard(context, d: 3),
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
             borderRadius: r,
-            border: Border.all(color: DL.ink, width: DL.stroke),
-            boxShadow: const [BoxShadow(color: DL.ink, offset: Offset(4, 4))],
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [const Color(0xFF0F1618), Color.lerp(const Color(0xFF0F1618), accent, 0.45)!],
-            ),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(22 - DL.stroke),
-            child: Stack(
-              children: [
-                Positioned(
-                  right: -50,
-                  top: -50,
-                  child: Container(
-                    width: 200,
-                    height: 200,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(colors: [accent.withValues(alpha: 0.55), accent.withValues(alpha: 0)]),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
-                  child: DefaultTextStyle.merge(
-                    style: const TextStyle(color: Colors.white),
-                    child: IconTheme.merge(data: const IconThemeData(color: Colors.white), child: child),
-                  ),
-                ),
-              ],
-            ),
+            onTap: onPressed,
+            child: SizedBox(width: 44, height: 44, child: Icon(icon, size: 22)),
           ),
         ),
       ),
@@ -397,10 +393,10 @@ class PageTitle extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: t.displayMedium?.copyWith(color: Colors.white)),
+              Text(title, style: t.displayLarge),
               if (subtitle != null) ...[
                 const SizedBox(height: 4),
-                Text(subtitle!, style: t.bodyMedium?.copyWith(color: Colors.white70)),
+                Text(subtitle!, style: t.bodyMedium?.copyWith(color: t.bodySmall?.color)),
               ],
             ],
           ),
