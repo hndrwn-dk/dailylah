@@ -597,3 +597,81 @@ class _PulseState extends State<Pulse> with SingleTickerProviderStateMixin {
         child: widget.child,
       );
 }
+
+
+/// Floating pill navigation: an outlined capsule with a hard shadow; the selected tab
+/// grows into an amber pill with its label.
+class PillNav extends StatelessWidget {
+  const PillNav({super.key, required this.index, required this.onTap, required this.items});
+  final int index;
+  final ValueChanged<int> onTap;
+
+  /// (icon, selected icon, label)
+  final List<(IconData, IconData, String)> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    final reduce = MediaQuery.of(context).disableAnimations;
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(40),
+        border: Border.all(color: DL.edge(context), width: DL.stroke),
+        boxShadow: DL.hard(context),
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < items.length; i++)
+            Expanded(
+              flex: i == index ? 2 : 1,
+              child: Tooltip(
+                message: items[i].$3,
+                child: Semantics(
+                  selected: i == index,
+                  button: true,
+                  label: items[i].$3,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(30),
+                    onTap: () => onTap(i),
+                    child: AnimatedContainer(
+                      duration: reduce ? Duration.zero : const Duration(milliseconds: 220),
+                      curve: Curves.easeOutCubic,
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      decoration: BoxDecoration(
+                        color: i == index ? DL.amber : Colors.transparent,
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(color: i == index ? DL.ink : Colors.transparent, width: 2),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(i == index ? items[i].$2 : items[i].$1,
+                              size: 22, color: i == index ? DL.ink : t.bodySmall?.color),
+                          if (i == index) ...[
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                items[i].$3,
+                                maxLines: 1,
+                                overflow: TextOverflow.fade,
+                                softWrap: false,
+                                style: t.labelLarge?.copyWith(color: DL.ink),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}

@@ -5,7 +5,7 @@ import '../providers.dart';
 import 'homes.dart';
 import 'more.dart';
 import 'nearby.dart';
-import 'theme.dart';
+import 'widgets.dart';
 import 'today.dart';
 
 
@@ -65,24 +65,18 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
         index: index,
         children: const [TodayPage(), NearbyPage(), HomesPage(), MorePage()],
       ),
-      bottomNavigationBar: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          boxShadow: [
-            BoxShadow(color: DL.ink.withValues(alpha: 0.22), blurRadius: 30, spreadRadius: -18, offset: const Offset(0, -14)),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          child: NavigationBar(
-          selectedIndex: index,
-          onDestinationSelected: (i) => ref.read(shellTabProvider.notifier).state = i,
-          destinations: [
-            NavigationDestination(icon: const Icon(Icons.wb_sunny_outlined), selectedIcon: const Icon(Icons.wb_sunny), label: s.tabToday),
-            NavigationDestination(icon: const Icon(Icons.explore_outlined), selectedIcon: const Icon(Icons.explore), label: s.tabNearby),
-            NavigationDestination(icon: const Icon(Icons.apartment_outlined), selectedIcon: const Icon(Icons.apartment), label: s.tabHomes),
-            NavigationDestination(icon: const Icon(Icons.more_horiz), selectedIcon: const Icon(Icons.more_horiz), label: s.tabMore),
-          ],
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 6, 22, 12),
+          child: PillNav(
+            index: index,
+            onTap: (i) => ref.read(shellTabProvider.notifier).state = i,
+            items: [
+              (Icons.wb_sunny_outlined, Icons.wb_sunny, s.tabToday),
+              (Icons.explore_outlined, Icons.explore, s.tabNearby),
+              (Icons.apartment_outlined, Icons.apartment, s.tabHomes),
+              (Icons.more_horiz, Icons.more_horiz, s.tabMore),
+            ],
           ),
         ),
       ),

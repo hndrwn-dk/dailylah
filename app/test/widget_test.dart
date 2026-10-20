@@ -110,8 +110,8 @@ void main() {
     expect(find.text('Go somewhere'), findsOneWidget);
     expect(find.textContaining('Taxis near Home'), findsOneWidget);
     // Bottom navigation with four tabs.
-    expect(find.text('Nearby'), findsOneWidget);
-    expect(find.text('More'), findsOneWidget);
+    expect(find.byTooltip('Nearby'), findsOneWidget);
+    expect(find.byTooltip('More'), findsOneWidget);
   });
 
   testWidgets('tabs open Nearby, Homes and More', (tester) async {
@@ -121,10 +121,10 @@ void main() {
     );
     await tester.pumpWidget(app(fav, DateTime(2026, 10, 20, 19)));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Homes'));
+    await tester.tap(find.byTooltip('Homes'));
     await tester.pumpAndSettle();
     expect(find.text('HDB homes'), findsOneWidget);
-    await tester.tap(find.text('More'));
+    await tester.tap(find.byTooltip('More'));
     await tester.pumpAndSettle();
     expect(find.text('Share with family'), findsOneWidget);
   });
