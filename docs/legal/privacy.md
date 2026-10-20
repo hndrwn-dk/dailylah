@@ -18,11 +18,14 @@ DailyLah is a free daily companion for people in Singapore. It shows bus arrival
 
 ### 3. Data stored only on your phone
 - Your saved places (Home, Work, School), each stored as the bus stop you chose for it
-- The MRT/LRT lines you selected, your usual departure times and your alert settings
+- The MRT/LRT lines you selected, your usual departure times, your alert settings and your language
+- Favourite hawker centres, saved car parks, and HDB blocks you watch or compare
 - A short log of alerts already shown, so the same alert is not sent twice
-- A copy of the public bus stop list, and the text shown on the home screen widget
+- Copies of public data bundles (bus stops, hawker centres, dengue clusters, schools, parks, car parks, HDB blocks, resale and rent statistics, prayer times), and the text shown on the home screen widget
 
 This data never leaves your phone. It is not backed up to Tursina Labs.
+
+**Share with family** creates a QR code or text code on your phone containing your saved bus stops, MRT lines and departure times. It is not sent to Tursina Labs; it only leaves your phone if you show it or send it yourself (for example through a chat app). Importing a code works by pasting it, without the camera.
 
 ### 4. Location
 DailyLah asks for location permission only when you tap **"Nearest stops to my location"**. Your position is used once, on the phone, to list nearby bus stops, and is then discarded. It is not stored and is not sent to Tursina Labs or anyone else. DailyLah does not use your location in the background. You can deny the permission and still search stops by name, road or code.
@@ -31,12 +34,15 @@ DailyLah asks for location permission only when you tap **"Nearest stops to my l
 To show live information, the app sends requests to the DailyLah API operated by Tursina Labs:
 - The 5-digit **bus stop code** you are viewing, to get bus arrival times
 - The **MRT/LRT line code** (for example `NSL`), to get platform crowd levels
-- Requests for the weather forecast and train service alerts, which contain no personal data
+- A **CEA registration number** you type into "Check a property agent", to look it up in the public CEA register. This number identifies the agent, not you
+- Requests for the weather forecast, heat stress, lightning, train service alerts, HDB car park availability and taxi availability, which contain no personal data
 
-The app also downloads the public bus stop list from our website. Like any web service, our hosting providers record technical request logs (IP address, time, requested path and app version) for operations and security, and keep them for a limited period. We do not combine these logs with any other data and we do not use them to identify you. The server never receives your saved places, home or work location, or GPS coordinates.
+Searching HDB blocks, comparing blocks, nearby hawker centres, dengue clusters and weekend ideas are all computed on your phone from the public data bundles, so the server does not learn which places you look at.
+
+The app also downloads these public data bundles from our website. Like any web service, our hosting providers record technical request logs (IP address, time, requested path and app version) for operations and security, and keep them for a limited period. We do not combine these logs with any other data and we do not use them to identify you. The server never receives your saved places, home or work location, or GPS coordinates.
 
 ### 6. Notifications
-Alerts for MRT disruptions and rain before your usual departure are decided **on your phone**. Every 15 minutes or so, the app checks the latest public alerts and forecast and, if they match your settings, shows a local notification. No push token or device identifier is sent to Tursina Labs. You can turn alerts off in the app settings or in Android settings.
+Alerts for MRT disruptions, rain before your usual departure, favourite hawker centres closing tomorrow, dengue clusters near home or school, high heat stress or lightning, and new resale transactions at blocks you watch are decided **on your phone**. Every 15 minutes or so, the app checks the latest public alerts and forecast and, if they match your settings, shows a local notification. No push token or device identifier is sent to Tursina Labs. You can turn alerts off in the app settings or in Android settings.
 
 ### 7. What we do not do
 - No DailyLah account and no sign-in
@@ -79,11 +85,14 @@ DailyLah adalah teman harian gratis untuk warga Singapura. Aplikasi ini menampil
 
 ### 3. Data yang hanya tersimpan di HP Anda
 - Tempat yang Anda simpan (Rumah, Kantor, Sekolah), masing-masing disimpan sebagai halte bus yang Anda pilih
-- Jalur MRT/LRT pilihan, jam berangkat biasa, dan pengaturan notifikasi
+- Jalur MRT/LRT pilihan, jam berangkat biasa, pengaturan notifikasi, dan bahasa
+- Hawker favorit, parkir yang disimpan, serta blok HDB yang Anda pantau atau bandingkan
 - Catatan singkat notifikasi yang sudah tampil, supaya notifikasi yang sama tidak dikirim dua kali
-- Salinan daftar halte bus publik, dan teks yang tampil di widget layar utama
+- Salinan bundel data publik (halte bus, hawker, cluster dengue, sekolah, taman, parkir, blok HDB, statistik harga resale dan sewa, jadwal sholat), dan teks yang tampil di widget layar utama
 
 Data ini tidak pernah keluar dari HP Anda dan tidak dicadangkan ke Tursina Labs.
+
+**Bagikan ke keluarga** membuat kode QR atau kode teks di HP Anda yang berisi halte bus, jalur MRT, dan jam berangkat yang Anda simpan. Kode ini tidak dikirim ke Tursina Labs; kode hanya keluar dari HP jika Anda sendiri menunjukkan atau mengirimkannya (misalnya lewat aplikasi chat). Impor kode dilakukan dengan menempelkan teks, tanpa kamera.
 
 ### 4. Lokasi
 DailyLah hanya meminta izin lokasi saat Anda menekan **"Halte terdekat dari lokasi saya"**. Posisi Anda dipakai sekali, di HP, untuk menampilkan halte terdekat, lalu dibuang. Posisi tidak disimpan dan tidak dikirim ke Tursina Labs atau pihak lain. DailyLah tidak memakai lokasi di latar belakang. Anda boleh menolak izin ini dan tetap bisa mencari halte lewat nama, jalan, atau kode.
@@ -92,12 +101,15 @@ DailyLah hanya meminta izin lokasi saat Anda menekan **"Halte terdekat dari loka
 Untuk menampilkan informasi real-time, aplikasi mengirim permintaan ke API DailyLah yang dioperasikan Tursina Labs:
 - **Kode halte bus** 5 digit yang sedang Anda lihat, untuk mendapatkan jadwal kedatangan bus
 - **Kode jalur MRT/LRT** (misalnya `NSL`), untuk mendapatkan tingkat kepadatan peron
-- Permintaan prakiraan cuaca dan status layanan kereta, yang tidak berisi data pribadi
+- **Nomor registrasi CEA** yang Anda ketik di "Cek agen properti", untuk dicocokkan dengan register CEA publik. Nomor ini mengidentifikasi agen, bukan Anda
+- Permintaan prakiraan cuaca, tingkat panas, petir, status layanan kereta, ketersediaan parkir HDB, dan ketersediaan taksi, yang tidak berisi data pribadi
 
-Aplikasi juga mengunduh daftar halte bus publik dari situs kami. Seperti layanan web pada umumnya, penyedia hosting kami mencatat log teknis (alamat IP, waktu, path yang diminta, dan versi aplikasi) untuk operasional dan keamanan, dan menyimpannya untuk jangka waktu terbatas. Kami tidak menggabungkan log ini dengan data lain dan tidak memakainya untuk mengidentifikasi Anda. Server tidak pernah menerima tempat yang Anda simpan, lokasi rumah atau kantor, maupun koordinat GPS.
+Pencarian blok HDB, perbandingan blok, hawker terdekat, cluster dengue, dan ide akhir pekan dihitung di HP Anda dari bundel data publik, sehingga server tidak tahu tempat mana yang Anda lihat.
+
+Aplikasi juga mengunduh bundel data publik tersebut dari situs kami. Seperti layanan web pada umumnya, penyedia hosting kami mencatat log teknis (alamat IP, waktu, path yang diminta, dan versi aplikasi) untuk operasional dan keamanan, dan menyimpannya untuk jangka waktu terbatas. Kami tidak menggabungkan log ini dengan data lain dan tidak memakainya untuk mengidentifikasi Anda. Server tidak pernah menerima tempat yang Anda simpan, lokasi rumah atau kantor, maupun koordinat GPS.
 
 ### 6. Notifikasi
-Notifikasi gangguan MRT dan hujan sebelum jam berangkat diputuskan **di HP Anda**. Kira-kira setiap 15 menit, aplikasi mengecek status dan prakiraan publik terbaru, lalu menampilkan notifikasi lokal jika sesuai dengan pengaturan Anda. Tidak ada token push atau pengenal perangkat yang dikirim ke Tursina Labs. Notifikasi bisa dimatikan di pengaturan aplikasi atau pengaturan Android.
+Notifikasi gangguan MRT, hujan sebelum jam berangkat, hawker favorit yang tutup besok, cluster dengue dekat rumah atau sekolah, panas tinggi atau petir, dan transaksi resale baru di blok yang Anda pantau diputuskan **di HP Anda**. Kira-kira setiap 15 menit, aplikasi mengecek status dan prakiraan publik terbaru, lalu menampilkan notifikasi lokal jika sesuai dengan pengaturan Anda. Tidak ada token push atau pengenal perangkat yang dikirim ke Tursina Labs. Notifikasi bisa dimatikan di pengaturan aplikasi atau pengaturan Android.
 
 ### 7. Yang tidak kami lakukan
 - Tidak ada akun DailyLah dan tidak ada login
