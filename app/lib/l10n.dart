@@ -174,7 +174,7 @@ class S {
   String get goSomewhereHint => 'Pick a place to see how to get there now.';
   String get fromHome => 'From Home';
   String get fromHere => 'From here';
-  String parkingAt(String place) => 'Parking near $place';
+  String parkingNearPlace(String place) => 'Parking near $place';
   String get carLots => 'car lots';
   String get bikeLots => 'motorbike lots';
   String get noParkingData => 'No live parking data near this place.';

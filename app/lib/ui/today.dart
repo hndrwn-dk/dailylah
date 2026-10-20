@@ -694,7 +694,7 @@ const _rideApps = [
 /// Taxi detail: live counts, a small radar of free taxis and stands, nearest stands,
 /// and shortcuts to booking apps.
 class TaxiSheet extends ConsumerWidget {
-  const TaxiSheet({required this.origin});
+  const TaxiSheet({super.key, required this.origin});
   final Place origin;
 
   @override

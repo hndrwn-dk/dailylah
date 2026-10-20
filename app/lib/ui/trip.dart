@@ -252,7 +252,7 @@ class _DriveBlock extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SectionTitle(s.parkingAt(toLabel), padding: const EdgeInsets.fromLTRB(4, 0, 4, 10)),
+        SectionTitle(s.parkingNearPlace(toLabel), padding: const EdgeInsets.fromLTRB(4, 0, 4, 10)),
         Panel(
           child: parking.when(
             loading: () => const Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator()),
