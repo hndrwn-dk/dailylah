@@ -222,3 +222,6 @@ final addressSearchProvider = FutureProvider.autoDispose.family<List<AddressHit>
   if (q.trim().length < 3) return const [];
   return parseOneMap(await ref.watch(oneMapProvider).search(q.trim()));
 });
+
+/// Selected bottom tab: 0 Today, 1 Nearby, 2 Homes, 3 More.
+final shellTabProvider = StateProvider<int>((ref) => 0);

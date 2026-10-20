@@ -562,3 +562,42 @@ class _Pill extends StatelessWidget {
     );
   }
 }
+
+
+/// Gentle blink for things happening right now (a bus arriving). Holds still when the
+/// system asks for reduced motion.
+class Pulse extends StatefulWidget {
+  const Pulse({super.key, required this.child});
+  final Widget child;
+
+  @override
+  State<Pulse> createState() => _PulseState();
+}
+
+class _PulseState extends State<Pulse> with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.of(context).disableAnimations) {
+      _c.stop();
+      _c.value = 1;
+    } else if (!_c.isAnimating) {
+      _c.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FadeTransition(
+        opacity: Tween<double>(begin: 0.25, end: 1).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut)),
+        child: widget.child,
+      );
+}

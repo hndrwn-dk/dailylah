@@ -8,7 +8,6 @@ import 'nearby.dart';
 import 'theme.dart';
 import 'today.dart';
 
-final _tabProvider = StateProvider<int>((ref) => 0);
 
 /// Four tabs: Today, Nearby, Homes, More. Pages are kept alive between switches.
 class AppShell extends ConsumerStatefulWidget {
@@ -59,7 +58,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(stringsProvider);
-    final index = ref.watch(_tabProvider);
+    final index = ref.watch(shellTabProvider);
     return Scaffold(
       body: IndexedStack(
         index: index,
@@ -76,7 +75,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           child: NavigationBar(
           selectedIndex: index,
-          onDestinationSelected: (i) => ref.read(_tabProvider.notifier).state = i,
+          onDestinationSelected: (i) => ref.read(shellTabProvider.notifier).state = i,
           destinations: [
             NavigationDestination(icon: const Icon(Icons.wb_sunny_outlined), selectedIcon: const Icon(Icons.wb_sunny), label: s.tabToday),
             NavigationDestination(icon: const Icon(Icons.explore_outlined), selectedIcon: const Icon(Icons.explore), label: s.tabNearby),
