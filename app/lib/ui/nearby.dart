@@ -7,6 +7,7 @@ import '../l10n.dart';
 import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
+import 'address_picker.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -22,7 +23,7 @@ class NearbyPage extends ConsumerWidget {
     final place = fav.places[selected] ?? fav.places[PlaceKind.home];
 
     return DefaultTabController(
-      length: 5,
+      length: 6,
       child: Scaffold(
         body: Column(
           children: [
@@ -50,6 +51,7 @@ class NearbyPage extends ConsumerWidget {
               tabs: [
                 Tab(text: s.hawkers),
                 Tab(text: s.parking),
+                Tab(text: s.schools),
                 Tab(text: s.dengue),
                 Tab(text: s.weekend),
                 Tab(text: s.prayerTab),
@@ -61,7 +63,8 @@ class NearbyPage extends ConsumerWidget {
                   : TabBarView(
                       children: [
                         _HawkerTab(place: place),
-                        _ParkingTab(place: place),
+                        _ParkingTab(lat: place.lat, lng: place.lng),
+                        _SchoolsTab(place: place),
                         _DengueTab(place: place),
                         _WeekendTab(place: place),
                         const _PrayerTab(),
@@ -102,29 +105,61 @@ class _HawkerTab extends ConsumerWidget {
       });
       if (list.isEmpty) return EmptyNote(all.isEmpty ? s.bundlesLoading : s.notAvailable);
       final t = Theme.of(context).textTheme;
-      return ListView.separated(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+      return ListView.builder(
+        padding: const EdgeInsets.all(16),
         itemCount: list.length,
-        separatorBuilder: (_, __) => const Divider(indent: 16, endIndent: 16),
         itemBuilder: (context, i) {
           final (h, d) = list[i];
           final closedToday = h.closureOn(today);
           final next = h.nextClosure(today);
           final isFav = fav.hawkers.contains(h.id);
-          return ListTile(
-            title: Text(h.name),
-            subtitle: Text(
-              closedToday != null
-                  ? s.closedNow
-                  : next == null
-                      ? '${s.metres(d)} · ${s.noUpcomingClosure}'
-                      : '${s.metres(d)} · ${s.closedRange(shortDate(next.from), shortDate(next.to), s.closureReason(next.reason))}',
-              style: closedToday != null ? t.bodySmall?.copyWith(color: const Color(0xFFB45309)) : t.bodySmall,
-            ),
-            trailing: IconButton(
-              tooltip: s.favourite,
-              icon: Icon(isFav ? Icons.star : Icons.star_border, color: isFav ? DL.amber : null),
-              onPressed: () => ref.read(favoritesProvider.notifier).toggleHawker(h.id),
+          final alt = closedToday == null ? const <(Hawker, double)>[] : openAlternatives(all, h, today, limit: 1);
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 4, 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(
+                      color: (closedToday != null ? DL.amber : Theme.of(context).colorScheme.primary)
+                          .withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.ramen_dining_outlined,
+                        size: 20, color: closedToday != null ? const Color(0xFFB45309) : Theme.of(context).colorScheme.primary),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(h.name, style: t.titleSmall),
+                        const SizedBox(height: 2),
+                        Text(
+                          closedToday != null
+                              ? '${s.metres(d)} · ${s.closedNow}'
+                              : next == null
+                                  ? '${s.metres(d)} · ${s.noUpcomingClosure}'
+                                  : '${s.metres(d)} · ${s.closedRange(shortDate(next.from), shortDate(next.to), s.closureReason(next.reason))}',
+                          style: closedToday != null ? t.bodySmall?.copyWith(color: const Color(0xFFB45309)) : t.bodySmall,
+                        ),
+                        if (alt.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(s.tryInstead(alt.first.$1.name, s.metres(alt.first.$2)), style: t.labelMedium),
+                          ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: s.favourite,
+                    icon: Icon(isFav ? Icons.star : Icons.star_border, color: isFav ? DL.amber : null),
+                    onPressed: () => ref.read(favoritesProvider.notifier).toggleHawker(h.id),
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -135,9 +170,26 @@ class _HawkerTab extends ConsumerWidget {
 
 // ---------------------------------------------------------------- parking
 
+/// HDB car parks around a point with live free lots. Also used for any address.
 class _ParkingTab extends ConsumerWidget {
-  const _ParkingTab({required this.place});
-  final Place place;
+  const _ParkingTab({required this.lat, required this.lng, this.showOtherAddress = true});
+  final double lat;
+  final double lng;
+  final bool showOtherAddress;
+
+  Future<void> _other(BuildContext context, WidgetRef ref) async {
+    final s = ref.read(stringsProvider);
+    final hit = await Navigator.of(context).push<AddressHit>(
+      MaterialPageRoute(builder: (_) => AddressPickerPage(title: s.parkingElsewhere)),
+    );
+    if (hit == null || !context.mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => Scaffold(
+        appBar: AppBar(title: Text(s.parkingNear(hit.label))),
+        body: _ParkingTab(lat: hit.lat, lng: hit.lng, showOtherAddress: false),
+      ),
+    ));
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -145,28 +197,152 @@ class _ParkingTab extends ConsumerWidget {
     final fav = ref.watch(favoritesProvider);
     final lots = ref.watch(carparkLiveProvider).valueOrNull ?? const <String, (int, int)>{};
     return _loadingOr(ref.watch(carparkInfoProvider), s, (all) {
-      final list = within(all, place.lat, place.lng, 800, latOf: (c) => c.lat, lngOf: (c) => c.lng, limit: 20);
+      final list = within(all, lat, lng, 800, latOf: (c) => c.lat, lngOf: (c) => c.lng, limit: 20);
       final t = Theme.of(context).textTheme;
+      final scheme = Theme.of(context).colorScheme;
       return ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.all(16),
         children: [
-          Padding(padding: const EdgeInsets.fromLTRB(16, 4, 16, 8), child: Text(s.parkingHint, style: t.bodySmall)),
-          if (list.isEmpty) EmptyNote(all.isEmpty ? s.bundlesLoading : s.notAvailable),
-          for (final (c, d) in list)
-            ListTile(
-              leading: Icon(fav.carparks.contains(c.id) ? Icons.bookmark : Icons.bookmark_border),
-              title: Text(c.address, maxLines: 2, overflow: TextOverflow.ellipsis),
-              subtitle: Text([
-                s.metres(d),
-                c.type.toLowerCase(),
-                if (c.freeParking.isNotEmpty && c.freeParking != 'NO') '${s.freeParking}: ${c.freeParking.toLowerCase()}',
-              ].join(' · ')),
-              trailing: Text(
-                lots[c.id] == null ? '–' : '${lots[c.id]!.$2}',
-                style: t.displaySmall?.copyWith(color: (lots[c.id]?.$2 ?? 1) == 0 ? DL.amber : null),
+          if (showOtherAddress)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                icon: const Icon(Icons.travel_explore),
+                label: Text(s.parkingElsewhere),
+                onPressed: () => _other(context, ref),
               ),
-              onTap: () => ref.read(favoritesProvider.notifier).toggleCarpark(c.id),
             ),
+          Text(s.parkingHint, style: t.bodySmall),
+          const SizedBox(height: 10),
+          if (list.isEmpty) Card(child: EmptyNote(all.isEmpty ? s.bundlesLoading : s.notAvailable)),
+          for (final (c, d) in list)
+            Card(
+              child: InkWell(
+                onTap: () => ref.read(favoritesProvider.notifier).toggleCarpark(c.id),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: fav.carparks.contains(c.id) ? DL.ink : scheme.surfaceContainer,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text('P',
+                            style: t.displaySmall?.copyWith(
+                                fontSize: 24, color: fav.carparks.contains(c.id) ? Colors.white : null)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(c.address, style: t.titleSmall, maxLines: 2, overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 2),
+                            Text(
+                              [
+                                s.metres(d),
+                                c.type.toLowerCase(),
+                                if (c.freeParking.isNotEmpty && c.freeParking != 'NO')
+                                  '${s.freeParking}: ${c.freeParking.toLowerCase()}',
+                              ].join(' · '),
+                              style: t.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            lots[c.id] == null ? '–' : '${lots[c.id]!.$2}',
+                            style: t.displaySmall?.copyWith(color: (lots[c.id]?.$2 ?? 1) == 0 ? DL.amber : null),
+                          ),
+                          if (lots[c.id] != null) Text(s.freeLots, style: t.labelSmall),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
+    });
+  }
+}
+
+// ---------------------------------------------------------------- schools
+
+class _SchoolsTab extends ConsumerWidget {
+  const _SchoolsTab({required this.place});
+  final Place place;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    return _loadingOr(ref.watch(poisProvider), s, (pois) {
+      final t = Theme.of(context).textTheme;
+      Widget group(String title, IconData icon, List<Poi> items) {
+        final (near, far) = schoolsByBand(items, place.lat, place.lng);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SectionTitle(title),
+            Card(
+              child: Column(
+                children: [
+                  if (items.isEmpty) EmptyNote(s.bundlesLoading, icon: Icons.cloud_download_outlined),
+                  for (final (band, list) in [(s.within1km, near), (s.between1and2km, far)])
+                    if (list.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 2),
+                        child: Row(children: [
+                          Text(band, style: t.labelMedium?.copyWith(color: Theme.of(context).colorScheme.primary)),
+                          const Spacer(),
+                          Text('${list.length}', style: t.labelMedium),
+                        ]),
+                      ),
+                      for (final (p, d) in list.take(12))
+                        ListTile(
+                          dense: true,
+                          leading: Icon(icon, size: 20),
+                          title: Text(p.name),
+                          trailing: Text(s.metres(d), style: t.labelLarge),
+                        ),
+                    ],
+                  if (items.isNotEmpty && near.isEmpty && far.isEmpty) EmptyNote(s.notAvailable),
+                ],
+              ),
+            ),
+          ],
+        );
+      }
+
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        children: [
+          if (!place.hasAddress) ...[
+            const SizedBox(height: 12),
+            AlertBanner(icon: Icons.place_outlined, text: s.setAddressForSchools, tone: AlertTone.info),
+          ],
+          group(s.primarySchools, Icons.school_outlined, pois.of(PoiKind.primarySchool)),
+          group(s.secondarySchools, Icons.school_outlined, pois.of(PoiKind.school)),
+          group(s.preschools, Icons.child_care_outlined, pois.of(PoiKind.preschool)),
+          const SizedBox(height: 10),
+          Text(s.p1Note, style: t.bodySmall),
+          TextButton.icon(
+            style: TextButton.styleFrom(alignment: Alignment.centerLeft, padding: EdgeInsets.zero),
+            icon: const Icon(Icons.open_in_new, size: 18),
+            label: Text(s.openSchoolFinder),
+            onPressed: () => launchUrl(Uri.parse('https://www.moe.gov.sg/schoolfinder'),
+                mode: LaunchMode.externalApplication),
+          ),
         ],
       );
     });

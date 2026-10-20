@@ -573,11 +573,15 @@ List<TodayAlert> todayAlerts({
 
   final today = dateOnly(now);
   for (final h in hawkers.where((h) => fav.hawkers.contains(h.id))) {
-    if (h.closureOn(today) != null) {
-      out.add(TodayAlert(AlertKind.hawker, s.hawkerClosedToday(h.name)));
-    } else if (h.closureOn(today.add(const Duration(days: 1))) != null) {
-      out.add(TodayAlert(AlertKind.hawker, s.hawkerClosedTomorrow(h.name)));
-    }
+    final tomorrow = today.add(const Duration(days: 1));
+    final day = h.closureOn(today) != null ? today : (h.closureOn(tomorrow) != null ? tomorrow : null);
+    if (day == null) continue;
+    final alt = openAlternatives(hawkers, h, day, limit: 1);
+    final base = day == today ? s.hawkerClosedToday(h.name) : s.hawkerClosedTomorrow(h.name);
+    out.add(TodayAlert(
+      AlertKind.hawker,
+      alt.isEmpty ? base : '$base. ${s.tryInstead(alt.first.$1.name, s.metres(alt.first.$2))}',
+    ));
   }
 
   for (final p in <Place>[if (home != null) home, if (school != null) school]) {
@@ -644,3 +648,90 @@ HdbBlock? blockForAddress(List<HdbBlock> blocks, AddressHit hit) {
 }
 
 bool isPostalCode(String q) => RegExp(r'^\d{6}$').hasMatch(q.trim());
+
+// ---------------------------------------------------------------- weather details
+
+/// Rainfall (mm in the last 5 minutes) at the station nearest a point, from
+/// /v1/weather/rainfall: (station name, mm, distance in metres).
+(String, double, double)? rainfallNear(Map<String, dynamic> apiBody, double lat, double lng) {
+  final data = (apiBody['data'] is Map) ? (apiBody['data'] as Map)['data'] : null;
+  if (data is! Map) return null;
+  final stations = <String, (String, double, double)>{};
+  for (final s in (data['stations'] as List? ?? const [])) {
+    if (s is! Map) continue;
+    final loc = s['location'] as Map?;
+    final la = double.tryParse('${loc?['latitude']}');
+    final lo = double.tryParse('${loc?['longitude']}');
+    if (la == null || lo == null) continue;
+    stations['${s['id']}'] = ('${s['name'] ?? s['id']}', la, lo);
+  }
+  final readings = data['readings'] as List?;
+  if (readings == null || readings.isEmpty) return null;
+  final latest = readings.first as Map;
+  (String, double, double)? best;
+  for (final r in (latest['data'] as List? ?? const [])) {
+    if (r is! Map) continue;
+    final st = stations['${r['stationId']}'];
+    final v = double.tryParse('${r['value']}');
+    if (st == null || v == null) continue;
+    final d = distanceMeters(lat, lng, st.$2, st.$3);
+    if (best == null || d < best.$3) best = (st.$1, v, d);
+  }
+  return best;
+}
+
+/// Latest UV index from /v1/weather/uv, or null.
+int? uvIndex(Map<String, dynamic> apiBody) {
+  final data = (apiBody['data'] is Map) ? (apiBody['data'] as Map)['data'] : null;
+  final records = data is Map ? data['records'] : null;
+  if (records is! List || records.isEmpty) return null;
+  final index = (records.first as Map)['index'];
+  if (index is! List || index.isEmpty) return null;
+  Map? latest;
+  for (final i in index) {
+    if (i is! Map) continue;
+    if (latest == null || '${i['hour']}'.compareTo('${latest['hour']}') > 0) latest = i;
+  }
+  return int.tryParse('${latest?['value']}') ?? (latest?['value'] as num?)?.round();
+}
+
+/// WBGT in °C at the station nearest a point, with its heat stress category.
+(double, String)? wbgtNear(Map<String, dynamic> apiBody, double lat, double lng) {
+  final data = (apiBody['data'] is Map) ? (apiBody['data'] as Map)['data'] : null;
+  final records = data is Map ? data['records'] : null;
+  if (records is! List || records.isEmpty) return null;
+  final item = (records.last as Map)['item'];
+  final readings = item is Map ? item['readings'] : null;
+  if (readings is! List) return null;
+  (double, String, double)? best;
+  for (final r in readings) {
+    if (r is! Map) continue;
+    final loc = r['location'] as Map?;
+    final la = double.tryParse('${loc?['latitude']}');
+    final lo = double.tryParse('${loc?['longitude']}');
+    final w = double.tryParse('${r['wbgt']}');
+    if (la == null || lo == null || w == null) continue;
+    final d = distanceMeters(lat, lng, la, lo);
+    if (best == null || d < best.$3) best = (w, '${r['heatStress'] ?? ''}', d);
+  }
+  return best == null ? null : (best.$1, best.$2);
+}
+
+// ---------------------------------------------------------------- hawker alternatives
+
+/// Hawker centres open on [day] near a closed one, nearest first.
+List<(Hawker, double)> openAlternatives(List<Hawker> all, Hawker closed, DateTime day,
+    {double radius = 2500, int limit = 2}) {
+  return within(all, closed.lat, closed.lng, radius, latOf: (h) => h.lat, lngOf: (h) => h.lng)
+      .where((e) => e.$1.id != closed.id && e.$1.closureOn(day) == null)
+      .take(limit)
+      .toList();
+}
+
+// ---------------------------------------------------------------- schools
+
+/// Schools of one kind within 1 km and between 1 and 2 km of a point (straight line).
+(List<(Poi, double)>, List<(Poi, double)>) schoolsByBand(List<Poi> schools, double lat, double lng) {
+  final all = within(schools, lat, lng, 2000, latOf: (p) => p.lat, lngOf: (p) => p.lng);
+  return (all.where((e) => e.$2 <= 1000).toList(), all.where((e) => e.$2 > 1000).toList());
+}
