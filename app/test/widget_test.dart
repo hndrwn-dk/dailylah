@@ -37,44 +37,102 @@ class FakeApi extends DailyLahApi {
   Future<Map<String, dynamic>> busArrival(String stopCode) async => {
         'data': {'Services': []},
       };
+
+  @override
+  Future<Map<String, dynamic>> weather(String kind) async => {'data': {}};
+
+  @override
+  Future<Map<String, dynamic>> carparks() async => {'data': {}};
+
+  @override
+  Future<Map<String, dynamic>> taxis() async => {
+        'data': [
+          [1.354, 103.943],
+          [1.3541, 103.9431],
+        ],
+      };
+
+  @override
+  Future<Map<String, dynamic>> crowd(String line, {String kind = 'realtime'}) async => {'data': {}};
+}
+
+/// No static bundles in tests (no network, no app directory).
+class FakeBundles extends BundleRepository {
+  @override
+  Future<Object?> load(String name) async => null;
 }
 
 Widget app(Favorites fav, DateTime now) => ProviderScope(
       overrides: [
         initialFavoritesProvider.overrideWithValue(fav),
         apiProvider.overrideWithValue(FakeApi()),
+        bundleRepoProvider.overrideWithValue(FakeBundles()),
         clockProvider.overrideWith((ref) => Stream.value(now)),
       ],
       child: const DailyLahApp(),
     );
 
 void main() {
-  testWidgets('first run shows setup', (tester) async {
-    await tester.pumpWidget(app(const Favorites(), DateTime(2026, 10, 20, 7)));
+  testWidgets('first run shows setup in the chosen language', (tester) async {
+    await tester.pumpWidget(app(const Favorites(lang: 'id'), DateTime(2026, 10, 20, 7)));
+    await tester.pumpAndSettle();
     expect(find.text('Selamat datang di DailyLah'), findsOneWidget);
     expect(find.text('Rumah'), findsOneWidget);
   });
 
-  testWidgets('morning card shows rain, MRT status and bus stop', (tester) async {
+  testWidgets('first run in English', (tester) async {
+    await tester.pumpWidget(app(const Favorites(lang: 'en'), DateTime(2026, 10, 20, 7)));
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome to DailyLah'), findsOneWidget);
+  });
+
+  testWidgets('morning card shows rain, MRT status, bus stop and taxis', (tester) async {
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     const fav = Favorites(
       places: {PlaceKind.home: Place(kind: PlaceKind.home, stops: [home])},
       lines: {'NSL'},
       onboarded: true,
+      lang: 'id',
     );
     await tester.pumpWidget(app(fav, DateTime(2026, 10, 20, 7)));
     await tester.pumpAndSettle();
-    expect(find.text('Kartu pagi'), findsOneWidget);
+    expect(find.textContaining('Kartu pagi'), findsOneWidget);
+    expect(find.text('Selamat pagi'), findsOneWidget);
     expect(find.text('Bawa payung'), findsOneWidget);
-    expect(find.text('MRT normal'), findsOneWidget);
-    expect(find.text('Tampines Int (75009)'), findsOneWidget);
+    expect(find.text('Berjalan normal'), findsOneWidget);
+    expect(find.text('Tampines Int · 75009'), findsOneWidget);
+    expect(find.text('Taksi di sekitar'), findsOneWidget);
+    // Bottom navigation with four tabs.
+    expect(find.text('Sekitar'), findsOneWidget);
+    expect(find.text('Lainnya'), findsOneWidget);
+  });
+
+  testWidgets('tabs open Nearby, Homes and More', (tester) async {
+    const fav = Favorites(
+      places: {PlaceKind.home: Place(kind: PlaceKind.home, stops: [home])},
+      onboarded: true,
+      lang: 'en',
+    );
+    await tester.pumpWidget(app(fav, DateTime(2026, 10, 20, 19)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Homes'));
+    await tester.pumpAndSettle();
+    expect(find.text('HDB homes'), findsOneWidget);
+    await tester.tap(find.text('More'));
+    await tester.pumpAndSettle();
+    expect(find.text('Share with family'), findsOneWidget);
   });
 
   testWidgets('about page shows legal links and data attribution', (tester) async {
-    // Tall viewport so the whole (lazily built) list is on screen.
     tester.view.physicalSize = const Size(800, 2000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(const MaterialApp(home: AboutDailyLahPage()));
+    await tester.pumpWidget(ProviderScope(
+      overrides: [initialFavoritesProvider.overrideWithValue(const Favorites(lang: 'id'))],
+      child: const MaterialApp(home: AboutDailyLahPage()),
+    ));
     expect(find.text('Kebijakan privasi'), findsOneWidget);
     expect(find.text('Ketentuan layanan'), findsOneWidget);
     expect(find.textContaining('Singapore Open Data Licence'), findsWidgets);

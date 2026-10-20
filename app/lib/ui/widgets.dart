@@ -210,7 +210,7 @@ class Stat extends StatelessWidget {
   }
 }
 
-/// Selector for which saved place a view is about.
+/// Pill selector for which saved place a view is about. Use [onDark] inside a hero.
 class PlaceSelector extends StatelessWidget {
   const PlaceSelector({
     super.key,
@@ -218,23 +218,189 @@ class PlaceSelector extends StatelessWidget {
     required this.selected,
     required this.labelOf,
     required this.onChanged,
+    this.onDark = false,
   });
   final Iterable<PlaceKind> places;
   final PlaceKind selected;
   final String Function(PlaceKind) labelOf;
   final ValueChanged<PlaceKind> onChanged;
+  final bool onDark;
+
+  static IconData iconOf(PlaceKind k) => switch (k) {
+        PlaceKind.home => Icons.home_outlined,
+        PlaceKind.work => Icons.work_outline,
+        PlaceKind.school => Icons.school_outlined,
+      };
 
   @override
   Widget build(BuildContext context) {
     final list = places.toList();
     if (list.length < 2) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: SegmentedButton<PlaceKind>(
-        showSelectedIcon: false,
-        segments: [for (final p in list) ButtonSegment(value: p, label: Text(labelOf(p)))],
-        selected: {list.contains(selected) ? selected : list.first},
-        onSelectionChanged: (s) => onChanged(s.first),
+    final current = list.contains(selected) ? selected : list.first;
+    final t = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    return Wrap(
+      spacing: 8,
+      children: [
+        for (final p in list)
+          Material(
+            color: p == current
+                ? (onDark ? Colors.white : DL.ink)
+                : (onDark ? Colors.white.withValues(alpha: 0.10) : scheme.surfaceContainerLowest),
+            shape: StadiumBorder(
+              side: BorderSide(color: onDark ? Colors.white24 : scheme.outlineVariant, width: p == current ? 0 : 1),
+            ),
+            child: InkWell(
+              customBorder: const StadiumBorder(),
+              onTap: () => onChanged(p),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(iconOf(p),
+                        size: 16,
+                        color: p == current ? (onDark ? DL.ink : Colors.white) : (onDark ? Colors.white : null)),
+                    const SizedBox(width: 6),
+                    Text(
+                      labelOf(p),
+                      style: t.labelLarge?.copyWith(
+                        color: p == current ? (onDark ? DL.ink : Colors.white) : (onDark ? Colors.white : null),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Full-bleed header at the top of a tab: a deep "night over the Straits" gradient
+/// with rounded lower corners. Content below it can overlap via [overlap].
+class HeroHeader extends StatelessWidget {
+  const HeroHeader({super.key, required this.child, this.accent = DL.teal});
+  final Widget child;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [DL.night, DL.ink, Color.lerp(DL.ink, accent, 0.55)!],
+          stops: const [0, 0.55, 1],
+        ),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
+      ),
+      child: Stack(
+        children: [
+          // A soft glow, like the city lights on the horizon.
+          Positioned(
+            right: -60,
+            top: -40,
+            child: Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(colors: [accent.withValues(alpha: 0.45), accent.withValues(alpha: 0)]),
+              ),
+            ),
+          ),
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+              child: DefaultTextStyle.merge(
+                style: const TextStyle(color: Colors.white),
+                child: IconTheme.merge(data: const IconThemeData(color: Colors.white), child: child),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Large screen title used on tabs, matching the hero type.
+class PageTitle extends StatelessWidget {
+  const PageTitle(this.title, {super.key, this.subtitle, this.trailing});
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: t.displayMedium?.copyWith(color: Colors.white)),
+              if (subtitle != null) ...[
+                const SizedBox(height: 4),
+                Text(subtitle!, style: t.bodyMedium?.copyWith(color: Colors.white70)),
+              ],
+            ],
+          ),
+        ),
+        if (trailing != null) trailing!,
+      ],
+    );
+  }
+}
+
+/// Square-ish tile for a bento row: icon, big value, caption.
+class BentoTile extends StatelessWidget {
+  const BentoTile({
+    super.key,
+    required this.icon,
+    required this.value,
+    required this.caption,
+    this.tint,
+    this.onTap,
+  });
+  final IconData icon;
+  final String value;
+  final String caption;
+  final Color? tint;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final c = tint ?? Theme.of(context).colorScheme.primary;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: c.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+                child: Icon(icon, size: 20, color: c),
+              ),
+              const SizedBox(height: 14),
+              Text(value, style: t.displaySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 2),
+              Text(caption, style: t.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
+            ],
+          ),
+        ),
       ),
     );
   }

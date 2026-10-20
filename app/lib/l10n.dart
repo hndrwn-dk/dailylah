@@ -125,7 +125,8 @@ class S {
       ? const ['Subuh', 'Syuruk', 'Zohor', 'Asar', 'Maghrib', 'Isyak']
       : const ['Subuh', 'Syuruk', 'Zohor', 'Asar', 'Maghrib', 'Isyak'];
   String get fridayNote => _t('Friday: Zohor is replaced by Friday prayer.', 'Jumat: Zohor diganti sholat Jumat.');
-  String get nearestMosques => _t('Nearest mosques', 'Masjid terdekat');
+  String get findMosque => _t('Find a mosque (MUIS directory)', 'Cari masjid (direktori MUIS)');
+  String get prayerTab => _t('Prayer', 'Sholat');
   String get prayerSource => _t('Prayer times: MUIS via data.gov.sg.', 'Jadwal sholat: MUIS via data.gov.sg.');
 
   // ---------------------------------------------------------------- homes (HDB)
@@ -160,6 +161,10 @@ class S {
   String get primary2km => _t('Primary schools within 2 km', 'SD dalam 2 km');
   String get parks1km => _t('Parks within 1 km', 'Taman dalam 1 km');
   String get dengue1km => _t('Dengue clusters within 1 km', 'Cluster dengue dalam 1 km');
+  String get builtLabel => _t('Year built', 'Tahun dibangun');
+  String get leaseLabel => _t('Lease left (years)', 'Sisa lease (tahun)');
+  String get ceaSource => _t('Data: Council for Estate Agencies (CEA) via data.gov.sg.',
+      'Data: Council for Estate Agencies (CEA) via data.gov.sg.');
   String get checkAgent => _t('Check a property agent', 'Cek agen properti');
   String get agentHint => _t('CEA registration number, e.g. R012345A', 'Nomor registrasi CEA, misal R012345A');
   String get agentNotFound => _t('No agent with this number in the CEA register.',
@@ -211,6 +216,28 @@ class S {
   String get importInvalid => _t('This code is not a DailyLah share code.', 'Kode ini bukan kode berbagi DailyLah.');
   String get about => _t('About DailyLah', 'Tentang DailyLah');
   String get aboutSub => _t('Privacy, terms and data sources', 'Privasi, ketentuan, dan sumber data');
+
+  // about
+  String version(String v) => _t('Version $v · Tursina Labs', 'Versi $v · Tursina Labs');
+  String get aboutIntro => _t(
+      'A daily companion for life in Singapore. No account, no ads. Your places and settings stay on this phone.',
+      'Teman harian untuk hidup di Singapura. Tanpa akun, tanpa iklan. Tempat dan pengaturanmu hanya tersimpan di HP ini.');
+  String get privacyPolicy => _t('Privacy policy', 'Kebijakan privasi');
+  String get termsOfService => _t('Terms of service', 'Ketentuan layanan');
+  String get contactUs => _t('Contact us', 'Hubungi kami');
+  String get dataSources => _t('Data sources', 'Sumber data');
+  String get dataAttribution => _t(
+      'Contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, SportSG, PA and MOE accessed through data.gov.sg, made available under the Singapore Open Data Licence. Bus times, crowd levels, forecasts and prices are estimates.',
+      'Berisi informasi dari LTA DataMall dan dataset NEA, HDB, CEA, MUIS, NParks, NLB, SportSG, PA, dan MOE yang diakses melalui data.gov.sg, tersedia berdasarkan Singapore Open Data Licence. Jadwal bus, kepadatan, prakiraan, dan harga adalah perkiraan.');
+  String get independent => _t(
+      'DailyLah is an independent app and is not affiliated with LTA, NEA, HDB or the Singapore government.',
+      'DailyLah adalah aplikasi independen dan tidak berafiliasi dengan LTA, NEA, HDB, atau pemerintah Singapura.');
+  String get openSourceLicences => _t('Open-source licences', 'Lisensi open-source');
+  String cannotOpen(String url) => _t('Cannot open $url', 'Tidak bisa membuka $url');
+  String get yourSetup => _t('Your setup', 'Pengaturan kamu');
+  String get editSetup => _t('Places, lines and times', 'Tempat, jalur, dan jam');
+  String get alertsTitle => _t('Alerts', 'Peringatan');
+  String get systemLanguage => _t('Phone default', 'Ikuti HP');
 
   // stop picker
   String get stopSearchHint => _t('Stop name, road or 5-digit code', 'Nama halte, jalan, atau kode 5 digit');

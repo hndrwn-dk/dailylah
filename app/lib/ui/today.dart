@@ -49,50 +49,59 @@ class TodayPage extends ConsumerWidget {
       await ref.read(forecastProvider.future).catchError((_) => <String, dynamic>{});
     }
 
+    final dests = <Widget>[
+      for (final a in alerts) AlertBanner(icon: _alertIcon(a.kind), text: a.text),
+      if (fav.lines.isNotEmpty) _MrtCard(lines: fav.lines, showCrowd: kind == CardKind.evening),
+      if (origin != null)
+        for (final stop in origin.stops)
+          BusStopCard(stop: stop, title: s.busFrom(s.placeLabel(origin.kind.name))),
+      if (origin != null) _QuickTiles(origin: origin),
+      if (fav.carparks.isNotEmpty) const _SavedParking(),
+      const SizedBox(height: 8),
+      Text('${s.dataSource} ${s.pullToRefresh}', style: t.bodySmall, textAlign: TextAlign.center),
+    ];
+
     return Scaffold(
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: refresh,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            children: [
-              Row(
+      body: RefreshIndicator(
+        onRefresh: refresh,
+        edgeOffset: 80,
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            HeroHeader(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(s.greeting(now.hour), style: t.headlineSmall),
-                        const SizedBox(height: 2),
-                        Text(
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
                           '${kind == CardKind.morning ? s.morningCard : s.eveningCard} · ${_dateLabel(now, s.lang)}',
-                          style: t.bodySmall,
+                          style: t.labelMedium?.copyWith(color: Colors.white70),
                         ),
-                      ],
-                    ),
+                      ),
+                      IconButton(
+                        tooltip: s.checkBuses,
+                        style: IconButton.styleFrom(backgroundColor: Colors.white.withValues(alpha: 0.12)),
+                        icon: const Icon(Icons.search, color: Colors.white),
+                        onPressed: () => _searchStop(context, s),
+                      ),
+                    ],
                   ),
-                  IconButton.filledTonal(
-                    tooltip: s.checkBuses,
-                    icon: const Icon(Icons.search),
-                    onPressed: () => _searchStop(context, s),
-                  ),
+                  Text(s.greeting(now.hour), style: t.displayMedium?.copyWith(color: Colors.white)),
+                  const SizedBox(height: 18),
+                  if (origin != null) _HeroWeather(origin: origin, kind: kind),
                 ],
               ),
-              const SizedBox(height: 16),
-              for (final a in alerts)
-                AlertBanner(icon: _alertIcon(a.kind), text: a.text),
-              if (origin != null) _WeatherCard(origin: origin, kind: kind),
-              if (fav.lines.isNotEmpty) _MrtCard(lines: fav.lines, showCrowd: kind == CardKind.evening),
-              if (origin != null)
-                for (final stop in origin.stops)
-                  BusStopCard(stop: stop, title: s.busFrom(s.placeLabel(origin.kind.name))),
-              if (origin != null) _TaxiTile(origin: origin),
-              if (fav.carparks.isNotEmpty) const _SavedParking(),
-              const SizedBox(height: 12),
-              Text('${s.dataSource} ${s.pullToRefresh}', style: t.bodySmall, textAlign: TextAlign.center),
-            ],
-          ),
+            ),
+            Transform.translate(
+              offset: const Offset(0, -18),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: dests),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -126,8 +135,9 @@ IconData _alertIcon(AlertKind k) => switch (k) {
       AlertKind.lightning => Icons.bolt,
     };
 
-class _WeatherCard extends ConsumerWidget {
-  const _WeatherCard({required this.origin, required this.kind});
+/// Weather for the trip, set in large type inside the hero.
+class _HeroWeather extends ConsumerWidget {
+  const _HeroWeather({required this.origin, required this.kind});
   final Place origin;
   final CardKind kind;
 
@@ -139,47 +149,59 @@ class _WeatherCard extends ConsumerWidget {
     final destPlace = dest == null ? null : fav.places[dest];
     final body = ref.watch(forecastProvider);
     final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
+    final dim = t.bodyMedium?.copyWith(color: Colors.white70);
 
-    return Card(
-      color: scheme.surfaceContainerHighest,
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: body.when(
-          loading: () => Text(s.loading, style: t.bodyMedium),
-          error: (_, __) => Text(s.serverWaking, style: t.bodyMedium),
-          data: (json) {
-            final here = forecastNear(json, origin.lat, origin.lng);
-            final there = destPlace == null ? null : forecastNear(json, destPlace.lat, destPlace.lng);
-            if (here == null) return Text(s.notAvailable, style: t.bodyMedium);
-            final rainy = here.isRainy || (there?.isRainy ?? false);
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(rainy ? Icons.umbrella : Icons.wb_sunny_outlined,
-                    size: 36, color: rainy ? DL.amber : scheme.primary),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(rainy ? s.bringUmbrella : s.weather2h, style: t.titleLarge),
-                      const SizedBox(height: 6),
-                      _ForecastLine(label: s.placeLabel(origin.kind.name), f: here),
-                      if (there != null && destPlace != null)
-                        _ForecastLine(label: s.placeLabel(destPlace.kind.name), f: there),
-                      if (here.validText != null) ...[
-                        const SizedBox(height: 4),
-                        Text(s.validUntil(here.validText!), style: t.bodySmall),
-                      ],
-                    ],
-                  ),
+    return body.when(
+      loading: () => Text(s.loading, style: dim),
+      error: (_, __) => Text(s.serverWaking, style: dim),
+      data: (json) {
+        final here = forecastNear(json, origin.lat, origin.lng);
+        final there = destPlace == null ? null : forecastNear(json, destPlace.lat, destPlace.lng);
+        if (here == null) return Text(s.notAvailable, style: dim);
+        final rainy = here.isRainy || (there?.isRainy ?? false);
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: rainy ? DL.amber : DL.tealLight.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-              ],
-            );
-          },
-        ),
-      ),
+                child: Icon(rainy ? Icons.umbrella : Icons.wb_sunny_outlined,
+                    size: 28, color: rainy ? DL.ink : Colors.white),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(rainy ? s.bringUmbrella : s.noRain,
+                        style: t.titleLarge?.copyWith(color: Colors.white)),
+                    const SizedBox(height: 6),
+                    _ForecastLine(label: s.placeLabel(origin.kind.name), f: here),
+                    if (there != null && destPlace != null)
+                      _ForecastLine(label: s.placeLabel(destPlace.kind.name), f: there),
+                    if (here.validText != null) ...[
+                      const SizedBox(height: 4),
+                      Text('${s.weather2h} · ${s.validUntil(here.validText!)}',
+                          style: t.bodySmall?.copyWith(color: Colors.white60)),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -195,8 +217,8 @@ class _ForecastLine extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 2),
       child: Text.rich(TextSpan(children: [
-        TextSpan(text: '$label · ${f.area}  ', style: t.bodySmall),
-        TextSpan(text: f.forecast, style: t.labelLarge),
+        TextSpan(text: '$label · ${f.area}  ', style: t.bodySmall?.copyWith(color: Colors.white60)),
+        TextSpan(text: f.forecast, style: t.labelLarge?.copyWith(color: Colors.white)),
       ])),
     );
   }
@@ -351,24 +373,50 @@ class _BusRow extends ConsumerWidget {
   }
 }
 
-class _TaxiTile extends ConsumerWidget {
-  const _TaxiTile({required this.origin});
+/// Bento row: taxis nearby (useful when it rains) and the nearest hawker.
+class _QuickTiles extends ConsumerWidget {
+  const _QuickTiles({required this.origin});
   final Place origin;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final forecast = ref.watch(forecastProvider).valueOrNull;
-    final f = forecast == null ? null : forecastNear(forecast, origin.lat, origin.lng);
-    if (f == null || !f.isRainy) return const SizedBox.shrink();
     final taxis = ref.watch(taxiProvider).valueOrNull;
-    if (taxis == null) return const SizedBox.shrink();
-    final n = taxisWithin(taxis, origin.lat, origin.lng);
-    return Card(
-      child: ListTile(
-        leading: const Icon(Icons.local_taxi_outlined),
-        title: Text(s.taxisNearby),
-        subtitle: Text(s.taxisWithin(n)),
+    final hawkers = ref.watch(hawkersProvider).valueOrNull ?? const <Hawker>[];
+    final today = dateOnly(ref.watch(clockProvider).valueOrNull ?? DateTime.now());
+    final near = nearest(hawkers, origin.lat, origin.lng, latOf: (h) => h.lat, lngOf: (h) => h.lng);
+    final tiles = <Widget>[
+      if (taxis != null)
+        Expanded(
+          child: BentoTile(
+            icon: Icons.local_taxi_outlined,
+            value: '${taxisWithin(taxis, origin.lat, origin.lng)}',
+            caption: s.taxisNearby,
+            tint: DL.amber,
+          ),
+        ),
+      if (near != null)
+        Expanded(
+          child: BentoTile(
+            icon: Icons.ramen_dining_outlined,
+            value: s.metres(near.$2),
+            caption: '${near.$1.name}${near.$1.closureOn(today) != null ? ' · ${s.closedNow}' : ''}',
+          ),
+        ),
+    ];
+    if (tiles.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < tiles.length; i++) ...[
+              if (i > 0) const SizedBox(width: 12),
+              tiles[i],
+            ],
+          ],
+        ),
       ),
     );
   }

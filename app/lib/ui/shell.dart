@@ -1,0 +1,44 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../providers.dart';
+import 'homes.dart';
+import 'more.dart';
+import 'nearby.dart';
+import 'today.dart';
+
+final _tabProvider = StateProvider<int>((ref) => 0);
+
+/// Four tabs: Today, Nearby, Homes, More. Pages are kept alive between switches.
+class AppShell extends ConsumerWidget {
+  const AppShell({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final index = ref.watch(_tabProvider);
+    return Scaffold(
+      body: IndexedStack(
+        index: index,
+        children: const [TodayPage(), NearbyPage(), HomesPage(), MorePage()],
+      ),
+      bottomNavigationBar: DecoratedBox(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 20, offset: const Offset(0, -4)),
+          ],
+        ),
+        child: NavigationBar(
+          selectedIndex: index,
+          onDestinationSelected: (i) => ref.read(_tabProvider.notifier).state = i,
+          destinations: [
+            NavigationDestination(icon: const Icon(Icons.wb_sunny_outlined), selectedIcon: const Icon(Icons.wb_sunny), label: s.tabToday),
+            NavigationDestination(icon: const Icon(Icons.explore_outlined), selectedIcon: const Icon(Icons.explore), label: s.tabNearby),
+            NavigationDestination(icon: const Icon(Icons.apartment_outlined), selectedIcon: const Icon(Icons.apartment), label: s.tabHomes),
+            NavigationDestination(icon: const Icon(Icons.more_horiz), selectedIcon: const Icon(Icons.more_horiz), label: s.tabMore),
+          ],
+        ),
+      ),
+    );
+  }
+}

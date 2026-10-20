@@ -1,7 +1,7 @@
 name: dailylah
 description: DailyLah — your daily SG kaki.
 publish_to: "none"
-version: 0.1.0+1
+version: 0.2.0+2
 
 environment:
   sdk: ">=3.5.0 <4.0.0"
@@ -18,6 +18,8 @@ dependencies:
   home_widget: ^0.10.0
   path_provider: ^2.1.6
   url_launcher: ^6.3.1
+  qr_flutter: ^4.1.0
+  share_plus: ^13.3.1
 
 dev_dependencies:
   flutter_test:
@@ -26,3 +28,13 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  fonts:
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans-Variable.ttf
+    - family: BarlowCondensed
+      fonts:
+        - asset: assets/fonts/BarlowCondensed-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/BarlowCondensed-Bold.ttf
+          weight: 700

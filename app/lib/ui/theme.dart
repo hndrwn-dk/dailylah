@@ -99,20 +99,52 @@ ThemeData buildTheme(Brightness brightness) {
       centerTitle: false,
       titleTextStyle: text.titleLarge,
     ),
+    // Premium surfaces: borderless white cards lifted by a soft, wide shadow in
+    // light mode; a hairline edge in dark mode where shadows do not read.
     cardTheme: CardThemeData(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 12),
+      elevation: dark ? 0 : 6,
+      shadowColor: DL.ink.withValues(alpha: 0.10),
+      surfaceTintColor: Colors.transparent,
+      margin: const EdgeInsets.only(bottom: 14),
       color: scheme.surfaceContainerLowest,
+      clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(24),
+        side: dark ? BorderSide(color: scheme.outlineVariant) : BorderSide.none,
+      ),
+    ),
+    tabBarTheme: TabBarThemeData(
+      labelStyle: text.labelLarge,
+      unselectedLabelStyle: text.labelLarge,
+      labelColor: ink,
+      unselectedLabelColor: muted,
+      indicatorSize: TabBarIndicatorSize.label,
+      dividerColor: Colors.transparent,
+      indicator: UnderlineTabIndicator(
+        borderSide: BorderSide(color: scheme.primary, width: 3),
+        borderRadius: BorderRadius.circular(3),
+      ),
+    ),
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: SegmentedButton.styleFrom(
+        selectedBackgroundColor: dark ? DL.tealLight.withValues(alpha: 0.2) : DL.ink,
+        selectedForegroundColor: dark ? ink : Colors.white,
         side: BorderSide(color: scheme.outlineVariant),
+        textStyle: text.labelLarge,
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: scheme.surfaceContainerLowest,
-      indicatorColor: scheme.primary.withValues(alpha: 0.14),
-      labelTextStyle: WidgetStatePropertyAll(text.labelSmall!.copyWith(color: ink)),
-      height: 68,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      indicatorColor: dark ? DL.tealLight.withValues(alpha: 0.18) : DL.ink,
+      iconTheme: WidgetStateProperty.resolveWith((states) => IconThemeData(
+            color: states.contains(WidgetState.selected) ? (dark ? DL.tealLight : Colors.white) : muted,
+          )),
+      labelTextStyle: WidgetStateProperty.resolveWith((states) => text.labelSmall!.copyWith(
+            color: states.contains(WidgetState.selected) ? ink : muted,
+          )),
+      height: 72,
     ),
     chipTheme: ChipThemeData(
       labelStyle: text.labelMedium,
@@ -143,5 +175,8 @@ ThemeData buildTheme(Brightness brightness) {
         borderSide: BorderSide(color: scheme.outlineVariant),
       ),
     ),
+    pageTransitionsTheme: const PageTransitionsTheme(builders: {
+      TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+    }),
   );
 }
