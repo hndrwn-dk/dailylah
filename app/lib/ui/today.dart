@@ -82,7 +82,7 @@ class TodayPage extends ConsumerWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          '${kind == CardKind.morning ? s.morningCard : s.eveningCard} · ${_dateLabel(now, s.lang)}',
+                          '${kind == CardKind.morning ? s.morningCard : s.eveningCard} · ${_dateLabel(now)}',
                           style: t.labelMedium?.copyWith(color: Colors.white70),
                         ),
                       ),
@@ -120,13 +120,10 @@ class TodayPage extends ConsumerWidget {
   }
 }
 
-String _dateLabel(DateTime d, AppLang lang) {
-  const en = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const id = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
-  const mEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const mId = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-  final idLang = lang == AppLang.id;
-  return '${(idLang ? id : en)[d.weekday - 1]}, ${d.day} ${(idLang ? mId : mEn)[d.month - 1]}';
+String _dateLabel(DateTime d) {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return '${days[d.weekday - 1]}, ${d.day} ${months[d.month - 1]}';
 }
 
 IconData _alertIcon(AlertKind k) => switch (k) {

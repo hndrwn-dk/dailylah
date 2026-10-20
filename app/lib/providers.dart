@@ -1,5 +1,3 @@
-import 'dart:ui' show PlatformDispatcher;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'api.dart';
@@ -81,14 +79,8 @@ class FavoritesNotifier extends Notifier<Favorites> {
 
 final favoritesProvider = NotifierProvider<FavoritesNotifier, Favorites>(FavoritesNotifier.new);
 
-/// The app language: the saved choice, else the phone's language (Indonesian or English).
-final langProvider = Provider<AppLang>((ref) {
-  final saved = ref.watch(favoritesProvider.select((f) => f.lang));
-  if (saved != null) return langFromCode(saved);
-  return langFromCode(PlatformDispatcher.instance.locale.languageCode);
-});
 
-final stringsProvider = Provider<S>((ref) => S(ref.watch(langProvider)));
+final stringsProvider = Provider<S>((ref) => const S());
 
 // ---------------------------------------------------------------- static bundles
 

@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../l10n.dart';
 import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
@@ -22,7 +21,6 @@ class MorePage extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final fav = ref.watch(favoritesProvider);
     final notifier = ref.read(favoritesProvider.notifier);
-    final lang = ref.watch(langProvider);
     final t = Theme.of(context).textTheme;
 
     Widget toggle(String title, bool value, Favorites Function(Favorites, bool) set, {String? sub}) =>
@@ -93,22 +91,10 @@ class MorePage extends ConsumerWidget {
                     ],
                   ),
                 ),
-                SectionTitle(s.language),
+                SectionTitle(s.extras),
                 Panel(
-                  child: RadioGroup<AppLang>(
-                    groupValue: lang,
-                    onChanged: (v) {
-                      if (v != null) notifier.update((f) => f.copyWith(lang: v.name));
-                    },
-                    child: const Column(
-                      children: [
-                        RadioListTile(value: AppLang.en, title: Text('English')),
-                        RadioListTile(value: AppLang.id, title: Text('Bahasa Indonesia')),
-                      ],
-                    ),
-                  ),
+                  child: toggle(s.showPrayer, fav.showPrayer, (f, v) => f.copyWith(showPrayer: v), sub: s.showPrayerSub),
                 ),
-                const SizedBox(height: 14),
                 Panel(
                   child: _NavTile(
                     icon: Icons.info_outline,

@@ -88,8 +88,10 @@ class NearbyPage extends ConsumerWidget {
       ('search', Icons.search, s.searchPlace),
     ];
 
+    final prayer = fav.showPrayer;
     return DefaultTabController(
-      length: 7,
+      key: ValueKey(prayer),
+      length: prayer ? 7 : 6,
       child: Scaffold(
         body: Column(
           children: [
@@ -127,7 +129,7 @@ class NearbyPage extends ConsumerWidget {
                 Tab(text: s.schools),
                 Tab(text: s.dengue),
                 Tab(text: s.weekend),
-                Tab(text: s.prayerTab),
+                if (prayer) Tab(text: s.prayerTab),
                 Tab(text: s.emergency),
               ],
             ),
@@ -141,7 +143,7 @@ class NearbyPage extends ConsumerWidget {
                         _SchoolsTab(place: place),
                         _DengueTab(place: place),
                         _WeekendTab(place: place),
-                        const _PrayerTab(),
+                        if (prayer) const _PrayerTab(),
                         _EmergencyTab(place: place),
                       ],
                     ),
