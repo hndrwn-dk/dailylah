@@ -1,5 +1,6 @@
 {
  "counts": {
+  "around": 95,
   "bicycle_racks": 396,
   "bus_routes": 26833,
   "bus_stops": 5209,
@@ -17,5 +18,5 @@
  },
  "errors": {},
  "geocode_cache": 1515,
- "geocoded_new": 112
+ "geocoded_new": 0
 }
