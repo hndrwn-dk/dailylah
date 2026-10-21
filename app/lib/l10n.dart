@@ -349,7 +349,7 @@ class S {
       ].join(' ');
   String get hipNote => 'HIP (Home Improvement Programme) status is not published as open data. Check your block on the HDB website.';
   String get checkHip => 'Check HIP on HDB';
-  String get dengueTitle => 'Dengue';
+  String get dengueHeading => 'Dengue';
   String get schoolsTitle => 'Schools';
   String get healthTitle => 'Health and safety';
   String get pharmacies => 'Pharmacies';

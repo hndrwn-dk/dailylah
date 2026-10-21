@@ -408,7 +408,7 @@ class _Dengue extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Heading(s.dengueTitle, Icons.bug_report_outlined),
+        _Heading(s.dengueHeading, Icons.bug_report_outlined),
         if (near.isEmpty)
           Panel(child: EmptyNote(all == null ? s.loading : s.dengueNone, icon: Icons.check_circle_outline))
         else
