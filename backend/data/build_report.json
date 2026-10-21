@@ -14,9 +14,12 @@
   "mrt_stations": 180,
   "poi": 5258,
   "prayer": 365,
+  "private_homes": 4800,
   "taxi_stands": 316
  },
- "errors": {},
+ "errors": {
+  "halal": "too small: 80"
+ },
  "geocode_cache": 1515,
  "geocoded_new": 0
 }
