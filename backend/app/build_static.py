@@ -35,6 +35,7 @@ import httpx
 
 from . import bundles as b
 from .config import get_settings
+from .onemap import OneMap
 from .sources import Sources, compact_bus_stops, compact_taxi_stands
 
 log = logging.getLogger(__name__)
@@ -44,6 +45,7 @@ GEOCODE_CACHE = Path(__file__).resolve().parent.parent / "data" / "geocode.json"
 
 # Minimum sizes below which a fresh bundle is treated as broken and not published.
 MIN_COUNTS = {
+    "around": 50,
     "taxi_stands": 100,
     "bus_routes": 300,
     "bicycle_racks": 50,
@@ -93,7 +95,8 @@ async def build(
 
         if not only_bus_stops:
             dg = b.DataGov(client, settings.datagov_api_key, pause=pause)
-            geo = b.Geocoder(client, geocode_cache, budget_s=geocode_budget_s)
+            om = OneMap(client, settings.onemap_email, settings.onemap_password)
+            geo = b.Geocoder(client, geocode_cache, budget_s=geocode_budget_s, onemap=om)
 
             async def attempt(name: str, coro) -> None:
                 try:
@@ -125,6 +128,7 @@ async def build(
             await attempt("prayer", b.build_prayer(dg))
             await attempt("poi", b.build_poi(dg, geo))
             await attempt("emergency", b.build_emergency(dg, geo))
+            await attempt("around", b.build_around(om, today or date.today()))
             block_town: dict[str, str] = {}
             try:
                 resale = await b.build_resale(dg, today or date.today())

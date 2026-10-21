@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     lta_account_key: str | None = None
     lta_base_url: str = "https://datamall2.mytransport.sg/ltaodataservice"
 
+    # OneMap account (Singapore Land Authority); the token is requested at runtime.
+    onemap_email: str | None = None
+    onemap_password: str | None = None
+    search_ttl: int = 86400
+
     # Upstash Redis (redis:// or rediss:// URL). Empty = in-memory only (local dev).
     redis_url: str | None = None
 

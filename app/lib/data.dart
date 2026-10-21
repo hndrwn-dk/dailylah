@@ -352,3 +352,75 @@ class MrtStation {
         lng: _d(j['lo']),
       );
 }
+
+
+/// Upgrading or construction work from the "around" bundle.
+/// {"k","n","s","from","to","by","t","la","lo","r"}
+class Project {
+  const Project({
+    required this.kind,
+    required this.name,
+    required this.lat,
+    required this.lng,
+    this.status = '',
+    this.from = '',
+    this.to = '',
+    this.by = '',
+    this.contact = '',
+    this.radius = 0,
+    this.points = const [],
+  });
+
+  /// Sample points (lat, lng) of the site, to measure the distance to its nearest part.
+  final List<(double, double)> points;
+  final String kind;
+  final String name;
+  final String status;
+  final String from;
+  final String to;
+  final String by;
+  final String contact;
+  final double lat;
+  final double lng;
+
+  /// Rough size of the site (centre to furthest corner), metres.
+  final double radius;
+
+  /// Lift Upgrading, Neighbourhood Renewal or Estate Upgrading: work on the estate itself.
+  bool get isUpgrading => const {'lup', 'nrp', 'eup'}.contains(kind);
+
+  factory Project.fromBundle(Map<String, dynamic> j) => Project(
+        kind: '${j['k'] ?? ''}',
+        name: '${j['n'] ?? ''}',
+        status: '${j['s'] ?? ''}',
+        from: '${j['from'] ?? ''}',
+        to: '${j['to'] ?? ''}',
+        by: '${j['by'] ?? ''}',
+        contact: '${j['t'] ?? ''}',
+        lat: _d(j['la']),
+        lng: _d(j['lo']),
+        radius: j['r'] == null ? 0 : _d(j['r']),
+        points: [
+          for (final pt in (j['p'] as List? ?? const []))
+            if (pt is List && pt.length == 2) (_d(pt[0]), _d(pt[1])),
+        ],
+      );
+}
+
+/// Works plus services near homes (OneMap themes), see backend build_around.
+class AroundSet {
+  const AroundSet({this.projects = const [], this.points = const {}});
+  final List<Project> projects;
+  final Map<String, List<EPoint>> points;
+
+  static const empty = AroundSet();
+  List<EPoint> of(String key) => points[key] ?? const [];
+
+  factory AroundSet.fromBundle(Map<String, dynamic> j) => AroundSet(
+        projects: [for (final r in (j['projects'] as List? ?? const [])) Project.fromBundle(r as Map<String, dynamic>)],
+        points: {
+          for (final e in (j['points'] as Map? ?? const {}).entries)
+            '${e.key}': [for (final r in (e.value as List? ?? const [])) EPoint.fromBundle(r as Map<String, dynamic>)],
+        },
+      );
+}

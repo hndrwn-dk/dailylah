@@ -563,4 +563,54 @@ void main() {
         'Tampines Round Market and Food Centre');
     expect(shortPlaceName('Maxwell Food Centre'), 'Maxwell Food Centre');
   });
+
+  test('home block by postal code, else nearest within 40 m', () {
+    const b66 = HdbBlock(block: '66', street: 'MARINE DR', town: 'MARINE PARADE', yearCompleted: 1975, floors: 16, lat: 1.30392, lng: 103.90973, postal: '440066');
+    const b67 = HdbBlock(block: '67', street: 'MARINE DR', town: 'MARINE PARADE', yearCompleted: 1975, floors: 16, lat: 1.30420, lng: 103.91010, postal: '440067');
+    const byPostal = Place(kind: PlaceKind.home, postal: '440066', addrLat: 1.3042, addrLng: 103.9101);
+    expect(homeBlock([b66, b67], byPostal)!.block, '66');
+    const condo = Place(kind: PlaceKind.home, addrLat: 1.3100, addrLng: 103.9200);
+    expect(homeBlock([b66, b67], condo), isNull);
+  });
+
+  test('works near home, upgrading at the block first', () {
+    const lup = Project(kind: 'lup', name: 'Marine Drive (MP12)', lat: 1.30392, lng: 103.90973, radius: 25);
+    const road = Project(kind: 'road', name: 'Road works', lat: 1.3080, lng: 103.9097, radius: 50);
+    const far = Project(kind: 'rail', name: 'Far away', lat: 1.35, lng: 103.95, radius: 100);
+    const ended = Project(kind: 'road', name: 'Done', lat: 1.3039, lng: 103.9097, to: '2Q 2026');
+    const big = Project(kind: 'road', name: 'Town-wide', lat: 1.36, lng: 103.89, radius: 8000, points: [(1.36, 103.89), (1.32, 103.93)]);
+    final near = projectsNear([far, road, lup, ended, big], 1.30395, 103.90975, now: DateTime(2026, 10, 21));
+    expect(near.map((x) => x.$1.name), ['Marine Drive (MP12)', 'Road works']);
+    expect(near.first.$2, 0);
+    expect(upgradingAtHome(near).single.kind, 'lup');
+    expect(projectEnded('4Q 2026', DateTime(2026, 10, 21)), isFalse);
+    expect(projectEnded('2026-09', DateTime(2026, 10, 21)), isTrue);
+    expect(rentFor({'3-ROOM': 3000, '5-ROOM': 4300}, '3 ROOM'), ('3-ROOM', 3000));
+  });
+
+  test('hawker closures in the next 30 days near home', () {
+    final h = Hawker(id: '1', name: 'X (Marine Parade Central)', address: 'a', lat: 1.3022, lng: 103.9067, closures: [
+      Closure(DateTime(2026, 9, 1), DateTime(2026, 9, 3), 'cleaning'),
+      Closure(DateTime(2026, 11, 16), DateTime(2026, 11, 18), 'cleaning'),
+    ]);
+    final out = upcomingClosures([h], 1.3039, 103.9097, DateTime(2026, 10, 21));
+    expect(out.single.$2.from, DateTime(2026, 11, 16));
+    expect(upcomingClosures([h], 1.3039, 103.9097, DateTime(2026, 10, 1)), isEmpty);
+  });
+
+  test('around bundle parses projects and points', () {
+    final a = AroundSet.fromBundle({
+      'projects': [
+        {'k': 'lup', 'n': 'A', 's': 'Under construction', 'to': '4Q 2027', 'la': 1.3, 'lo': 103.9, 'r': 20},
+      ],
+      'points': {
+        'police': [
+          {'n': 'NPC', 'la': 1.3, 'lo': 103.9, 't': '64404123'},
+        ],
+      },
+    });
+    expect(a.projects.single.isUpgrading, isTrue);
+    expect(a.of('police').single.tel, '64404123');
+    expect(a.of('none'), isEmpty);
+  });
 }

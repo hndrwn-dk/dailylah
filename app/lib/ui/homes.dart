@@ -12,17 +12,16 @@ import 'widgets.dart';
 final _homesQueryProvider = StateProvider.autoDispose<String>((ref) => '');
 
 /// Homes: HDB block search, watched blocks, comparison and the CEA agent check.
-class HomesPage extends ConsumerWidget {
-  const HomesPage({super.key});
+/// Search any HDB block by street, block or postal code.
+class BlockSearchPage extends ConsumerWidget {
+  const BlockSearchPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final fav = ref.watch(favoritesProvider);
     final query = ref.watch(_homesQueryProvider);
     final blocks = ref.watch(hdbBlocksProvider);
     final t = Theme.of(context).textTheme;
-    final byKey = {for (final b in blocks.valueOrNull ?? const <HdbBlock>[]) b.key: b};
 
     final all = blocks.valueOrNull ?? const <HdbBlock>[];
     final postal = isPostalCode(query);
@@ -46,10 +45,11 @@ class HomesPage extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 8),
+                const BackButton(),
                 PageTitle(s.homesTitle, subtitle: s.homesIntro),
                 const SizedBox(height: 18),
                 TextField(
+                  autofocus: true,
                   onChanged: (v) => ref.read(_homesQueryProvider.notifier).state = v,
                   textInputAction: TextInputAction.search,
                   decoration: InputDecoration(
@@ -71,36 +71,7 @@ class HomesPage extends ConsumerWidget {
                   if (postalHit?.isLoading == true) const LinearProgressIndicator(),
                   if (!empty && results.isEmpty && !(postalHit?.isLoading ?? false))
                     Panel(child: EmptyNote(postal ? s.blockNotInData : s.notAvailable)),
-                  for (final b in results) _BlockTile(block: b),
-                ] else ...[
-                  if (fav.compareBlocks.length >= 2)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
-                      child: FilledButton.icon(
-                        icon: const Icon(Icons.compare_arrows),
-                        label: Text(s.compareCount(fav.compareBlocks.length)),
-                        onPressed: () => Navigator.of(context)
-                            .push(MaterialPageRoute(builder: (_) => const ComparePage())),
-                      ),
-                    ),
-                  SectionTitle(s.watched, padding: const EdgeInsets.fromLTRB(4, 4, 4, 10)),
-                  if (fav.watchedBlocks.isEmpty)
-                    Panel(child: EmptyNote(s.emptyWatch, icon: Icons.visibility_outlined))
-                  else
-                    for (final k in fav.watchedBlocks.keys)
-                      if (byKey[k] != null) _BlockTile(block: byKey[k]!),
-                  SectionTitle(s.checkAgent),
-                  Panel(
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      leading: const _IconBadge(Icons.verified_user_outlined),
-                      title: Text(s.checkAgent),
-                      subtitle: Text(s.agentHint),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () =>
-                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AgentCheckPage())),
-                    ),
-                  ),
+                  for (final b in results) BlockTile(block: b),
                 ],
                 const SizedBox(height: 12),
                 Text(s.homesDisclaimer, style: t.bodySmall),
@@ -129,8 +100,8 @@ class _IconBadge extends StatelessWidget {
   }
 }
 
-class _BlockTile extends ConsumerWidget {
-  const _BlockTile({required this.block});
+class BlockTile extends ConsumerWidget {
+  const BlockTile({super.key, required this.block});
   final HdbBlock block;
 
   @override

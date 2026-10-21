@@ -66,23 +66,33 @@ class DailyLahApi {
   Future<Map<String, dynamic>> agent(String regNo) => _get('/v1/agent/${Uri.encodeComponent(regNo)}');
 }
 
-/// Address search on OneMap (Singapore Land Authority). Only the text the user types
-/// is sent; used to set Home/Work/School and to look up a postal code.
+/// Address search on OneMap (Singapore Land Authority), through our API, which adds the
+/// OneMap token. Only the text the user types is sent; used to set Home/Work/School and
+/// to look up a postal code. Falls back to OneMap directly if our server does not answer.
 class OneMapApi {
   OneMapApi([Dio? dio])
       : _dio = dio ??
             Dio(BaseOptions(
-              connectTimeout: const Duration(seconds: 10),
-              receiveTimeout: const Duration(seconds: 15),
+              connectTimeout: const Duration(seconds: 20),
+              receiveTimeout: const Duration(seconds: 20),
             ));
 
   final Dio _dio;
 
-  Future<Map<String, dynamic>> search(String query) async => (await _dio.get<Map<String, dynamic>>(
-        'https://www.onemap.gov.sg/api/common/elastic/search',
-        queryParameters: {'searchVal': query, 'returnGeom': 'Y', 'getAddrDetails': 'Y', 'pageNum': 1},
-      ))
-          .data!;
+  Future<Map<String, dynamic>> search(String query) async {
+    try {
+      final res = await _dio.get<Map<String, dynamic>>('$apiUrl/v1/search', queryParameters: {'q': query});
+      final data = res.data?['data'];
+      if (data is Map<String, dynamic>) return data;
+    } on DioException {
+      // Server asleep or down: try OneMap directly below.
+    }
+    return (await _dio.get<Map<String, dynamic>>(
+      'https://www.onemap.gov.sg/api/common/elastic/search',
+      queryParameters: {'searchVal': query, 'returnGeom': 'Y', 'getAddrDetails': 'Y', 'pageNum': 1},
+    ))
+        .data!;
+  }
 }
 
 /// Static data bundles listed in /data/manifest.json. Each file is cached on the

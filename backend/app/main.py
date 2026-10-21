@@ -14,6 +14,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 
 from .cache import Cache
 from .config import Settings, get_settings
+from .onemap import OneMap
 from .sources import CEA_REG_RE, LTA_DATASETS, NEA_DATASETS, TRAIN_LINES, Dataset, Sources
 
 log = logging.getLogger("dailylah")
@@ -35,6 +36,7 @@ async def lifespan(app: FastAPI):
     app.state.http = httpx.AsyncClient(timeout=s.http_timeout)
     app.state.cache = Cache(s.redis_url)
     app.state.sources = Sources(s, app.state.http)
+    app.state.onemap = OneMap(app.state.http, s.onemap_email, s.onemap_password)
     app.state.last_poll: dict[str, float] = {}
     yield
     await app.state.http.aclose()
@@ -50,6 +52,10 @@ def cache(request: Request) -> Cache:
 
 def sources(request: Request) -> Sources:
     return request.app.state.sources
+
+
+def onemap(request: Request) -> OneMap:
+    return request.app.state.onemap
 
 
 @app.get("/health")
@@ -165,6 +171,31 @@ async def traffic_incidents(c: Cache = Depends(cache)) -> dict:
     data = await c.get(INCIDENTS_KEY)
     if data is None:
         raise HTTPException(503, "data not polled yet")
+    return data
+
+
+@app.get("/v1/search")
+async def search(
+    q: str,
+    c: Cache = Depends(cache),
+    om: OneMap = Depends(onemap),
+    s: Settings = Depends(get_settings),
+) -> dict:
+    """Address and postal code search on OneMap, with our token. The query is not
+    logged; results are kept in memory only for a day (same answer for everyone)."""
+    query = " ".join(q.split())
+    if not 2 <= len(query) <= 80:
+        raise HTTPException(422, "query must be 2 to 80 characters")
+    key = f"onemap:search:{query.upper()}"
+    hit = c.get_memory(key)
+    if hit is not None:
+        return hit
+    try:
+        body = await om.search(query)
+    except httpx.HTTPError as e:
+        raise HTTPException(502, "upstream OneMap error") from e
+    data = {"fetched_at": int(time.time()), "data": body}
+    c.set_memory_only(key, data, s.search_ttl)
     return data
 
 
