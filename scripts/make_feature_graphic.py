@@ -63,8 +63,8 @@ def feature():
     mark = mark.crop(mark.getbbox())
     mark = mark.resize((int(mark.width * 0.9 * S), int(mark.height * 0.9 * S)), Image.LANCZOS)
     im.paste(mark, (64 * S, 70 * S), mark)
-    text(d, (66, 290), "Your Singapore day,", jak(40), INK)
-    text(d, (66, 338), "sorted.", jak(40), INK)
+    text(d, (66, 290), "Know before", jak(44), INK)
+    text(d, (66, 342), "you go lah.", jak(44), INK)
     text(d, (68, 400), "Buses, MRT, rain, haze and your HDB block.", jak(19, 500), (80, 100, 106))
     text(d, (68, 428), "Free. No account. Stays on your phone.", jak(19, 500), (80, 100, 106))
 
