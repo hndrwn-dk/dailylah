@@ -248,7 +248,7 @@ class _StopBoard extends ConsumerWidget {
               loading: () => const Padding(padding: EdgeInsets.all(12), child: LinearProgressIndicator()),
               error: (_, __) => EmptyNote(s.busesUnavailable),
               data: (list) => list.isEmpty
-                  ? EmptyNote(s.noBusesNow)
+                  ? EmptyNote(transitResting(DateTime.now()) ? s.busesResting : s.noBusesNow)
                   : BusBoard(
                       arrLabel: s.minutesAway(0),
                       minLabel: s.min,
