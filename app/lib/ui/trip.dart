@@ -156,7 +156,13 @@ class _TransitBlock extends ConsumerWidget {
             ),
           ),
         // No direct bus anywhere near: the train is the real answer, so show it first.
-        if (anyDirect) ...[...buses, mrt] else ...[mrt, ...buses],
+        // Within walking distance the train is never the better answer.
+        if (straight < walkInsteadMetres)
+          ...buses
+        else if (anyDirect)
+          ...[...buses, mrt]
+        else
+          ...[mrt, ...buses],
       ],
     );
   }
@@ -372,24 +378,24 @@ class TripBusCard extends ConsumerWidget {
                             children: [for (final (e, next) in others.take(10)) BusRow(eta: e, next: next, pulse: false)],
                           ),
                         ),
-                      if (suggestedMetres != null && fromKey != null)
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: OutlinedButton.icon(
-                            icon: const Icon(Icons.push_pin_outlined),
-                            label: Text(s.useThisStop),
-                            onPressed: () async {
-                              final messenger = ScaffoldMessenger.of(context);
-                              await ref.read(favoritesProvider.notifier).useStop(fromKey!, stop);
-                              messenger.showSnackBar(SnackBar(content: Text(s.stopSaved(stop.name))));
-                            },
-                          ),
-                        ),
                     ],
                   );
                 },
               ),
             ),
+            if (suggestedMetres != null && fromKey != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.push_pin_outlined),
+                  label: Text(s.useThisStop),
+                  onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    await ref.read(favoritesProvider.notifier).useStop(fromKey!, stop);
+                    messenger.showSnackBar(SnackBar(content: Text(s.stopSaved(stop.name))));
+                  },
+                ),
+              ),
           ],
         ),
       ),

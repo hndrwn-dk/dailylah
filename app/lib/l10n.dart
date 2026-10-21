@@ -210,7 +210,7 @@ class S {
   }
 
   String changeAt(String station) => 'Change trains at $station';
-  String walkIsQuicker(String minutes, String dist) => 'Walk there: $minutes ($dist)';
+  String walkIsQuicker(String minutes, String dist) => '$minutes · $dist';
   String get walkingRoute => 'Walking route';
   String suggestedStop(String dist, String place) => 'Has a direct bus · $dist from $place';
   String get useThisStop => 'Use this stop';
