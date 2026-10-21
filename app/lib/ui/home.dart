@@ -166,7 +166,7 @@ class _NearGroupState extends ConsumerState<NearGroup> {
                   title: Text(it.name),
                   subtitle: Text(
                     [s.metres(it.distance), if (it.detail.isNotEmpty) it.detail].join(' · '),
-                    maxLines: 3,
+                    maxLines: 5,
                     overflow: TextOverflow.ellipsis,
                   ),
                   trailing: it.tel.isEmpty
