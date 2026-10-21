@@ -241,7 +241,7 @@ class _MyBlock extends ConsumerWidget {
     final rent = ref.watch(rentProvider).valueOrNull;
     final stats = [...?resale?.blocks[block.key]]..sort((a, b) => b.count.compareTo(a.count));
     final rents = rent?.towns[block.town] ?? const <String, int>{};
-    final topRent = rents.isEmpty ? null : (rents.entries.toList()..sort((a, b) => a.key.compareTo(b.key))).last;
+    final topRent = rentFor(rents, stats.isEmpty ? null : stats.first.flatType);
     final watching = ref.watch(favoritesProvider).watchedBlocks.containsKey(block.key);
     final year = DateTime.now().year;
 
@@ -282,7 +282,7 @@ class _MyBlock extends ConsumerWidget {
             ],
             if (topRent != null) ...[
               const SizedBox(height: 8),
-              Text(s.rentMedian(sgd(topRent.value)), style: t.bodySmall),
+              Text(s.rentMedian(topRent.$1, sgd(topRent.$2)), style: t.bodySmall),
             ],
             const SizedBox(height: 12),
             Wrap(
@@ -346,7 +346,8 @@ class _Works extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
     final around = ref.watch(aroundProvider).valueOrNull ?? AroundSet.empty;
-    final near = projectsNear(around.projects, home.lat, home.lng);
+    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
+    final near = projectsNear(around.projects, home.lat, home.lng, now: now);
     final mine = upgradingAtHome(near);
 
     String line(Project p) => [
@@ -360,7 +361,7 @@ class _Works extends ConsumerWidget {
       children: [
         _Heading(s.worksTitle, Icons.construction_outlined),
         for (final p in mine)
-          AlertBanner(icon: Icons.elevator_outlined, text: s.atYourBlock('${s.projectKind(p.kind)} · ${line(p)}')),
+          AlertBanner(icon: Icons.elevator_outlined, text: s.atYourBlock(line(p))),
         if (near.isEmpty)
           Panel(child: EmptyNote(around.projects.isEmpty ? s.bundlesLoading : s.worksNone, icon: Icons.check_circle_outline))
         else
@@ -656,7 +657,7 @@ class _WatchedAndAgent extends ConsumerWidget {
           label: Text(s.findBlock),
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BlockSearchPage())),
         ),
-        _Heading(s.checkAgent, Icons.verified_user_outlined),
+        _Heading(s.propertyAgents, Icons.verified_user_outlined),
         Panel(
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),

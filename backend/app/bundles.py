@@ -984,6 +984,7 @@ _P_BY = ("IMPLMT_ORG", "AGENCY", "IMPLEMENTOR", "OWNER", "IMPL_PARTY")
 _P_CONTACT = ("HOTLINE", "QSM_CONTACT", "QSMCONTACT", "AGENCY_QSM_CONTACT", "CTRCTR_CNTCT")
 
 # Places from OneMap themes: key -> (theme, detail field, phone field, hours field)
+POINT_LABELS = {"bbq": "BBQ pit"}
 POINT_THEMES = {
     "police": ("spf_establishments", "DESCRIPTION", "TELEPHONE", "OPERATING_HOURS"),
     "pharmacy": ("registered_pharmacy", None, None, None),
@@ -1077,49 +1078,92 @@ def _spot(pts: list[tuple[float, float]]) -> tuple[float, float, float] | None:
     return lat, lng, max(_haversine(lat, lng, p[0], p[1]) for p in pts)
 
 
-def compact_projects(kind: str, rows: list[dict], this_year: int) -> list[dict]:
-    """Theme rows -> [{"k","n","s","from","to","by","t","la","lo","r"}]; finished work dropped."""
-    out = []
+def _ended(end: str, today: date) -> bool:
+    """True when the estimated end ('3Q 2026', '2026-03') is before this quarter/month."""
+    m = re.fullmatch(r"([1-4])Q (\d{4})", end)
+    if m:
+        return (int(m.group(2)), int(m.group(1)) * 3) < (today.year, today.month)
+    m = re.fullmatch(r"(\d{4})-(\d{2})", end)
+    if m:
+        return (int(m.group(1)), int(m.group(2))) < (today.year, today.month)
+    y = _year(end)
+    return y is not None and y < today.year
+
+
+def _sample(pts: list[tuple[float, float]], n: int = 40) -> list[list[float]]:
+    step = max(1, len(pts) // n)
+    return [[_r(la), _r(lo)] for la, lo in pts[::step]]
+
+
+def compact_projects(kind: str, rows: list[dict], today: date) -> list[dict]:
+    """Theme rows -> [{"k","n","s","from","to","by","t","la","lo","r","p"}]. Rows of the same
+    project are merged; finished work is dropped. "p" holds sample points of the site so the
+    app can measure the distance to its nearest edge (big road projects span whole towns)."""
+    merged: dict[str, dict] = {}
     for row in rows:
-        spot = _spot(_theme_coords(row))
+        pts = _theme_coords(row)
         name = _first(row, _P_NAME)
-        if not spot or not name or re.fullmatch(r"[A-Z0-9]+(_[A-Z0-9]+)+", name):
+        if not pts or not name or re.fullmatch(r"[A-Z0-9]+(_[A-Z0-9]+)+", name):
             continue
         status = _first(row, _P_STATUS)
         end = project_date(_first(row, _P_END))
-        end_year = _year(end)
-        if "complet" in status.lower() or (end_year is not None and end_year < this_year):
+        if "complet" in status.lower() or _ended(end, today):
             continue
-        item = {
-            "k": kind,
-            "n": name.title() if name.isupper() else name,
-            "s": {"U/C": "Under construction"}.get(status, status),
-            "from": project_date(_first(row, _P_START)),
-            "to": end,
-            "by": _first(row, _P_BY),
-            "t": _first(row, _P_CONTACT),
-            "la": _r(spot[0]),
-            "lo": _r(spot[1]),
-            "r": round(spot[2]),
-        }
+        item = merged.setdefault(
+            name,
+            {
+                "k": kind,
+                "n": name.title() if name.isupper() else name,
+                "s": {"U/C": "Under construction"}.get(status, status),
+                "from": project_date(_first(row, _P_START)),
+                "to": end,
+                "by": _first(row, _P_BY),
+                "t": _first(row, _P_CONTACT),
+                "_pts": [],
+            },
+        )
+        item["_pts"] += pts
+    out = []
+    for item in merged.values():
+        pts = item.pop("_pts")
+        spot = _spot(pts)
+        if not spot:
+            continue
+        item |= {"la": _r(spot[0]), "lo": _r(spot[1]), "r": round(spot[2]), "p": _sample(pts)}
         out.append({k: v for k, v in item.items() if v not in ("", None)})
     return out
 
 
+def _fix_text(v: str) -> str:
+    """Undo UTF-8 read as Latin-1 ('youâ€™ll' -> 'you'll') and strip HTML."""
+    if "â€" in v or "Ã" in v:
+        try:
+            v = v.encode("cp1252").decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            pass
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html.unescape(v))).strip()
+
+
 def compact_theme_points(
-    rows: list[dict], detail: str | None, tel: str | None, hours: str | None
+    rows: list[dict],
+    detail: str | None,
+    tel: str | None,
+    hours: str | None,
+    label: str = "",
 ) -> list[dict]:
     out = []
     for row in rows:
         pts = _theme_coords(row)
-        name = str(row.get("NAME") or "").strip()
+        name = _fix_text(str(row.get("NAME") or ""))
+        if re.fullmatch(r"[A-Za-z0-9]+(_[A-Za-z0-9]+)+", name):
+            name = label  # placeholder names such as "NPARKS_BBQ_PIT"
         if not pts or not name:
             continue
         lat, lng = pts[0]
         addr = " ".join(
             str(row.get(k) or "").strip()
             for k in ("ADDRESSBLOCKHOUSENUMBER", "ADDRESSSTREETNAME", "ADDRESSPOSTALCODE")
-            if row.get(k) not in (None, "", "null")
+            if str(row.get(k) or "").strip() not in ("", "null", "0")
         )
         item = {"n": name.title() if name.isupper() else name, "la": _r(lat), "lo": _r(lng)}
         if addr:
@@ -1127,7 +1171,7 @@ def compact_theme_points(
         for key, field in (("d", detail), ("t", tel), ("h", hours)):
             v = str(row.get(field) or "").strip() if field else ""
             if v and v.lower() not in ("null", "na", "-"):
-                item[key] = re.sub(r"<[^>]+>", " ", html.unescape(v)).strip()[:200]
+                item[key] = _fix_text(v)[:200]
         out.append(item)
     return out
 
@@ -1138,7 +1182,7 @@ async def theme_rows(om: OneMap, query_name: str) -> list[dict]:
     return [r for r in res[1:] if isinstance(r, dict) and "ErrorMessage" not in r]
 
 
-async def build_around(om: OneMap, this_year: int) -> dict:
+async def build_around(om: OneMap, today: date) -> dict:
     """Upgrading, works and services near homes, from OneMap themes (needs a token)."""
     if not om.configured:
         raise RuntimeError("ONEMAP_EMAIL / ONEMAP_PASSWORD not set")
@@ -1146,13 +1190,15 @@ async def build_around(om: OneMap, this_year: int) -> dict:
     points: dict[str, list] = {}
     for kind, theme in PROJECT_THEMES.items():
         try:
-            projects += compact_projects(kind, await theme_rows(om, theme), this_year)
+            projects += compact_projects(kind, await theme_rows(om, theme), today)
         except Exception as e:  # one broken layer should not drop the others
             log.warning("around %s failed: %s", kind, e)
         await asyncio.sleep(0.3)
     for key, (theme, detail, tel, hours) in POINT_THEMES.items():
         try:
-            points[key] = compact_theme_points(await theme_rows(om, theme), detail, tel, hours)
+            points[key] = compact_theme_points(
+                await theme_rows(om, theme), detail, tel, hours, POINT_LABELS.get(key, "")
+            )
         except Exception as e:
             log.warning("around %s failed: %s", key, e)
         await asyncio.sleep(0.3)

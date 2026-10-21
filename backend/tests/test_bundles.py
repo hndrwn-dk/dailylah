@@ -511,13 +511,17 @@ def test_compact_projects_keep_current_work_near_a_spot():
         },
         {"NAME": "LTA_RDPROJ_UNCLASS", "LatLng": "[[103.9, 1.3]]"},
     ]
-    out = b.compact_projects("lup", rows, 2026)
+    rows.append(dict(rows[0], LatLng="[[103.9200, 1.3100]]"))  # same project, second site
+    rows.append(
+        {"NAME": "ENDED", "STATUS": "U/C", "ESTMT_CNSTRN_CMPLTN": "2Q 2026", "LatLng": "1.3,103.9"}
+    )
+    out = b.compact_projects("lup", rows, date(2026, 10, 21))
     assert len(out) == 1
     p = out[0]
+    assert len(p["p"]) == 5
     assert p["k"] == "lup" and p["s"] == "Under construction"
     assert p["from"] == "2025-06" and p["to"] == "4Q 2027"
-    assert abs(p["la"] - 1.3039) < 1e-4 and abs(p["lo"] - 103.9097) < 1e-4
-    assert 20 < p["r"] < 40
+    assert p["r"] > 1000  # merged sites
 
 
 def test_compact_theme_points():
@@ -547,3 +551,20 @@ def test_compact_theme_points():
             "h": "24 hours",
         }
     ]
+
+
+def test_theme_point_names_and_text_are_cleaned():
+    rows = [
+        {"NAME": "NPARKS_BBQ_PIT", "LatLng": "1.3,103.9"},
+        {
+            "NAME": "East Coast Park",
+            "META_DESCRIPTION": "youâ€™ll love it",
+            "LatLng": "1.3,103.9",
+            "ADDRESSPOSTALCODE": "0",
+            "ADDRESSSTREETNAME": "East Coast Parkway",
+        },
+    ]
+    out = b.compact_theme_points(rows, "META_DESCRIPTION", None, None, "BBQ pit")
+    assert out[0]["n"] == "BBQ pit"
+    assert out[1]["d"] == "you\u2019ll love it"
+    assert out[1]["a"] == "East Coast Parkway"

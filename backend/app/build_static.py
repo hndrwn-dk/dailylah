@@ -128,7 +128,7 @@ async def build(
             await attempt("prayer", b.build_prayer(dg))
             await attempt("poi", b.build_poi(dg, geo))
             await attempt("emergency", b.build_emergency(dg, geo))
-            await attempt("around", b.build_around(om, (today or date.today()).year))
+            await attempt("around", b.build_around(om, today or date.today()))
             block_town: dict[str, str] = {}
             try:
                 resale = await b.build_resale(dg, today or date.today())

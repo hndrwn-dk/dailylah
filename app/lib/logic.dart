@@ -1184,12 +1184,41 @@ HdbBlock? homeBlock(List<HdbBlock> blocks, Place home) {
   return n != null && n.$2 <= 40 ? n.$1 : null;
 }
 
-/// Works within [radius] m of a point, nearest edge first. The distance is to the edge of
-/// the site (0 when the point is inside it).
-List<(Project, double)> projectsNear(List<Project> all, double lat, double lng, {double radius = 1000}) {
+/// True when a project's estimated end ("3Q 2026", "2026-03") is already past.
+bool projectEnded(String to, DateTime now) {
+  final q = RegExp(r'^([1-4])Q (\d{4})$').firstMatch(to);
+  if (q != null) {
+    final y = int.parse(q.group(2)!), m = int.parse(q.group(1)!) * 3;
+    return y < now.year || (y == now.year && m < now.month);
+  }
+  final ym = RegExp(r'^(\d{4})-(\d{2})$').firstMatch(to);
+  if (ym != null) {
+    final y = int.parse(ym.group(1)!), m = int.parse(ym.group(2)!);
+    return y < now.year || (y == now.year && m < now.month);
+  }
+  return false;
+}
+
+/// Distance from a point to a work site: 0 inside a small site, else to its nearest part.
+double distanceToProject(Project p, double lat, double lng) {
+  final centre = distanceMeters(lat, lng, p.lat, p.lng);
+  if (p.radius <= 300 && centre <= p.radius) return 0;
+  if (p.points.isEmpty) return math.max(0.0, centre - p.radius);
+  var best = double.infinity;
+  for (final (la, lo) in p.points) {
+    best = math.min(best, distanceMeters(lat, lng, la, lo));
+  }
+  return best;
+}
+
+/// Works within [radius] m of a point that are not finished yet, nearest first.
+List<(Project, double)> projectsNear(List<Project> all, double lat, double lng,
+    {double radius = 1000, DateTime? now}) {
+  final today = now ?? DateTime.now();
   final out = <(Project, double)>[];
   for (final p in all) {
-    final d = math.max(0.0, distanceMeters(lat, lng, p.lat, p.lng) - p.radius);
+    if (projectEnded(p.to, today)) continue;
+    final d = distanceToProject(p, lat, lng);
     if (d <= radius) out.add((p, d));
   }
   out.sort((a, b) => a.$2.compareTo(b.$2));
@@ -1198,7 +1227,7 @@ List<(Project, double)> projectsNear(List<Project> all, double lat, double lng, 
 
 /// Upgrading that covers the home itself (inside or right next to the site).
 List<Project> upgradingAtHome(List<(Project, double)> near) =>
-    [for (final (p, d) in near) if (p.isUpgrading && d <= 30) p];
+    [for (final (p, d) in near) if (p.isUpgrading && d <= 60) p];
 
 /// Hawker centres within [radius] m that close for cleaning or works in the next [days].
 List<(Hawker, Closure, double)> upcomingClosures(List<Hawker> all, double lat, double lng, DateTime now,
@@ -1216,4 +1245,13 @@ List<(Hawker, Closure, double)> upcomingClosures(List<Hawker> all, double lat, d
   }
   out.sort((a, b) => a.$2.from.compareTo(b.$2.from));
   return out;
+}
+
+/// Median rent in a town for the flat type closest to [flatType] ("3 ROOM" -> "3-ROOM").
+(String, int)? rentFor(Map<String, int> rents, String? flatType) {
+  if (rents.isEmpty) return null;
+  final want = (flatType ?? '').toUpperCase().replaceAll(' ', '-');
+  if (rents[want] != null) return (want, rents[want]!);
+  final keys = rents.keys.toList()..sort();
+  return (keys.first, rents[keys.first]!);
 }

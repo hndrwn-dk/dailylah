@@ -320,7 +320,8 @@ class S {
   String get watchBlock => 'Watch for new sales';
   String get watchingBlock => 'Watching';
   String medianFor(String flatType) => 'median ${flatType.toLowerCase()}';
-  String rentMedian(String amount) => 'Rent around $amount a month in this town';
+  String rentMedian(String flatType, String amount) => 'Rent around $amount a month for a ${flatType.toLowerCase().replaceAll('-', ' ')} in this town';
+  String get propertyAgents => 'Property agents';
   String get worksTitle => 'Upgrading and works';
   String get worksNone => 'No upgrading or construction listed within 1 km.';
   String atYourBlock(String what) => 'At your block: $what';

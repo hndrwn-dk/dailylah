@@ -577,10 +577,15 @@ void main() {
     const lup = Project(kind: 'lup', name: 'Marine Drive (MP12)', lat: 1.30392, lng: 103.90973, radius: 25);
     const road = Project(kind: 'road', name: 'Road works', lat: 1.3080, lng: 103.9097, radius: 50);
     const far = Project(kind: 'rail', name: 'Far away', lat: 1.35, lng: 103.95, radius: 100);
-    final near = projectsNear([far, road, lup], 1.30395, 103.90975);
+    const ended = Project(kind: 'road', name: 'Done', lat: 1.3039, lng: 103.9097, to: '2Q 2026');
+    const big = Project(kind: 'road', name: 'Town-wide', lat: 1.36, lng: 103.89, radius: 8000, points: [(1.36, 103.89), (1.32, 103.93)]);
+    final near = projectsNear([far, road, lup, ended, big], 1.30395, 103.90975, now: DateTime(2026, 10, 21));
     expect(near.map((x) => x.$1.name), ['Marine Drive (MP12)', 'Road works']);
     expect(near.first.$2, 0);
     expect(upgradingAtHome(near).single.kind, 'lup');
+    expect(projectEnded('4Q 2026', DateTime(2026, 10, 21)), isFalse);
+    expect(projectEnded('2026-09', DateTime(2026, 10, 21)), isTrue);
+    expect(rentFor({'3-ROOM': 3000, '5-ROOM': 4300}, '3 ROOM'), ('3-ROOM', 3000));
   });
 
   test('hawker closures in the next 30 days near home', () {

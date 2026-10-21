@@ -368,7 +368,11 @@ class Project {
     this.by = '',
     this.contact = '',
     this.radius = 0,
+    this.points = const [],
   });
+
+  /// Sample points (lat, lng) of the site, to measure the distance to its nearest part.
+  final List<(double, double)> points;
   final String kind;
   final String name;
   final String status;
@@ -396,6 +400,10 @@ class Project {
         lat: _d(j['la']),
         lng: _d(j['lo']),
         radius: j['r'] == null ? 0 : _d(j['r']),
+        points: [
+          for (final pt in (j['p'] as List? ?? const []))
+            if (pt is List && pt.length == 2) (_d(pt[0]), _d(pt[1])),
+        ],
       );
 }
 
