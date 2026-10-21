@@ -579,8 +579,11 @@ HALAL_PAGE = """
 <div class="card-name" data-v-e>Abang Gemuk (S9) &amp; Co</div>
 <div class="address-box" data-v-e>134 BUKIT BATOK WEST AVENUE 6 650134</div></div></div>
 <script>window.__NUXT__=(function(a){return {data:[{halal_places:[
-{id:1,name:a,lat:1.369002,lon:103.848159},
-{id:2,name:"x",lat:1.351591,lon:103.74451}],total:2}]}}("WINGSTOP"))</script>
+{id:1,name:a,lat:1.369002,lon:103.848159,
+address:"53 ANG MO KIO AVENUE 3 #01-04\\u002F05 AMK HUB 569933"},
+{id:3,name:"no card",lat:1.3,lon:103.8,address:"NOWHERE 000000"},
+{id:2,name:"x",lat:1.351591,lon:103.74451,address:"134 BUKIT BATOK WEST AVENUE 6 650134"}],
+total:2}]}}("WINGSTOP"))</script>
 """
 
 
@@ -604,13 +607,9 @@ def test_parse_halal_page():
 
 
 @respx.mock
-async def test_build_halal_stops_at_empty_page():
-    route = respx.get(b.HALAL_URL).mock(
-        side_effect=[
-            httpx.Response(200, text=HALAL_PAGE),
-            httpx.Response(200, text="<html></html>"),
-        ]
-    )
+async def test_build_halal_walks_to_the_listed_total():
+    route = respx.get(b.HALAL_URL).mock(return_value=httpx.Response(200, text=HALAL_PAGE))
     async with httpx.AsyncClient() as c:
         out = await b.build_halal(c, pause=0)
-    assert len(out) == 2 and route.call_count == 2
+    assert len(out) == 2 and route.call_count == 1  # total 2 fits on one page
+    assert b.halal_total(HALAL_PAGE) == 2
