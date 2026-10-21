@@ -34,7 +34,10 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - UI: `ui/shell.dart` (tabs Today / Nearby / Home / More), `ui/theme.dart` (design tokens
   in `DL`, fonts Plus Jakarta Sans + Barlow Condensed in `assets/fonts/`), `ui/widgets.dart`
   (Panel, HeroHeader, BusPlate, PillRow, BentoTile...). Keep the sticker style: ink outlines
-  and hard offset shadows (`Panel`), not soft Material cards. Layouts must hold at 200% system
+  and hard offset shadows (`Panel`), not soft Material cards. Signature elements (see `DL`):
+  bus plates and the LED `BusBoard` for live arrivals, MRT `StationChip`/`LineChip` in official
+  colours, `PaintedBlockNumber` as the Home hero, amber = look now / teal = go and nothing else.
+  Layouts must hold at 200% system
   text (wrap, never fixed widths for text); secondary text keeps 4.5:1 contrast (`DL.mist`).
 - Routines: each place has travel modes (`Place.modes`, first = default) and custom places a
   `when`; work/school places carry their own `days` and `go`/`back` times (`commutePlace`,
@@ -66,7 +69,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - OneMap needs a token: the backend (`app/onemap.py`) logs in with `ONEMAP_EMAIL` /
   `ONEMAP_PASSWORD` (Render env and GitHub secrets) and renews it; the app searches via
   `/v1/search`. Never put OneMap credentials or tokens in the app.
-- CI builds a debug APK, so native changes (manifest, Kotlin widget) are compile-checked.
+- CI builds an APK (release, signed with the upload key from secrets `ANDROID_KEYSTORE_BASE64`,
+  `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`; debug without them),
+  so native changes (manifest, Kotlin widget, `dailylah/apps` channel) are compile-checked.
   Analyze and test failures are emitted as annotations on the commit.
 
 ## Commands

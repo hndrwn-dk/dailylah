@@ -23,6 +23,8 @@ class HomePage extends ConsumerWidget {
     final t = Theme.of(context).textTheme;
     final fav = ref.watch(favoritesProvider);
     final home = fav.places[PlaceKind.home];
+    final blocks = ref.watch(hdbBlocksProvider).valueOrNull;
+    final block = home == null || blocks == null ? null : homeBlock(blocks, home);
 
     return Scaffold(
       body: ListView(
@@ -36,7 +38,28 @@ class HomePage extends ConsumerWidget {
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(top: 8),
-                    child: PageTitle(s.homeTitle, subtitle: home == null ? s.setHomeFirst : home.label),
+                    child: block == null
+                        ? PageTitle(s.homeTitle, subtitle: home == null ? s.setHomeFirst : home.label)
+                        // The block number, big, like it is painted on the block itself.
+                        : Wrap(
+                            spacing: 16,
+                            runSpacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.end,
+                            children: [
+                              PaintedBlockNumber(block.block),
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(titleCase(block.street), style: Theme.of(context).textTheme.titleLarge),
+                                    Text(titleCase(block.town), style: t.bodyMedium),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -251,9 +274,6 @@ class _MyBlock extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${s.blockLabel(block.block)} ${block.street}', style: t.titleLarge),
-            Text(block.town, style: t.bodyMedium),
-            const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 8,

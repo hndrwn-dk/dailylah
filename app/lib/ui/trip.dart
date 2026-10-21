@@ -197,9 +197,14 @@ class _MrtOption extends ConsumerWidget {
             children: [
               Icon(icon, size: 20),
               const SizedBox(width: 10),
-              Expanded(child: Text(text, style: t.bodyMedium)),
-              for (final l in {for (final c in st.codes) if (lineOfCode(c) case final l?) l})
-                Padding(padding: const EdgeInsets.only(left: 4), child: LineChip(l, dense: true)),
+              Expanded(
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [Text(text, style: t.bodyMedium), for (final c in st.codes) StationChip(c)],
+                ),
+              ),
             ],
           ),
         );
@@ -345,7 +350,6 @@ class TripBusCard extends ConsumerWidget {
                   final grouped = groupEtas(list);
                   final direct = grouped.where((e) => rides.containsKey(e.$1.service)).toList();
                   final others = grouped.where((e) => !rides.containsKey(e.$1.service)).toList();
-                  final firstArr = direct.indexWhere((x) => x.$1.minutes == 0);
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -358,16 +362,27 @@ class TripBusCard extends ConsumerWidget {
                             child: Text(s.routeInMaps),
                           ),
                         ),
-                      for (final (i, (e, next)) in direct.take(6).indexed)
-                        BusRow(
-                          eta: e,
-                          next: next,
-                          pulse: i == firstArr,
-                          note: s.rideInfo(
-                            rides[e.service]!.stops,
-                            rides[e.service]!.km,
-                            names[rides[e.service]!.alightAt] ?? rides[e.service]!.alightAt,
-                          ),
+                      if (direct.isNotEmpty)
+                        BusBoard(
+                          arrLabel: s.minutesAway(0),
+                          minLabel: s.min,
+                          thenLabel: s.thenIn,
+                          rows: [
+                            for (final (e, next) in direct.take(6))
+                              BoardRow(
+                                service: e.service,
+                                minutes: e.minutes,
+                                next: next,
+                                note: [
+                                  s.rideInfo(
+                                    rides[e.service]!.stops,
+                                    rides[e.service]!.km,
+                                    names[rides[e.service]!.alightAt] ?? rides[e.service]!.alightAt,
+                                  ),
+                                  s.loadLabel(e.load),
+                                ].join(' · '),
+                              ),
+                          ],
                         ),
                       if (others.isNotEmpty)
                         Theme(
@@ -533,7 +548,7 @@ class _TaxiBlock extends ConsumerWidget {
         icon: Icons.local_taxi_outlined,
         value: n == null ? '–' : '$n',
         caption: '${s.taxisNear(placeTitle(s.placeLabel, from))} · 500 m',
-        tint: DL.amber,
+        tint: n == 0 ? DL.attention : null,
         onTap: () => showModalBottomSheet<void>(
           context: context,
           isScrollControlled: true,

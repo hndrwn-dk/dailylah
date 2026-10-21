@@ -570,7 +570,8 @@ class _QuickTiles extends ConsumerWidget {
             icon: Icons.local_taxi_outlined,
             value: '${taxisWithin(taxis, origin.lat, origin.lng)}',
             caption: '${s.taxisNear(placeTitle(s.placeLabel, origin))} · 500 m',
-            tint: DL.amber,
+            // Amber only when it needs a look: no free taxi nearby.
+            tint: taxisWithin(taxis, origin.lat, origin.lng) == 0 ? DL.attention : null,
             onTap: () => showModalBottomSheet<void>(
               context: context,
               isScrollControlled: true,

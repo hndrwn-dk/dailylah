@@ -1268,3 +1268,10 @@ List<(EPoint, double)> halalNear(List<EPoint> all, double lat, double lng, {Stri
         ];
   return within(match, lat, lng, words.isEmpty ? 3000 : 15000, latOf: (p) => p.lat, lngOf: (p) => p.lng, limit: limit);
 }
+
+/// "MARINE DR" -> "Marine Dr", "BT BATOK ST 11" -> "Bt Batok St 11".
+String titleCase(String s) => s
+    .toLowerCase()
+    .split(' ')
+    .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+    .join(' ');

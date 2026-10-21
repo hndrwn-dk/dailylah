@@ -4,8 +4,12 @@ import 'package:flutter/material.dart';
 ///
 /// Concept: chunky "sticker" UI. Pale sky paper, near-black ink outlines (2.5 px) and
 /// hard offset shadows, so every card and plate looks like a printed label you can
-/// press. Bus numbers sit on solid plates like the stop poles; MRT lines keep their
-/// official colours; amber is reserved for alerts.
+/// press. Four things make it DailyLah and are used the same way on every screen:
+/// - bus numbers on plates, and live arrivals on a dark LED board like the bus stop panels;
+/// - MRT lines and station codes (TE26, DT17) in their official colours, like station signs;
+/// - the home block number set big, like the numbers painted on HDB blocks;
+/// - two colours with fixed meanings: amber = look now (alerts, "Arr", selected, warnings),
+///   teal = go / all fine. Nothing else uses them.
 class DL {
   // Base palette
   static const ink = Color(0xFF0F1618); // outlines and text
@@ -19,6 +23,15 @@ class DL {
   static const mist = Color(0xFF50646A); // secondary text (5:1 or more on light surfaces)
   static const tealText = Color(0xFF0A7068); // teal for text links (4.5:1 or more)
   static const shield = Color(0xFFA4B9C0);
+
+  /// Signature colour meanings (see the class comment).
+  static const attention = amber;
+  static const go = teal;
+
+  /// Bus stop LED board: near-black panel, amber dot-matrix text.
+  static const board = Color(0xFF101719);
+  static const led = Color(0xFFFFB627);
+  static const ledDim = Color(0xFFB9C7CB);
 
   // Dark counterparts
   static const night = Color(0xFF0B1214);

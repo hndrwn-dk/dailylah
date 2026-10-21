@@ -159,7 +159,7 @@ class _BlockNumber extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: large ? DL.amber : DL.mint,
+        color: DL.mint,
         borderRadius: BorderRadius.circular(large ? 18 : 14),
         border: Border.all(color: DL.edge(context), width: DL.stroke),
       ),

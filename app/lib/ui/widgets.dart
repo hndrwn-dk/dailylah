@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../logic.dart';
 import '../models.dart';
 import 'theme.dart';
 
@@ -675,6 +676,132 @@ class PillNav extends StatelessWidget {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// Station code in its line colour, like the station signs ("TE26", "DT17").
+class StationChip extends StatelessWidget {
+  const StationChip(this.code, {super.key});
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    final line = lineOfCode(code);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+      decoration: BoxDecoration(
+        color: DL.lineColor(line ?? ''),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: DL.edge(context), width: 2),
+      ),
+      child: Text(
+        code,
+        style: const TextStyle(
+          fontFamily: DL.display,
+          fontWeight: FontWeight.w700,
+          fontSize: 15,
+          color: Colors.white,
+          letterSpacing: 0.4,
+        ),
+      ),
+    );
+  }
+}
+
+/// The home block number set big, like the numbers painted high on HDB blocks.
+class PaintedBlockNumber extends StatelessWidget {
+  const PaintedBlockNumber(this.number, {super.key, this.size = 96});
+  final String number;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final ink = Theme.of(context).brightness == Brightness.dark ? DL.card : DL.ink;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'BLK',
+          style: TextStyle(fontFamily: DL.display, fontWeight: FontWeight.w700, fontSize: size * 0.2, color: ink, letterSpacing: 2, height: 1),
+        ),
+        Text(
+          number,
+          style: TextStyle(fontFamily: DL.display, fontWeight: FontWeight.w700, fontSize: size, color: ink, height: 0.95),
+        ),
+        // The painted band under the number.
+        Container(width: size * 0.9, height: size * 0.07, color: DL.go),
+      ],
+    );
+  }
+}
+
+/// One arrival on the bus stop board.
+class BoardRow {
+  const BoardRow({required this.service, required this.minutes, this.next, this.note = ''});
+  final String service;
+  final int minutes;
+  final int? next;
+  final String note;
+}
+
+/// Live arrivals on a dark LED board, like the panels at bus stops.
+class BusBoard extends StatelessWidget {
+  const BusBoard({super.key, required this.rows, required this.arrLabel, required this.minLabel, required this.thenLabel});
+  final List<BoardRow> rows;
+  final String arrLabel;
+  final String minLabel;
+  final String Function(int) thenLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    const led = TextStyle(fontFamily: DL.display, fontWeight: FontWeight.w700, color: DL.led, height: 1.05);
+    return Container(
+      margin: const EdgeInsets.only(top: 4, bottom: 8),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+      decoration: BoxDecoration(
+        color: DL.board,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: DL.edge(context), width: DL.stroke),
+        boxShadow: DL.hard(context, d: 3),
+      ),
+      child: Column(
+        children: [
+          for (final (i, r) in rows.indexed) ...[
+            if (i > 0) Container(height: 1, margin: const EdgeInsets.symmetric(vertical: 8), color: const Color(0x33FFB627)),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 62),
+                  child: Text(r.service, style: led.copyWith(fontSize: 30)),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 10,
+                        crossAxisAlignment: WrapCrossAlignment.end,
+                        children: [
+                          Text(r.minutes == 0 ? arrLabel : '${r.minutes} $minLabel', style: led.copyWith(fontSize: 30)),
+                          if (r.next != null)
+                            Text(thenLabel(r.next!), style: led.copyWith(fontSize: 18, color: DL.ledDim)),
+                        ],
+                      ),
+                      if (r.note.isNotEmpty)
+                        Text(r.note, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: DL.ledDim)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
