@@ -1293,3 +1293,13 @@ OrderInReason? orderInReason({double? rainMm, AirLevel? air, bool nearestHawkerC
   if (nearestHawkerClosed) return OrderInReason.hawkerClosed;
   return null;
 }
+
+// ---------------------------------------------------------------- night: no trains
+
+/// Overnight, when MRT/LRT and regular buses are not running: 1:00 to 5:30 am.
+/// Last trains reach their ends around 12:30 to 1:00 am; first trains start
+/// around 5:15 to 5:45 am. Night buses (NR services) still show when LTA has them.
+bool transitResting(DateTime now) {
+  final m = now.hour * 60 + now.minute;
+  return m >= 60 && m < 330;
+}

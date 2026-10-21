@@ -649,4 +649,12 @@ void main() {
     expect(orderInReason(air: AirLevel.unhealthy, nearestHawkerClosed: true), OrderInReason.haze);
     expect(orderInReason(nearestHawkerClosed: true), OrderInReason.hawkerClosed);
   });
+
+  test('trains and buses rest between 1:00 and 5:30 am', () {
+    expect(transitResting(DateTime(2026, 10, 22, 0, 45)), isFalse);
+    expect(transitResting(DateTime(2026, 10, 22, 1, 0)), isTrue);
+    expect(transitResting(DateTime(2026, 10, 22, 3, 43)), isTrue);
+    expect(transitResting(DateTime(2026, 10, 22, 5, 29)), isTrue);
+    expect(transitResting(DateTime(2026, 10, 22, 5, 30)), isFalse);
+  });
 }

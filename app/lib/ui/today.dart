@@ -257,6 +257,7 @@ class _MrtCard extends ConsumerWidget {
     final starred = ref.watch(favoritesProvider.select((f) => f.lines));
     final alerts = ref.watch(trainAlertsProvider);
     final t = Theme.of(context).textTheme;
+    final resting = transitResting(ref.watch(clockProvider).valueOrNull ?? DateTime.now());
 
     void toggle(String line) {
       if (!starred.contains(line) && starred.length >= 3) {
@@ -278,7 +279,11 @@ class _MrtCard extends ConsumerWidget {
                   children: [
                     Text(trainLines[st.line] ?? st.line, style: t.labelLarge),
                     Text(
-                      st.disrupted ? (st.detail?.isNotEmpty == true ? st.detail! : s.mrtDisrupted) : s.mrtNormal,
+                      st.disrupted
+                          ? (st.detail?.isNotEmpty == true ? st.detail! : s.mrtDisrupted)
+                          : resting
+                              ? s.mrtResting
+                              : s.mrtNormal,
                       style: st.disrupted ? t.bodySmall?.copyWith(color: DL.stop) : t.bodySmall,
                     ),
                   ],
@@ -311,7 +316,12 @@ class _MrtCard extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(s.mrtLinesAll, style: t.titleMedium),
-                Text(down.isEmpty ? s.allLinesNormal : s.mrtAlert(down.map((x) => x.line).join(', ')),
+                Text(
+                    down.isNotEmpty
+                        ? s.mrtAlert(down.map((x) => x.line).join(', '))
+                        : resting
+                            ? s.trainsResting
+                            : s.allLinesNormal,
                     style: t.bodySmall?.copyWith(color: down.isEmpty ? null : DL.stop)),
                 const SizedBox(height: 6),
                 for (final st in down) row(st),
@@ -399,7 +409,7 @@ class BusStopCard extends ConsumerWidget {
               loading: () => const Padding(padding: EdgeInsets.all(12), child: LinearProgressIndicator()),
               error: (_, __) => EmptyNote(s.busesUnavailable),
               data: (list) => list.isEmpty
-                  ? EmptyNote(s.noBusesNow)
+                  ? EmptyNote(transitResting(DateTime.now()) ? s.busesResting : s.noBusesNow)
                   : Column(children: [
                       for (final (i, (e, next)) in groupEtas(list).take(8).indexed)
                         BusRow(eta: e, next: next, pulse: i == 0 && e.minutes == 0),

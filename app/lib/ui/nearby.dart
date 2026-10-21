@@ -124,6 +124,7 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(carparkLiveProvider);
+          ref.invalidate(parkingLiveProvider);
           ref.invalidate(taxiProvider);
           ref.invalidate(rainfallProvider);
           ref.invalidate(busArrivalProvider);
@@ -248,7 +249,7 @@ class _StopBoard extends ConsumerWidget {
               loading: () => const Padding(padding: EdgeInsets.all(12), child: LinearProgressIndicator()),
               error: (_, __) => EmptyNote(s.busesUnavailable),
               data: (list) => list.isEmpty
-                  ? EmptyNote(s.noBusesNow)
+                  ? EmptyNote(transitResting(DateTime.now()) ? s.busesResting : s.noBusesNow)
                   : BusBoard(
                       arrLabel: s.minutesAway(0),
                       minLabel: s.min,
@@ -296,7 +297,7 @@ class _EatSection extends ConsumerWidget {
               if (i > 0) const SizedBox(width: 12),
               Expanded(
                 child: Panel(
-                  color: why != null ? color : null,
+                  color: color,
                   margin: const EdgeInsets.only(bottom: 8),
                   child: InkWell(
                     onTap: () => openApp(id),
@@ -324,8 +325,15 @@ class _EatSection extends ConsumerWidget {
       children: [
         SectionTitle(s.eat,
             trailing: _seeAll(s, () => _openFull(context, s.hawkers, _HawkerTab(place: place)))),
-        if (why != null) AlertBanner(icon: Icons.delivery_dining_outlined, text: s.orderInWhy(why)),
-        if (why != null) orderButtons(),
+        // Delivery only when it helps: rain, unhealthy air, or the nearest hawker closed.
+        if (why != null) ...[
+          AlertBanner(icon: Icons.delivery_dining_outlined, text: s.orderInWhy(why)),
+          orderButtons(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
+            child: Text(s.orderInNote, style: t.bodySmall),
+          ),
+        ],
         Panel(
           child: Column(
             children: [
@@ -369,17 +377,6 @@ class _EatSection extends ConsumerWidget {
             ),
           ),
         ],
-        if (why == null) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-            child: Text(s.orderIn, style: t.labelLarge),
-          ),
-          orderButtons(),
-        ],
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-          child: Text(s.orderInNote, style: t.bodySmall),
-        ),
       ],
     );
   }
@@ -398,6 +395,18 @@ class _ParkSection extends ConsumerWidget {
     final lots = ref.watch(carparkLiveProvider).valueOrNull ?? const <String, (int, int)>{};
     final all = ref.watch(carparkInfoProvider).valueOrNull ?? const [];
     final list = within(all, place.lat, place.lng, 800, latOf: (c) => c.lat, lngOf: (c) => c.lng, limit: 3);
+    // In town there are few HDB car parks: use LTA's live list (malls, URA, HDB) as well.
+    final live = parkingNear(ref.watch(parkingLiveProvider).valueOrNull ?? const <ParkingLot>[],
+        place.lat, place.lng, 'C', radius: 800, limit: 3);
+    Widget bigNumber(int? n) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(n == null ? '–' : '$n',
+                style: t.titleLarge?.copyWith(fontFamily: DL.display, color: n == 0 ? DL.attention : null)),
+            if (n != null) Text(s.freeLots, style: t.labelSmall),
+          ],
+        );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -407,7 +416,17 @@ class _ParkSection extends ConsumerWidget {
         Panel(
           child: Column(
             children: [
-              if (list.isEmpty) EmptyNote(all.isEmpty ? s.bundlesLoading : s.notAvailable),
+              if (list.isEmpty && live.isEmpty) EmptyNote(all.isEmpty ? s.bundlesLoading : s.notAvailable),
+              if (list.isEmpty)
+                for (final (p, d) in live)
+                  ListTile(
+                    leading: const Icon(Icons.local_parking),
+                    title: Text(p.name, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    subtitle: Text(s.metres(d)),
+                    trailing: bigNumber(p.available),
+                    onTap: () => showPlaceSheet(context,
+                        s: s, title: p.name, subtitle: s.lotsFree(p.available), lat: p.lat, lng: p.lng, distance: d),
+                  ),
               for (final (c, d) in list)
                 ListTile(
                   leading: const Icon(Icons.local_parking),
@@ -511,11 +530,13 @@ class _HelpSection extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final em = ref.watch(emergencyProvider).valueOrNull ?? EmergencySet.empty;
     final around = ref.watch(aroundProvider).valueOrNull ?? AroundSet.empty;
-    final rows = <(IconData, List<EPoint>)>[
-      (Icons.monitor_heart_outlined, em.of(EmergencyKind.aed)),
-      (Icons.local_hospital_outlined, em.of(EmergencyKind.ae)),
-      (Icons.local_police_outlined, around.of('police')),
+    final rows = <(IconData, List<EPoint>, int)>[
+      (Icons.monitor_heart_outlined, em.of(EmergencyKind.aed), 1),
+      (Icons.local_hospital_outlined, em.of(EmergencyKind.ae), 1),
+      (Icons.local_police_outlined, around.of('police'), 1),
     ];
+    // Civil Defence shelters: where to go from here if something happens.
+    final shelters = nearestPoints(em.of(EmergencyKind.shelter), place.lat, place.lng, limit: 2, radius: 3000);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -543,8 +564,8 @@ class _HelpSection extends ConsumerWidget {
         Panel(
           child: Column(
             children: [
-              for (final (icon, points) in rows)
-                for (final (p, d) in nearestPoints(points, place.lat, place.lng, limit: 1))
+              for (final (icon, points, n) in rows)
+                for (final (p, d) in nearestPoints(points, place.lat, place.lng, limit: n))
                   ListTile(
                     leading: Icon(icon),
                     title: Text(p.name),
@@ -561,6 +582,30 @@ class _HelpSection extends ConsumerWidget {
                       phone: p.tel,
                     ),
                   ),
+            ],
+          ),
+        ),
+        SectionTitle(s.meetingPoints, padding: const EdgeInsets.fromLTRB(4, 4, 4, 10)),
+        Panel(
+          child: Column(
+            children: [
+              if (shelters.isEmpty) EmptyNote(em.of(EmergencyKind.shelter).isEmpty ? s.bundlesLoading : s.notAvailable),
+              for (final (p, d) in shelters)
+                ListTile(
+                  leading: const Icon(Icons.shield_outlined, color: DL.stop),
+                  title: Text(p.name),
+                  subtitle: Text([s.metres(d), if (p.address.isNotEmpty) p.address].join(' · '),
+                      maxLines: 2, overflow: TextOverflow.ellipsis),
+                  onTap: () => showPlaceSheet(
+                    context,
+                    s: s,
+                    title: p.name,
+                    subtitle: [p.detail, p.address, s.shelterNote].where((x) => x.isNotEmpty).join('\n'),
+                    lat: p.lat,
+                    lng: p.lng,
+                    distance: d,
+                  ),
+                ),
             ],
           ),
         ),

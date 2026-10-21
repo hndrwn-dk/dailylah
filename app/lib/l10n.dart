@@ -64,6 +64,9 @@ class S {
   String validUntil(String text) => 'Valid $text';
   String get mrtLinesAll => 'MRT & LRT';
   String get allLinesNormal => 'All lines running normally';
+  String get trainsResting => 'Trains have stopped for the night. First trains from about 5:30 am.';
+  String get mrtResting => 'Closed for the night';
+  String get busesResting => 'Buses have stopped for the night. They start again from about 5:30 am.';
   String get starLine => 'Star this line';
   String get maxStarredLines => 'You can star up to 3 lines.';
   String get starHint => 'Starred lines get alerts and evening crowd levels. Tap a line to star it.';

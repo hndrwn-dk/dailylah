@@ -190,6 +190,7 @@ class _MrtOption extends ConsumerWidget {
     final disrupted = alerts == null
         ? const <String>[]
         : [for (final l in lineStatuses(alerts, lines)) if (l.disrupted) l.line];
+    final resting = transitResting(ref.watch(clockProvider).valueOrNull ?? DateTime.now());
 
     Widget stationRow(IconData icon, String text, MrtStation st) => Padding(
           padding: const EdgeInsets.only(bottom: 8),
@@ -223,6 +224,7 @@ class _MrtOption extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 10),
+          if (resting) AlertBanner(icon: Icons.bedtime_outlined, text: s.trainsResting, tone: AlertTone.info),
           ...[
             stationRow(Icons.directions_walk, s.walkTo(plan.board.name, s.metres(plan.walkToBoard)), plan.board),
             Padding(
@@ -338,6 +340,10 @@ class TripBusCard extends ConsumerWidget {
                 loading: () => const Padding(padding: EdgeInsets.all(12), child: LinearProgressIndicator()),
                 error: (_, __) => EmptyNote(s.busesUnavailable),
                 data: (list) {
+                  // Nothing at the stop (late at night, or a gap): say so, not "no direct bus".
+                  if (list.isEmpty) {
+                    return EmptyNote(transitResting(DateTime.now()) ? s.busesResting : s.noBusesNow);
+                  }
                   if (rides == null) {
                     // Route data not downloaded yet: show every bus, as before.
                     return list.isEmpty
