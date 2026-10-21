@@ -11,11 +11,11 @@
   "hdb_rent": 26,
   "hdb_resale": 9234,
   "mrt_stations": 180,
-  "poi": 5100,
+  "poi": 5258,
   "prayer": 365,
   "taxi_stands": 316
  },
  "errors": {},
- "geocode_cache": 1403,
- "geocoded_new": 142
+ "geocode_cache": 1515,
+ "geocoded_new": 112
 }
