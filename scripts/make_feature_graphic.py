@@ -66,7 +66,7 @@ def feature():
     text(d, (66, 236), "Know before", jak(44), INK)
     text(d, (66, 288), "you go lah.", jak(44), INK)
     for i, line in enumerate(
-        ["Need umbrella meh? Hawker closed ah?", "Haze bad or not? Makan where?", "Bus coming? MRT delay?"]
+        ["Need umbrella meh? Hawker closed ah?", "Haze bad or not? Makan where?", "Bus coming? MRT delay? Alamak..."]
     ):
         text(d, (68, 366 + i * 28), line, jak(19, 500), (80, 100, 106))
 
