@@ -7,6 +7,9 @@ import 'models.dart';
 /// NEA health advisory bands for haze (24-hour PSI and 1-hour PM2.5).
 enum AirLevel { good, moderate, unhealthy, veryUnhealthy, hazardous }
 
+/// Why Nearby suggests ordering food in, most pressing first.
+enum OrderInReason { rain, haze, hawkerClosed }
+
 class S {
   const S();
 
@@ -539,6 +542,24 @@ class S {
   String get placeNameHint => "e.g. Mum's house, Gym";
   String get rename => 'Rename';
   String get hereNow => 'Here';
+
+  // ---------------------------------------------------------------- nearby (out and about)
+  String get nearbySubtitle => 'What you need around you right now.';
+  String get nearbyPickPrompt => 'Use your location to see buses, food, parking and help around you.';
+  String get busesNearHere => 'Buses near here';
+  String get noStopsNear => 'No bus stops within 500 m.';
+  String get eat => 'Eat';
+  String get orderIn => 'Order in';
+  String orderInWhy(OrderInReason r) => switch (r) {
+        OrderInReason.rain => 'Raining nearby. Order in instead?',
+        OrderInReason.haze => 'The air is unhealthy. Order in instead?',
+        OrderInReason.hawkerClosed => 'The nearest hawker is closed today. Order in instead?',
+      };
+  String get orderInNote => 'Opens the app on your phone. DailyLah does not take orders.';
+  String get parkNearby => 'Parking nearby';
+  String get taxiNearby => 'Taxi';
+  String get helpNearby => 'Help nearby';
+  String get halalNearby => 'Halal food nearby';
   String get searchPlace => 'Search';
   String maxPlaces(int n) => 'You can save up to $n places.';
 

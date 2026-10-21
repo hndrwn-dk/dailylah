@@ -60,7 +60,7 @@
             <action android:name="android.intent.action.SENDTO" />
             <data android:scheme="mailto" />
         </intent>
-        <!-- Ride-hailing apps opened directly from the taxi sheet (Android 11+ visibility). -->
+        <!-- Ride-hailing and food delivery apps opened directly (Android 11+ visibility). -->
         <package android:name="com.grabtaxi.passenger" />
         <package android:name="com.gojek.app" />
         <package android:name="com.codigo.comfort" />
@@ -83,5 +83,6 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <package android:name="com.global.foodpanda.android" />
     </queries>
 </manifest>

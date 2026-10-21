@@ -266,9 +266,9 @@ final agentProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, St
 
 // ---------------------------------------------------------------- derived
 
-/// The place a "Nearby" view is centred on (Home unless the user picked another).
-/// Which place the Nearby tab is about: "home", "work", "school", "extra:<i>" or "adhoc".
-final nearbyKeyProvider = StateProvider<String>((ref) => 'home');
+/// Which place the Nearby tab is about: "here" (until located), "work", "school",
+/// "extra:<i>", "adhoc" (current location or a searched address) or "home".
+final nearbyKeyProvider = StateProvider<String>((ref) => 'here');
 
 /// A one-off place for Nearby: the phone's current location or a searched address.
 /// Kept in memory only, never saved.

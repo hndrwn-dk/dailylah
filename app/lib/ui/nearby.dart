@@ -10,11 +10,14 @@ import '../models.dart';
 import '../providers.dart';
 import 'address_picker.dart';
 import 'place_sheet.dart';
+import 'today.dart' show TaxiSheet, foodApps, openApp;
 import 'theme.dart';
 import 'widgets.dart';
 
-/// Nearby: hawkers, parking, dengue, weekend ideas and prayer times around a saved place.
-class NearbyPage extends ConsumerWidget {
+/// Nearby: what you need right where you are (or at work, school, a saved place):
+/// live buses, food (and delivery when it makes sense), parking, taxis and help.
+/// Things about home (schools, dengue, weekend) live in the Home tab.
+class NearbyPage extends ConsumerStatefulWidget {
   const NearbyPage({super.key});
 
   /// The place the tab is about, from the selected key.
@@ -28,14 +31,36 @@ class NearbyPage extends ConsumerWidget {
     return kind == null ? null : fav.places[kind];
   }
 
-  Future<void> _useHere(BuildContext context, WidgetRef ref) async {
+  @override
+  ConsumerState<NearbyPage> createState() => _NearbyPageState();
+}
+
+class _NearbyPageState extends ConsumerState<NearbyPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Start on "Here" without asking: only when location is already allowed.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || ref.read(nearbyKeyProvider) != 'here') return;
+      try {
+        final perm = await Geolocator.checkPermission();
+        if (perm == LocationPermission.always || perm == LocationPermission.whileInUse) {
+          if (mounted) await _useHere(quiet: true);
+        }
+      } on Object {
+        // No location service (tests, emulator): stay on the prompt.
+      }
+    });
+  }
+
+  Future<void> _useHere({bool quiet = false}) async {
     final s = ref.read(stringsProvider);
     final messenger = ScaffoldMessenger.of(context);
     try {
       var perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
+      if (perm == LocationPermission.denied && !quiet) perm = await Geolocator.requestPermission();
       if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
-        messenger.showSnackBar(SnackBar(content: Text(s.locationDenied)));
+        if (!quiet) messenger.showSnackBar(SnackBar(content: Text(s.locationDenied)));
         return;
       }
       final pos = await Geolocator.getCurrentPosition(
@@ -50,11 +75,11 @@ class NearbyPage extends ConsumerWidget {
       );
       ref.read(nearbyKeyProvider.notifier).state = 'adhoc';
     } on Object {
-      messenger.showSnackBar(SnackBar(content: Text(s.locationUnavailable)));
+      if (!quiet) messenger.showSnackBar(SnackBar(content: Text(s.locationUnavailable)));
     }
   }
 
-  Future<void> _search(BuildContext context, WidgetRef ref) async {
+  Future<void> _search() async {
     final s = ref.read(stringsProvider);
     final hit = await Navigator.of(context).push<AddressHit>(
       MaterialPageRoute(builder: (_) => AddressPickerPage(title: s.searchPlace)),
@@ -72,46 +97,57 @@ class NearbyPage extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
     final fav = ref.watch(favoritesProvider);
     final key = ref.watch(nearbyKeyProvider);
     final adhoc = ref.watch(adhocPlaceProvider);
-    final place = resolve(key, fav, adhoc) ?? fav.places[PlaceKind.home];
+    final place = NearbyPage.resolve(key, fav, adhoc);
     String label(String k) => s.placeLabel(k);
 
+    // Home has its own tab; it only shows here when another screen sent us there.
     final pills = <(String, IconData, String)>[
-      for (final p in fav.places.values) (p.kind.name, PlaceSelector.iconOf(p.kind), label(p.kind.name)),
+      ('here', Icons.my_location, s.hereNow),
+      for (final p in fav.places.values)
+        if (p.kind != PlaceKind.home || key == 'home') (p.kind.name, PlaceSelector.iconOf(p.kind), label(p.kind.name)),
       for (var i = 0; i < fav.extraPlaces.length; i++)
         ('extra:$i', Icons.star_outline, placeTitle(label, fav.extraPlaces[i])),
-      if (adhoc != null) ('adhoc', adhoc.address == s.myLocation ? Icons.near_me : Icons.place, adhoc.name ?? ''),
-      ('here', Icons.my_location, s.hereNow),
+      if (adhoc != null && adhoc.address != s.myLocation) ('adhoc', Icons.place, adhoc.name ?? ''),
       ('search', Icons.search, s.searchPlace),
     ];
+    final selected = key == 'adhoc'
+        ? (adhoc?.address == s.myLocation ? 'here' : 'adhoc')
+        : key;
 
-    final prayer = fav.showPrayer;
-    final halal = fav.showHalal;
-    return DefaultTabController(
-      key: ValueKey((prayer, halal)),
-      length: 6 + (prayer ? 1 : 0) + (halal ? 1 : 0),
-      child: Scaffold(
-        body: Column(
+    return Scaffold(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(carparkLiveProvider);
+          ref.invalidate(taxiProvider);
+          ref.invalidate(rainfallProvider);
+          ref.invalidate(busArrivalProvider);
+          if (key == 'adhoc' && adhoc?.address == s.myLocation) await _useHere(quiet: true);
+        },
+        child: ListView(
+          padding: EdgeInsets.zero,
           children: [
             HeroHeader(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 8),
-                  PageTitle(s.tabNearby, subtitle: place == null ? null : (place.address ?? placeTitle(label, place))),
+                  PageTitle(s.tabNearby,
+                      subtitle: place == null ? s.nearbySubtitle : (place.address ?? placeTitle(label, place))),
                   const SizedBox(height: 14),
                   PillRow(
                     items: pills,
-                    selected: place == null ? '' : (key == 'adhoc' || key.startsWith('extra:') ? key : place.kind.name),
+                    selected: selected,
                     onTap: (k) {
                       if (k == 'here') {
-                        _useHere(context, ref);
+                        _useHere();
                       } else if (k == 'search') {
-                        _search(context, ref);
+                        _search();
                       } else {
                         ref.read(nearbyKeyProvider.notifier).state = k;
                       }
@@ -120,40 +156,415 @@ class NearbyPage extends ConsumerWidget {
                 ],
               ),
             ),
-            TabBar(
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-              tabs: [
-                Tab(text: s.hawkers),
-                if (halal) Tab(text: s.halalTab),
-                Tab(text: s.parking),
-                Tab(text: s.schools),
-                Tab(text: s.dengue),
-                Tab(text: s.weekend),
-                if (prayer) Tab(text: s.prayerTab),
-                Tab(text: s.emergency),
-              ],
-            ),
-            Expanded(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24 + kNavClearance),
               child: place == null
-                  ? Center(child: EmptyNote(s.pickHomeFirst))
-                  : TabBarView(
+                  ? Panel(
+                      child: EmptyNote(
+                        s.nearbyPickPrompt,
+                        icon: Icons.near_me_outlined,
+                        action: FilledButton.icon(
+                          icon: const Icon(Icons.my_location),
+                          label: Text(s.useMyLocation),
+                          onPressed: _useHere,
+                        ),
+                      ),
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _HawkerTab(place: place),
-                        if (halal) _HalalTab(place: place),
-                        _ParkingTab(lat: place.lat, lng: place.lng),
-                        _SchoolsTab(place: place),
-                        _DengueTab(place: place),
-                        _WeekendTab(place: place),
-                        if (prayer) const _PrayerTab(),
-                        _EmergencyTab(place: place),
+                        _BusSection(place: place),
+                        _EatSection(place: place),
+                        _ParkSection(place: place),
+                        _TaxiSection(place: place),
+                        if (fav.showPrayer) const _PrayerSection(),
+                        _HelpSection(place: place),
+                        Text(s.dataSource, style: t.bodySmall, textAlign: TextAlign.center),
                       ],
                     ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Opens one full list (all hawkers, all car parks...) on its own page.
+void _openFull(BuildContext context, String title, Widget body) => Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => Scaffold(appBar: AppBar(title: Text(title)), body: body)),
+    );
+
+Widget _seeAll(S s, VoidCallback onTap) => TextButton(
+      style: TextButton.styleFrom(foregroundColor: DL.tealText),
+      onPressed: onTap,
+      child: Text(s.seeAll),
+    );
+
+// ---------------------------------------------------------------- buses
+
+class _BusSection extends ConsumerWidget {
+  const _BusSection({required this.place});
+  final Place place;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final stops = ref.watch(busStopsProvider).valueOrNull ?? const <BusStop>[];
+    final near = within(stops, place.lat, place.lng, 500, latOf: (b) => b.lat, lngOf: (b) => b.lng, limit: 3);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionTitle(s.busesNearHere, padding: const EdgeInsets.fromLTRB(4, 8, 4, 10)),
+        if (near.isEmpty)
+          Panel(child: EmptyNote(stops.isEmpty ? s.bundlesLoading : s.noStopsNear))
+        else
+          for (final (b, d) in near) _StopBoard(stop: b, distance: d),
+      ],
+    );
+  }
+}
+
+class _StopBoard extends ConsumerWidget {
+  const _StopBoard({required this.stop, required this.distance});
+  final BusStop stop;
+  final double distance;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final etas = ref.watch(busArrivalProvider(stop.code));
+    return Panel(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(stop.name, style: t.titleMedium),
+            Text('${stop.code} · ${stop.road} · ${s.metres(distance)}', style: t.bodySmall),
+            const SizedBox(height: 6),
+            etas.when(
+              loading: () => const Padding(padding: EdgeInsets.all(12), child: LinearProgressIndicator()),
+              error: (_, __) => EmptyNote(s.busesUnavailable),
+              data: (list) => list.isEmpty
+                  ? EmptyNote(s.noBusesNow)
+                  : BusBoard(
+                      arrLabel: s.minutesAway(0),
+                      minLabel: s.min,
+                      thenLabel: s.thenIn,
+                      rows: [
+                        for (final (e, next) in groupEtas(list).take(5))
+                          BoardRow(service: e.service, minutes: e.minutes, next: next, note: s.loadLabel(e.load)),
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------- eat
+
+class _EatSection extends ConsumerWidget {
+  const _EatSection({required this.place});
+  final Place place;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final fav = ref.watch(favoritesProvider);
+    final today = dateOnly(ref.watch(clockProvider).valueOrNull ?? DateTime.now());
+    final all = ref.watch(hawkersProvider).valueOrNull ?? const <Hawker>[];
+    final list = within(all, place.lat, place.lng, 2000, latOf: (h) => h.lat, lngOf: (h) => h.lng, limit: 3);
+    final rain = ref.watch(rainfallProvider).valueOrNull;
+    final air = airNear(ref.watch(psiProvider).valueOrNull, ref.watch(pm25Provider).valueOrNull, place.lat, place.lng);
+    final why = orderInReason(
+      rainMm: rain == null ? null : rainfallNear(rain, place.lat, place.lng)?.$2,
+      air: air?.level,
+      nearestHawkerClosed: list.isNotEmpty && list.first.$1.closureOn(today) != null,
+    );
+    final halal = fav.showHalal ? ref.watch(halalProvider).valueOrNull ?? const <EPoint>[] : const <EPoint>[];
+    final halalList = fav.showHalal ? halalNear(halal, place.lat, place.lng, limit: 3) : const <(EPoint, double)>[];
+
+    Widget orderButtons() => Row(
+          children: [
+            for (final (i, (name, id, color)) in foodApps.indexed) ...[
+              if (i > 0) const SizedBox(width: 12),
+              Expanded(
+                child: Panel(
+                  color: why != null ? color : null,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: InkWell(
+                    onTap: () => openApp(id),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 6,
+                        children: [
+                          const Icon(Icons.delivery_dining_outlined, size: 20, color: DL.ink),
+                          Text(name, style: t.titleSmall?.copyWith(color: DL.ink)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionTitle(s.eat,
+            trailing: _seeAll(s, () => _openFull(context, s.hawkers, _HawkerTab(place: place)))),
+        if (why != null) AlertBanner(icon: Icons.delivery_dining_outlined, text: s.orderInWhy(why)),
+        if (why != null) orderButtons(),
+        Panel(
+          child: Column(
+            children: [
+              if (list.isEmpty) EmptyNote(all.isEmpty ? s.bundlesLoading : s.notAvailable),
+              for (final (h, d) in list)
+                ListTile(
+                  leading: Icon(Icons.ramen_dining_outlined,
+                      color: h.closureOn(today) != null ? const Color(0xFFB45309) : null),
+                  title: Text(h.name),
+                  subtitle: Text(
+                    h.closureOn(today) != null ? '${s.metres(d)} · ${s.closedNow}' : s.metres(d),
+                    style: h.closureOn(today) != null ? t.bodySmall?.copyWith(color: const Color(0xFFB45309)) : null,
+                  ),
+                  trailing: fav.hawkers.contains(h.id) ? const Icon(Icons.star, color: DL.amber) : null,
+                  onTap: () => _openFull(context, s.hawkers, _HawkerTab(place: place)),
+                ),
+            ],
+          ),
+        ),
+        if (fav.showHalal) ...[
+          SectionTitle(s.halalNearby,
+              padding: const EdgeInsets.fromLTRB(4, 4, 4, 10),
+              trailing: _seeAll(s, () => _openFull(context, s.halalTab, _HalalTab(place: place)))),
+          Panel(
+            child: Column(
+              children: [
+                if (halalList.isEmpty) EmptyNote(halal.isEmpty ? s.bundlesLoading : s.halalNone),
+                for (final (p, d) in halalList)
+                  ListTile(
+                    leading: const Icon(Icons.restaurant_outlined),
+                    title: Text(p.name),
+                    subtitle: Text('${s.metres(d)} · ${p.address}', maxLines: 2, overflow: TextOverflow.ellipsis),
+                    onTap: () => showPlaceSheet(context,
+                        s: s, title: p.name, subtitle: '${p.address}\n${s.halalDisclaimer}', lat: p.lat, lng: p.lng, distance: d),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Text(s.halalDisclaimer, style: t.bodySmall),
+                ),
+              ],
+            ),
+          ),
+        ],
+        if (why == null) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+            child: Text(s.orderIn, style: t.labelLarge),
+          ),
+          orderButtons(),
+        ],
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+          child: Text(s.orderInNote, style: t.bodySmall),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------- park
+
+class _ParkSection extends ConsumerWidget {
+  const _ParkSection({required this.place});
+  final Place place;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final lots = ref.watch(carparkLiveProvider).valueOrNull ?? const <String, (int, int)>{};
+    final all = ref.watch(carparkInfoProvider).valueOrNull ?? const [];
+    final list = within(all, place.lat, place.lng, 800, latOf: (c) => c.lat, lngOf: (c) => c.lng, limit: 3);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionTitle(s.parkNearby,
+            trailing: _seeAll(
+                s, () => _openFull(context, s.parking, _ParkingTab(lat: place.lat, lng: place.lng)))),
+        Panel(
+          child: Column(
+            children: [
+              if (list.isEmpty) EmptyNote(all.isEmpty ? s.bundlesLoading : s.notAvailable),
+              for (final (c, d) in list)
+                ListTile(
+                  leading: const Icon(Icons.local_parking),
+                  title: Text(c.address, maxLines: 2, overflow: TextOverflow.ellipsis),
+                  subtitle: Text('${s.metres(d)} · ${c.type.toLowerCase()}'),
+                  trailing: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(lots[c.id] == null ? '–' : '${lots[c.id]!.$2}',
+                          style: t.titleLarge?.copyWith(
+                              fontFamily: DL.display, color: (lots[c.id]?.$2 ?? 1) == 0 ? DL.attention : null)),
+                      if (lots[c.id] != null) Text(s.freeLots, style: t.labelSmall),
+                    ],
+                  ),
+                  onTap: () => _openFull(context, s.parking, _ParkingTab(lat: place.lat, lng: place.lng)),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------- taxi
+
+class _TaxiSection extends ConsumerWidget {
+  const _TaxiSection({required this.place});
+  final Place place;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final taxis = ref.watch(taxiProvider).valueOrNull;
+    final n = taxis == null ? null : taxisWithin(taxis, place.lat, place.lng);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionTitle(s.taxiNearby),
+        BentoTile(
+          icon: Icons.local_taxi_outlined,
+          value: n == null ? '–' : '$n',
+          caption: '${s.taxisNearby} · 500 m',
+          tint: n == 0 ? DL.attention : null,
+          onTap: () => showModalBottomSheet<void>(
+            context: context,
+            isScrollControlled: true,
+            showDragHandle: true,
+            builder: (_) => TaxiSheet(origin: place),
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------- prayer (opt-in)
+
+class _PrayerSection extends ConsumerWidget {
+  const _PrayerSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
+    final times = ref.watch(prayerProvider).valueOrNull?.on(dayKey(now));
+    final next = times == null ? null : nextPrayerIndex(times, now);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionTitle(s.prayerTimes,
+            trailing: _seeAll(s, () => _openFull(context, s.prayerTab, const _PrayerTab()))),
+        Panel(
+          child: ListTile(
+            leading: const Icon(Icons.mosque_outlined),
+            title: Text(times == null || next == null || next >= s.prayerNames.length
+                ? s.notAvailable
+                : '${s.nextPrayer}: ${s.prayerNames[next]}'),
+            trailing: times == null || next == null || next >= times.length
+                ? null
+                : Text(times[next], style: t.titleLarge?.copyWith(fontFamily: DL.display)),
+            onTap: () => _openFull(context, s.prayerTab, const _PrayerTab()),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------- help
+
+class _HelpSection extends ConsumerWidget {
+  const _HelpSection({required this.place});
+  final Place place;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final em = ref.watch(emergencyProvider).valueOrNull ?? EmergencySet.empty;
+    final around = ref.watch(aroundProvider).valueOrNull ?? AroundSet.empty;
+    final rows = <(IconData, List<EPoint>)>[
+      (Icons.monitor_heart_outlined, em.of(EmergencyKind.aed)),
+      (Icons.local_hospital_outlined, em.of(EmergencyKind.ae)),
+      (Icons.local_police_outlined, around.of('police')),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionTitle(s.helpNearby,
+            trailing: _seeAll(s, () => _openFull(context, s.emergency, _EmergencyTab(place: place)))),
+        Panel(
+          color: DL.stop,
+          child: InkWell(
+            onTap: () => launchUrl(Uri(scheme: 'tel', path: '995')),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  const Icon(Icons.call, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(s.call995,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Panel(
+          child: Column(
+            children: [
+              for (final (icon, points) in rows)
+                for (final (p, d) in nearestPoints(points, place.lat, place.lng, limit: 1))
+                  ListTile(
+                    leading: Icon(icon),
+                    title: Text(p.name),
+                    subtitle: Text([s.metres(d), if (p.detail.isNotEmpty) p.detail].join(' · '),
+                        maxLines: 2, overflow: TextOverflow.ellipsis),
+                    onTap: () => showPlaceSheet(
+                      context,
+                      s: s,
+                      title: p.name,
+                      subtitle: [p.detail, p.address, p.hours].where((x) => x.isNotEmpty).join(' · '),
+                      lat: p.lat,
+                      lng: p.lng,
+                      distance: d,
+                      phone: p.tel,
+                    ),
+                  ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -462,168 +873,6 @@ class _ParkingTab extends ConsumerWidget {
                 ),
               ),
             ),
-        ],
-      );
-    });
-  }
-}
-
-// ---------------------------------------------------------------- schools
-
-class _SchoolsTab extends ConsumerWidget {
-  const _SchoolsTab({required this.place});
-  final Place place;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final s = ref.watch(stringsProvider);
-    return _loadingOr(ref.watch(poisProvider), s, (pois) {
-      final t = Theme.of(context).textTheme;
-      Widget group(String title, IconData icon, List<Poi> items) {
-        final (near, far) = schoolsByBand(items, place.lat, place.lng);
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SectionTitle(title),
-            Panel(
-              child: Column(
-                children: [
-                  if (items.isEmpty) EmptyNote(s.bundlesLoading, icon: Icons.cloud_download_outlined),
-                  for (final (band, list) in [(s.within1km, near), (s.between1and2km, far)])
-                    if (list.isNotEmpty) ...[
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 2),
-                        child: Row(children: [
-                          Text(band, style: t.labelMedium?.copyWith(color: Theme.of(context).colorScheme.primary)),
-                          const Spacer(),
-                          Text('${list.length}', style: t.labelMedium),
-                        ]),
-                      ),
-                      for (final (p, d) in list.take(12))
-                        ListTile(
-                          dense: true,
-                          leading: Icon(icon, size: 20),
-                          title: Text(p.name),
-                          trailing: Text(s.metres(d), style: t.labelLarge),
-                          onTap: () => showPlaceSheet(context, s: s, title: p.name, lat: p.lat, lng: p.lng, distance: d),
-                        ),
-                    ],
-                  if (items.isNotEmpty && near.isEmpty && far.isEmpty) EmptyNote(s.notAvailable),
-                ],
-              ),
-            ),
-          ],
-        );
-      }
-
-      return ListView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24 + kNavClearance),
-        children: [
-          if (!place.hasAddress) ...[
-            const SizedBox(height: 12),
-            AlertBanner(icon: Icons.place_outlined, text: s.setAddressForSchools, tone: AlertTone.info),
-          ],
-          group(s.primarySchools, Icons.school_outlined, pois.of(PoiKind.primarySchool)),
-          group(s.secondarySchools, Icons.school_outlined, pois.of(PoiKind.school)),
-          group(s.preschools, Icons.child_care_outlined, pois.of(PoiKind.preschool)),
-          const SizedBox(height: 10),
-          Text(s.p1Note, style: t.bodySmall),
-          TextButton.icon(
-            style: TextButton.styleFrom(alignment: Alignment.centerLeft, padding: EdgeInsets.zero),
-            icon: const Icon(Icons.open_in_new, size: 18),
-            label: Text(s.openSchoolFinder),
-            onPressed: () => launchUrl(Uri.parse('https://www.moe.gov.sg/schoolfinder'),
-                mode: LaunchMode.externalApplication),
-          ),
-        ],
-      );
-    });
-  }
-}
-
-// ---------------------------------------------------------------- dengue
-
-class _DengueTab extends ConsumerWidget {
-  const _DengueTab({required this.place});
-  final Place place;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final s = ref.watch(stringsProvider);
-    return _loadingOr(ref.watch(dengueProvider), s, (all) {
-      final near = dengueNear(all, place.lat, place.lng, km: 2);
-      final t = Theme.of(context).textTheme;
-      return ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + kNavClearance),
-        children: [
-          if (near.isEmpty)
-            Panel(child: EmptyNote(s.dengueNone, icon: Icons.check_circle_outline))
-          else
-            for (final (c, d) in near)
-              Panel(
-                child: ListTile(
-                  leading: Icon(Icons.bug_report_outlined, color: d <= 1000 ? DL.amber : null),
-                  title: Text(c.locality),
-                  subtitle: Text('${s.dengueCases(c.cases)} · ${d == 0 ? s.around : s.metres(d)}'),
-                ),
-              ),
-          const SizedBox(height: 8),
-          Text(s.dengueTips, style: t.bodySmall),
-        ],
-      );
-    });
-  }
-}
-
-// ---------------------------------------------------------------- weekend
-
-class _WeekendTab extends ConsumerWidget {
-  const _WeekendTab({required this.place});
-  final Place place;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final s = ref.watch(stringsProvider);
-    final forecast = ref.watch(forecastProvider).valueOrNull;
-    final here = forecast == null ? null : forecastNear(forecast, place.lat, place.lng);
-    final air = airNear(ref.watch(psiProvider).valueOrNull, ref.watch(pm25Provider).valueOrNull, place.lat, place.lng);
-    final hazy = air != null && air.level.index >= AirLevel.unhealthy.index;
-    final indoor = preferIndoor(here) || hazy;
-    return _loadingOr(ref.watch(poisProvider), s, (pois) {
-      final groups = indoor
-          ? [(s.libraries, PoiKind.library, Icons.local_library_outlined), (s.communityClubs, PoiKind.cc, Icons.groups_outlined), (s.sports, PoiKind.sport, Icons.pool_outlined)]
-          : [(s.parks, PoiKind.park, Icons.park_outlined), (s.sports, PoiKind.sport, Icons.pool_outlined), (s.libraries, PoiKind.library, Icons.local_library_outlined)];
-      final t = Theme.of(context).textTheme;
-      return ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + kNavClearance),
-        children: [
-          AlertBanner(
-            icon: indoor ? Icons.umbrella : Icons.wb_sunny_outlined,
-            text: hazy ? s.airAdviceShort(air.level) : indoor ? s.weekendRainy : s.weekendSunny,
-            tone: indoor ? AlertTone.warning : AlertTone.info,
-          ),
-          for (final (title, kind, icon) in groups) ...[
-            SectionTitle(title),
-            Panel(
-              child: Column(
-                children: [
-                  for (final (p, d) in within(pois.of(kind), place.lat, place.lng, 5000,
-                      latOf: (p) => p.lat, lngOf: (p) => p.lng, limit: 3))
-                    ListTile(
-                      leading: Icon(icon),
-                      title: Text(p.name),
-                      subtitle: Text([s.metres(d), if (p.detail.isNotEmpty) p.detail].join(' · '),
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
-                      onTap: () => showPlaceSheet(context,
-                          s: s, title: p.name, subtitle: p.detail, lat: p.lat, lng: p.lng, distance: d),
-                    ),
-                  if (pois.of(kind).isEmpty) EmptyNote(s.notAvailable),
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: 8),
-          Text(s.dataSource, style: t.bodySmall),
         ],
       );
     });

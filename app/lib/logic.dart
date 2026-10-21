@@ -1282,3 +1282,14 @@ PrivateProject? privateProjectFor(List<PrivateProject> all, Place home, {double 
   final n = nearest(all, home.lat, home.lng, latOf: (p) => p.lat, lngOf: (p) => p.lng);
   return n != null && n.$2 <= maxMetres ? n.$1 : null;
 }
+
+// ---------------------------------------------------------------- nearby: order in
+
+/// Suggest delivery when it is raining near the place (any rainfall in the last
+/// reading), the air is unhealthy or worse, or the nearest hawker is closed today.
+OrderInReason? orderInReason({double? rainMm, AirLevel? air, bool nearestHawkerClosed = false}) {
+  if ((rainMm ?? 0) > 0) return OrderInReason.rain;
+  if (air != null && air.index >= AirLevel.unhealthy.index) return OrderInReason.haze;
+  if (nearestHawkerClosed) return OrderInReason.hawkerClosed;
+  return null;
+}
