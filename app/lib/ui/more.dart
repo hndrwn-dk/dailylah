@@ -96,7 +96,6 @@ class MorePage extends ConsumerWidget {
                   child: Column(
                     children: [
                       toggle(s.showPrayer, fav.showPrayer, (f, v) => f.copyWith(showPrayer: v), sub: s.showPrayerSub),
-                      toggle(s.showHalal, fav.showHalal, (f, v) => f.copyWith(showHalal: v), sub: s.showHalalSub),
                     ],
                   ),
                 ),

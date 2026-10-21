@@ -68,10 +68,6 @@ class S {
   String get days => 'Days';
   String get goAt => 'Leave home';
   String get backAt => 'Leave here';
-  String get halalCheck => 'Check halal status (MUIS)';
-  String get halalNote => 'Opens the official MUIS halal directory. DailyLah does not have halal data.';
-  String get showHalal => 'Halal check';
-  String get showHalalSub => 'Link to the MUIS halal directory on food places';
   String get mrtLines => 'Your MRT lines';
   String get mrtNormal => 'Running normally';
   String get mrtDisrupted => 'Disrupted';
