@@ -124,6 +124,7 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(carparkLiveProvider);
+          ref.invalidate(parkingLiveProvider);
           ref.invalidate(taxiProvider);
           ref.invalidate(rainfallProvider);
           ref.invalidate(busArrivalProvider);
@@ -296,7 +297,7 @@ class _EatSection extends ConsumerWidget {
               if (i > 0) const SizedBox(width: 12),
               Expanded(
                 child: Panel(
-                  color: why != null ? color : null,
+                  color: color,
                   margin: const EdgeInsets.only(bottom: 8),
                   child: InkWell(
                     onTap: () => openApp(id),
@@ -324,8 +325,15 @@ class _EatSection extends ConsumerWidget {
       children: [
         SectionTitle(s.eat,
             trailing: _seeAll(s, () => _openFull(context, s.hawkers, _HawkerTab(place: place)))),
-        if (why != null) AlertBanner(icon: Icons.delivery_dining_outlined, text: s.orderInWhy(why)),
-        if (why != null) orderButtons(),
+        // Delivery only when it helps: rain, unhealthy air, or the nearest hawker closed.
+        if (why != null) ...[
+          AlertBanner(icon: Icons.delivery_dining_outlined, text: s.orderInWhy(why)),
+          orderButtons(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
+            child: Text(s.orderInNote, style: t.bodySmall),
+          ),
+        ],
         Panel(
           child: Column(
             children: [
@@ -369,17 +377,6 @@ class _EatSection extends ConsumerWidget {
             ),
           ),
         ],
-        if (why == null) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-            child: Text(s.orderIn, style: t.labelLarge),
-          ),
-          orderButtons(),
-        ],
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-          child: Text(s.orderInNote, style: t.bodySmall),
-        ),
       ],
     );
   }
@@ -398,6 +395,18 @@ class _ParkSection extends ConsumerWidget {
     final lots = ref.watch(carparkLiveProvider).valueOrNull ?? const <String, (int, int)>{};
     final all = ref.watch(carparkInfoProvider).valueOrNull ?? const [];
     final list = within(all, place.lat, place.lng, 800, latOf: (c) => c.lat, lngOf: (c) => c.lng, limit: 3);
+    // In town there are few HDB car parks: use LTA's live list (malls, URA, HDB) as well.
+    final live = parkingNear(ref.watch(parkingLiveProvider).valueOrNull ?? const <ParkingLot>[],
+        place.lat, place.lng, 'C', radius: 800, limit: 3);
+    Widget bigNumber(int? n) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(n == null ? '–' : '$n',
+                style: t.titleLarge?.copyWith(fontFamily: DL.display, color: n == 0 ? DL.attention : null)),
+            if (n != null) Text(s.freeLots, style: t.labelSmall),
+          ],
+        );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -407,7 +416,17 @@ class _ParkSection extends ConsumerWidget {
         Panel(
           child: Column(
             children: [
-              if (list.isEmpty) EmptyNote(all.isEmpty ? s.bundlesLoading : s.notAvailable),
+              if (list.isEmpty && live.isEmpty) EmptyNote(all.isEmpty ? s.bundlesLoading : s.notAvailable),
+              if (list.isEmpty)
+                for (final (p, d) in live)
+                  ListTile(
+                    leading: const Icon(Icons.local_parking),
+                    title: Text(p.name, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    subtitle: Text(s.metres(d)),
+                    trailing: bigNumber(p.available),
+                    onTap: () => showPlaceSheet(context,
+                        s: s, title: p.name, subtitle: s.lotsFree(p.available), lat: p.lat, lng: p.lng, distance: d),
+                  ),
               for (final (c, d) in list)
                 ListTile(
                   leading: const Icon(Icons.local_parking),
