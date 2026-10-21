@@ -4,6 +4,7 @@ on:
     paths: ["app/**", ".github/workflows/app.yml"]
   pull_request:
     paths: ["app/**"]
+  workflow_dispatch:
 jobs:
   analyze:
     runs-on: ubuntu-latest
