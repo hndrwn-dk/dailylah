@@ -325,7 +325,6 @@ class S {
         'schools' => 'Schools',
         'emergency' => 'Emergency',
         'health' => 'Health',
-        'safety' => 'Police & fire',
         'community' => 'Community',
         'weekend' => 'Weekend',
         'recycling' => 'Recycling',
@@ -385,7 +384,8 @@ class S {
   String get checkHip => 'Check HIP on HDB';
   String get dengueHeading => 'Dengue';
   String get schoolsTitle => 'Schools';
-  String get safetyTitle => 'Police and fire';
+  String get scdfFireStations => 'SCDF fire stations';
+  String get meetingPoints => 'Emergency meeting points (Civil Defence shelters)';
   String get healthTitle => 'Health';
   String get pharmacies => 'Pharmacies';
   String get police => 'Police posts and centres';
