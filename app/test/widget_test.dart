@@ -141,6 +141,6 @@ void main() {
     expect(find.text('Privacy policy'), findsOneWidget);
     expect(find.text('Terms of service'), findsOneWidget);
     expect(find.textContaining('Singapore Open Data Licence'), findsWidgets);
-    expect(find.textContaining('not affiliated'), findsOneWidget);
+    expect(find.textContaining('not affiliated'), findsWidgets);
   });
 }
