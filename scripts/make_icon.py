@@ -37,13 +37,19 @@ def sticker(size, with_bg=True, mono=False):
         d.rounded_rectangle([x0, y0, x1, y1], rad, fill=CARD, outline=ink, width=stroke)
     else:
         d.rounded_rectangle([x0, y0, x1, y1], rad, outline=ink, width=stroke)
-    f = font(round(22 * u))
+    # "daily" with a little tracking so "il" stays two letters at small sizes.
+    f = font(round(21 * u))
     text = "daily"
+    track = 1.6 * u
+    widths = [d.textlength(ch, font=f) for ch in text]
+    tw = sum(widths) + track * (len(text) - 1)
     bbox = d.textbbox((0, 0), text, font=f)
-    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-    tx = (x0 + x1) / 2 - tw / 2 - bbox[0]
+    th = bbox[3] - bbox[1]
+    tx = (x0 + x1) / 2 - tw / 2
     ty = (y0 + y1) / 2 - th / 2 - bbox[1] - 0.5 * u
-    d.text((tx, ty), text, font=f, fill=ink, stroke_width=round(0.6 * u), stroke_fill=ink)
+    for ch, w in zip(text, widths):
+        d.text((tx, ty), ch, font=f, fill=ink, stroke_width=round(0.6 * u), stroke_fill=ink)
+        tx += w + track
     # amber sun badge with "lah", overlapping the plate's top right corner
     cx, cy, r = 80 * u, 38 * u, 17 * u
     if not mono:

@@ -65,8 +65,8 @@ def feature():
     im.paste(mark, (64 * S, 70 * S), mark)
     text(d, (66, 268), "Know before", jak(44), INK)
     text(d, (66, 320), "you go lah.", jak(44), INK)
-    text(d, (68, 400), "Buses, MRT, rain, haze and your HDB block.", jak(19, 500), (80, 100, 106))
-    text(d, (68, 428), "Free. No account. Stays on your phone.", jak(19, 500), (80, 100, 106))
+    text(d, (68, 398), "Bus coming? Rain later? MRT delay?", jak(21, 700), INK)
+    text(d, (68, 430), "One look before you step out. Free, no sign-up.", jak(18, 500), (80, 100, 106))
 
     # Right: three stickers with the app's signatures.
     # 1. Bus stop LED board.
