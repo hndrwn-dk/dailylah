@@ -90,9 +90,10 @@ class NearbyPage extends ConsumerWidget {
     ];
 
     final prayer = fav.showPrayer;
+    final halal = fav.showHalal;
     return DefaultTabController(
-      key: ValueKey(prayer),
-      length: prayer ? 7 : 6,
+      key: ValueKey((prayer, halal)),
+      length: 6 + (prayer ? 1 : 0) + (halal ? 1 : 0),
       child: Scaffold(
         body: Column(
           children: [
@@ -125,6 +126,7 @@ class NearbyPage extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
               tabs: [
                 Tab(text: s.hawkers),
+                if (halal) Tab(text: s.halalTab),
                 Tab(text: s.parking),
                 Tab(text: s.schools),
                 Tab(text: s.dengue),
@@ -139,6 +141,7 @@ class NearbyPage extends ConsumerWidget {
                   : TabBarView(
                       children: [
                         _HawkerTab(place: place),
+                        if (halal) _HalalTab(place: place),
                         _ParkingTab(lat: place.lat, lng: place.lng),
                         _SchoolsTab(place: place),
                         _DengueTab(place: place),
@@ -160,6 +163,61 @@ Widget _loadingOr<T>(AsyncValue<T> v, S s, Widget Function(T) data) => v.when(
       error: (_, __) => EmptyNote(s.bundlesLoading, icon: Icons.cloud_download_outlined),
       data: data,
     );
+
+// ---------------------------------------------------------------- halal
+
+class _HalalTab extends ConsumerStatefulWidget {
+  const _HalalTab({required this.place});
+  final Place place;
+
+  @override
+  ConsumerState<_HalalTab> createState() => _HalalTabState();
+}
+
+class _HalalTabState extends ConsumerState<_HalalTab> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final place = widget.place;
+    return _loadingOr(ref.watch(halalProvider), s, (all) {
+      final list = halalNear(all, place.lat, place.lng, query: _query);
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24 + kNavClearance),
+        children: [
+          AlertBanner(icon: Icons.verified_outlined, text: s.halalDisclaimer, tone: AlertTone.warning),
+          TextField(
+            onChanged: (v) => setState(() => _query = v),
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(hintText: s.halalSearchHint, prefixIcon: const Icon(Icons.search)),
+          ),
+          const SizedBox(height: 12),
+          if (list.isEmpty)
+            Panel(child: EmptyNote(all.isEmpty ? s.bundlesLoading : s.halalNone))
+          else
+            Panel(
+              child: Column(
+                children: [
+                  for (final (p, d) in list)
+                    ListTile(
+                      leading: const Icon(Icons.restaurant_outlined),
+                      title: Text(p.name),
+                      subtitle: Text('${s.metres(d)} · ${p.address}', maxLines: 3, overflow: TextOverflow.ellipsis),
+                      onTap: () => showPlaceSheet(context,
+                          s: s, title: p.name, subtitle: '${p.address}\n${s.halalDisclaimer}', lat: p.lat, lng: p.lng, distance: d),
+                    ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 8),
+          Text(s.halalSource, style: t.bodySmall),
+        ],
+      );
+    });
+  }
+}
 
 // ---------------------------------------------------------------- hawkers
 
@@ -202,7 +260,6 @@ class _HawkerTab extends ConsumerWidget {
                 lng: h.lng,
                 distance: d,
                 extra: [
-                  const HalalButton(),
                   AlertBanner(
                     icon: closedToday != null ? Icons.event_busy : Icons.event_available,
                     tone: closedToday != null ? AlertTone.warning : AlertTone.info,

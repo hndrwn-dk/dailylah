@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -569,7 +570,8 @@ class _QuickTiles extends ConsumerWidget {
             icon: Icons.local_taxi_outlined,
             value: '${taxisWithin(taxis, origin.lat, origin.lng)}',
             caption: '${s.taxisNear(placeTitle(s.placeLabel, origin))} · 500 m',
-            tint: DL.amber,
+            // Amber only when it needs a look: no free taxi nearby.
+            tint: taxisWithin(taxis, origin.lat, origin.lng) == 0 ? DL.attention : null,
             onTap: () => showModalBottomSheet<void>(
               context: context,
               isScrollControlled: true,
@@ -598,7 +600,6 @@ class _QuickTiles extends ConsumerWidget {
                 lng: h.lng,
                 distance: near.$2,
                 extra: [
-                  const HalalButton(),
                   AlertBanner(
                     icon: closed != null ? Icons.event_busy : Icons.event_available,
                     tone: closed != null ? AlertTone.warning : AlertTone.info,
@@ -744,13 +745,19 @@ const _rideApps = [
   ('TADA', 'com.mvlchain.tada', DL.mint),
 ];
 
-/// Opens a ride app (through the Play Store, which launches it when installed),
-/// or its store page in the browser.
+const _apps = MethodChannel('dailylah/apps');
+
+/// Opens a ride app directly when installed; otherwise its Play Store page.
 Future<void> _openRideApp(String id) async {
   try {
-    if (await launchUrl(Uri.parse('market://launch?id=$id'), mode: LaunchMode.externalApplication)) return;
+    if (await _apps.invokeMethod<bool>('launch', {'package': id}) ?? false) return;
   } on Object {
-    // No Play Store: fall through to the web page.
+    // No channel (tests, iOS): fall through to the store.
+  }
+  try {
+    if (await launchUrl(Uri.parse('market://details?id=$id'), mode: LaunchMode.externalApplication)) return;
+  } on Object {
+    // No Play Store: open the web page below.
   }
   await launchUrl(Uri.parse('https://play.google.com/store/apps/details?id=$id'), mode: LaunchMode.externalApplication);
 }

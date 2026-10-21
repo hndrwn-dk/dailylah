@@ -568,3 +568,49 @@ def test_theme_point_names_and_text_are_cleaned():
     assert out[0]["n"] == "BBQ pit"
     assert out[1]["d"] == "you\u2019ll love it"
     assert out[1]["a"] == "East Coast Parkway"
+
+
+HALAL_PAGE = """
+<div class="card-box"><div class="card-content"><div class="card-name" data-v-e>
+      WINGSTOP
+    </div><div class="address-box" data-v-e>53 ANG MO KIO AVENUE 3 #01-04/05 AMK HUB 569933</div>
+</div></div>
+<div class="card-box"><div class="card-content">
+<div class="card-name" data-v-e>Abang Gemuk (S9) &amp; Co</div>
+<div class="address-box" data-v-e>134 BUKIT BATOK WEST AVENUE 6 650134</div></div></div>
+<script>window.__NUXT__=(function(a){return {data:[{halal_places:[
+{id:1,name:a,lat:1.369002,lon:103.848159},
+{id:2,name:"x",lat:1.351591,lon:103.74451}],total:2}]}}("WINGSTOP"))</script>
+"""
+
+
+def test_parse_halal_page():
+    out = b.parse_halal_page(HALAL_PAGE)
+    assert out == [
+        {
+            "n": "Wingstop",
+            "a": "53 Ang Mo Kio Avenue 3 #01-04/05 Amk Hub 569933",
+            "la": 1.369,
+            "lo": 103.84816,
+        },
+        {
+            "n": "Abang Gemuk (S9) & Co",
+            "a": "134 Bukit Batok West Avenue 6 650134",
+            "la": 1.35159,
+            "lo": 103.74451,
+        },
+    ]
+    assert b.parse_halal_page("<html>no results</html>") == []
+
+
+@respx.mock
+async def test_build_halal_stops_at_empty_page():
+    route = respx.get(b.HALAL_URL).mock(
+        side_effect=[
+            httpx.Response(200, text=HALAL_PAGE),
+            httpx.Response(200, text="<html></html>"),
+        ]
+    )
+    async with httpx.AsyncClient() as c:
+        out = await b.build_halal(c, pause=0)
+    assert len(out) == 2 and route.call_count == 2

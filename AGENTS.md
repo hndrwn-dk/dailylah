@@ -27,12 +27,17 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   can use them. Put parsing and decision rules there, with tests in `test/logic_test.dart`.
   The app is English only; every user-facing string still goes through `S`.
 - Religion-neutral by default: no onboarding question about religion. Faith-specific
-  features (MUIS prayer times) are opt-in under More > Extras.
+  features (MUIS prayer times, halal food from the `halal.json` bundle built from Muslim.sg
+  listings) are opt-in under More > Extras. Halal screens always say "Not affiliated with MUIS.
+  Always verify halal status directly" (`S.halalDisclaimer`).
 - `lib/providers.dart` holds all Riverpod providers; widgets in `lib/ui/` only render.
 - UI: `ui/shell.dart` (tabs Today / Nearby / Home / More), `ui/theme.dart` (design tokens
   in `DL`, fonts Plus Jakarta Sans + Barlow Condensed in `assets/fonts/`), `ui/widgets.dart`
   (Panel, HeroHeader, BusPlate, PillRow, BentoTile...). Keep the sticker style: ink outlines
-  and hard offset shadows (`Panel`), not soft Material cards. Layouts must hold at 200% system
+  and hard offset shadows (`Panel`), not soft Material cards. Signature elements (see `DL`):
+  bus plates and the LED `BusBoard` for live arrivals, MRT `StationChip`/`LineChip` in official
+  colours, `PaintedBlockNumber` as the Home hero, amber = look now / teal = go and nothing else.
+  Layouts must hold at 200% system
   text (wrap, never fixed widths for text); secondary text keeps 4.5:1 contrast (`DL.mist`).
 - Routines: each place has travel modes (`Place.modes`, first = default) and custom places a
   `when`; work/school places carry their own `days` and `go`/`back` times (`commutePlace`,
@@ -57,14 +62,18 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   `.github/workflows/data.yml` (secret `LTA_ACCOUNT_KEY`, optional `DATAGOV_API_KEY`).
   OneMap geocodes are cached in `backend/data/geocode.json` (committed by the workflow).
   Optional bundles are best effort: a failing upstream keeps yesterday's file.
-- Home tab (`ui/home.dart`) is about the saved home: its HDB block (`homeBlock`), upgrading and
+- Home tab (`ui/home.dart`) is about the saved home, one section at a time (chips under the hero,
+  `homeSectionProvider`): its HDB block (`homeBlock`) or private project (`private_homes.json` from
+  URA, `privateProjectFor`; backend `app/ura.py`, secret `URA_ACCESS_KEY`), upgrading and
   works (`around.json` bundle from OneMap themes, `projectsNear`), schools, health, community,
   recycling, weekend, parking; block search is `BlockSearchPage`. HDB data is computed on the
   phone from bundles; only CEA lookups hit the API.
 - OneMap needs a token: the backend (`app/onemap.py`) logs in with `ONEMAP_EMAIL` /
   `ONEMAP_PASSWORD` (Render env and GitHub secrets) and renews it; the app searches via
   `/v1/search`. Never put OneMap credentials or tokens in the app.
-- CI builds a debug APK, so native changes (manifest, Kotlin widget) are compile-checked.
+- CI builds an APK (release, signed with the upload key from secrets `ANDROID_KEYSTORE_BASE64`,
+  `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`; debug without them),
+  so native changes (manifest, Kotlin widget, `dailylah/apps` channel) are compile-checked.
   Analyze and test failures are emitted as annotations on the commit.
 
 ## Commands

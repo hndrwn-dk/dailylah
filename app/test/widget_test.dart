@@ -124,7 +124,8 @@ void main() {
     await tester.tap(find.byTooltip('Home'));
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 1));
-    expect(find.text('Upgrading and works'), findsOneWidget);
+    expect(find.text('My home'), findsOneWidget);
+    expect(find.text('Schools'), findsWidgets);
     await tester.tap(find.byTooltip('More'));
     await tester.pumpAndSettle();
     expect(find.text('Share with family'), findsOneWidget);
@@ -141,6 +142,6 @@ void main() {
     expect(find.text('Privacy policy'), findsOneWidget);
     expect(find.text('Terms of service'), findsOneWidget);
     expect(find.textContaining('Singapore Open Data Licence'), findsWidgets);
-    expect(find.textContaining('not affiliated'), findsOneWidget);
+    expect(find.textContaining('not affiliated'), findsWidgets);
   });
 }

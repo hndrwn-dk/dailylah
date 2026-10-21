@@ -424,3 +424,59 @@ class AroundSet {
         },
       );
 }
+
+
+/// Private residential project from URA (see backend app/ura.py).
+/// {"n","s","la","lo","ten","pt","psf","pc","tx":[[ym,price,sqm,floor]],"rent":{"3":4600},"rc"}
+class PrivateProject {
+  const PrivateProject({
+    required this.name,
+    required this.street,
+    required this.lat,
+    required this.lng,
+    this.tenure = '',
+    this.type = '',
+    this.psf,
+    this.sales = 0,
+    this.salesMonths = 12,
+    this.recent = const [],
+    this.rent = const {},
+    this.rentals = 0,
+  });
+  final String name;
+  final String street;
+  final double lat;
+  final double lng;
+  final String tenure;
+  final String type;
+
+  /// Median price per sq ft over the last 12 months (36 when quiet), and how many sales.
+  final int? psf;
+  final int sales;
+  final int salesMonths;
+
+  /// Latest sales: (month "2026-08", price, sqm, floor range).
+  final List<(String, int, int, String)> recent;
+
+  /// Median monthly rent by bedrooms ("2", "3", "NA" for landed), last four quarters.
+  final Map<String, int> rent;
+  final int rentals;
+
+  factory PrivateProject.fromBundle(Map<String, dynamic> j) => PrivateProject(
+        name: '${j['n'] ?? ''}',
+        street: '${j['s'] ?? ''}',
+        lat: _d(j['la']),
+        lng: _d(j['lo']),
+        tenure: '${j['ten'] ?? ''}',
+        type: '${j['pt'] ?? ''}',
+        psf: (j['psf'] as num?)?.toInt(),
+        sales: (j['pc'] as num?)?.toInt() ?? 0,
+        salesMonths: (j['pm'] as num?)?.toInt() ?? 12,
+        recent: [
+          for (final t in (j['tx'] as List? ?? const []))
+            if (t is List && t.length >= 4) ('${t[0]}', (t[1] as num).toInt(), (t[2] as num).toInt(), '${t[3]}'),
+        ],
+        rent: {for (final e in (j['rent'] as Map? ?? const {}).entries) '${e.key}': (e.value as num).toInt()},
+        rentals: (j['rc'] as num?)?.toInt() ?? 0,
+      );
+}

@@ -1203,3 +1203,59 @@ async def build_around(om: OneMap, today: date) -> dict:
             log.warning("around %s failed: %s", key, e)
         await asyncio.sleep(0.3)
     return {"projects": projects, "points": points}
+
+
+# ---------------------------------------------------------------- halal places (Muslim.sg)
+
+HALAL_URL = "https://muslim.sg/halal-cafe-restaurant-food/search"
+HALAL_HEADERS = {"User-Agent": "DailyLah/0.2 (+https://www.tursinalabs.com/dailylah)"}
+
+
+def parse_halal_page(text: str) -> list[dict]:
+    """Listings on one Muslim.sg search page: names and addresses from the cards, coordinates
+    from the page state (same order). [{"n", "a", "la", "lo"}]."""
+    names = [
+        html.unescape(re.sub(r"\s+", " ", x)).strip()
+        for x in re.findall(r'<div class="card-name"[^>]*>(.*?)</div>', text, re.S)
+    ]
+    addrs = [
+        html.unescape(re.sub(r"\s+", " ", x)).strip()
+        for x in re.findall(r'<div class="address-box"[^>]*>(.*?)</div>', text, re.S)
+    ]
+    i = text.find("halal_places:")
+    coords = re.findall(r"lat:(-?[\d.]+),lon:(-?[\d.]+)", text[i:]) if i >= 0 else []
+    if not names or len(addrs) != len(names) or len(coords) < len(names):
+        return []
+    out = []
+    for name, addr, (la, lo) in zip(names, addrs, coords[: len(names)], strict=True):
+        lat, lng = float(la), float(lo)
+        if not (1.1 < lat < 1.5 and 103.5 < lng < 104.1) or not name:
+            continue
+        out.append(
+            {
+                "n": name.title() if name.isupper() else name,
+                "a": addr.title() if addr.isupper() else addr,
+                "la": _r(lat),
+                "lo": _r(lng),
+            }
+        )
+    return out
+
+
+async def build_halal(client: httpx.AsyncClient, pause: float = 1.0, max_pages: int = 400):
+    """Halal places listed on Muslim.sg (MUIS's lifestyle platform), fetched gently."""
+    out: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+    for page in range(1, max_pages + 1):
+        resp = await client.get(HALAL_URL, params={"page": page}, headers=HALAL_HEADERS)
+        resp.raise_for_status()
+        items = parse_halal_page(resp.text)
+        if not items:
+            break
+        for it in items:
+            key = (it["n"].upper(), it["a"].upper())
+            if key not in seen:
+                seen.add(key)
+                out.append(it)
+        await asyncio.sleep(pause)
+    return out

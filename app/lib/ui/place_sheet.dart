@@ -375,6 +375,32 @@ class _MapPanel extends StatelessWidget {
                   ),
                 ),
                 if (mine != null) CustomPaint(painter: _MePainter(mine, DL.edge(context))),
+                // OneMap requires its logo and credit on its maps.
+                Positioned(
+                  left: 0,
+                  bottom: 0,
+                  child: GestureDetector(
+                    onTap: () => launchUrl(Uri.parse('https://www.onemap.gov.sg/legal/opendatalicence.html'),
+                        mode: LaunchMode.externalApplication),
+                    child: Container(
+                      color: const Color(0xCCFFFFFF),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Image.network(
+                            'https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png',
+                            height: 14,
+                            errorBuilder: (c, e, st) => const SizedBox.shrink(),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(s.oneMapCredit,
+                              style: const TextStyle(fontSize: 9, color: DL.ink), textScaler: TextScaler.noScaling),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ],
             );
           },
@@ -426,30 +452,3 @@ class _MePainter extends CustomPainter {
 }
 
 
-/// Opt-in link to the official MUIS halal directory (More > Extras). DailyLah has no
-/// halal data of its own, so it never claims a place is halal.
-class HalalButton extends ConsumerWidget {
-  const HalalButton({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (!ref.watch(favoritesProvider.select((f) => f.showHalal))) return const SizedBox.shrink();
-    final s = ref.watch(stringsProvider);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-            icon: const Icon(Icons.verified_outlined),
-            label: Text(s.halalCheck),
-            onPressed: () => launchUrl(Uri.parse('https://halal.muis.gov.sg/halal/establishments'), mode: LaunchMode.externalApplication),
-          ),
-          const SizedBox(height: 4),
-          Text(s.halalNote, style: Theme.of(context).textTheme.bodySmall),
-        ],
-      ),
-    );
-  }
-}

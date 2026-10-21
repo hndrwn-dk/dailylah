@@ -66,12 +66,17 @@ class S {
   String get starHint => 'Starred lines get alerts and evening crowd levels. Tap a line to star it.';
   String get starHintNone => 'You get alerts for any line. Tap a line to star up to 3 and keep alerts to those.';
   String get days => 'Days';
+  String get showHalal => 'Halal food nearby';
+  String get showHalalSub => 'Halal places listed on Muslim.sg, in Nearby and Home. Not affiliated with MUIS.';
+  String get halalTab => 'Halal';
+  String get halalFood => 'Halal food';
+  String get halalDisclaimer =>
+      'Not affiliated with MUIS. Always verify halal status directly: look for the MUIS halal certificate at the premises.';
+  String get halalSearchHint => 'Search, e.g. nasi padang, cafe, prata';
+  String get halalNone => 'No halal places found here.';
+  String get halalSource => 'Halal places: Muslim.sg, refreshed daily.';
   String get goAt => 'Leave home';
   String get backAt => 'Leave here';
-  String get halalCheck => 'Check halal status (MUIS)';
-  String get halalNote => 'Opens the official MUIS halal directory. DailyLah does not have halal data.';
-  String get showHalal => 'Halal check';
-  String get showHalalSub => 'Link to the MUIS halal directory on food places';
   String get mrtLines => 'Your MRT lines';
   String get mrtNormal => 'Running normally';
   String get mrtDisrupted => 'Disrupted';
@@ -255,6 +260,7 @@ class S {
   String get getDirections => 'Get directions';
   String get openInMaps => 'Open in Maps';
   String get mapUnavailable => 'Map preview not available. Directions still work.';
+  String get oneMapCredit => 'OneMap © contributors | Singapore Land Authority';
   String get mapNote => 'Map: OneMap, Singapore Land Authority. Directions open in Google Maps from where you are.';
   String get saveCarpark => 'Save car park';
   String get savedCarpark => 'Saved';
@@ -312,10 +318,34 @@ class S {
   // ---------------------------------------------------------------- homes (HDB)
   String get homesTitle => 'Find an HDB block';
   String get homeTitle => 'Home';
+  String homeSection(String k) => switch (k) {
+        'home' => 'My home',
+        'works' => 'Works',
+        'schools' => 'Schools',
+        'health' => 'Health',
+        'community' => 'Community',
+        'weekend' => 'Weekend',
+        'recycling' => 'Recycling',
+        'food' => 'Food & parking',
+        'blocks' => 'Blocks & agents',
+        _ => k,
+      };
+  String get psfLabel => 'median per sq ft';
+  String salesCount(int n, int months) => '$n ${n == 1 ? 'sale' : 'sales'} in the last ${months == 12 ? '12 months' : '3 years'}';
+  String get latestSales => 'Latest sales';
+  String saleLine(String month, String price, int sqm, String floor) =>
+      '$month · $price · ${(sqm * 10.7639).round()} sq ft${floor == '-' ? '' : ' · floor $floor'}';
+  String get rentByBedrooms => 'Median rent, last 12 months';
+  String bedrooms(String b) => b == 'NA' ? 'Whole house' : '$b bedroom${b == '1' ? '' : 's'}';
+  String get uraSource => 'Private homes: URA (caveats lodged); figures exclude bulk sales.';
+  String get nearestPrimary => 'Nearest primary school';
+  String get nearestAed => 'Nearest AED';
+  String get nearestHawkerShort => 'Nearest hawker';
+  String worksNearby(int n) => n == 1 ? '1 work site within 1 km' : '$n work sites within 1 km';
   String blockLabel(String b) => 'Blk $b';
   String get setHomeFirst => 'Set your home to see everything around it.';
   String get setHome => 'Set home';
-  String get notHdb => 'Not an HDB block, so there are no resale or lease details. Everything around your home is below.';
+  String get notHdb => 'No HDB block or private project found at this address. Everything around your home is in the chips above.';
   String get blockDetails => 'Prices, rent and score';
   String get watchBlock => 'Watch for new sales';
   String get watchingBlock => 'Watching';
@@ -464,7 +494,7 @@ class S {
   String get termsOfService => 'Terms of service';
   String get contactUs => 'Contact us';
   String get dataSources => 'Data sources';
-  String get dataAttribution => 'Contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, SportSG, PA and MOE accessed through data.gov.sg, made available under the Singapore Open Data Licence. Bus times, crowd levels, forecasts and prices are estimates.';
+  String get dataAttribution => 'Contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, SportSG, PA and MOE accessed through data.gov.sg, made available under the Singapore Open Data Licence. Halal places are listed from Muslim.sg; DailyLah is not affiliated with MUIS. Bus times, crowd levels, forecasts and prices are estimates.';
   String get independent => 'DailyLah is an independent app and is not affiliated with LTA, NEA, HDB or the Singapore government.';
   String get openSourceLicences => 'Open-source licences';
   String cannotOpen(String url) => 'Cannot open $url';

@@ -165,6 +165,16 @@ final busRoutesProvider = FutureProvider<BusRoutes>((ref) async {
   return m == null ? BusRoutes.empty : BusRoutes.fromBundle(m);
 });
 
+/// Private homes (URA transactions and rentals).
+final privateHomesProvider =
+    FutureProvider<List<PrivateProject>>((ref) => _list(ref, 'private_homes', PrivateProject.fromBundle));
+
+/// Section shown on the Home tab ("home", "works", "schools" ...).
+final homeSectionProvider = StateProvider<String>((ref) => 'home');
+
+/// Halal places listed on Muslim.sg (opt-in feature).
+final halalProvider = FutureProvider<List<EPoint>>((ref) => _list(ref, 'halal', EPoint.fromBundle));
+
 final aroundProvider = FutureProvider<AroundSet>((ref) async {
   final raw = await _map(ref, 'around');
   return raw == null ? AroundSet.empty : AroundSet.fromBundle(raw);

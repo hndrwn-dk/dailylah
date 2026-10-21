@@ -37,6 +37,7 @@ from . import bundles as b
 from .config import get_settings
 from .onemap import OneMap
 from .sources import Sources, compact_bus_stops, compact_taxi_stands
+from .ura import build_private
 
 log = logging.getLogger(__name__)
 
@@ -45,6 +46,8 @@ GEOCODE_CACHE = Path(__file__).resolve().parent.parent / "data" / "geocode.json"
 
 # Minimum sizes below which a fresh bundle is treated as broken and not published.
 MIN_COUNTS = {
+    "private_homes": 500,
+    "halal": 1000,
     "around": 50,
     "taxi_stands": 100,
     "bus_routes": 300,
@@ -128,6 +131,11 @@ async def build(
             await attempt("prayer", b.build_prayer(dg))
             await attempt("poi", b.build_poi(dg, geo))
             await attempt("emergency", b.build_emergency(dg, geo))
+            await attempt("halal", b.build_halal(client))
+            await attempt(
+                "private_homes",
+                build_private(client, settings.ura_access_key, today or date.today()),
+            )
             await attempt("around", b.build_around(om, today or date.today()))
             block_town: dict[str, str] = {}
             try:

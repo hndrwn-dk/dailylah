@@ -241,7 +241,7 @@ class Favorites {
   /// Show MUIS prayer times in Nearby (opt-in, off by default).
   final bool showPrayer;
 
-  /// Show a link to the MUIS halal directory on food places (opt-in).
+  /// Show halal places (Muslim.sg listings) in Nearby and Home (opt-in).
   final bool showHalal;
 
   /// Favourite hawker centre ids (hawkers.json "id").

@@ -1255,3 +1255,30 @@ List<(Hawker, Closure, double)> upcomingClosures(List<Hawker> all, double lat, d
   final keys = rents.keys.toList()..sort();
   return (keys.first, rents[keys.first]!);
 }
+
+/// Halal places near a point, optionally matching every word of [query] in the name or
+/// address ("nasi padang", "cafe tampines"). Wider radius when searching.
+List<(EPoint, double)> halalNear(List<EPoint> all, double lat, double lng, {String query = '', int limit = 60}) {
+  final words = query.toLowerCase().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+  final match = words.isEmpty
+      ? all
+      : [
+          for (final p in all)
+            if (words.every('${p.name} ${p.address}'.toLowerCase().contains)) p,
+        ];
+  return within(match, lat, lng, words.isEmpty ? 3000 : 15000, latOf: (p) => p.lat, lngOf: (p) => p.lng, limit: limit);
+}
+
+/// "MARINE DR" -> "Marine Dr", "BT BATOK ST 11" -> "Bt Batok St 11".
+String titleCase(String s) => s
+    .toLowerCase()
+    .split(' ')
+    .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+    .join(' ');
+
+/// The private project at a saved home: the nearest one within [maxMetres] (URA gives one
+/// point per project, so large estates need some slack).
+PrivateProject? privateProjectFor(List<PrivateProject> all, Place home, {double maxMetres = 150}) {
+  final n = nearest(all, home.lat, home.lng, latOf: (p) => p.lat, lngOf: (p) => p.lng);
+  return n != null && n.$2 <= maxMetres ? n.$1 : null;
+}
