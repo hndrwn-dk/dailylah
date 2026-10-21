@@ -324,6 +324,7 @@ class S {
         'works' => 'Upgrading',
         'schools' => 'Schools',
         'emergency' => 'Emergency',
+        'shelter' => 'Meeting points',
         'health' => 'Health',
         'community' => 'Community',
         'weekend' => 'Weekend',
@@ -385,7 +386,9 @@ class S {
   String get dengueHeading => 'Dengue';
   String get schoolsTitle => 'Schools';
   String get scdfFireStations => 'SCDF fire stations';
-  String get meetingPoints => 'Emergency meeting points (Civil Defence shelters)';
+  String get meetingPoints => 'Emergency meeting points';
+  String get within2km => 'Civil Defence shelters within 2 km';
+  String get shelterNote => 'Public shelters are opened by SCDF during an emergency. Follow SGSecure and SCDF instructions.';
   String get healthTitle => 'Health';
   String get pharmacies => 'Pharmacies';
   String get police => 'Police posts and centres';

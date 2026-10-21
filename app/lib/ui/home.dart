@@ -18,11 +18,12 @@ class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   static const sections = [
-    'home', 'emergency', 'works', 'schools', 'health', 'community', 'weekend', 'recycling', 'food', 'blocks',
+    'home', 'emergency', 'shelter', 'works', 'schools', 'health', 'community', 'weekend', 'recycling', 'food', 'blocks',
   ];
   static const _icons = {
     'home': Icons.home_outlined,
     'emergency': Icons.emergency_outlined,
+    'shelter': Icons.shield_outlined,
     'works': Icons.construction_outlined,
     'schools': Icons.school_outlined,
     'health': Icons.health_and_safety_outlined,
@@ -93,6 +94,7 @@ class HomePage extends ConsumerWidget {
             'works' => [_Works(home: home)],
             'schools' => [_Schools(home: home)],
             'emergency' => [_Emergency(home: home)],
+            'shelter' => [_Shelters(home: home)],
             'health' => [_Dengue(home: home), _Health(home: home)],
             'community' => [_Community(home: home)],
             'weekend' => [_Weekend(home: home)],
@@ -134,7 +136,7 @@ class HomePage extends ConsumerWidget {
                   PillRow(
                     items: [for (final k in sections) (k, _icons[k]!, s.homeSection(k))],
                     selected: section,
-                    danger: const {'emergency'},
+                    danger: const {'emergency', 'shelter'},
                     onTap: (k) => ref.read(homeSectionProvider.notifier).state = k,
                   ),
                 ],
@@ -715,8 +717,33 @@ class _Health extends ConsumerWidget {
   }
 }
 
-/// Emergency: call buttons first, then A&E and AEDs, then police, SCDF fire stations and
-/// emergency meeting points (Civil Defence shelters), each in its own group.
+/// Emergency meeting points: Civil Defence public shelters, nearest first, on their own so
+/// they are one tap away when something happens.
+class _Shelters extends ConsumerWidget {
+  const _Shelters({required this.home});
+  final Place home;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final em = ref.watch(emergencyProvider).valueOrNull ?? EmergencySet.empty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _Heading(s.meetingPoints, Icons.shield_outlined),
+        NearGroup(
+          title: s.within2km,
+          icon: Icons.shield_outlined,
+          show: 5,
+          items: NearItem.points(em.of(EmergencyKind.shelter), home, radius: 2000),
+        ),
+        Text(s.shelterNote, style: Theme.of(context).textTheme.bodySmall),
+      ],
+    );
+  }
+}
+
+/// Emergency: call buttons first, then A&E, AEDs, police and SCDF fire stations.
 class _Emergency extends ConsumerWidget {
   const _Emergency({required this.home});
   final Place home;
@@ -761,7 +788,6 @@ class _Emergency extends ConsumerWidget {
         NearGroup(title: s.aeds, icon: Icons.monitor_heart_outlined, items: NearItem.points(em.of(EmergencyKind.aed), home, radius: 1000)),
         NearGroup(title: s.police, icon: Icons.local_police_outlined, items: NearItem.points(around.of('police'), home, radius: 5000, limit: 5)),
         NearGroup(title: s.scdfFireStations, icon: Icons.fire_truck_outlined, items: NearItem.points(em.of(EmergencyKind.fire), home, radius: 8000, limit: 2)),
-        NearGroup(title: s.meetingPoints, icon: Icons.shield_outlined, items: NearItem.points(em.of(EmergencyKind.shelter), home, radius: 2000)),
         Text(s.emergencyNote, style: t.bodySmall),
       ],
     );
