@@ -165,6 +165,9 @@ final busRoutesProvider = FutureProvider<BusRoutes>((ref) async {
   return m == null ? BusRoutes.empty : BusRoutes.fromBundle(m);
 });
 
+/// Halal places listed on Muslim.sg (opt-in feature).
+final halalProvider = FutureProvider<List<EPoint>>((ref) => _list(ref, 'halal', EPoint.fromBundle));
+
 final aroundProvider = FutureProvider<AroundSet>((ref) async {
   final raw = await _map(ref, 'around');
   return raw == null ? AroundSet.empty : AroundSet.fromBundle(raw);

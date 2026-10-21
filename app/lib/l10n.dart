@@ -66,6 +66,15 @@ class S {
   String get starHint => 'Starred lines get alerts and evening crowd levels. Tap a line to star it.';
   String get starHintNone => 'You get alerts for any line. Tap a line to star up to 3 and keep alerts to those.';
   String get days => 'Days';
+  String get showHalal => 'Halal food nearby';
+  String get showHalalSub => 'Halal places listed on Muslim.sg, in Nearby and Home. Not affiliated with MUIS.';
+  String get halalTab => 'Halal';
+  String get halalFood => 'Halal food';
+  String get halalDisclaimer =>
+      'Not affiliated with MUIS. Always verify halal status directly: look for the MUIS halal certificate at the premises.';
+  String get halalSearchHint => 'Search, e.g. nasi padang, cafe, prata';
+  String get halalNone => 'No halal places found here.';
+  String get halalSource => 'Halal places: Muslim.sg, refreshed daily.';
   String get goAt => 'Leave home';
   String get backAt => 'Leave here';
   String get mrtLines => 'Your MRT lines';
@@ -461,7 +470,7 @@ class S {
   String get termsOfService => 'Terms of service';
   String get contactUs => 'Contact us';
   String get dataSources => 'Data sources';
-  String get dataAttribution => 'Contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, SportSG, PA and MOE accessed through data.gov.sg, made available under the Singapore Open Data Licence. Bus times, crowd levels, forecasts and prices are estimates.';
+  String get dataAttribution => 'Contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, SportSG, PA and MOE accessed through data.gov.sg, made available under the Singapore Open Data Licence. Halal places are listed from Muslim.sg; DailyLah is not affiliated with MUIS. Bus times, crowd levels, forecasts and prices are estimates.';
   String get independent => 'DailyLah is an independent app and is not affiliated with LTA, NEA, HDB or the Singapore government.';
   String get openSourceLicences => 'Open-source licences';
   String cannotOpen(String url) => 'Cannot open $url';

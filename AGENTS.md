@@ -27,7 +27,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   can use them. Put parsing and decision rules there, with tests in `test/logic_test.dart`.
   The app is English only; every user-facing string still goes through `S`.
 - Religion-neutral by default: no onboarding question about religion. Faith-specific
-  features (MUIS prayer times) are opt-in under More > Extras.
+  features (MUIS prayer times, halal food from the `halal.json` bundle built from Muslim.sg
+  listings) are opt-in under More > Extras. Halal screens always say "Not affiliated with MUIS.
+  Always verify halal status directly" (`S.halalDisclaimer`).
 - `lib/providers.dart` holds all Riverpod providers; widgets in `lib/ui/` only render.
 - UI: `ui/shell.dart` (tabs Today / Nearby / Home / More), `ui/theme.dart` (design tokens
   in `DL`, fonts Plus Jakarta Sans + Barlow Condensed in `assets/fonts/`), `ui/widgets.dart`

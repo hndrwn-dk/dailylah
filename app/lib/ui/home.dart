@@ -603,6 +603,18 @@ class _ParkingFood extends ConsumerWidget {
               NearItem(name: shortPlaceName(h.name), detail: h.address, lat: h.lat, lng: h.lng, distance: d),
           ],
         ),
+        if (ref.watch(favoritesProvider.select((f) => f.showHalal))) ...[
+          NearGroup(
+            title: s.halalFood,
+            icon: Icons.restaurant_outlined,
+            items: [
+              for (final (p, d) in halalNear(ref.watch(halalProvider).valueOrNull ?? const <EPoint>[], home.lat, home.lng, limit: 15))
+                NearItem(name: p.name, detail: p.address, lat: p.lat, lng: p.lng, distance: d),
+            ],
+          ),
+          Text(s.halalDisclaimer, style: t.bodySmall),
+          const SizedBox(height: 8),
+        ],
         if (closures.isNotEmpty) ...[
           Padding(padding: const EdgeInsets.fromLTRB(4, 4, 4, 8), child: Text(s.hawkerClosures, style: t.titleSmall)),
           Panel(

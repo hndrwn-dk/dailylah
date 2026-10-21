@@ -1255,3 +1255,16 @@ List<(Hawker, Closure, double)> upcomingClosures(List<Hawker> all, double lat, d
   final keys = rents.keys.toList()..sort();
   return (keys.first, rents[keys.first]!);
 }
+
+/// Halal places near a point, optionally matching every word of [query] in the name or
+/// address ("nasi padang", "cafe tampines"). Wider radius when searching.
+List<(EPoint, double)> halalNear(List<EPoint> all, double lat, double lng, {String query = '', int limit = 60}) {
+  final words = query.toLowerCase().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+  final match = words.isEmpty
+      ? all
+      : [
+          for (final p in all)
+            if (words.every('${p.name} ${p.address}'.toLowerCase().contains)) p,
+        ];
+  return within(match, lat, lng, words.isEmpty ? 3000 : 15000, latOf: (p) => p.lat, lngOf: (p) => p.lng, limit: limit);
+}

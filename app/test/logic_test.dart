@@ -613,4 +613,16 @@ void main() {
     expect(a.of('police').single.tel, '64404123');
     expect(a.of('none'), isEmpty);
   });
+
+  test('halal places near, with keyword search', () {
+    const places = [
+      EPoint(name: 'Wingstop', address: '53 Ang Mo Kio Avenue 3 AMK Hub', lat: 1.3690, lng: 103.8482),
+      EPoint(name: 'Nasi Padang Sabar Menanti', address: '48 Kandahar St', lat: 1.3021, lng: 103.8594),
+      EPoint(name: 'Prata Cafe', address: '400 Ang Mo Kio Ave 10', lat: 1.3625, lng: 103.8540),
+    ];
+    final near = halalNear(places, 1.3620, 103.8538);
+    expect(near.map((x) => x.$1.name), ['Prata Cafe', 'Wingstop']);
+    expect(halalNear(places, 1.3620, 103.8538, query: 'nasi padang').single.$1.name, 'Nasi Padang Sabar Menanti');
+    expect(halalNear(places, 1.3620, 103.8538, query: 'ang mo kio cafe').single.$1.name, 'Prata Cafe');
+  });
 }

@@ -45,6 +45,7 @@ GEOCODE_CACHE = Path(__file__).resolve().parent.parent / "data" / "geocode.json"
 
 # Minimum sizes below which a fresh bundle is treated as broken and not published.
 MIN_COUNTS = {
+    "halal": 1000,
     "around": 50,
     "taxi_stands": 100,
     "bus_routes": 300,
@@ -128,6 +129,7 @@ async def build(
             await attempt("prayer", b.build_prayer(dg))
             await attempt("poi", b.build_poi(dg, geo))
             await attempt("emergency", b.build_emergency(dg, geo))
+            await attempt("halal", b.build_halal(client))
             await attempt("around", b.build_around(om, today or date.today()))
             block_town: dict[str, str] = {}
             try:
