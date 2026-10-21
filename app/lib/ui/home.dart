@@ -197,24 +197,30 @@ class _Glance extends ConsumerWidget {
           ),
         for (final (c, d) in near.take(1))
           AlertBanner(icon: Icons.bug_report_outlined, text: '${s.dengueHeading}: ${c.locality} · ${s.metres(d)}'),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        // Same height side by side, like the weather tiles on Today.
+        IntrinsicHeight(
+          child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             tile('works', Icons.construction_outlined, '${works.length}', s.worksNearby(works.length)),
             const SizedBox(width: 12),
             tile('schools', Icons.school_outlined, school == null ? '–' : s.metres(school.$2),
                 school == null ? s.nearestPrimary : '${s.nearestPrimary} · ${school.$1.name}'),
           ],
+          ),
         ),
         const SizedBox(height: 12),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        // Same height side by side, like the weather tiles on Today.
+        IntrinsicHeight(
+          child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             tile('health', Icons.monitor_heart_outlined, aed.isEmpty ? '–' : s.metres(aed.first.$2), s.nearestAed),
             const SizedBox(width: 12),
             tile('food', Icons.storefront_outlined, hawker == null ? '–' : s.metres(hawker.$2),
                 hawker == null ? s.nearestHawkerShort : '${s.nearestHawkerShort} · ${shortPlaceName(hawker.$1.name)}'),
           ],
+          ),
         ),
       ],
     );
