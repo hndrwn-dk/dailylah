@@ -301,7 +301,15 @@ class NearItem {
     required this.distance,
     this.detail = '',
     this.tel = '',
+    this.big,
+    this.bigLabel = '',
+    this.bigWarn = false,
   });
+
+  /// A number to show large on the right (e.g. free car park lots), with a small label.
+  final String? big;
+  final String bigLabel;
+  final bool bigWarn;
   final String name;
   final String detail;
   final double lat;
@@ -368,7 +376,9 @@ class _NearGroupState extends ConsumerState<NearGroup> {
                     maxLines: 5,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  trailing: it.tel.isEmpty
+                  trailing: it.big != null
+                      ? _BigNumber(value: it.big!, label: it.bigLabel, warn: it.bigWarn)
+                      : it.tel.isEmpty
                       ? null
                       : IconButton(
                           tooltip: s.callLabel,
@@ -398,6 +408,37 @@ class _NearGroupState extends ConsumerState<NearGroup> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Large figure at the end of a row, amber when it needs a look (e.g. 0 lots free).
+class _BigNumber extends StatelessWidget {
+  const _BigNumber({required this.value, required this.label, this.warn = false});
+  final String value;
+  final String label;
+  final bool warn;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: warn
+          ? BoxDecoration(
+              color: DL.attention,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: DL.edge(context), width: 2),
+            )
+          : null,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(value, style: t.displaySmall?.copyWith(fontSize: 26, height: 1, color: warn ? DL.ink : null)),
+          Text(label, style: t.labelSmall?.copyWith(color: warn ? DL.ink : null)),
+        ],
+      ),
     );
   }
 }
@@ -779,10 +820,13 @@ class _ParkingFood extends ConsumerWidget {
             for (final (c, d) in within(carparks, home.lat, home.lng, 500, latOf: (c) => c.lat, lngOf: (c) => c.lng, limit: 10))
               NearItem(
                 name: c.address,
-                detail: lots[c.id] == null ? c.type.toLowerCase() : s.lotsFree(lots[c.id]!.$2),
+                detail: c.type.toLowerCase(),
                 lat: c.lat,
                 lng: c.lng,
                 distance: d,
+                big: lots[c.id] == null ? null : '${lots[c.id]!.$2}',
+                bigLabel: s.lotsFreeShort,
+                bigWarn: lots[c.id] != null && lots[c.id]!.$2 == 0,
               ),
           ],
         ),

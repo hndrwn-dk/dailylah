@@ -96,6 +96,7 @@ class S {
   String get parkingAt => 'Parking';
   String get freeLots => 'free';
   String lotsFree(int n) => '$n lots free';
+  String get lotsFreeShort => 'lots free';
   String get pullToRefresh => 'Pull down to refresh.';
 
   // alerts strip
