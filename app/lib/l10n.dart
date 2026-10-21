@@ -320,7 +320,7 @@ class S {
   String get homeTitle => 'Home';
   String homeSection(String k) => switch (k) {
         'home' => 'My home',
-        'works' => 'Works',
+        'works' => 'Upgrading',
         'schools' => 'Schools',
         'health' => 'Health',
         'community' => 'Community',
@@ -341,7 +341,7 @@ class S {
   String get nearestPrimary => 'Nearest primary school';
   String get nearestAed => 'Nearest AED';
   String get nearestHawkerShort => 'Nearest hawker';
-  String worksNearby(int n) => n == 1 ? '1 work site within 1 km' : '$n work sites within 1 km';
+  String worksNearby(int n) => n == 1 ? '1 upgrading or construction project within 1 km' : '$n upgrading or construction projects within 1 km';
   String blockLabel(String b) => 'Blk $b';
   String get setHomeFirst => 'Set your home to see everything around it.';
   String get setHome => 'Set home';
@@ -352,7 +352,7 @@ class S {
   String medianFor(String flatType) => 'median ${flatType.toLowerCase()}';
   String rentMedian(String flatType, String amount) => 'Rent around $amount a month for a ${flatType.toLowerCase().replaceAll('-', ' ')} in this town';
   String get propertyAgents => 'Property agents';
-  String get worksTitle => 'Upgrading and works';
+  String get worksTitle => 'Upgrading and construction';
   String get worksNone => 'No upgrading or construction listed within 1 km.';
   String atYourBlock(String what) => 'At your block: $what';
   String projectKind(String k) => switch (k) {
