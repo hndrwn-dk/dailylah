@@ -114,9 +114,13 @@ void main() {
     final evening = DateTime(2026, 10, 20, 17, 30);
     expect(cardFor(morning), CardKind.morning);
     expect(cardFor(evening), CardKind.evening);
-    expect(originFor(CardKind.morning, fav), PlaceKind.home);
-    expect(originFor(CardKind.evening, fav), PlaceKind.work);
-    expect(destinationFor(CardKind.morning, fav), PlaceKind.work);
+    expect(originFor(CardKind.morning, fav, morning), PlaceKind.home);
+    expect(originFor(CardKind.evening, fav, evening), PlaceKind.work);
+    expect(destinationFor(CardKind.morning, fav, morning), PlaceKind.work);
+    // Days off: everything is about home.
+    final saturday = DateTime(2026, 10, 24, 17, 30);
+    expect(originFor(CardKind.evening, fav, saturday), PlaceKind.home);
+    expect(destinationFor(CardKind.morning, fav, saturday), isNull);
     expect(inRainWindow(DateTime(2026, 10, 20, 6, 45), const TimeOfDayHM(7, 30)), isTrue);
     expect(inRainWindow(DateTime(2026, 10, 20, 6, 15), const TimeOfDayHM(7, 30)), isFalse);
     expect(isQuietHour(DateTime(2026, 10, 20, 23)), isTrue);
@@ -495,15 +499,68 @@ void main() {
     expect(mrtPlan(stations, home, temasek)!.direct, isFalse);
   });
 
-  test('trip start stops keep only the side with a direct bus', () {
+  test('trip start stops keep the side with a direct bus, or suggest one nearby', () {
     const towardWork = BusStop(code: '92059', name: 'A', road: 'R', lat: 1.3, lng: 103.9);
     const towardHome = BusStop(code: '92051', name: 'B', road: 'R', lat: 1.3001, lng: 103.9001);
+    const further = BusStop(code: '92071', name: 'C', road: 'R2', lat: 1.3030, lng: 103.9);
+    const office = BusStop(code: '02151', name: 'D', road: 'R3', lat: 1.29, lng: 103.86);
+    const officeBack = BusStop(code: '02159', name: 'E', road: 'R3', lat: 1.2901, lng: 103.8601);
+    final all = [towardWork, towardHome, further, office, officeBack];
+    const home = Place(kind: PlaceKind.home, addrLat: 1.3, addrLng: 103.9, stops: [towardWork, towardHome]);
+    const work = Place(kind: PlaceKind.work, addrLat: 1.29, addrLng: 103.86);
     final routes = BusRoutes.fromBundle({
-      '36|1': [['92059', 0], ['02151', 8]],
-      '36|2': [['02159', 0], ['92051', 8]],
+      '36|1': [['92059', 0], ['02151', 5]],
+      '36|2': [['02159', 0], ['92051', 5]],
+      '77|1': [['92071', 0], ['02151', 6]],
     });
-    expect(tripStartStops([towardWork, towardHome], routes, {'02151'}).map((x) => x.code), ['92059']);
-    expect(tripStartStops([towardWork, towardHome], routes, {'99999'}).map((x) => x.code), ['92059']);
-    expect(tripStartStops([towardWork, towardHome], BusRoutes.empty, {'02151'}).length, 2);
+    expect(tripStops(home.stops, all, routes, home, work).stops.map((x) => x.code), ['92059']);
+    // Only the stop further away has a direct bus: suggest it.
+    const home2 = Place(kind: PlaceKind.home, addrLat: 1.3, addrLng: 103.9, stops: [towardHome]);
+    final t = tripStops(home2.stops, all, routes, home2, work);
+    expect(t.suggested, isTrue);
+    expect(t.stops.map((x) => x.code), ['92059', '92071']);
+    expect(tripStops(home.stops, all, BusRoutes.empty, home, work).stops.length, 2);
+  });
+
+  test('loop services that go the long way are not direct', () {
+    const a = BusStop(code: 'A', name: 'A', road: 'R', lat: 1.36, lng: 103.85);
+    const clinic = Place(kind: PlaceKind.other, addrLat: 1.37, addrLng: 103.85);
+    final routes = BusRoutes.fromBundle({
+      '162|1': [['A', 0], ['B', 17.6]],
+      '50|1': [['A', 0], ['B', 1.3]],
+    });
+    expect(tripRides(routes, a, clinic, {'B'}).keys, ['50']);
+  });
+
+  test('arrivals are grouped per service', () {
+    const etas = [
+      BusEta(service: '50', minutes: 0, load: 'SEA'),
+      BusEta(service: '159', minutes: 2, load: 'SEA'),
+      BusEta(service: '50', minutes: 6, load: 'SDA'),
+      BusEta(service: '50', minutes: 15, load: 'SEA'),
+    ];
+    final g = groupEtas(etas);
+    expect(g.map((x) => x.$1.service), ['50', '159']);
+    expect(g.first.$2, 6);
+    expect(g.last.$2, isNull);
+  });
+
+  test('mrt plan names the interchange', () {
+    const stations = [
+      MrtStation(name: 'Bukit Batok', codes: ['NS2'], lat: 1.3490, lng: 103.7496),
+      MrtStation(name: 'Jurong East', codes: ['NS1', 'EW24'], lat: 1.3332, lng: 103.7422),
+      MrtStation(name: 'Boon Lay', codes: ['EW27'], lat: 1.3386, lng: 103.7058),
+    ];
+    const home = Place(kind: PlaceKind.home, addrLat: 1.3477, addrLng: 103.7440);
+    const school = Place(kind: PlaceKind.school, addrLat: 1.3353, addrLng: 103.7021);
+    final plan = mrtPlan(stations, home, school)!;
+    expect(plan.direct, isFalse);
+    expect(plan.via!.name, 'Jurong East');
+  });
+
+  test('short names for hawker centres', () {
+    expect(shortPlaceName('Tampines Street 11 Blk 137 (Tampines Round Market and Food Centre)'),
+        'Tampines Round Market and Food Centre');
+    expect(shortPlaceName('Maxwell Food Centre'), 'Maxwell Food Centre');
   });
 }

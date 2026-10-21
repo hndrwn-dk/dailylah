@@ -549,6 +549,17 @@ async def build_prayer(dg: DataGov) -> dict:
     return compact_prayer(await dg.rows(PRAYER_TIMES))
 
 
+def school_level(code: object) -> str | None:
+    """MOE "mainlevel_code" to our two lists. Values look like "PRIMARY",
+    "SECONDARY (S1-S5)", "MIXED LEVEL (P1-S4)", "JUNIOR COLLEGE"."""
+    c = str(code or "").strip().upper()
+    if c.startswith("PRIMARY") or c.startswith("MIXED LEVEL (P1"):
+        return "PRIMARY"
+    if c.startswith(("SECONDARY", "MIXED LEVEL", "JUNIOR COLLEGE", "CENTRALISED INSTITUTE")):
+        return "SECONDARY"
+    return None
+
+
 async def build_poi(dg: DataGov, geo: Geocoder) -> dict:
     out: dict[str, list] = {}
 
@@ -559,9 +570,7 @@ async def build_poi(dg: DataGov, geo: Geocoder) -> dict:
             log.warning("poi %s failed: %s", key, e)
 
     async def schools(level: str) -> list[dict]:
-        rows = [
-            r for r in await dg.rows(SCHOOLS) if str(r.get("mainlevel_code", "")).upper() == level
-        ]
+        rows = [r for r in await dg.rows(SCHOOLS) if school_level(r.get("mainlevel_code")) == level]
         items = []
         for r in rows:
             pc = str(r.get("postal_code", "")).strip().zfill(6)

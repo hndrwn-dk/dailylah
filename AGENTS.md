@@ -32,14 +32,16 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - UI: `ui/shell.dart` (tabs Today / Nearby / Homes / More), `ui/theme.dart` (design tokens
   in `DL`, fonts Plus Jakarta Sans + Barlow Condensed in `assets/fonts/`), `ui/widgets.dart`
   (Panel, HeroHeader, BusPlate, PillRow, BentoTile...). Keep the sticker style: ink outlines
-  and hard offset shadows (`Panel`), not soft Material cards.
+  and hard offset shadows (`Panel`), not soft Material cards. Layouts must hold at 200% system
+  text (wrap, never fixed widths for text); secondary text keeps 4.5:1 contrast (`DL.mist`).
 - Routines: each place has travel modes (`Place.modes`, first = default) and custom places a
   `when`; work/school places carry their own `days` and `go`/`back` times (`commutePlace`,
   `commuteTimes` in logic.dart). MRT: all lines show on Today; `Favorites.lines` are the
   starred ones (max 3), and alerts cover every line when none is starred (`watchedLines`). Today shows the commute trip
   (`TripSection` in `ui/trip.dart`) and a "Go somewhere" picker. "Buses to X" uses the
   `bus_routes.json` bundle (`directRides` in logic.dart; trip start stops are filtered to the
-  side of the road with a direct bus, `tripStartStops`). Bus/MRT also shows the nearest MRT
+  side of the road with a direct bus, or nearby stops with one are suggested, `tripStops`;
+  loop services that go the long way are dropped, `tripRides`). Bus/MRT also shows the nearest MRT
   station at each end from the `mrt_stations.json` bundle (`mrtPlan`). "Go somewhere" picks a
   start (home/work/school/here) and a destination (saved places or a searched address); driving uses `/v1/parking`
   (lot type C/Y) and `/v1/traffic-incidents`.

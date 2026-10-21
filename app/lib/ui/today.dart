@@ -96,10 +96,11 @@ class TodayPage extends ConsumerWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          '${kind == CardKind.morning ? s.morningCard : s.eveningCard} · ${_dateLabel(now)}',
+                          '${!commute || dest == null ? s.todayLabel : kind == CardKind.morning ? s.headingTo(placeTitle(s.placeLabel, dest)) : s.headingHome} · ${_dateLabel(now)}',
                           style: t.labelMedium?.copyWith(color: t.bodySmall?.color),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       StickerIconButton(
                         tooltip: s.checkBuses,
                         icon: Icons.search,
@@ -231,7 +232,7 @@ class _ForecastLine extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 2),
       child: Text.rich(TextSpan(children: [
-        TextSpan(text: '$label · ${f.area}  ', style: t.bodySmall?.copyWith(color: DL.ink.withValues(alpha: 0.7))),
+        TextSpan(text: '$label  ', style: t.bodySmall?.copyWith(color: DL.ink.withValues(alpha: 0.7))),
         TextSpan(text: f.forecast, style: t.labelLarge?.copyWith(color: DL.ink)),
       ])),
     );
@@ -394,8 +395,8 @@ class BusStopCard extends ConsumerWidget {
               data: (list) => list.isEmpty
                   ? EmptyNote(s.noBusesNow)
                   : Column(children: [
-                      for (final (i, e) in list.take(8).indexed)
-                        BusRow(eta: e, pulse: i == list.indexWhere((x) => x.minutes == 0)),
+                      for (final (i, (e, next)) in groupEtas(list).take(8).indexed)
+                        BusRow(eta: e, next: next, pulse: i == 0 && e.minutes == 0),
                     ]),
             ),
           ],
@@ -406,8 +407,11 @@ class BusStopCard extends ConsumerWidget {
 }
 
 class BusRow extends ConsumerWidget {
-  const BusRow({super.key, required this.eta, this.pulse = true, this.note});
+  const BusRow({super.key, required this.eta, this.pulse = true, this.note, this.next});
   final BusEta eta;
+
+  /// Minutes until the following bus of the same service, if known.
+  final int? next;
 
   /// Blink "Arr"; only the first arriving bus in a list blinks to keep it calm.
   final bool pulse;
@@ -420,6 +424,8 @@ class BusRow extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
     final arriving = eta.minutes == 0;
+    // No blinking when the phone asks for less motion.
+    final blink = pulse && !MediaQuery.of(context).disableAnimations;
     final arr = Container(
       padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
@@ -429,41 +435,35 @@ class BusRow extends ConsumerWidget {
       ),
       child: Text(s.minutesAway(0), style: t.displaySmall?.copyWith(color: DL.ink, fontSize: 26)),
     );
+    final eta0 = arriving
+        ? (blink ? Pulse(child: arr) : arr)
+        : Text.rich(
+            TextSpan(children: [
+              TextSpan(text: s.minutesAway(eta.minutes), style: t.displaySmall),
+              TextSpan(text: ' ${s.min}', style: t.bodyMedium),
+            ]),
+          );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-      Row(
-        children: [
           BusPlate(eta.service),
-          const SizedBox(width: 14),
-          SizedBox(
-            width: 72,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
+          const SizedBox(width: 12),
+          // Wraps under large text instead of overflowing.
+          Expanded(
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 2,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                if (arriving)
-                  pulse ? Pulse(child: arr) : arr
-                else
-                  Text(s.minutesAway(eta.minutes), style: t.displaySmall),
-                if (!arriving) ...[
-                  const SizedBox(width: 3),
-                  Text(s.min, style: t.bodySmall),
-                ],
+                eta0,
+                if (next != null) Text(s.thenIn(next!), style: t.bodyMedium),
+                LoadMeter(eta.load, label: s.loadLabel(eta.load)),
+                if (note != null) SizedBox(width: double.infinity, child: Text(note!, style: t.bodySmall)),
               ],
             ),
           ),
-          const Spacer(),
-          LoadMeter(eta.load, label: s.loadLabel(eta.load)),
-        ],
-      ),
-          if (note != null)
-            Padding(
-              padding: const EdgeInsets.only(left: 74, top: 2),
-              child: Text(note!, style: t.bodySmall),
-            ),
         ],
       ),
     );
@@ -583,7 +583,7 @@ class _QuickTiles extends ConsumerWidget {
           child: BentoTile(
             icon: Icons.ramen_dining_outlined,
             value: s.metres(near.$2),
-            caption: '${near.$1.name}${near.$1.closureOn(today) != null ? ' · ${s.closedNow}' : ''}',
+            caption: '${s.nearestHawker} · ${shortPlaceName(near.$1.name)}${near.$1.closureOn(today) != null ? ' · ${s.closedNow}' : ''}',
             onTap: () {
               final h = near.$1;
               final closed = h.closureOn(today);

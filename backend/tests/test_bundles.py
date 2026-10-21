@@ -470,3 +470,12 @@ def test_mrt_stations_merge_codes_and_exits():
     assert out["Promenade"]["la"] == 1.294
     assert out["Marine Parade"]["c"] == ["TE26"]
     assert "Nowhere" not in out
+
+
+def test_school_level_reads_moe_codes():
+    assert b.school_level("PRIMARY") == "PRIMARY"
+    assert b.school_level("SECONDARY (S1-S5)") == "SECONDARY"
+    assert b.school_level("MIXED LEVEL (S1-JC2)") == "SECONDARY"
+    assert b.school_level("MIXED LEVEL (P1-S4)") == "PRIMARY"
+    assert b.school_level("JUNIOR COLLEGE") == "SECONDARY"
+    assert b.school_level(None) is None

@@ -99,25 +99,64 @@ class _TransitBlock extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final all = ref.watch(busStopsProvider).valueOrNull ?? const <BusStop>[];
     final routes = ref.watch(busRoutesProvider).valueOrNull ?? BusRoutes.empty;
-    // Start stops: the place's own, or the nearest within 500 m (e.g. "from here").
-    final candidates = from.stops.isNotEmpty
-        ? from.stops
-        : [
-            for (final (st, _) in within(all, from.lat, from.lng, 500, latOf: (x) => x.lat, lngOf: (x) => x.lng, limit: 6))
-              st,
-          ];
-    final stops = tripStartStops(candidates, routes, destinationStops(to, all), fallback: from.stops.isEmpty ? 2 : 1, unknown: from.stops.isEmpty ? 2 : null);
     final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final trip = tripStops(from.stops, all, routes, from, to);
+    final destStops = destinationStops(to, all);
+    final anyDirect = routes.routes.isNotEmpty &&
+        trip.stops.any((st) => tripRides(routes, st, to, destStops).isNotEmpty);
+    final straight = distanceMeters(from.lat, from.lng, to.lat, to.lng);
+
+    final buses = <Widget>[
+      if (trip.stops.isEmpty)
+        Panel(
+          child: EmptyNote(s.noDirectBus,
+              action: TextButton(onPressed: () => openDirections(to.lat, to.lng), child: Text(s.routeInMaps))),
+        ),
+      for (final st in trip.stops)
+        TripBusCard(
+          stop: st,
+          fromKey: fromKey,
+          to: to,
+          toLabel: toLabel,
+          suggestedMetres: trip.suggested ? distanceMeters(from.lat, from.lng, st.lat, st.lng) : null,
+        ),
+    ];
+    final mrt = _MrtOption(from: from, to: to);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (stops.isEmpty)
+        if (straight < walkInsteadMetres)
           Panel(
-            child: EmptyNote(s.noDirectBus,
-                action: TextButton(onPressed: () => openDirections(to.lat, to.lng), child: Text(s.routeInMaps))),
+            color: DL.mint,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.directions_walk, color: DL.ink),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(s.walkIsQuicker(s.walkMinutes(straight * 1.3), s.metres(straight)),
+                            style: t.titleMedium?.copyWith(color: DL.ink)),
+                      ),
+                    ],
+                  ),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(foregroundColor: DL.ink),
+                    onPressed: () => openDirections(to.lat, to.lng, mode: 'walking'),
+                    icon: const Icon(Icons.map_outlined),
+                    label: Text(s.walkingRoute),
+                  ),
+                ],
+              ),
+            ),
           ),
-        for (final st in stops) TripBusCard(stop: st, fromKey: fromKey, to: to, toLabel: toLabel),
-        _MrtOption(from: from, to: to),
+        // No direct bus anywhere near: the train is the real answer, so show it first.
+        if (anyDirect) ...[...buses, mrt] else ...[mrt, ...buses],
       ],
     );
   }
@@ -136,6 +175,7 @@ class _MrtOption extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
     final plan = mrtPlan(stations, from, to);
+    if (plan == null) return const SizedBox.shrink();
     final alerts = ref.watch(trainAlertsProvider).valueOrNull;
     final lines = {
       if (plan != null)
@@ -160,7 +200,9 @@ class _MrtOption extends ConsumerWidget {
         );
 
     return Panel(
-      child: Column(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
@@ -171,9 +213,7 @@ class _MrtOption extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 10),
-          if (plan == null)
-            Text(s.noMrtNearby, style: t.bodySmall)
-          else ...[
+          ...[
             stationRow(Icons.directions_walk, s.walkTo(plan.board.name, s.metres(plan.walkToBoard)), plan.board),
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -182,7 +222,12 @@ class _MrtOption extends ConsumerWidget {
                   Icon(plan.direct ? Icons.trending_flat : Icons.swap_horiz, size: 20),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(plan.direct ? s.rideLine(plan.line!, plan.stops) : s.changeTrains,
+                    child: Text(
+                        plan.direct
+                            ? s.rideLine(s.lineName(plan.line!), plan.stops)
+                            : plan.via == null
+                                ? s.changeTrains
+                                : s.changeAt(plan.via!.name),
                         style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
                   ),
                 ],
@@ -192,7 +237,7 @@ class _MrtOption extends ConsumerWidget {
             for (final l in disrupted)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Text(s.mrtLineDisrupted(l), style: t.bodySmall?.copyWith(color: DL.stop)),
+                child: Text(s.mrtLineDisrupted(s.lineName(l)), style: t.bodySmall?.copyWith(color: DL.stop)),
               ),
           ],
           Align(
@@ -205,13 +250,24 @@ class _MrtOption extends ConsumerWidget {
           ),
         ],
       ),
+      ),
     );
   }
 }
 
 /// Buses at one stop, split into those that go to the destination and the rest.
 class TripBusCard extends ConsumerWidget {
-  const TripBusCard({super.key, required this.stop, required this.fromKey, required this.to, required this.toLabel});
+  const TripBusCard({
+    super.key,
+    required this.stop,
+    required this.fromKey,
+    required this.to,
+    required this.toLabel,
+    this.suggestedMetres,
+  });
+
+  /// Set when this is a nearby stop suggested instead of the saved ones.
+  final double? suggestedMetres;
   final BusStop stop;
   final String? fromKey;
   final Place to;
@@ -235,7 +291,8 @@ class TripBusCard extends ConsumerWidget {
     final routes = ref.watch(busRoutesProvider).valueOrNull ?? BusRoutes.empty;
     final all = ref.watch(busStopsProvider).valueOrNull ?? const <BusStop>[];
     final names = {for (final x in all) x.code: x.name};
-    final rides = routes.routes.isEmpty ? null : directRides(routes, stop.code, destinationStops(to, all));
+    final rides = routes.routes.isEmpty ? null : tripRides(routes, stop, to, destinationStops(to, all));
+    final fromName = fromKey == null ? s.hereNow : s.placeLabel(fromKey!);
 
     return Panel(
       child: Padding(
@@ -250,11 +307,13 @@ class TripBusCard extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(rides == null ? s.busFrom(stop.name) : s.busesTo(toLabel), style: t.titleMedium),
-                      Text('${stop.name} · ${stop.code}', style: t.bodySmall),
+                      Text(stop.name, style: t.bodyMedium),
+                      if (suggestedMetres != null)
+                        Text(s.suggestedStop(s.metres(suggestedMetres!), fromName), style: t.bodySmall),
                     ],
                   ),
                 ),
-                if (fromKey != null)
+                if (fromKey != null && suggestedMetres == null)
                   IconButton(
                     tooltip: s.changeStop,
                     icon: const Icon(Icons.edit_outlined, size: 20),
@@ -274,13 +333,14 @@ class TripBusCard extends ConsumerWidget {
                     return list.isEmpty
                         ? EmptyNote(s.noBusesNow)
                         : Column(children: [
-                            for (final (i, e) in list.take(8).indexed)
-                              BusRow(eta: e, pulse: i == list.indexWhere((x) => x.minutes == 0)),
+                            for (final (i, (e, next)) in groupEtas(list).take(8).indexed)
+                              BusRow(eta: e, next: next, pulse: i == 0 && e.minutes == 0),
                           ]);
                   }
-                  final direct = list.where((e) => rides.containsKey(e.service)).toList();
-                  final others = list.where((e) => !rides.containsKey(e.service)).toList();
-                  final firstArr = direct.indexWhere((x) => x.minutes == 0);
+                  final grouped = groupEtas(list);
+                  final direct = grouped.where((e) => rides.containsKey(e.$1.service)).toList();
+                  final others = grouped.where((e) => !rides.containsKey(e.$1.service)).toList();
+                  final firstArr = direct.indexWhere((x) => x.$1.minutes == 0);
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -293,9 +353,10 @@ class TripBusCard extends ConsumerWidget {
                             child: Text(s.routeInMaps),
                           ),
                         ),
-                      for (final (i, e) in direct.take(6).indexed)
+                      for (final (i, (e, next)) in direct.take(6).indexed)
                         BusRow(
                           eta: e,
+                          next: next,
                           pulse: i == firstArr,
                           note: s.rideInfo(
                             rides[e.service]!.stops,
@@ -309,7 +370,20 @@ class TripBusCard extends ConsumerWidget {
                           child: ExpansionTile(
                             tilePadding: EdgeInsets.zero,
                             title: Text('${s.otherBuses} (${others.length})', style: t.labelLarge),
-                            children: [for (final e in others.take(10)) BusRow(eta: e, pulse: false)],
+                            children: [for (final (e, next) in others.take(10)) BusRow(eta: e, next: next, pulse: false)],
+                          ),
+                        ),
+                      if (suggestedMetres != null && fromKey != null)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.push_pin_outlined),
+                            label: Text(s.useThisStop),
+                            onPressed: () async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              await ref.read(favoritesProvider.notifier).useStop(fromKey!, stop);
+                              messenger.showSnackBar(SnackBar(content: Text(s.stopSaved(stop.name))));
+                            },
                           ),
                         ),
                     ],
