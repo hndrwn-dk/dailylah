@@ -37,11 +37,29 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - name: Build debug APK (compiles Kotlin, manifest and plugins)
-        run: flutter build apk --debug --dart-define=APP_VERSION=0.2.0-${GITHUB_SHA::7}
+      - name: Build APK (release when the signing key is set, else debug)
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          # Same key every build, so a new APK installs over the old one.
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+            export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/upload.jks"
+            flutter build apk --release --build-number=${GITHUB_RUN_NUMBER} \
+              --dart-define=APP_VERSION=0.2.0-${GITHUB_SHA::7}
+            cp build/app/outputs/flutter-apk/app-release.apk build/dailylah.apk
+            rm -f "$RUNNER_TEMP/upload.jks"
+          else
+            flutter build apk --debug --build-number=${GITHUB_RUN_NUMBER} \
+              --dart-define=APP_VERSION=0.2.0-${GITHUB_SHA::7}
+            cp build/app/outputs/flutter-apk/app-debug.apk build/dailylah.apk
+          fi
       - name: Upload APK for testing on a phone
         uses: actions/upload-artifact@v7
         with:
-          name: dailylah-debug-apk
-          path: app/build/app/outputs/flutter-apk/app-debug.apk
+          name: dailylah-apk
+          path: app/build/dailylah.apk
           retention-days: 14
