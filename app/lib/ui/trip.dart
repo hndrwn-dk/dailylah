@@ -178,8 +178,7 @@ class _MrtOption extends ConsumerWidget {
     if (plan == null) return const SizedBox.shrink();
     final alerts = ref.watch(trainAlertsProvider).valueOrNull;
     final lines = {
-      if (plan != null)
-        for (final c in [...plan.board.codes, ...plan.alight.codes])
+      for (final c in [...plan.board.codes, ...plan.alight.codes])
           if (lineOfCode(c) case final l?) l,
     };
     final disrupted = alerts == null
