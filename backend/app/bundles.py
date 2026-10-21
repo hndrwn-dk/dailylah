@@ -1211,51 +1211,78 @@ HALAL_URL = "https://muslim.sg/halal-cafe-restaurant-food/search"
 HALAL_HEADERS = {"User-Agent": "DailyLah/0.2 (+https://www.tursinalabs.com/dailylah)"}
 
 
+def _js_string(v: str) -> str:
+    """Decode a JS string literal body ('\\u002F' -> '/')."""
+    try:
+        return json.loads(f'"{v}"')
+    except ValueError:
+        return v
+
+
 def parse_halal_page(text: str) -> list[dict]:
     """Listings on one Muslim.sg search page: names and addresses from the cards, coordinates
-    from the page state (same order). [{"n", "a", "la", "lo"}]."""
-    names = [
-        html.unescape(re.sub(r"\s+", " ", x)).strip()
-        for x in re.findall(r'<div class="card-name"[^>]*>(.*?)</div>', text, re.S)
-    ]
-    addrs = [
-        html.unescape(re.sub(r"\s+", " ", x)).strip()
-        for x in re.findall(r'<div class="address-box"[^>]*>(.*?)</div>', text, re.S)
-    ]
+    from the page state, matched by address (cards without coordinates are skipped).
+    [{"n", "a", "la", "lo"}]."""
+    coords: dict[str, tuple[float, float]] = {}
     i = text.find("halal_places:")
-    coords = re.findall(r"lat:(-?[\d.]+),lon:(-?[\d.]+)", text[i:]) if i >= 0 else []
-    if not names or len(addrs) != len(names) or len(coords) < len(names):
-        return []
+    if i >= 0:
+        for la, lo, addr in re.findall(
+            r'lat:(-?[\d.]+),\s*lon:(-?[\d.]+),\s*address:"((?:[^"\\]|\\.)*)"', text[i:]
+        ):
+            coords[_norm_addr(_js_string(addr))] = (float(la), float(lo))
     out = []
-    for name, addr, (la, lo) in zip(names, addrs, coords[: len(names)], strict=True):
-        lat, lng = float(la), float(lo)
-        if not (1.1 < lat < 1.5 and 103.5 < lng < 104.1) or not name:
+    for card in text.split('class="card-box"')[1:]:
+        name = re.search(r'<div class="card-name"[^>]*>(.*?)</div>', card, re.S)
+        addr = re.search(r'<div class="address-box"[^>]*>(.*?)</div>', card, re.S)
+        if not name or not addr:
+            continue
+        n = html.unescape(re.sub(r"\s+", " ", name.group(1))).strip()
+        a = html.unescape(re.sub(r"\s+", " ", addr.group(1))).strip()
+        ll = coords.get(_norm_addr(a))
+        if not n or not ll or not (1.1 < ll[0] < 1.5 and 103.5 < ll[1] < 104.1):
             continue
         out.append(
             {
-                "n": name.title() if name.isupper() else name,
-                "a": addr.title() if addr.isupper() else addr,
-                "la": _r(lat),
-                "lo": _r(lng),
+                "n": n.title() if n.isupper() else n,
+                "a": a.title() if a.isupper() else a,
+                "la": _r(ll[0]),
+                "lo": _r(ll[1]),
             }
         )
     return out
 
 
+def _norm_addr(a: str) -> str:
+    return re.sub(r"\s+", " ", a).strip().upper()
+
+
+def halal_total(text: str) -> int:
+    m = re.search(r"halal_places:.*?total:(\d+)", text, re.S)
+    return int(m.group(1)) if m else 0
+
+
 async def build_halal(client: httpx.AsyncClient, pause: float = 1.0, max_pages: int = 400):
-    """Halal places listed on Muslim.sg (MUIS's lifestyle platform), fetched gently."""
+    """Halal places listed on Muslim.sg (MUIS's lifestyle platform), fetched gently. Walks
+    every page up to the listed total; a page that cannot be read is skipped."""
     out: list[dict] = []
     seen: set[tuple[str, str]] = set()
-    for page in range(1, max_pages + 1):
+    last = max_pages
+    page = 1
+    while page <= last:
         resp = await client.get(HALAL_URL, params={"page": page}, headers=HALAL_HEADERS)
         resp.raise_for_status()
+        if page == 1:
+            total = halal_total(resp.text)
+            if total:
+                last = min(max_pages, -(-total // 20))
         items = parse_halal_page(resp.text)
-        if not items:
+        if not items and page == 1:
             break
         for it in items:
             key = (it["n"].upper(), it["a"].upper())
             if key not in seen:
                 seen.add(key)
                 out.append(it)
+        page += 1
         await asyncio.sleep(pause)
     return out
