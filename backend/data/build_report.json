@@ -7,14 +7,15 @@
   "dengue": 7,
   "emergency": 11453,
   "hawkers": 108,
-  "hdb_blocks": 10653,
+  "hdb_blocks": 10684,
   "hdb_rent": 26,
   "hdb_resale": 9234,
+  "mrt_stations": 180,
   "poi": 5100,
   "prayer": 365,
   "taxi_stands": 316
  },
  "errors": {},
- "geocode_cache": 1261,
- "geocoded_new": 216
+ "geocode_cache": 1403,
+ "geocoded_new": 142
 }
