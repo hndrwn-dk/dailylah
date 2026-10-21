@@ -210,7 +210,7 @@ class SetupPage extends ConsumerWidget {
                   children: [
                     for (final (go, label, icon) in [
                       (true, s.goAt, Icons.wb_twilight),
-                      (false, s.backAt, Icons.nights_stay_outlined),
+                      (false, s.backAt(place.kind.name), Icons.nights_stay_outlined),
                     ]) ...[
                       Expanded(
                         child: OutlinedButton(

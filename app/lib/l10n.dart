@@ -76,7 +76,7 @@ class S {
   String get halalNone => 'No halal places found here.';
   String get halalSource => 'Halal places: Muslim.sg, refreshed daily.';
   String get goAt => 'Leave home';
-  String get backAt => 'Leave here';
+  String backAt(String placeKind) => placeKind == 'school' ? 'Leave school' : 'Leave work';
   String get mrtLines => 'Your MRT lines';
   String get mrtNormal => 'Running normally';
   String get mrtDisrupted => 'Disrupted';
