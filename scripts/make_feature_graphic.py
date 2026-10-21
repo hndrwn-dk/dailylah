@@ -68,7 +68,7 @@ def feature():
     for i, line in enumerate(
         ["Need umbrella meh? Hawker closed ah?", "Haze bad or not? Makan where?", "Bus coming? MRT delay?"]
     ):
-        text(d, (68, 366 + i * 28), line, jak(19, 700), INK)
+        text(d, (68, 366 + i * 28), line, jak(19, 500), (80, 100, 106))
 
     # Right: three stickers with the app's signatures.
     # 1. Bus stop LED board.
@@ -98,9 +98,10 @@ def feature():
     text(d, (838, 270), "123", bar(96), INK)
     d.rectangle([842 * S, 404 * S, 940 * S, 414 * S], fill=TEAL)
 
-    # 4. Rain pill.
+    # 4. Something the lines on the left do not already say: upgrading at your block.
     sticker(d, (560, 360, 790, 440), AMBER, radius=16)
-    text(d, (584, 382), "Bring an umbrella", jak(20), INK)
+    text(d, (582, 372), "Lift upgrading", jak(20), INK)
+    text(d, (582, 400), "at your block", jak(18, 600), INK)
 
     return im.resize((W, H), Image.LANCZOS)
 
