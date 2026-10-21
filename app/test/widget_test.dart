@@ -114,16 +114,17 @@ void main() {
     expect(find.byTooltip('More'), findsOneWidget);
   });
 
-  testWidgets('tabs open Nearby, Homes and More', (tester) async {
+  testWidgets('tabs open Home and More', (tester) async {
     const fav = Favorites(
       places: {PlaceKind.home: Place(kind: PlaceKind.home, stops: [home])},
       onboarded: true,
     );
     await tester.pumpWidget(app(fav, DateTime(2026, 10, 20, 19)));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Homes'));
-    await tester.pumpAndSettle();
-    expect(find.text('HDB homes'), findsOneWidget);
+    await tester.tap(find.byTooltip('Home'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Upgrading and works'), findsOneWidget);
     await tester.tap(find.byTooltip('More'));
     await tester.pumpAndSettle();
     expect(find.text('Share with family'), findsOneWidget);
