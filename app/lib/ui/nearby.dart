@@ -511,11 +511,13 @@ class _HelpSection extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final em = ref.watch(emergencyProvider).valueOrNull ?? EmergencySet.empty;
     final around = ref.watch(aroundProvider).valueOrNull ?? AroundSet.empty;
-    final rows = <(IconData, List<EPoint>)>[
-      (Icons.monitor_heart_outlined, em.of(EmergencyKind.aed)),
-      (Icons.local_hospital_outlined, em.of(EmergencyKind.ae)),
-      (Icons.local_police_outlined, around.of('police')),
+    final rows = <(IconData, List<EPoint>, int)>[
+      (Icons.monitor_heart_outlined, em.of(EmergencyKind.aed), 1),
+      (Icons.local_hospital_outlined, em.of(EmergencyKind.ae), 1),
+      (Icons.local_police_outlined, around.of('police'), 1),
     ];
+    // Civil Defence shelters: where to go from here if something happens.
+    final shelters = nearestPoints(em.of(EmergencyKind.shelter), place.lat, place.lng, limit: 2, radius: 3000);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -543,8 +545,8 @@ class _HelpSection extends ConsumerWidget {
         Panel(
           child: Column(
             children: [
-              for (final (icon, points) in rows)
-                for (final (p, d) in nearestPoints(points, place.lat, place.lng, limit: 1))
+              for (final (icon, points, n) in rows)
+                for (final (p, d) in nearestPoints(points, place.lat, place.lng, limit: n))
                   ListTile(
                     leading: Icon(icon),
                     title: Text(p.name),
@@ -561,6 +563,30 @@ class _HelpSection extends ConsumerWidget {
                       phone: p.tel,
                     ),
                   ),
+            ],
+          ),
+        ),
+        SectionTitle(s.meetingPoints, padding: const EdgeInsets.fromLTRB(4, 4, 4, 10)),
+        Panel(
+          child: Column(
+            children: [
+              if (shelters.isEmpty) EmptyNote(em.of(EmergencyKind.shelter).isEmpty ? s.bundlesLoading : s.notAvailable),
+              for (final (p, d) in shelters)
+                ListTile(
+                  leading: const Icon(Icons.shield_outlined, color: DL.stop),
+                  title: Text(p.name),
+                  subtitle: Text([s.metres(d), if (p.address.isNotEmpty) p.address].join(' · '),
+                      maxLines: 2, overflow: TextOverflow.ellipsis),
+                  onTap: () => showPlaceSheet(
+                    context,
+                    s: s,
+                    title: p.name,
+                    subtitle: [p.detail, p.address, s.shelterNote].where((x) => x.isNotEmpty).join('\n'),
+                    lat: p.lat,
+                    lng: p.lng,
+                    distance: d,
+                  ),
+                ),
             ],
           ),
         ),

@@ -41,16 +41,7 @@ class MorePage extends ConsumerWidget {
               children: [
                 const SizedBox(height: 8),
                 PageTitle(s.tabMore),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final p in fav.places.values)
-                      _GlassChip(icon: PlaceSelector.iconOf(p.kind), text: s.placeLabel(p.kind.name)),
-                    for (final l in fav.lines) LineChip(l),
-                  ],
-                ),
+                const SizedBox(height: 8),
               ],
             ),
           ),
@@ -112,32 +103,6 @@ class MorePage extends ConsumerWidget {
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GlassChip extends StatelessWidget {
-  const _GlassChip({required this.icon, required this.text});
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: DL.edge(context), width: 2),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14),
-          const SizedBox(width: 5),
-          Text(text, style: Theme.of(context).textTheme.labelMedium),
         ],
       ),
     );
