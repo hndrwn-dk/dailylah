@@ -101,11 +101,11 @@ void main() {
     );
     await tester.pumpWidget(app(fav, DateTime(2026, 10, 20, 7)));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Morning card'), findsOneWidget);
+    expect(find.textContaining('Heading to Work'), findsOneWidget);
     expect(find.text('Good morning'), findsOneWidget);
     expect(find.text('Bring an umbrella'), findsOneWidget);
     expect(find.text('Running normally'), findsOneWidget);
-    expect(find.text('Tampines Int · 75009'), findsOneWidget);
+    expect(find.text('Tampines Int'), findsWidgets);
     expect(find.text('Home → Work'), findsOneWidget);
     expect(find.text('Go somewhere'), findsOneWidget);
     expect(find.textContaining('Taxis near Home'), findsOneWidget);

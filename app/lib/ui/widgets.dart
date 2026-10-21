@@ -454,7 +454,7 @@ class BentoTile extends StatelessWidget {
               const SizedBox(height: 2),
               Text(caption,
                   style: t.bodySmall?.copyWith(color: highlighted ? DL.ink : null),
-                  maxLines: 2,
+                  maxLines: 3,
                   overflow: TextOverflow.ellipsis),
             ],
           ),
@@ -480,14 +480,14 @@ class PillRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     final edge = onDark ? DL.ink : DL.edge(context);
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      clipBehavior: Clip.none,
-      child: Row(
+    // Wraps onto more lines so every choice stays visible (no hidden sideways scroll).
+    return Wrap(
+        spacing: 8,
+        runSpacing: 8,
         children: [
           for (final (key, icon, label) in items)
             Padding(
-              padding: const EdgeInsets.only(right: 10, bottom: 3),
+              padding: const EdgeInsets.only(bottom: 3, right: 3),
               child: _Pill(
                 icon: icon,
                 label: label,
@@ -499,7 +499,6 @@ class PillRow extends StatelessWidget {
               ),
             ),
         ],
-      ),
     );
   }
 }
@@ -546,9 +545,8 @@ class _Pill extends StatelessWidget {
               children: [
                 Icon(icon, size: 16, color: fg),
                 const SizedBox(width: 6),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 170),
-                  child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: style?.copyWith(color: fg)),
+                Flexible(
+                  child: Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: style?.copyWith(color: fg)),
                 ),
               ],
             ),

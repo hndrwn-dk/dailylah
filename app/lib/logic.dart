@@ -233,27 +233,21 @@ List<int> extrasForToday(Favorites fav, DateTime now) {
   ];
 }
 
-/// The place whose stops/weather the card should show.
+/// The place whose stops/weather the card should show: the work/school place on a
+/// commute evening, otherwise home (also on days off).
 PlaceKind originFor(CardKind kind, Favorites fav, [DateTime? now]) {
   if (kind == CardKind.evening) {
     final p = commutePlace(fav, now ?? DateTime.now());
     if (p != null) return p.kind;
-    if (fav.places.containsKey(PlaceKind.work)) return PlaceKind.work;
-    if (fav.places.containsKey(PlaceKind.school)) return PlaceKind.school;
   }
   return PlaceKind.home;
 }
 
-/// The place the user is heading to (used for rain at destination).
+/// The place the user is heading to (used for rain at destination), or null on a day off.
 PlaceKind? destinationFor(CardKind kind, Favorites fav, [DateTime? now]) {
-  if (kind == CardKind.morning) {
-    final p = commutePlace(fav, now ?? DateTime.now());
-    if (p != null) return p.kind;
-    if (fav.places.containsKey(PlaceKind.work)) return PlaceKind.work;
-    if (fav.places.containsKey(PlaceKind.school)) return PlaceKind.school;
-    return null;
-  }
-  return PlaceKind.home;
+  final p = commutePlace(fav, now ?? DateTime.now());
+  if (p == null) return null;
+  return kind == CardKind.morning ? p.kind : PlaceKind.home;
 }
 
 bool isQuietHour(DateTime now) => now.hour >= 22 || now.hour < 6;
@@ -942,6 +936,16 @@ Map<String, DirectRide> directRides(BusRoutes routes, String origin, Set<String>
   return out;
 }
 
+/// Direct rides from [stop] to [to] without long detours: a loop service that goes the
+/// long way round (more than 3x the straight distance + 2 km) is left out.
+Map<String, DirectRide> tripRides(BusRoutes routes, BusStop stop, Place to, Set<String> destStops) {
+  final straightKm = distanceMeters(stop.lat, stop.lng, to.lat, to.lng) / 1000;
+  return {
+    for (final e in directRides(routes, stop.code, destStops).entries)
+      if (e.value.km <= straightKm * 3 + 2) e.key: e.value,
+  };
+}
+
 /// Stops to look for at the destination: the place's own stops plus any within [radius] m.
 Set<String> destinationStops(Place dest, List<BusStop> all, {double radius = 400}) => {
       for (final s in dest.stops) s.code,
@@ -1019,15 +1023,58 @@ List<(String, String)> incidentsOnTrip(Map<String, dynamic>? apiBody, Place from
 }
 
 
-/// Start stops for a trip: those with a direct bus to [destStops] (the right side of the road),
-/// or the first [fallback] candidates when none have one or routes are not loaded.
-/// [unknown] caps the list when routes are not loaded (default: all).
-List<BusStop> tripStartStops(List<BusStop> candidates, BusRoutes routes, Set<String> destStops,
-    {int fallback = 1, int? unknown}) {
-  if (routes.routes.isEmpty || destStops.isEmpty) return candidates.take(unknown ?? candidates.length).toList();
-  final good = [for (final st in candidates) if (directRides(routes, st.code, destStops).isNotEmpty) st];
-  return good.isNotEmpty ? good.take(3).toList() : candidates.take(fallback).toList();
+/// Start stops for a trip and whether they were suggested instead of the saved ones.
+class TripStops {
+  const TripStops(this.stops, {this.suggested = false});
+  final List<BusStop> stops;
+
+  /// True when no saved stop has a direct bus and these are nearby stops that do.
+  final bool suggested;
 }
+
+/// Start stops for a trip: the [saved] ones with a direct bus to [to] (the right side of
+/// the road). When none has one, nearby stops within [radius] m of [from] that do,
+/// nearest first. Without route data (or nothing direct anywhere near), the saved
+/// stops (or the two nearest when nothing is saved).
+TripStops tripStops(List<BusStop> saved, List<BusStop> all, BusRoutes routes, Place from, Place to,
+    {double radius = 500}) {
+  final nearest = [
+    for (final (st, _) in within(all, from.lat, from.lng, radius, latOf: (x) => x.lat, lngOf: (x) => x.lng, limit: 12)) st,
+  ];
+  final fallback = saved.isNotEmpty ? saved : nearest.take(2).toList();
+  final destStops = destinationStops(to, all);
+  if (routes.routes.isEmpty || destStops.isEmpty) return TripStops(fallback);
+  bool ok(BusStop st) => tripRides(routes, st, to, destStops).isNotEmpty;
+  final good = [for (final st in saved) if (ok(st)) st];
+  if (good.isNotEmpty) return TripStops(good);
+  final near = [for (final st in nearest) if (!saved.any((x) => x.code == st.code) && ok(st)) st];
+  if (near.isNotEmpty) return TripStops(near.take(2).toList(), suggested: saved.isNotEmpty);
+  return TripStops(fallback.take(saved.isNotEmpty ? 1 : 2).toList());
+}
+
+/// Group arrivals per service in arrival order: (first, next minutes or null).
+List<(BusEta, int?)> groupEtas(List<BusEta> list) {
+  final out = <String, (BusEta, int?)>{};
+  for (final e in list) {
+    final have = out[e.service];
+    if (have == null) {
+      out[e.service] = (e, null);
+    } else if (have.$2 == null) {
+      out[e.service] = (have.$1, e.minutes);
+    }
+  }
+  return out.values.toList();
+}
+
+/// Short name for a long NEA label: "Tampines St 11 Blk 137 (Tampines Round Market)"
+/// becomes "Tampines Round Market".
+String shortPlaceName(String name) {
+  final m = RegExp(r'\(([^)]+)\)\s*$').firstMatch(name);
+  return m == null ? name : m.group(1)!;
+}
+
+/// Walking is the better answer under this straight-line distance.
+const walkInsteadMetres = 1000.0;
 
 // ---------------------------------------------------------------- trips: MRT
 
@@ -1057,7 +1104,11 @@ class MrtPlan {
     required this.walkFromAlight,
     this.line,
     this.stops,
+    this.via,
   });
+
+  /// Where to change trains (e.g. Jurong East) when there is no shared line.
+  final MrtStation? via;
   final MrtStation board;
   final double walkToBoard;
   final MrtStation alight;
@@ -1090,5 +1141,30 @@ MrtPlan? mrtPlan(List<MrtStation> stations, Place from, Place to, {double maxWal
       }
     }
   }
-  return MrtPlan(board: a.$1, walkToBoard: a.$2, alight: b.$1, walkFromAlight: b.$2, line: line, stops: stops);
+  MrtStation? via;
+  if (line == null) {
+    // One change: a station on one of the boarding lines and one of the alighting lines.
+    String? prefix(String c) => RegExp(r'^[A-Z]+').firstMatch(c)?.group(0);
+    var best = 1 << 30;
+    for (final x in stations) {
+      for (final ca in a.$1.codes) {
+        for (final cx in x.codes) {
+          if (prefix(ca) != prefix(cx)) continue;
+          for (final cb in b.$1.codes) {
+            for (final cy in x.codes) {
+              if (prefix(cb) != prefix(cy) || prefix(cx) == prefix(cy)) continue;
+              final n1 = num(ca), n2 = num(cx), n3 = num(cy), n4 = num(cb);
+              if (n1 == null || n2 == null || n3 == null || n4 == null) continue;
+              final cost = (n1 - n2).abs() + (n3 - n4).abs();
+              if (cost < best) {
+                best = cost;
+                via = x;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return MrtPlan(board: a.$1, walkToBoard: a.$2, alight: b.$1, walkFromAlight: b.$2, line: line, stops: stops, via: via);
 }

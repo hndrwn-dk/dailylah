@@ -16,7 +16,8 @@ class DL {
   static const stop = Color(0xFFDC4A37); // disruptions
   static const mint = Color(0xFFCFEDEA); // quiet tinted surfaces
   static const sky = Color(0xFFBFE4F1); // weather panel when dry
-  static const mist = Color(0xFF798E95); // secondary text
+  static const mist = Color(0xFF50646A); // secondary text (5:1 or more on light surfaces)
+  static const tealText = Color(0xFF0A7068); // teal for text links (4.5:1 or more)
   static const shield = Color(0xFFA4B9C0);
 
   // Dark counterparts
@@ -221,7 +222,7 @@ ThemeData buildTheme(Brightness brightness) {
       ),
     ),
     textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(foregroundColor: dark ? DL.tealLight : DL.teal, textStyle: text.labelLarge),
+      style: TextButton.styleFrom(foregroundColor: dark ? DL.tealLight : DL.tealText, textStyle: text.labelLarge),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,

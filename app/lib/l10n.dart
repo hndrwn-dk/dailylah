@@ -2,6 +2,8 @@
 /// can word notifications too. Keep all copy here rather than in widgets.
 library;
 
+import 'models.dart';
+
 /// NEA health advisory bands for haze (24-hour PSI and 1-hour PM2.5).
 enum AirLevel { good, moderate, unhealthy, veryUnhealthy, hazardous }
 
@@ -202,6 +204,22 @@ class S {
   String get addPlacesHint => 'Add places like your favourite food spot in Setup to see them here.';
 
   String get mrtOption => 'By MRT';
+  String lineName(String code) {
+    final n = trainLines[code] ?? code;
+    return n.endsWith('LRT') ? n : '$n Line';
+  }
+
+  String changeAt(String station) => 'Change trains at $station';
+  String walkIsQuicker(String minutes, String dist) => '$minutes · $dist';
+  String get walkingRoute => 'Walking route';
+  String suggestedStop(String dist, String place) => 'Has a direct bus · $dist from $place';
+  String get useThisStop => 'Use this stop';
+  String stopSaved(String name) => '$name saved as your stop';
+  String thenIn(int m) => m == 0 ? 'then Arr' : 'then $m min';
+  String get nearestHawker => 'Nearest hawker';
+  String headingTo(String place) => 'Heading to $place';
+  String get headingHome => 'Heading home';
+  String get todayLabel => 'Today';
   String walkTo(String station, String dist) => 'Walk $dist to $station';
   String rideLine(String line, int? stops) => stops == null ? 'Ride $line' : 'Ride $line · ~$stops stops';
   String get changeTrains => 'Change trains on the way';

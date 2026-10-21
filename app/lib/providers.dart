@@ -85,6 +85,21 @@ class FavoritesNotifier extends Notifier<Favorites> {
         return f.copyWith(places: {...f.places, kind: p.copyWith(stops: swap(p.stops))});
       });
 
+  /// Saves a suggested stop as the first stop of a place (keeps up to 3).
+  Future<void> useStop(String key, BusStop stop) => update((f) {
+        List<BusStop> put(List<BusStop> stops) => [stop, ...stops.where((x) => x.code != stop.code)].take(3).toList();
+        if (key.startsWith('extra:')) {
+          final i = int.parse(key.substring(6));
+          final list = [...f.extraPlaces];
+          list[i] = list[i].copyWith(stops: put(list[i].stops));
+          return f.copyWith(extraPlaces: list);
+        }
+        final kind = PlaceKind.values.byName(key);
+        final p = f.places[kind];
+        if (p == null) return f;
+        return f.copyWith(places: {...f.places, kind: p.copyWith(stops: put(p.stops))});
+      });
+
   Future<void> toggleCompare(String key) => update((f) {
         final l = [...f.compareBlocks];
         if (!l.remove(key)) {
