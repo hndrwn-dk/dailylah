@@ -3,7 +3,7 @@ import sys
 # Writes mipmap-*/ic_launcher*.png, a 512 px Play Store icon and a preview.
 from PIL import Image, ImageDraw, ImageFont
 
-FONT = sys.argv[1]
+FONT = sys.argv[1] if len(sys.argv) > 1 else "app/assets/fonts/PlusJakartaSans-Variable.ttf"
 INK = (15, 22, 24, 255)
 TEAL = (14, 148, 136, 255)
 CARD = (244, 251, 254, 255)
