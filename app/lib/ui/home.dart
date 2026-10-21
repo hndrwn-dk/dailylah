@@ -301,6 +301,9 @@ class _PrivateCard extends ConsumerWidget {
 
 // ---------------------------------------------------------------- building blocks
 
+/// ActiveSG (Sport Singapore): bookings, gym and pool entry. No per-centre deep link exists.
+const activeSgUrl = 'https://activesg.gov.sg';
+
 /// One place in a list: name, a line of detail and the distance from home.
 class NearItem {
   const NearItem({
@@ -313,7 +316,13 @@ class NearItem {
     this.big,
     this.bigLabel = '',
     this.bigWarn = false,
+    this.linkUrl,
+    this.linkLabel = '',
   });
+
+  /// Optional button on the place sheet, e.g. booking on ActiveSG.
+  final String? linkUrl;
+  final String linkLabel;
 
   /// A number to show large on the right (e.g. free car park lots), with a small label.
   final String? big;
@@ -403,6 +412,18 @@ class _NearGroupState extends ConsumerState<NearGroup> {
                     lng: it.lng,
                     distance: it.distance,
                     phone: it.tel,
+                    extra: [
+                      if (it.linkUrl != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: FilledButton.icon(
+                            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                            icon: const Icon(Icons.open_in_new),
+                            label: Text(it.linkLabel),
+                            onPressed: () => launchUrl(Uri.parse(it.linkUrl!), mode: LaunchMode.externalApplication),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               if (items.length > widget.show)
@@ -866,6 +887,22 @@ class _Weekend extends ConsumerWidget {
         if (pois != null) NearGroup(title: s.parks, icon: Icons.park_outlined, items: NearItem.pois(pois.of(PoiKind.park), home, radius: 2000)),
         NearGroup(title: s.attractions, icon: Icons.attractions_outlined, items: NearItem.points(around.of('attraction'), home, radius: 6000)),
         NearGroup(title: s.museums, icon: Icons.museum_outlined, items: NearItem.points(around.of('museum'), home, radius: 10000, limit: 3)),
+        NearGroup(
+          title: s.activeSgCentres,
+          icon: Icons.sports_tennis_outlined,
+          items: [
+            for (final it in NearItem.points(around.of('activesg'), home, radius: 8000, limit: 5))
+              NearItem(
+                name: it.name,
+                detail: it.detail,
+                lat: it.lat,
+                lng: it.lng,
+                distance: it.distance,
+                linkUrl: activeSgUrl,
+                linkLabel: s.bookOnActiveSg,
+              ),
+          ],
+        ),
         if (pois != null) NearGroup(title: s.sports, icon: Icons.pool_outlined, items: NearItem.pois(pois.of(PoiKind.sport), home, radius: 3000)),
         NearGroup(title: s.bbqPits, icon: Icons.outdoor_grill_outlined, items: NearItem.points(around.of('bbq'), home, radius: 3000)),
         NearGroup(title: s.pcnAccess, icon: Icons.directions_bike_outlined, items: NearItem.points(around.of('pcn'), home, radius: 2000)),

@@ -307,7 +307,9 @@ class S {
   String get parks => 'Parks';
   String get libraries => 'Libraries';
   String get communityClubs => 'Community clubs';
-  String get sports => 'Sports & pools';
+  String get sports => 'Pools & sports nearby';
+  String get activeSgCentres => 'ActiveSG sport centres';
+  String get bookOnActiveSg => 'Book on ActiveSG';
   String get prayerTimes => 'Prayer times today';
   String get nextPrayer => 'Next';
   List<String> get prayerNames => const ['Subuh', 'Syuruk', 'Zohor', 'Asar', 'Maghrib', 'Isyak'];
