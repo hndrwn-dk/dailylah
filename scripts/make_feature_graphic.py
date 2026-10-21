@@ -76,7 +76,7 @@ def feature():
         y = 78 + i * 64
         text(d, (586, y), svc, bar(46), LED)
         text(d, (680, y), eta, bar(46), LED)
-        text(d, (800 if eta == "Arr" else 820, y + 18), nxt, bar(24), LED_DIM)
+        text(d, (796, y + 18), nxt, bar(24), LED_DIM)  # one column for every row
 
     # 2. MRT station chips.
     sticker(d, (560, 240, 790, 330), CARD, radius=16)
