@@ -15,3 +15,8 @@
 # Our own Kotlin (widget provider, app launcher channel).
 -keep class com.tursinalabs.dailylah.** { *; }
 -dontwarn com.google.errorprone.annotations.**
+# Flutter plugins called from Dart through JNI (shared_preferences reads settings this way;
+# without these R8 renames SharedPreferencesApiRegistrar.getAll and start-up fails).
+-keep class io.flutter.plugins.** { *; }
+-keep class com.github.dart_lang.jni.** { *; }
+-keep class kotlin.coroutines.Continuation { *; }
