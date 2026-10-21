@@ -62,6 +62,11 @@ class TodayPage extends ConsumerWidget {
       await ref.read(forecastProvider.future).catchError((_) => <String, dynamic>{});
     }
 
+    final modeEnd = kind == CardKind.morning ? dest : origin;
+    final tripMode = modeEnd == null ? null : ref.watch(modeOverrideProvider)[modeEnd.kind.name] ?? modeEnd.mode;
+    // The trip already shows taxis when Taxi is the chosen mode; don't repeat the tile below.
+    final tripShowsTaxi = commute && origin != null && dest != null && tripMode == TravelMode.taxi;
+
     final dests = <Widget>[
       for (final a in alerts) AlertBanner(icon: _alertIcon(a.kind), text: a.text),
       if (origin != null) _WeatherTiles(origin: origin),
@@ -73,10 +78,10 @@ class TodayPage extends ConsumerWidget {
           modeKey: (kind == CardKind.morning ? dest : origin).kind.name,
           modePlace: kind == CardKind.morning ? dest : origin,
         ),
-      if ((!commute || ref.watch(modeOverrideProvider)[(kind == CardKind.morning ? dest : origin)?.kind.name] == TravelMode.transit || ((kind == CardKind.morning ? dest : origin)?.mode ?? TravelMode.transit) == TravelMode.transit))
+      if (!commute || (tripMode ?? TravelMode.transit) == TravelMode.transit)
         _MrtCard(showCrowd: kind == CardKind.evening),
       const GoSomewhere(),
-      if (origin != null) _QuickTiles(origin: origin),
+      if (origin != null) _QuickTiles(origin: origin, showTaxi: !tripShowsTaxi),
       if (fav.carparks.isNotEmpty) const _SavedParking(),
       const SizedBox(height: 8),
       Text('${s.dataSource} ${s.pullToRefresh}', style: t.bodySmall, textAlign: TextAlign.center),
@@ -553,8 +558,9 @@ class _WeatherTiles extends ConsumerWidget {
 
 /// Bento row: taxis nearby (useful when it rains) and the nearest hawker.
 class _QuickTiles extends ConsumerWidget {
-  const _QuickTiles({required this.origin});
+  const _QuickTiles({required this.origin, this.showTaxi = true});
   final Place origin;
+  final bool showTaxi;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -564,7 +570,7 @@ class _QuickTiles extends ConsumerWidget {
     final today = dateOnly(ref.watch(clockProvider).valueOrNull ?? DateTime.now());
     final near = nearest(hawkers, origin.lat, origin.lng, latOf: (h) => h.lat, lngOf: (h) => h.lng);
     final tiles = <Widget>[
-      if (taxis != null)
+      if (showTaxi && taxis != null)
         Expanded(
           child: BentoTile(
             icon: Icons.local_taxi_outlined,
