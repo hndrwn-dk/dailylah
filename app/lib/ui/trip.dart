@@ -6,6 +6,7 @@ import '../data.dart';
 import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
+import 'address_picker.dart';
 import 'place_sheet.dart';
 import 'stop_picker.dart';
 import 'theme.dart';
@@ -97,24 +98,113 @@ class _TransitBlock extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final all = ref.watch(busStopsProvider).valueOrNull ?? const <BusStop>[];
-    // Start stops: the place's own, or the two nearest within 500 m (e.g. "from here").
-    final stops = from.stops.isNotEmpty
+    final routes = ref.watch(busRoutesProvider).valueOrNull ?? BusRoutes.empty;
+    // Start stops: the place's own, or the nearest within 500 m (e.g. "from here").
+    final candidates = from.stops.isNotEmpty
         ? from.stops
         : [
-            for (final (st, _) in within(all, from.lat, from.lng, 500, latOf: (x) => x.lat, lngOf: (x) => x.lng, limit: 2))
+            for (final (st, _) in within(all, from.lat, from.lng, 500, latOf: (x) => x.lat, lngOf: (x) => x.lng, limit: 6))
               st,
           ];
+    final stops = tripStartStops(candidates, routes, destinationStops(to, all), fallback: from.stops.isEmpty ? 2 : 1, unknown: from.stops.isEmpty ? 2 : null);
     final s = ref.watch(stringsProvider);
-    if (stops.isEmpty) {
-      return Panel(
-        child: EmptyNote(s.noDirectBus,
-            action: TextButton(onPressed: () => openDirections(to.lat, to.lng), child: Text(s.routeInMaps))),
-      );
-    }
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (stops.isEmpty)
+          Panel(
+            child: EmptyNote(s.noDirectBus,
+                action: TextButton(onPressed: () => openDirections(to.lat, to.lng), child: Text(s.routeInMaps))),
+          ),
         for (final st in stops) TripBusCard(stop: st, fromKey: fromKey, to: to, toLabel: toLabel),
+        _MrtOption(from: from, to: to),
       ],
+    );
+  }
+}
+
+/// Nearest MRT/LRT station at each end, with the line if no change is needed.
+class _MrtOption extends ConsumerWidget {
+  const _MrtOption({required this.from, required this.to});
+  final Place from;
+  final Place to;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stations = ref.watch(mrtStationsProvider).valueOrNull ?? const <MrtStation>[];
+    if (stations.isEmpty) return const SizedBox.shrink();
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final plan = mrtPlan(stations, from, to);
+    final alerts = ref.watch(trainAlertsProvider).valueOrNull;
+    final lines = {
+      if (plan != null)
+        for (final c in [...plan.board.codes, ...plan.alight.codes])
+          if (lineOfCode(c) case final l?) l,
+    };
+    final disrupted = alerts == null
+        ? const <String>[]
+        : [for (final l in lineStatuses(alerts, lines)) if (l.disrupted) l.line];
+
+    Widget stationRow(IconData icon, String text, MrtStation st) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            children: [
+              Icon(icon, size: 20),
+              const SizedBox(width: 10),
+              Expanded(child: Text(text, style: t.bodyMedium)),
+              for (final l in {for (final c in st.codes) if (lineOfCode(c) case final l?) l})
+                Padding(padding: const EdgeInsets.only(left: 4), child: LineChip(l, dense: true)),
+            ],
+          ),
+        );
+
+    return Panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.subway_outlined),
+              const SizedBox(width: 8),
+              Text(s.mrtOption, style: t.titleMedium),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (plan == null)
+            Text(s.noMrtNearby, style: t.bodySmall)
+          else ...[
+            stationRow(Icons.directions_walk, s.walkTo(plan.board.name, s.metres(plan.walkToBoard)), plan.board),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Icon(plan.direct ? Icons.trending_flat : Icons.swap_horiz, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(plan.direct ? s.rideLine(plan.line!, plan.stops) : s.changeTrains,
+                        style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ),
+            ),
+            stationRow(Icons.place_outlined, s.alightAt(plan.alight.name, s.metres(plan.walkFromAlight)), plan.alight),
+            for (final l in disrupted)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(s.mrtLineDisrupted(l), style: t.bodySmall?.copyWith(color: DL.stop)),
+              ),
+          ],
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => openRoute(from.lat, from.lng, to.lat, to.lng),
+              icon: const Icon(Icons.map_outlined),
+              label: Text(s.mrtRouteInMaps),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -406,6 +496,23 @@ class GoSomewhere extends ConsumerWidget {
     }
   }
 
+  Future<void> _search(BuildContext context, WidgetRef ref) async {
+    final s = ref.read(stringsProvider);
+    final hit = await Navigator.of(context).push<AddressHit>(
+      MaterialPageRoute(builder: (_) => AddressPickerPage(title: s.searchPlace)),
+    );
+    if (hit == null) return;
+    ref.read(goAdhocDestProvider.notifier).state = Place(
+      kind: PlaceKind.other,
+      name: hit.label,
+      address: hit.label,
+      postal: hit.postal.isEmpty ? null : hit.postal,
+      addrLat: hit.lat,
+      addrLng: hit.lng,
+    );
+    ref.read(goKeyProvider.notifier).state = 'adhoc';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
@@ -414,23 +521,36 @@ class GoSomewhere extends ConsumerWidget {
     final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
     final key = ref.watch(goKeyProvider);
     final here = ref.watch(goFromHereProvider);
-    final home = fav.places[PlaceKind.home];
+    final adhoc = ref.watch(goAdhocDestProvider);
+    var fromKey = ref.watch(goFromKeyProvider);
 
     final options = <(String, IconData, String)>[
       for (final i in extrasForToday(fav, now)) ('extra:$i', Icons.star_outline, placeTitle(s.placeLabel, fav.extraPlaces[i])),
       for (final k in [PlaceKind.work, PlaceKind.school, PlaceKind.home])
         if (fav.places[k] != null) (k.name, PlaceSelector.iconOf(k), s.placeLabel(k.name)),
+      if (adhoc != null) ('adhoc', Icons.place_outlined, adhoc.name ?? s.anyAddress),
+      ('search', Icons.search, s.anyAddress),
     ];
     Place? dest;
-    if (key != null) {
-      if (key.startsWith('extra:')) {
-        final i = int.tryParse(key.substring(6)) ?? -1;
-        if (i >= 0 && i < fav.extraPlaces.length) dest = fav.extraPlaces[i];
-      } else {
-        dest = fav.places[PlaceKind.values.byName(key)];
-      }
+    if (key == 'adhoc') {
+      dest = adhoc;
+    } else if (key != null && key.startsWith('extra:')) {
+      final i = int.tryParse(key.substring(6)) ?? -1;
+      if (i >= 0 && i < fav.extraPlaces.length) dest = fav.extraPlaces[i];
+    } else if (key != null) {
+      dest = fav.places[PlaceKind.values.byName(key)];
     }
-    final from = here ?? home;
+
+    // Where the trip starts: a saved place (not the destination itself) or "here".
+    final starts = <(String, IconData, String)>[
+      for (final k in [PlaceKind.home, PlaceKind.work, PlaceKind.school])
+        if (fav.places[k] != null && k.name != key) (k.name, PlaceSelector.iconOf(k), s.placeLabel(k.name)),
+      ('here', Icons.my_location, s.hereNow),
+    ];
+    if (!starts.any((o) => o.$1 == fromKey) || (fromKey == 'here' && here == null)) {
+      fromKey = starts.first.$1;
+    }
+    final from = fromKey == 'here' ? here : fav.places[PlaceKind.values.byName(fromKey)];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -443,42 +563,56 @@ class GoSomewhere extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
           child: Text(fav.extraPlaces.isEmpty ? s.addPlacesHint : s.goSomewhereHint, style: t.bodySmall),
         ),
+        _Label(s.to),
         Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: PillRow(
             items: options,
             selected: key ?? '',
-            onTap: (k) => ref.read(goKeyProvider.notifier).state = key == k ? null : k,
+            onTap: (k) {
+              if (k == 'search') {
+                _search(context, ref);
+              } else {
+                ref.read(goKeyProvider.notifier).state = key == k ? null : k;
+              }
+            },
           ),
         ),
-        if (dest != null && from != null) ...[
+        if (dest != null) ...[
+          _Label(s.from),
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: PillRow(
-              items: [
-                ('home', Icons.home_outlined, s.fromHome),
-                ('here', Icons.my_location, s.fromHere),
-              ],
-              selected: here == null ? 'home' : 'here',
+              items: starts,
+              selected: fromKey,
               onTap: (k) {
-                if (k == 'home') {
-                  ref.read(goFromHereProvider.notifier).state = null;
-                } else {
-                  _useHere(context, ref);
-                }
+                ref.read(goFromKeyProvider.notifier).state = k;
+                if (k == 'here') _useHere(context, ref);
               },
             ),
           ),
-          TripSection(
-            fromKey: here == null ? 'home' : null,
-            from: from,
-            fromLabel: here == null ? null : s.hereNow,
-            to: dest,
-            modeKey: key!,
-            modePlace: dest,
-          ),
+          if (from != null)
+            TripSection(
+              fromKey: fromKey == 'here' ? null : fromKey,
+              from: from,
+              fromLabel: fromKey == 'here' ? s.hereNow : null,
+              to: dest,
+              modeKey: key!,
+              modePlace: dest,
+            ),
         ],
       ],
     );
   }
+}
+
+class _Label extends StatelessWidget {
+  const _Label(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
+        child: Text(text, style: Theme.of(context).textTheme.labelLarge),
+      );
 }

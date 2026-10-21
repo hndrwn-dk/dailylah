@@ -33,6 +33,7 @@ ONEMAP_SEARCH_URL = "https://www.onemap.gov.sg/api/common/elastic/search"
 HAWKER_CLOSURES = "d_bda4baa634dd1cc7a6c7cad5f19e2d68"
 DENGUE_CLUSTERS = "d_dbfabf16158d1b0e1c420627c0819168"
 MRT_EXITS = "d_b39d3a0871985372d7e1637193335da5"
+STATION_CODES = "d_d312a5b127e1ae74299b8ae664cedd4e"  # LTA codes (no TEL in the 2024 file)
 PRESCHOOLS = "d_61eefab99958fd70e6aab17320a71f1c"
 SCHOOLS = "d_688b934f82c1059ed0a6993d2a829089"
 COMMUNITY_CLUBS = "d_9de02d3fb33d96da1855f4fbef549a0f"
@@ -861,3 +862,59 @@ def compact_racks(geo: dict) -> list[dict]:
 
 async def build_racks(dg: DataGov) -> list[dict]:
     return compact_racks(await dg.geojson(BICYCLE_RACKS))
+
+
+# ---------------------------------------------------------------- MRT stations with codes
+
+# Lines opened after LTA's station-code file was last refreshed.
+EXTRA_STATION_CODES = {
+    "WOODLANDS NORTH": ["TE1"], "WOODLANDS": ["TE2"], "WOODLANDS SOUTH": ["TE3"],
+    "SPRINGLEAF": ["TE4"], "LENTOR": ["TE5"], "MAYFLOWER": ["TE6"], "BRIGHT HILL": ["TE7"],
+    "UPPER THOMSON": ["TE8"], "CALDECOTT": ["TE9"], "STEVENS": ["TE11"], "NAPIER": ["TE12"],
+    "ORCHARD BOULEVARD": ["TE13"], "ORCHARD": ["TE14"], "GREAT WORLD": ["TE15"],
+    "HAVELOCK": ["TE16"], "OUTRAM PARK": ["TE17"], "MAXWELL": ["TE18"], "SHENTON WAY": ["TE19"],
+    "MARINA BAY": ["TE20"], "GARDENS BY THE BAY": ["TE22"], "TANJONG RHU": ["TE23"],
+    "KATONG PARK": ["TE24"], "TANJONG KATONG": ["TE25"], "MARINE PARADE": ["TE26"],
+    "MARINE TERRACE": ["TE27"], "SIGLAP": ["TE28"], "BAYSHORE": ["TE29"],
+    "HUME": ["DT4"], "PUNGGOL COAST": ["NE18"],
+}  # fmt: skip
+
+
+def _base_station(name: str) -> str:
+    return re.sub(r"\s+(MRT|LRT)\s+STATION$", "", name.strip().upper())
+
+
+def compact_mrt_stations(exits: dict, code_rows: list[dict]) -> list[dict]:
+    """[{"n": "Marine Parade", "c": ["TE26"], "la", "lo"}] — one point per station (exit
+    average), with line codes from LTA plus EXTRA_STATION_CODES."""
+    codes: dict[str, set[str]] = defaultdict(set)
+    for r in code_rows:
+        name = str(r.get("mrt_station_english", "")).strip().upper()
+        code = str(r.get("stn_code", "")).strip().upper()
+        if name and code:
+            codes[name].add(code)
+    for name, extra in EXTRA_STATION_CODES.items():
+        codes[name].update(extra)
+    pts: dict[str, list[tuple[float, float]]] = defaultdict(list)
+    for f in exits.get("features", []):
+        name = str((f.get("properties") or {}).get("STATION_NA", ""))
+        c = centroid(f.get("geometry"))
+        if name and c:
+            pts[_base_station(name)].append((c[0], c[1]))
+    out = []
+    for name, p in sorted(pts.items()):
+        if not codes.get(name):
+            continue
+        out.append(
+            {
+                "n": name.title(),
+                "c": sorted(codes[name]),
+                "la": _r(sum(x[0] for x in p) / len(p)),
+                "lo": _r(sum(x[1] for x in p) / len(p)),
+            }
+        )
+    return out
+
+
+async def build_mrt_stations(dg: DataGov) -> list[dict]:
+    return compact_mrt_stations(await dg.geojson(MRT_EXITS), await dg.rows(STATION_CODES))

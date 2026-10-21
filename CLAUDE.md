@@ -36,7 +36,10 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   `commuteTimes` in logic.dart). MRT: all lines show on Today; `Favorites.lines` are the
   starred ones (max 3), and alerts cover every line when none is starred (`watchedLines`). Today shows the commute trip
   (`TripSection` in `ui/trip.dart`) and a "Go somewhere" picker. "Buses to X" uses the
-  `bus_routes.json` bundle (`directRides` in logic.dart); driving uses `/v1/parking`
+  `bus_routes.json` bundle (`directRides` in logic.dart; trip start stops are filtered to the
+  side of the road with a direct bus, `tripStartStops`). Bus/MRT also shows the nearest MRT
+  station at each end from the `mrt_stations.json` bundle (`mrtPlan`). "Go somewhere" picks a
+  start (home/work/school/here) and a destination (saved places or a searched address); driving uses `/v1/parking`
   (lot type C/Y) and `/v1/traffic-incidents`.
 - Favourites, custom places, watched/compared blocks and extras are stored with SharedPreferences
   (`lib/store.dart`). Family share is a `DL1:` code built on-device (`encodeShareCode`).

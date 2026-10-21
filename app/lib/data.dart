@@ -334,3 +334,21 @@ class EmergencySet {
           k: [for (final r in (j[k.name] as List? ?? const [])) EPoint.fromBundle(r as Map<String, dynamic>)],
       });
 }
+
+
+/// MRT/LRT station with its line codes, e.g. Promenade [CC4, DT15].
+/// {"n","c":[codes],"la","lo"}
+class MrtStation {
+  const MrtStation({required this.name, required this.codes, required this.lat, required this.lng});
+  final String name;
+  final List<String> codes;
+  final double lat;
+  final double lng;
+
+  factory MrtStation.fromBundle(Map<String, dynamic> j) => MrtStation(
+        name: '${j['n']}',
+        codes: [for (final c in (j['c'] as List? ?? const [])) '$c'],
+        lat: _d(j['la']),
+        lng: _d(j['lo']),
+      );
+}

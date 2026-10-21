@@ -738,11 +738,22 @@ Future<void> _showAir(BuildContext context, S s, AirQuality air) => showModalBot
 /// Ride-hailing apps in Singapore (Play Store package ids). market://launch opens
 /// the app when installed, otherwise its store page.
 const _rideApps = [
-  ('Grab', 'com.grabtaxi.passenger'),
-  ('Gojek', 'com.gojek.app'),
-  ('CDG Zig', 'com.codigo.comfort'),
-  ('TADA', 'com.mvlchain.tada'),
+  ('Grab', 'com.grabtaxi.passenger', DL.mint),
+  ('Gojek', 'com.gojek.app', DL.sky),
+  ('CDG Zig', 'com.codigo.comfort', DL.sky),
+  ('TADA', 'com.mvlchain.tada', DL.mint),
 ];
+
+/// Opens a ride app (through the Play Store, which launches it when installed),
+/// or its store page in the browser.
+Future<void> _openRideApp(String id) async {
+  try {
+    if (await launchUrl(Uri.parse('market://launch?id=$id'), mode: LaunchMode.externalApplication)) return;
+  } on Object {
+    // No Play Store: fall through to the web page.
+  }
+  await launchUrl(Uri.parse('https://play.google.com/store/apps/details?id=$id'), mode: LaunchMode.externalApplication);
+}
 
 /// Taxi detail: live counts, a small radar of free taxis and stands, nearest stands,
 /// and shortcuts to booking apps.
@@ -787,6 +798,41 @@ class TaxiSheet extends ConsumerWidget {
               child: Row(children: [count(n200, s.within200), count(n500, s.within500), count(n1k, s.taxiWithin1km)]),
             ),
           ),
+          SectionTitle(s.bookTaxi, padding: const EdgeInsets.fromLTRB(4, 0, 4, 10)),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            childAspectRatio: 2.6,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 0,
+            children: [
+              for (final (name, id, color) in _rideApps)
+                Panel(
+                  color: color,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: InkWell(
+                    onTap: () => _openRideApp(id),
+                    child: Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.open_in_new, size: 18, color: DL.ink),
+                          const SizedBox(width: 8),
+                          Text(name, style: t.titleMedium?.copyWith(color: DL.ink)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.call),
+            label: Text(s.callCdg),
+            onPressed: () => launchUrl(Uri(scheme: 'tel', path: '65521111')),
+          ),
+          const SizedBox(height: 18),
           Panel(
             child: Padding(
               padding: const EdgeInsets.all(12),
@@ -829,30 +875,6 @@ class TaxiSheet extends ConsumerWidget {
                   ),
               ],
             ),
-          ),
-          SectionTitle(s.bookTaxi, padding: const EdgeInsets.fromLTRB(4, 4, 4, 10)),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              for (final (name, id) in _rideApps)
-                OutlinedButton(
-                  onPressed: () async {
-                    final ok = await launchUrl(Uri.parse('market://launch?id=$id'));
-                    if (!ok) {
-                      await launchUrl(Uri.parse('https://play.google.com/store/apps/details?id=$id'),
-                          mode: LaunchMode.externalApplication);
-                    }
-                  },
-                  child: Text(name),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          FilledButton.icon(
-            icon: const Icon(Icons.call),
-            label: Text(s.callCdg),
-            onPressed: () => launchUrl(Uri(scheme: 'tel', path: '65521111')),
           ),
           const SizedBox(height: 10),
           Text('${s.taxiLive} ${s.bookTaxiNote}', style: t.bodySmall),

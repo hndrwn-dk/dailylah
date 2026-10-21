@@ -41,6 +41,14 @@ Future<void> openDirections(double lat, double lng, {double? distance, String? m
   );
 }
 
+/// Google Maps route between two points (used for the MRT option).
+Future<void> openRoute(double fromLat, double fromLng, double toLat, double toLng, {String mode = 'transit'}) =>
+    launchUrl(
+      Uri.parse('https://www.google.com/maps/dir/?api=1&origin=$fromLat,$fromLng'
+          '&destination=$toLat,$toLng&travelmode=$mode'),
+      mode: LaunchMode.externalApplication,
+    );
+
 Future<void> openInMaps(double lat, double lng, String name) => launchUrl(
       Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng'),
       mode: LaunchMode.externalApplication,
