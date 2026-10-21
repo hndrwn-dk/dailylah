@@ -329,7 +329,8 @@ class S {
         'community' => 'Community',
         'weekend' => 'Weekend',
         'recycling' => 'Recycling',
-        'food' => 'Food & parking',
+        'food' => 'Food',
+        'parking' => 'Parking',
         'blocks' => 'Blocks & agents',
         _ => k,
       };
@@ -408,7 +409,8 @@ class S {
   String get museums => 'Museums';
   String get bbqPits => 'BBQ pits';
   String get pcnAccess => 'Park connector access';
-  String get parkingFoodTitle => 'Parking and food';
+  String get foodTitle => 'Food';
+  String get parkingTitle => 'Parking';
   String get hdbCarparks => 'HDB car parks';
   String get hawkerClosures => 'Hawker closures in the next 30 days';
   String hawkerClosed(String name, String from, String to) => '$name · $from to $to';

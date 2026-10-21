@@ -18,7 +18,7 @@ class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   static const sections = [
-    'home', 'emergency', 'shelter', 'works', 'schools', 'health', 'community', 'weekend', 'recycling', 'food', 'blocks',
+    'home', 'emergency', 'shelter', 'works', 'schools', 'health', 'community', 'weekend', 'recycling', 'food', 'parking', 'blocks',
   ];
   static const _icons = {
     'home': Icons.home_outlined,
@@ -31,6 +31,7 @@ class HomePage extends ConsumerWidget {
     'weekend': Icons.park_outlined,
     'recycling': Icons.recycling,
     'food': Icons.restaurant_outlined,
+    'parking': Icons.local_parking,
     'blocks': Icons.apartment_outlined,
   };
 
@@ -99,7 +100,8 @@ class HomePage extends ConsumerWidget {
             'community' => [_Community(home: home)],
             'weekend' => [_Weekend(home: home)],
             'recycling' => [_Recycling(home: home)],
-            'food' => [_ParkingFood(home: home)],
+            'food' => [_Food(home: home)],
+            'parking' => [_Parking(home: home)],
             'blocks' => [const _WatchedAndAgent()],
             _ => [
                 if (block != null) _MyBlock(block: block) else if (private != null) _PrivateCard(project: private)
@@ -874,27 +876,23 @@ class _Weekend extends ConsumerWidget {
 
 // ---------------------------------------------------------------- parking and food
 
-class _ParkingFood extends ConsumerWidget {
-  const _ParkingFood({required this.home});
+class _Parking extends ConsumerWidget {
+  const _Parking({required this.home});
   final Place home;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final t = Theme.of(context).textTheme;
     final carparks = ref.watch(carparkInfoProvider).valueOrNull ?? const <Carpark>[];
     final lots = ref.watch(carparkLiveProvider).valueOrNull ?? const <String, (int, int)>{};
-    final hawkers = ref.watch(hawkersProvider).valueOrNull ?? const <Hawker>[];
-    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
-    final closures = upcomingClosures(hawkers, home.lat, home.lng, now);
-    String day(DateTime d) => '${d.day}/${d.month}';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Heading(s.parkingFoodTitle, Icons.local_parking),
+        _Heading(s.parkingTitle, Icons.local_parking),
         NearGroup(
           title: s.hdbCarparks,
           icon: Icons.local_parking,
+          show: 5,
           items: [
             for (final (c, d) in within(carparks, home.lat, home.lng, 500, latOf: (c) => c.lat, lngOf: (c) => c.lng, limit: 10))
               NearItem(
@@ -909,15 +907,40 @@ class _ParkingFood extends ConsumerWidget {
               ),
           ],
         ),
-        NearGroup(
-          title: s.hawkers,
-          icon: Icons.storefront_outlined,
-          items: [
-            for (final (h, d) in within(hawkers, home.lat, home.lng, 1500, latOf: (h) => h.lat, lngOf: (h) => h.lng, limit: 10))
-              NearItem(name: shortPlaceName(h.name), detail: h.address, lat: h.lat, lng: h.lng, distance: d),
+      ],
+    );
+  }
+}
+
+class _Food extends ConsumerWidget {
+  const _Food({required this.home});
+  final Place home;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final hawkers = ref.watch(hawkersProvider).valueOrNull ?? const <Hawker>[];
+    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
+    final closures = upcomingClosures(hawkers, home.lat, home.lng, now);
+    final halal = ref.watch(favoritesProvider.select((f) => f.showHalal));
+    String day(DateTime d) => '${d.day}/${d.month}';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(child: _Heading(s.foodTitle, Icons.restaurant_outlined)),
+            // Same setting as More > Extras > Halal food nearby, one tap away here.
+            FilterChip(
+              avatar: const Icon(Icons.verified_outlined, size: 18),
+              label: Text(s.halalTab),
+              selected: halal,
+              onSelected: (v) => ref.read(favoritesProvider.notifier).update((f) => f.copyWith(showHalal: v)),
+            ),
           ],
         ),
-        if (ref.watch(favoritesProvider.select((f) => f.showHalal))) ...[
+        if (halal) ...[
           NearGroup(
             title: s.halalFood,
             icon: Icons.restaurant_outlined,
@@ -927,8 +950,16 @@ class _ParkingFood extends ConsumerWidget {
             ],
           ),
           Text(s.halalDisclaimer, style: t.bodySmall),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
         ],
+        NearGroup(
+          title: s.hawkers,
+          icon: Icons.storefront_outlined,
+          items: [
+            for (final (h, d) in within(hawkers, home.lat, home.lng, 1500, latOf: (h) => h.lat, lngOf: (h) => h.lng, limit: 10))
+              NearItem(name: shortPlaceName(h.name), detail: h.address, lat: h.lat, lng: h.lng, distance: d),
+          ],
+        ),
         if (closures.isNotEmpty) ...[
           Padding(padding: const EdgeInsets.fromLTRB(4, 4, 4, 8), child: Text(s.hawkerClosures, style: t.titleSmall)),
           Panel(
