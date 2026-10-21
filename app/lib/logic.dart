@@ -1275,3 +1275,10 @@ String titleCase(String s) => s
     .split(' ')
     .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
     .join(' ');
+
+/// The private project at a saved home: the nearest one within [maxMetres] (URA gives one
+/// point per project, so large estates need some slack).
+PrivateProject? privateProjectFor(List<PrivateProject> all, Place home, {double maxMetres = 150}) {
+  final n = nearest(all, home.lat, home.lng, latOf: (p) => p.lat, lngOf: (p) => p.lng);
+  return n != null && n.$2 <= maxMetres ? n.$1 : null;
+}

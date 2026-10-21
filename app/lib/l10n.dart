@@ -318,10 +318,34 @@ class S {
   // ---------------------------------------------------------------- homes (HDB)
   String get homesTitle => 'Find an HDB block';
   String get homeTitle => 'Home';
+  String homeSection(String k) => switch (k) {
+        'home' => 'My home',
+        'works' => 'Works',
+        'schools' => 'Schools',
+        'health' => 'Health',
+        'community' => 'Community',
+        'weekend' => 'Weekend',
+        'recycling' => 'Recycling',
+        'food' => 'Food & parking',
+        'blocks' => 'Blocks & agents',
+        _ => k,
+      };
+  String get psfLabel => 'median per sq ft';
+  String salesCount(int n) => '$n sales in the last 12 months';
+  String get latestSales => 'Latest sales';
+  String saleLine(String month, String price, int sqm, String floor) =>
+      '$month · $price · ${(sqm * 10.7639).round()} sq ft${floor == '-' ? '' : ' · floor $floor'}';
+  String get rentByBedrooms => 'Median rent, last 12 months';
+  String bedrooms(String b) => b == 'NA' ? 'Whole house' : '$b bedroom${b == '1' ? '' : 's'}';
+  String get uraSource => 'Private homes: URA (caveats lodged); figures exclude bulk sales.';
+  String get nearestPrimary => 'Nearest primary school';
+  String get nearestAed => 'Nearest AED';
+  String get nearestHawkerShort => 'Nearest hawker';
+  String worksNearby(int n) => n == 1 ? '1 work site within 1 km' : '$n work sites within 1 km';
   String blockLabel(String b) => 'Blk $b';
   String get setHomeFirst => 'Set your home to see everything around it.';
   String get setHome => 'Set home';
-  String get notHdb => 'Not an HDB block, so there are no resale or lease details. Everything around your home is below.';
+  String get notHdb => 'No HDB block or private project found at this address. Everything around your home is in the chips above.';
   String get blockDetails => 'Prices, rent and score';
   String get watchBlock => 'Watch for new sales';
   String get watchingBlock => 'Watching';

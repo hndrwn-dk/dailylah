@@ -12,10 +12,23 @@ import 'setup.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
-/// Home tab: everything about and around the user's own home. Other blocks are one
-/// tap away (search), and watched blocks and the agent check stay at the bottom.
+/// Home tab: everything about and around the user's own home, one section at a time
+/// (chips under the hero). Other blocks are one tap away (search).
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
+
+  static const sections = ['home', 'works', 'schools', 'health', 'community', 'weekend', 'recycling', 'food', 'blocks'];
+  static const _icons = {
+    'home': Icons.home_outlined,
+    'works': Icons.construction_outlined,
+    'schools': Icons.school_outlined,
+    'health': Icons.health_and_safety_outlined,
+    'community': Icons.groups_outlined,
+    'weekend': Icons.park_outlined,
+    'recycling': Icons.recycling,
+    'food': Icons.restaurant_outlined,
+    'blocks': Icons.apartment_outlined,
+  };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -25,6 +38,69 @@ class HomePage extends ConsumerWidget {
     final home = fav.places[PlaceKind.home];
     final blocks = ref.watch(hdbBlocksProvider).valueOrNull;
     final block = home == null || blocks == null ? null : homeBlock(blocks, home);
+    final private = home == null || block != null
+        ? null
+        : privateProjectFor(ref.watch(privateHomesProvider).valueOrNull ?? const [], home);
+    final section = home == null ? 'blocks' : ref.watch(homeSectionProvider);
+
+    Widget hero() {
+      if (block != null) {
+        // The block number, big, like it is painted on the block itself.
+        return Wrap(
+          spacing: 16,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.end,
+          children: [
+            PaintedBlockNumber(block.block),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(titleCase(block.street), style: t.titleLarge),
+                  Text(titleCase(block.town), style: t.bodyMedium),
+                ],
+              ),
+            ),
+          ],
+        );
+      }
+      if (private != null) {
+        return PageTitle(private.name, subtitle: private.street);
+      }
+      return PageTitle(s.homeTitle, subtitle: home == null ? s.setHomeFirst : home.label);
+    }
+
+    final body = home == null
+        ? <Widget>[
+            Panel(
+              child: EmptyNote(
+                s.setHomeFirst,
+                icon: Icons.home_outlined,
+                action: FilledButton(
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SetupPage())),
+                  child: Text(s.setHome),
+                ),
+              ),
+            ),
+            const _WatchedAndAgent(),
+          ]
+        : switch (section) {
+            'works' => [_Works(home: home)],
+            'schools' => [_Schools(home: home)],
+            'health' => [_Dengue(home: home), _Health(home: home)],
+            'community' => [_Community(home: home)],
+            'weekend' => [_Weekend(home: home)],
+            'recycling' => [_Recycling(home: home)],
+            'food' => [_ParkingFood(home: home)],
+            'blocks' => [const _WatchedAndAgent()],
+            _ => [
+                if (block != null) _MyBlock(block: block) else if (private != null) _PrivateCard(project: private)
+                else Panel(child: EmptyNote(s.notHdb, icon: Icons.home_work_outlined)),
+                _Glance(home: home),
+              ],
+          };
 
     return Scaffold(
       body: ListView(
@@ -32,83 +108,177 @@ class HomePage extends ConsumerWidget {
         children: [
           HeroHeader(
             accent: const Color(0xFF2E9E7E),
-            child: Row(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: block == null
-                        ? PageTitle(s.homeTitle, subtitle: home == null ? s.setHomeFirst : home.label)
-                        // The block number, big, like it is painted on the block itself.
-                        : Wrap(
-                            spacing: 16,
-                            runSpacing: 8,
-                            crossAxisAlignment: WrapCrossAlignment.end,
-                            children: [
-                              PaintedBlockNumber(block.block),
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 10),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(titleCase(block.street), style: Theme.of(context).textTheme.titleLarge),
-                                    Text(titleCase(block.town), style: t.bodyMedium),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: Padding(padding: const EdgeInsets.only(top: 8), child: hero())),
+                    const SizedBox(width: 8),
+                    StickerIconButton(
+                      tooltip: s.findBlock,
+                      icon: Icons.search,
+                      onPressed: () =>
+                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BlockSearchPage())),
+                    ),
+                  ],
+                ),
+                if (home != null) ...[
+                  const SizedBox(height: 16),
+                  // One section at a time instead of one very long page.
+                  PillRow(
+                    items: [for (final k in sections) (k, _icons[k]!, s.homeSection(k))],
+                    selected: section,
+                    onTap: (k) => ref.read(homeSectionProvider.notifier).state = k,
                   ),
-                ),
-                const SizedBox(width: 8),
-                StickerIconButton(
-                  tooltip: s.findBlock,
-                  icon: Icons.search,
-                  onPressed: () =>
-                      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BlockSearchPage())),
-                ),
+                ],
               ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 18, 24),
+            padding: const EdgeInsets.fromLTRB(14, 6, 18, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (home == null)
-                  Panel(
-                    child: EmptyNote(
-                      s.setHomeFirst,
-                      icon: Icons.home_outlined,
-                      action: FilledButton(
-                        onPressed: () =>
-                            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SetupPage())),
-                        child: Text(s.setHome),
-                      ),
-                    ),
-                  )
-                else ...[
-                  _MyBlock(home: home),
-                  _Works(home: home),
-                  _Dengue(home: home),
-                  _Schools(home: home),
-                  _Health(home: home),
-                  _Community(home: home),
-                  _Recycling(home: home),
-                  _Weekend(home: home),
-                  _ParkingFood(home: home),
-                ],
-                const _WatchedAndAgent(),
+                ...body,
                 const SizedBox(height: 12),
                 Text(s.homeDataNote, style: t.bodySmall),
-                const SizedBox(height: 4),
-                Text(s.homesDisclaimer, style: t.bodySmall),
+                if (private != null && section == 'home') Text(s.uraSource, style: t.bodySmall),
+                if (section == 'home' || section == 'blocks') ...[
+                  const SizedBox(height: 4),
+                  Text(s.homesDisclaimer, style: t.bodySmall),
+                ],
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A few facts at a glance on the "My home" section; each opens its section.
+class _Glance extends ConsumerWidget {
+  const _Glance({required this.home});
+  final Place home;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
+    final around = ref.watch(aroundProvider).valueOrNull ?? AroundSet.empty;
+    final works = projectsNear(around.projects, home.lat, home.lng, now: now);
+    final mine = upgradingAtHome(works);
+    final dengue = ref.watch(dengueProvider).valueOrNull;
+    final near = dengue == null ? const <(DengueCluster, double)>[] : dengueNear(dengue, home.lat, home.lng, km: 1);
+    final pois = ref.watch(poisProvider).valueOrNull;
+    final school = pois == null
+        ? null
+        : nearest(pois.of(PoiKind.primarySchool), home.lat, home.lng, latOf: (p) => p.lat, lngOf: (p) => p.lng);
+    final em = ref.watch(emergencyProvider).valueOrNull ?? EmergencySet.empty;
+    final aed = nearestPoints(em.of(EmergencyKind.aed), home.lat, home.lng, limit: 1);
+    final hawkers = ref.watch(hawkersProvider).valueOrNull ?? const <Hawker>[];
+    final hawker = nearest(hawkers, home.lat, home.lng, latOf: (h) => h.lat, lngOf: (h) => h.lng);
+    void go(String k) => ref.read(homeSectionProvider.notifier).state = k;
+
+    Widget tile(String key, IconData icon, String value, String caption, {bool warn = false}) => Expanded(
+          child: BentoTile(icon: icon, value: value, caption: caption, tint: warn ? DL.attention : null, onTap: () => go(key)),
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 4),
+        for (final p in mine)
+          AlertBanner(
+            icon: Icons.elevator_outlined,
+            text: s.atYourBlock([s.projectKind(p.kind), if (p.status.isNotEmpty) p.status].join(' · ')),
+          ),
+        for (final (c, d) in near.take(1))
+          AlertBanner(icon: Icons.bug_report_outlined, text: '${s.dengueHeading}: ${c.locality} · ${s.metres(d)}'),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            tile('works', Icons.construction_outlined, '${works.length}', s.worksNearby(works.length)),
+            const SizedBox(width: 12),
+            tile('schools', Icons.school_outlined, school == null ? '–' : s.metres(school.$2),
+                school == null ? s.nearestPrimary : '${s.nearestPrimary} · ${school.$1.name}'),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            tile('health', Icons.monitor_heart_outlined, aed.isEmpty ? '–' : s.metres(aed.first.$2), s.nearestAed),
+            const SizedBox(width: 12),
+            tile('food', Icons.storefront_outlined, hawker == null ? '–' : s.metres(hawker.$2),
+                hawker == null ? s.nearestHawkerShort : '${s.nearestHawkerShort} · ${shortPlaceName(hawker.$1.name)}'),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Private home: URA prices and rents for the project at the saved address.
+class _PrivateCard extends ConsumerWidget {
+  const _PrivateCard({required this.project});
+  final PrivateProject project;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final p = project;
+    return Panel(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (p.type.isNotEmpty) _Chip(Icons.apartment, p.type),
+                if (p.tenure.isNotEmpty) _Chip(Icons.hourglass_bottom, p.tenure),
+              ],
+            ),
+            if (p.psf != null) ...[
+              const SizedBox(height: 14),
+              Text(sgd(p.psf!), style: t.displaySmall?.copyWith(fontSize: 28)),
+              Text('${s.psfLabel} · ${s.salesCount(p.sales)}', style: t.bodySmall),
+            ],
+            if (p.recent.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(s.latestSales, style: t.titleSmall),
+              for (final (month, price, sqm, floor) in p.recent)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(s.saleLine(month, sgd(price), sqm, floor), style: t.bodyMedium),
+                ),
+            ],
+            if (p.rent.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(s.rentByBedrooms, style: t.titleSmall),
+              Wrap(
+                spacing: 18,
+                runSpacing: 8,
+                children: [
+                  for (final e in p.rent.entries)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(sgd(e.value), style: t.displaySmall?.copyWith(fontSize: 24)),
+                        Text(s.bedrooms(e.key), style: t.bodySmall),
+                      ],
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -248,18 +418,13 @@ class _Heading extends StatelessWidget {
 // ---------------------------------------------------------------- my block
 
 class _MyBlock extends ConsumerWidget {
-  const _MyBlock({required this.home});
-  final Place home;
+  const _MyBlock({required this.block});
+  final HdbBlock block;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    final blocks = ref.watch(hdbBlocksProvider).valueOrNull;
-    if (blocks == null) return const LinearProgressIndicator();
-    final block = homeBlock(blocks, home);
-    if (block == null) return Panel(child: EmptyNote(s.notHdb, icon: Icons.home_work_outlined));
-
     final resale = ref.watch(resaleProvider).valueOrNull;
     final rent = ref.watch(rentProvider).valueOrNull;
     final stats = [...?resale?.blocks[block.key]]..sort((a, b) => b.count.compareTo(a.count));

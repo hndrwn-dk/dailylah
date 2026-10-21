@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     onemap_password: str | None = None
     search_ttl: int = 86400
 
+    # URA Data Service (private property); a daily token is requested from the key.
+    ura_access_key: str | None = None
+
     # Upstash Redis (redis:// or rediss:// URL). Empty = in-memory only (local dev).
     redis_url: str | None = None
 

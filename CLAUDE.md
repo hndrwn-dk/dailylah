@@ -60,7 +60,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   `.github/workflows/data.yml` (secret `LTA_ACCOUNT_KEY`, optional `DATAGOV_API_KEY`).
   OneMap geocodes are cached in `backend/data/geocode.json` (committed by the workflow).
   Optional bundles are best effort: a failing upstream keeps yesterday's file.
-- Home tab (`ui/home.dart`) is about the saved home: its HDB block (`homeBlock`), upgrading and
+- Home tab (`ui/home.dart`) is about the saved home, one section at a time (chips under the hero,
+  `homeSectionProvider`): its HDB block (`homeBlock`) or private project (`private_homes.json` from
+  URA, `privateProjectFor`; backend `app/ura.py`, secret `URA_ACCESS_KEY`), upgrading and
   works (`around.json` bundle from OneMap themes, `projectsNear`), schools, health, community,
   recycling, weekend, parking; block search is `BlockSearchPage`. HDB data is computed on the
   phone from bundles; only CEA lookups hit the API.

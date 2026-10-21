@@ -44,7 +44,7 @@ Which buses go to your destination, parking near it and incidents on the way are
 
 The app also downloads these public data bundles from our website. Like any web service, our hosting providers record technical request logs (IP address, time, requested path and app version) for operations and security, and keep them for a limited period. We do not combine these logs with any other data and we do not use them to identify you. The server never receives your saved places, home or work location, or GPS coordinates.
 
-The **Home** tab shows your block, upgrading and construction work, schools, health and community services, recycling points, parks and parking around your saved home. All of it comes from public data bundles (OneMap and data.gov.sg) downloaded to your phone, and the distances are computed on your phone; your home address is not sent anywhere for this.
+The **Home** tab shows your block (or, for a private home, URA sale and rent figures for the project at your address), upgrading and construction work, schools, health and community services, recycling points, parks and parking around your saved home. All of it comes from public data bundles (OneMap, URA and data.gov.sg) downloaded to your phone, and the distances are computed on your phone; your home address is not sent anywhere for this.
 
 If you turn on **Halal food nearby** (More > Extras), the app shows halal places listed on Muslim.sg from a bundle downloaded to your phone; searching and distances are done on your phone. DailyLah is not affiliated with MUIS.
 
@@ -120,7 +120,7 @@ Bus mana yang menuju tujuan Anda, parkir di dekatnya, dan insiden di jalan dihit
 
 Aplikasi juga mengunduh bundel data publik tersebut dari situs kami. Seperti layanan web pada umumnya, penyedia hosting kami mencatat log teknis (alamat IP, waktu, path yang diminta, dan versi aplikasi) untuk operasional dan keamanan, dan menyimpannya untuk jangka waktu terbatas. Kami tidak menggabungkan log ini dengan data lain dan tidak memakainya untuk mengidentifikasi Anda. Server tidak pernah menerima tempat yang Anda simpan, lokasi rumah atau kantor, maupun koordinat GPS.
 
-Tab **Home** menampilkan blok Anda, pekerjaan upgrading dan konstruksi, sekolah, layanan kesehatan dan komunitas, titik daur ulang, taman, dan parkir di sekitar rumah yang Anda simpan. Semuanya berasal dari bundle data publik (OneMap dan data.gov.sg) yang diunduh ke HP, dan jaraknya dihitung di HP; alamat rumah Anda tidak dikirim ke mana pun untuk fitur ini.
+Tab **Home** menampilkan blok Anda (atau, untuk rumah swasta, data jual dan sewa URA untuk proyek di alamat Anda), pekerjaan upgrading dan konstruksi, sekolah, layanan kesehatan dan komunitas, titik daur ulang, taman, dan parkir di sekitar rumah yang Anda simpan. Semuanya berasal dari bundle data publik (OneMap, URA, dan data.gov.sg) yang diunduh ke HP, dan jaraknya dihitung di HP; alamat rumah Anda tidak dikirim ke mana pun untuk fitur ini.
 
 Jika Anda menyalakan **Halal food nearby** (More > Extras), app menampilkan tempat halal yang terdaftar di Muslim.sg dari bundle yang diunduh ke HP; pencarian dan jarak dihitung di HP. DailyLah tidak berafiliasi dengan MUIS.
 

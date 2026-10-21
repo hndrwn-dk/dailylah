@@ -625,4 +625,20 @@ void main() {
     expect(halalNear(places, 1.3620, 103.8538, query: 'nasi padang').single.$1.name, 'Nasi Padang Sabar Menanti');
     expect(halalNear(places, 1.3620, 103.8538, query: 'ang mo kio cafe').single.$1.name, 'Prata Cafe');
   });
+
+  test('private project at a home and its bundle', () {
+    final p = PrivateProject.fromBundle({
+      'n': 'Taipan Grand', 's': 'Marine Parade Road', 'la': 1.3020, 'lo': 103.9120,
+      'ten': 'Freehold', 'pt': 'Condominium', 'psf': 1100, 'pc': 2,
+      'tx': [['2026-08', 1076390, 100, '06-10']],
+      'rent': {'3': 4600}, 'rc': 3,
+    });
+    expect(p.recent.single.$2, 1076390);
+    expect(p.rent['3'], 4600);
+    const near = Place(kind: PlaceKind.home, addrLat: 1.3025, addrLng: 103.9122);
+    const far = Place(kind: PlaceKind.home, addrLat: 1.3100, addrLng: 103.9200);
+    expect(privateProjectFor([p], near)!.name, 'Taipan Grand');
+    expect(privateProjectFor([p], far), isNull);
+    expect(titleCase('BT BATOK ST 11'), 'Bt Batok St 11');
+  });
 }
