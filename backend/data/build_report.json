@@ -7,6 +7,7 @@
   "carparks": 2273,
   "dengue": 7,
   "emergency": 11453,
+  "halal": 3663,
   "hawkers": 108,
   "hdb_blocks": 10684,
   "hdb_rent": 26,
@@ -17,9 +18,7 @@
   "private_homes": 4800,
   "taxi_stands": 316
  },
- "errors": {
-  "halal": "too small: 80"
- },
+ "errors": {},
  "geocode_cache": 1515,
  "geocoded_new": 0
 }
