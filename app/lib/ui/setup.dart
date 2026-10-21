@@ -261,7 +261,26 @@ class SetupPage extends ConsumerWidget {
               children: [
                 if (!firstRun) const BackButton() else const SizedBox(height: 16),
                 const SizedBox(height: 8),
-                PageTitle(firstRun ? s.welcome : s.yourSetup, subtitle: firstRun ? s.welcomeIntro : s.editSetup),
+                if (firstRun) ...[
+                  // "Welcome to" followed by the DailyLah mark (daily plate + lah sun).
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.end,
+                    spacing: 12,
+                    runSpacing: 8,
+                    children: [
+                      Text(s.welcomeTo, style: Theme.of(context).textTheme.displayLarge),
+                      Semantics(
+                        label: 'DailyLah',
+                        image: true,
+                        child: Image.asset('assets/brand/wordmark.png', height: 64, excludeFromSemantics: true),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(s.welcomeIntro,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).textTheme.bodySmall?.color)),
+                ] else
+                  PageTitle(s.yourSetup, subtitle: s.editSetup),
               ],
             ),
           ),

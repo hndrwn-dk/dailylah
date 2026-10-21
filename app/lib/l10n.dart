@@ -458,6 +458,7 @@ class S {
   // ---------------------------------------------------------------- settings / more
   String get settings => 'Settings';
   String get welcome => 'Welcome to DailyLah';
+  String get welcomeTo => 'Welcome to';
   String get welcomeIntro => 'Set it up once and DailyLah tells you what matters: buses, MRT, rain and more. Everything stays on this phone.';
   String get places => 'Places';
   String get optional => 'optional';

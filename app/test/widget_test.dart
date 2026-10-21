@@ -83,7 +83,7 @@ void main() {
   testWidgets('first run shows setup', (tester) async {
     await tester.pumpWidget(app(const Favorites(), DateTime(2026, 10, 20, 7)));
     await tester.pumpAndSettle();
-    expect(find.text('Welcome to DailyLah'), findsOneWidget);
+    expect(find.text('Welcome to'), findsOneWidget);
     expect(find.text('Home'), findsOneWidget);
   });
 
