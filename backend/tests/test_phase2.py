@@ -88,9 +88,11 @@ def test_poll_fills_carpark_and_taxi(client):
     assert len(client.get("/v1/taxi").json()["data"]) == 503
 
 
-def test_carpark_and_taxi_before_poll(client):
-    assert client.get("/v1/carpark").status_code == 503
-    assert client.get("/v1/taxi").status_code == 503
+@respx.mock
+def test_carpark_and_taxi_before_poll_upstream_down(client):
+    respx.get(url__regex=r".*").mock(return_value=httpx.Response(500))
+    assert client.get("/v1/carpark").status_code == 502
+    assert client.get("/v1/taxi").status_code == 502
 
 
 @respx.mock
