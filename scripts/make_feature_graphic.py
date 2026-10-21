@@ -90,9 +90,10 @@ def feature():
         x += w + 12
 
     # 3. Painted block number.
+    # A made-up block number, not anyone's real home.
     sticker(d, (820, 240, 960, 440), CARD, radius=16)
     text(d, (842, 252), "BLK", bar(24), INK)
-    text(d, (838, 270), "66", bar(110), INK)
+    text(d, (838, 270), "123", bar(96), INK)
     d.rectangle([842 * S, 404 * S, 940 * S, 414 * S], fill=TEAL)
 
     # 4. Rain pill.
