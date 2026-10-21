@@ -47,6 +47,8 @@ android {
 
     buildTypes {
         release {
+            // Keep plugin classes that R8 would otherwise strip (notifications use Gson).
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = if (keystorePath.isNullOrEmpty()) {
                 signingConfigs.getByName("debug")
             } else {
