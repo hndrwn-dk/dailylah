@@ -17,9 +17,13 @@ import 'widgets.dart';
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
-  static const sections = ['home', 'works', 'schools', 'health', 'community', 'weekend', 'recycling', 'food', 'blocks'];
+  static const sections = [
+    'home', 'emergency', 'shelter', 'works', 'schools', 'health', 'community', 'weekend', 'recycling', 'food', 'parking', 'blocks',
+  ];
   static const _icons = {
     'home': Icons.home_outlined,
+    'emergency': Icons.emergency_outlined,
+    'shelter': Icons.shield_outlined,
     'works': Icons.construction_outlined,
     'schools': Icons.school_outlined,
     'health': Icons.health_and_safety_outlined,
@@ -27,6 +31,7 @@ class HomePage extends ConsumerWidget {
     'weekend': Icons.park_outlined,
     'recycling': Icons.recycling,
     'food': Icons.restaurant_outlined,
+    'parking': Icons.local_parking,
     'blocks': Icons.apartment_outlined,
   };
 
@@ -89,11 +94,14 @@ class HomePage extends ConsumerWidget {
         : switch (section) {
             'works' => [_Works(home: home)],
             'schools' => [_Schools(home: home)],
+            'emergency' => [_Emergency(home: home)],
+            'shelter' => [_Shelters(home: home)],
             'health' => [_Dengue(home: home), _Health(home: home)],
             'community' => [_Community(home: home)],
             'weekend' => [_Weekend(home: home)],
             'recycling' => [_Recycling(home: home)],
-            'food' => [_ParkingFood(home: home)],
+            'food' => [_Food(home: home)],
+            'parking' => [_Parking(home: home)],
             'blocks' => [const _WatchedAndAgent()],
             _ => [
                 if (block != null) _MyBlock(block: block) else if (private != null) _PrivateCard(project: private)
@@ -130,6 +138,7 @@ class HomePage extends ConsumerWidget {
                   PillRow(
                     items: [for (final k in sections) (k, _icons[k]!, s.homeSection(k))],
                     selected: section,
+                    danger: const {'emergency', 'shelter'},
                     onTap: (k) => ref.read(homeSectionProvider.notifier).state = k,
                   ),
                 ],
@@ -197,24 +206,30 @@ class _Glance extends ConsumerWidget {
           ),
         for (final (c, d) in near.take(1))
           AlertBanner(icon: Icons.bug_report_outlined, text: '${s.dengueHeading}: ${c.locality} · ${s.metres(d)}'),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        // Same height side by side, like the weather tiles on Today.
+        IntrinsicHeight(
+          child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             tile('works', Icons.construction_outlined, '${works.length}', s.worksNearby(works.length)),
             const SizedBox(width: 12),
             tile('schools', Icons.school_outlined, school == null ? '–' : s.metres(school.$2),
                 school == null ? s.nearestPrimary : '${s.nearestPrimary} · ${school.$1.name}'),
           ],
+          ),
         ),
         const SizedBox(height: 12),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        // Same height side by side, like the weather tiles on Today.
+        IntrinsicHeight(
+          child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            tile('health', Icons.monitor_heart_outlined, aed.isEmpty ? '–' : s.metres(aed.first.$2), s.nearestAed),
+            tile('emergency', Icons.monitor_heart_outlined, aed.isEmpty ? '–' : s.metres(aed.first.$2), s.nearestAed),
             const SizedBox(width: 12),
             tile('food', Icons.storefront_outlined, hawker == null ? '–' : s.metres(hawker.$2),
                 hawker == null ? s.nearestHawkerShort : '${s.nearestHawkerShort} · ${shortPlaceName(hawker.$1.name)}'),
           ],
+          ),
         ),
       ],
     );
@@ -286,6 +301,9 @@ class _PrivateCard extends ConsumerWidget {
 
 // ---------------------------------------------------------------- building blocks
 
+/// ActiveSG (Sport Singapore): bookings, gym and pool entry. No per-centre deep link exists.
+const activeSgUrl = 'https://activesg.gov.sg';
+
 /// One place in a list: name, a line of detail and the distance from home.
 class NearItem {
   const NearItem({
@@ -295,7 +313,21 @@ class NearItem {
     required this.distance,
     this.detail = '',
     this.tel = '',
+    this.big,
+    this.bigLabel = '',
+    this.bigWarn = false,
+    this.linkUrl,
+    this.linkLabel = '',
   });
+
+  /// Optional button on the place sheet, e.g. booking on ActiveSG.
+  final String? linkUrl;
+  final String linkLabel;
+
+  /// A number to show large on the right (e.g. free car park lots), with a small label.
+  final String? big;
+  final String bigLabel;
+  final bool bigWarn;
   final String name;
   final String detail;
   final double lat;
@@ -362,7 +394,9 @@ class _NearGroupState extends ConsumerState<NearGroup> {
                     maxLines: 5,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  trailing: it.tel.isEmpty
+                  trailing: it.big != null
+                      ? _BigNumber(value: it.big!, label: it.bigLabel, warn: it.bigWarn)
+                      : it.tel.isEmpty
                       ? null
                       : IconButton(
                           tooltip: s.callLabel,
@@ -378,6 +412,18 @@ class _NearGroupState extends ConsumerState<NearGroup> {
                     lng: it.lng,
                     distance: it.distance,
                     phone: it.tel,
+                    extra: [
+                      if (it.linkUrl != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: FilledButton.icon(
+                            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                            icon: const Icon(Icons.open_in_new),
+                            label: Text(it.linkLabel),
+                            onPressed: () => launchUrl(Uri.parse(it.linkUrl!), mode: LaunchMode.externalApplication),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               if (items.length > widget.show)
@@ -392,6 +438,37 @@ class _NearGroupState extends ConsumerState<NearGroup> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Large figure at the end of a row, amber when it needs a look (e.g. 0 lots free).
+class _BigNumber extends StatelessWidget {
+  const _BigNumber({required this.value, required this.label, this.warn = false});
+  final String value;
+  final String label;
+  final bool warn;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: warn
+          ? BoxDecoration(
+              color: DL.attention,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: DL.edge(context), width: 2),
+            )
+          : null,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(value, style: t.displaySmall?.copyWith(fontSize: 26, height: 1, color: warn ? DL.ink : null)),
+          Text(label, style: t.labelSmall?.copyWith(color: warn ? DL.ink : null)),
+        ],
+      ),
     );
   }
 }
@@ -656,13 +733,85 @@ class _Health extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _Heading(s.healthTitle, Icons.health_and_safety_outlined),
-        NearGroup(title: s.aeds, icon: Icons.monitor_heart_outlined, items: NearItem.points(em.of(EmergencyKind.aed), home, radius: 1000)),
         NearGroup(title: s.chasClinics, icon: Icons.medical_services_outlined, items: NearItem.points(em.of(EmergencyKind.clinic), home, radius: 2000)),
         NearGroup(title: s.pharmacies, icon: Icons.local_pharmacy_outlined, items: NearItem.points(around.of('pharmacy'), home)),
+      ],
+    );
+  }
+}
+
+/// Emergency meeting points: Civil Defence public shelters, nearest first, on their own so
+/// they are one tap away when something happens.
+class _Shelters extends ConsumerWidget {
+  const _Shelters({required this.home});
+  final Place home;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final em = ref.watch(emergencyProvider).valueOrNull ?? EmergencySet.empty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _Heading(s.meetingPoints, Icons.shield_outlined),
+        NearGroup(
+          title: s.within2km,
+          icon: Icons.shield_outlined,
+          show: 5,
+          items: NearItem.points(em.of(EmergencyKind.shelter), home, radius: 2000),
+        ),
+        Text(s.shelterNote, style: Theme.of(context).textTheme.bodySmall),
+      ],
+    );
+  }
+}
+
+/// Emergency: call buttons first, then A&E, AEDs, police and SCDF fire stations.
+class _Emergency extends ConsumerWidget {
+  const _Emergency({required this.home});
+  final Place home;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final em = ref.watch(emergencyProvider).valueOrNull ?? EmergencySet.empty;
+    final around = ref.watch(aroundProvider).valueOrNull ?? AroundSet.empty;
+
+    Widget call(String number, String label, Color bg, Color fg) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Panel(
+            margin: EdgeInsets.zero,
+            color: bg,
+            child: InkWell(
+              onTap: () => launchUrl(Uri(scheme: 'tel', path: number)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Row(
+                  children: [
+                    Icon(Icons.call, color: fg),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(label, style: t.titleMedium?.copyWith(color: fg))),
+                    Icon(Icons.chevron_right, color: fg),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _Heading(s.emergency, Icons.emergency_outlined),
+        call('995', s.call995, DL.stop, Colors.white),
+        call('999', s.call999, DL.stop, Colors.white),
+        call('1777', s.call1777, DL.card, DL.ink),
         NearGroup(title: s.aeHospitals, icon: Icons.local_hospital_outlined, items: NearItem.points(em.of(EmergencyKind.ae), home, radius: 20000, limit: 3)),
+        NearGroup(title: s.aeds, icon: Icons.monitor_heart_outlined, items: NearItem.points(em.of(EmergencyKind.aed), home, radius: 1000)),
         NearGroup(title: s.police, icon: Icons.local_police_outlined, items: NearItem.points(around.of('police'), home, radius: 5000, limit: 5)),
-        NearGroup(title: s.fireStations, icon: Icons.fire_truck_outlined, items: NearItem.points(em.of(EmergencyKind.fire), home, radius: 8000, limit: 2)),
-        NearGroup(title: s.shelters, icon: Icons.shield_outlined, items: NearItem.points(em.of(EmergencyKind.shelter), home, radius: 2000)),
+        NearGroup(title: s.scdfFireStations, icon: Icons.fire_truck_outlined, items: NearItem.points(em.of(EmergencyKind.fire), home, radius: 8000, limit: 2)),
+        Text(s.emergencyNote, style: t.bodySmall),
       ],
     );
   }
@@ -738,6 +887,22 @@ class _Weekend extends ConsumerWidget {
         if (pois != null) NearGroup(title: s.parks, icon: Icons.park_outlined, items: NearItem.pois(pois.of(PoiKind.park), home, radius: 2000)),
         NearGroup(title: s.attractions, icon: Icons.attractions_outlined, items: NearItem.points(around.of('attraction'), home, radius: 6000)),
         NearGroup(title: s.museums, icon: Icons.museum_outlined, items: NearItem.points(around.of('museum'), home, radius: 10000, limit: 3)),
+        NearGroup(
+          title: s.activeSgCentres,
+          icon: Icons.sports_tennis_outlined,
+          items: [
+            for (final it in NearItem.points(around.of('activesg'), home, radius: 8000, limit: 5))
+              NearItem(
+                name: it.name,
+                detail: it.detail,
+                lat: it.lat,
+                lng: it.lng,
+                distance: it.distance,
+                linkUrl: activeSgUrl,
+                linkLabel: s.bookOnActiveSg,
+              ),
+          ],
+        ),
         if (pois != null) NearGroup(title: s.sports, icon: Icons.pool_outlined, items: NearItem.pois(pois.of(PoiKind.sport), home, radius: 3000)),
         NearGroup(title: s.bbqPits, icon: Icons.outdoor_grill_outlined, items: NearItem.points(around.of('bbq'), home, radius: 3000)),
         NearGroup(title: s.pcnAccess, icon: Icons.directions_bike_outlined, items: NearItem.points(around.of('pcn'), home, radius: 2000)),
@@ -748,47 +913,71 @@ class _Weekend extends ConsumerWidget {
 
 // ---------------------------------------------------------------- parking and food
 
-class _ParkingFood extends ConsumerWidget {
-  const _ParkingFood({required this.home});
+class _Parking extends ConsumerWidget {
+  const _Parking({required this.home});
+  final Place home;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final carparks = ref.watch(carparkInfoProvider).valueOrNull ?? const <Carpark>[];
+    final lots = ref.watch(carparkLiveProvider).valueOrNull ?? const <String, (int, int)>{};
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _Heading(s.parkingTitle, Icons.local_parking),
+        NearGroup(
+          title: s.hdbCarparks,
+          icon: Icons.local_parking,
+          show: 5,
+          items: [
+            for (final (c, d) in within(carparks, home.lat, home.lng, 500, latOf: (c) => c.lat, lngOf: (c) => c.lng, limit: 10))
+              NearItem(
+                name: c.address,
+                detail: c.type.toLowerCase(),
+                lat: c.lat,
+                lng: c.lng,
+                distance: d,
+                big: lots[c.id] == null ? null : '${lots[c.id]!.$2}',
+                bigLabel: s.lotsFreeShort,
+                bigWarn: lots[c.id] != null && lots[c.id]!.$2 == 0,
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _Food extends ConsumerWidget {
+  const _Food({required this.home});
   final Place home;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    final carparks = ref.watch(carparkInfoProvider).valueOrNull ?? const <Carpark>[];
-    final lots = ref.watch(carparkLiveProvider).valueOrNull ?? const <String, (int, int)>{};
     final hawkers = ref.watch(hawkersProvider).valueOrNull ?? const <Hawker>[];
     final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
     final closures = upcomingClosures(hawkers, home.lat, home.lng, now);
+    final halal = ref.watch(favoritesProvider.select((f) => f.showHalal));
     String day(DateTime d) => '${d.day}/${d.month}';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Heading(s.parkingFoodTitle, Icons.local_parking),
-        NearGroup(
-          title: s.hdbCarparks,
-          icon: Icons.local_parking,
-          items: [
-            for (final (c, d) in within(carparks, home.lat, home.lng, 500, latOf: (c) => c.lat, lngOf: (c) => c.lng, limit: 10))
-              NearItem(
-                name: c.address,
-                detail: lots[c.id] == null ? c.type.toLowerCase() : s.lotsFree(lots[c.id]!.$2),
-                lat: c.lat,
-                lng: c.lng,
-                distance: d,
-              ),
+        Row(
+          children: [
+            Expanded(child: _Heading(s.foodTitle, Icons.restaurant_outlined)),
+            // Same setting as More > Extras > Halal food nearby, one tap away here.
+            FilterChip(
+              avatar: const Icon(Icons.verified_outlined, size: 18),
+              label: Text(s.halalTab),
+              selected: halal,
+              onSelected: (v) => ref.read(favoritesProvider.notifier).update((f) => f.copyWith(showHalal: v)),
+            ),
           ],
         ),
-        NearGroup(
-          title: s.hawkers,
-          icon: Icons.storefront_outlined,
-          items: [
-            for (final (h, d) in within(hawkers, home.lat, home.lng, 1500, latOf: (h) => h.lat, lngOf: (h) => h.lng, limit: 10))
-              NearItem(name: shortPlaceName(h.name), detail: h.address, lat: h.lat, lng: h.lng, distance: d),
-          ],
-        ),
-        if (ref.watch(favoritesProvider.select((f) => f.showHalal))) ...[
+        if (halal) ...[
           NearGroup(
             title: s.halalFood,
             icon: Icons.restaurant_outlined,
@@ -798,8 +987,16 @@ class _ParkingFood extends ConsumerWidget {
             ],
           ),
           Text(s.halalDisclaimer, style: t.bodySmall),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
         ],
+        NearGroup(
+          title: s.hawkers,
+          icon: Icons.storefront_outlined,
+          items: [
+            for (final (h, d) in within(hawkers, home.lat, home.lng, 1500, latOf: (h) => h.lat, lngOf: (h) => h.lng, limit: 10))
+              NearItem(name: shortPlaceName(h.name), detail: h.address, lat: h.lat, lng: h.lng, distance: d),
+          ],
+        ),
         if (closures.isNotEmpty) ...[
           Padding(padding: const EdgeInsets.fromLTRB(4, 4, 4, 8), child: Text(s.hawkerClosures, style: t.titleSmall)),
           Panel(

@@ -76,7 +76,7 @@ class S {
   String get halalNone => 'No halal places found here.';
   String get halalSource => 'Halal places: Muslim.sg, refreshed daily.';
   String get goAt => 'Leave home';
-  String get backAt => 'Leave here';
+  String backAt(String placeKind) => placeKind == 'school' ? 'Leave school' : 'Leave work';
   String get mrtLines => 'Your MRT lines';
   String get mrtNormal => 'Running normally';
   String get mrtDisrupted => 'Disrupted';
@@ -96,6 +96,7 @@ class S {
   String get parkingAt => 'Parking';
   String get freeLots => 'free';
   String lotsFree(int n) => '$n lots free';
+  String get lotsFreeShort => 'lots free';
   String get pullToRefresh => 'Pull down to refresh.';
 
   // alerts strip
@@ -306,7 +307,9 @@ class S {
   String get parks => 'Parks';
   String get libraries => 'Libraries';
   String get communityClubs => 'Community clubs';
-  String get sports => 'Sports & pools';
+  String get sports => 'Pools & sports nearby';
+  String get activeSgCentres => 'ActiveSG sport centres';
+  String get bookOnActiveSg => 'Book on ActiveSG';
   String get prayerTimes => 'Prayer times today';
   String get nextPrayer => 'Next';
   List<String> get prayerNames => const ['Subuh', 'Syuruk', 'Zohor', 'Asar', 'Maghrib', 'Isyak'];
@@ -320,13 +323,16 @@ class S {
   String get homeTitle => 'Home';
   String homeSection(String k) => switch (k) {
         'home' => 'My home',
-        'works' => 'Works',
+        'works' => 'Upgrading',
         'schools' => 'Schools',
+        'emergency' => 'Emergency',
+        'shelter' => 'Meeting points',
         'health' => 'Health',
         'community' => 'Community',
         'weekend' => 'Weekend',
         'recycling' => 'Recycling',
-        'food' => 'Food & parking',
+        'food' => 'Food',
+        'parking' => 'Parking',
         'blocks' => 'Blocks & agents',
         _ => k,
       };
@@ -341,7 +347,7 @@ class S {
   String get nearestPrimary => 'Nearest primary school';
   String get nearestAed => 'Nearest AED';
   String get nearestHawkerShort => 'Nearest hawker';
-  String worksNearby(int n) => n == 1 ? '1 work site within 1 km' : '$n work sites within 1 km';
+  String worksNearby(int n) => n == 1 ? '1 upgrading or construction project within 1 km' : '$n upgrading or construction projects within 1 km';
   String blockLabel(String b) => 'Blk $b';
   String get setHomeFirst => 'Set your home to see everything around it.';
   String get setHome => 'Set home';
@@ -352,7 +358,7 @@ class S {
   String medianFor(String flatType) => 'median ${flatType.toLowerCase()}';
   String rentMedian(String flatType, String amount) => 'Rent around $amount a month for a ${flatType.toLowerCase().replaceAll('-', ' ')} in this town';
   String get propertyAgents => 'Property agents';
-  String get worksTitle => 'Upgrading and works';
+  String get worksTitle => 'Upgrading and construction';
   String get worksNone => 'No upgrading or construction listed within 1 km.';
   String atYourBlock(String what) => 'At your block: $what';
   String projectKind(String k) => switch (k) {
@@ -382,7 +388,11 @@ class S {
   String get checkHip => 'Check HIP on HDB';
   String get dengueHeading => 'Dengue';
   String get schoolsTitle => 'Schools';
-  String get healthTitle => 'Health and safety';
+  String get scdfFireStations => 'SCDF fire stations';
+  String get meetingPoints => 'Emergency meeting points';
+  String get within2km => 'Civil Defence shelters within 2 km';
+  String get shelterNote => 'Public shelters are opened by SCDF during an emergency. Follow SGSecure and SCDF instructions.';
+  String get healthTitle => 'Health';
   String get pharmacies => 'Pharmacies';
   String get police => 'Police posts and centres';
   String get communityTitle => 'Community';
@@ -401,7 +411,8 @@ class S {
   String get museums => 'Museums';
   String get bbqPits => 'BBQ pits';
   String get pcnAccess => 'Park connector access';
-  String get parkingFoodTitle => 'Parking and food';
+  String get foodTitle => 'Food';
+  String get parkingTitle => 'Parking';
   String get hdbCarparks => 'HDB car parks';
   String get hawkerClosures => 'Hawker closures in the next 30 days';
   String hawkerClosed(String name, String from, String to) => '$name · $from to $to';
@@ -451,6 +462,7 @@ class S {
   // ---------------------------------------------------------------- settings / more
   String get settings => 'Settings';
   String get welcome => 'Welcome to DailyLah';
+  String get welcomeTo => 'Welcome to';
   String get welcomeIntro => 'Set it up once and DailyLah tells you what matters: buses, MRT, rain and more. Everything stays on this phone.';
   String get places => 'Places';
   String get optional => 'optional';

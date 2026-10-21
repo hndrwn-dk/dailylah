@@ -47,6 +47,12 @@ android {
 
     buildTypes {
         release {
+            // No R8 shrinking: several plugins (shared_preferences via JNI, DataStore,
+            // notifications via Gson) reach classes by reflection and broke when renamed.
+            // The APK is a little larger; correctness matters more.
+            isMinifyEnabled = false
+            isShrinkResources = false
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = if (keystorePath.isNullOrEmpty()) {
                 signingConfigs.getByName("debug")
             } else {

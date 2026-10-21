@@ -999,6 +999,7 @@ POINT_THEMES = {
     "attraction": ("tourism", "META_DESCRIPTION", None, "OPENING_HOURS"),
     "museum": ("museum", "DESCRIPTION", None, None),
     "bbq": ("nparks_bbq_pit", None, None, None),
+    "activesg": ("sportsg_sport_facilities", "DESCRIPTION", None, None),
     "pcn": ("pcn_access_points", None, None, None),
 }
 

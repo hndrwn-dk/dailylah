@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'background.dart';
+import 'models.dart';
 import 'providers.dart';
 import 'store.dart';
 import 'ui/setup.dart';
@@ -10,13 +11,29 @@ import 'ui/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final favorites = await FavoritesStore().load();
-  await initNotifications();
-  if (favorites.onboarded) await registerBackgroundWork();
+  var favorites = const Favorites();
+  try {
+    favorites = await FavoritesStore().load();
+  } on Object catch (e) {
+    debugPrint('favourites not loaded: $e');
+  }
+  // Show the app first; notifications and background work must never block start-up.
   runApp(ProviderScope(
     overrides: [initialFavoritesProvider.overrideWithValue(favorites)],
     child: const DailyLahApp(),
   ));
+  try {
+    await initNotifications();
+  } on Object catch (e) {
+    debugPrint('notifications not ready: $e');
+  }
+  if (favorites.onboarded) {
+    try {
+      await registerBackgroundWork();
+    } on Object catch (e) {
+      debugPrint('background work not registered: $e');
+    }
+  }
 }
 
 class DailyLahApp extends ConsumerWidget {
