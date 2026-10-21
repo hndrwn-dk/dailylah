@@ -68,7 +68,7 @@ def test_compact_private_summarises_a_project():
     p = out[0]
     assert p["n"] == "Taipan Grand" and p["s"] == "Marine Parade Road"
     assert 1.29 < p["la"] < 1.33 and 103.89 < p["lo"] < 103.95
-    assert p["psf"] == 1100 and p["pc"] == 2  # bulk sale left out
+    assert p["psf"] == 1100 and p["pc"] == 2 and p["pm"] == 12  # bulk sale left out
     assert p["tx"][0] == ["2026-08", 1076390, 100, "06-10"]
     assert p["rent"] == {"2": 3600, "3": 4600} and p["rc"] == 3
     assert p["ten"] == "Freehold"

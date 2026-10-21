@@ -438,6 +438,7 @@ class PrivateProject {
     this.type = '',
     this.psf,
     this.sales = 0,
+    this.salesMonths = 12,
     this.recent = const [],
     this.rent = const {},
     this.rentals = 0,
@@ -452,6 +453,7 @@ class PrivateProject {
   /// Median price per sq ft over the last 12 months (36 when quiet), and how many sales.
   final int? psf;
   final int sales;
+  final int salesMonths;
 
   /// Latest sales: (month "2026-08", price, sqm, floor range).
   final List<(String, int, int, String)> recent;
@@ -469,6 +471,7 @@ class PrivateProject {
         type: '${j['pt'] ?? ''}',
         psf: (j['psf'] as num?)?.toInt(),
         sales: (j['pc'] as num?)?.toInt() ?? 0,
+        salesMonths: (j['pm'] as num?)?.toInt() ?? 12,
         recent: [
           for (final t in (j['tx'] as List? ?? const []))
             if (t is List && t.length >= 4) ('${t[0]}', (t[1] as num).toInt(), (t[2] as num).toInt(), '${t[3]}'),

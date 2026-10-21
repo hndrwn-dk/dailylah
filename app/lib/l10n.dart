@@ -331,7 +331,7 @@ class S {
         _ => k,
       };
   String get psfLabel => 'median per sq ft';
-  String salesCount(int n) => '$n sales in the last 12 months';
+  String salesCount(int n, int months) => '$n ${n == 1 ? 'sale' : 'sales'} in the last ${months == 12 ? '12 months' : '3 years'}';
   String get latestSales => 'Latest sales';
   String saleLine(String month, String price, int sqm, String floor) =>
       '$month · $price · ${(sqm * 10.7639).round()} sq ft${floor == '-' ? '' : ' · floor $floor'}';

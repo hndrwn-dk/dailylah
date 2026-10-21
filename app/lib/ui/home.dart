@@ -248,7 +248,7 @@ class _PrivateCard extends ConsumerWidget {
             if (p.psf != null) ...[
               const SizedBox(height: 14),
               Text(sgd(p.psf!), style: t.displaySmall?.copyWith(fontSize: 28)),
-              Text('${s.psfLabel} · ${s.salesCount(p.sales)}', style: t.bodySmall),
+              Text('${s.psfLabel} · ${s.salesCount(p.sales, p.salesMonths)}', style: t.bodySmall),
             ],
             if (p.recent.isNotEmpty) ...[
               const SizedBox(height: 12),

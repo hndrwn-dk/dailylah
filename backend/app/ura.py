@@ -76,7 +76,7 @@ def _title(s: str) -> str:
 
 
 def compact_private(tx_rows: list[dict], rent_rows: list[dict], today: date) -> list[dict]:
-    """Per project: {"n","s","la","lo","ten","pt","psf","pc","tx":[[ym,price,sqm,floor]],
+    """Per project: {"n","s","la","lo","ten","pt","psf","pc","pm","tx":[[ym,price,sqm,floor]],
     "rent":{"2":median,...},"rc"}. psf = median price per sq ft over the last 12 months
     (36 when there were no sales in the last year)."""
     projects: dict[tuple[str, str], dict] = {}
@@ -137,12 +137,15 @@ def compact_private(tx_rows: list[dict], rent_rows: list[dict], today: date) -> 
         if not tx and not rents:
             continue
         if tx:
-            recent = [x for x in tx if months_ago(x[0]) <= 12] or [
-                x for x in tx if months_ago(x[0]) <= 36
-            ]
+            window = 12
+            recent = [x for x in tx if months_ago(x[0]) <= 12]
+            if not recent:
+                window = 36
+                recent = [x for x in tx if months_ago(x[0]) <= 36]
             if recent:
                 p["psf"] = round(statistics.median(x[1] / (x[2] * SQM_TO_SQFT) for x in recent))
                 p["pc"] = len(recent)
+                p["pm"] = window
             last = tx[0][4]
             p["ten"] = str(last.get("tenure", ""))
             p["pt"] = str(last.get("propertyType", ""))
