@@ -165,6 +165,11 @@ final busRoutesProvider = FutureProvider<BusRoutes>((ref) async {
   return m == null ? BusRoutes.empty : BusRoutes.fromBundle(m);
 });
 
+final aroundProvider = FutureProvider<AroundSet>((ref) async {
+  final raw = await _map(ref, 'around');
+  return raw == null ? AroundSet.empty : AroundSet.fromBundle(raw);
+});
+
 final mrtStationsProvider =
     FutureProvider<List<MrtStation>>((ref) => _list(ref, 'mrt_stations', MrtStation.fromBundle));
 

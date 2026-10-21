@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers.dart';
-import 'homes.dart';
+import 'home.dart';
 import 'more.dart';
 import 'nearby.dart';
 import 'widgets.dart';
 import 'today.dart';
 
 
-/// Four tabs: Today, Nearby, Homes, More. Pages are kept alive between switches.
+/// Four tabs: Today, Nearby, Home, More. Pages are kept alive between switches.
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
 
@@ -51,6 +51,10 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
       emergencyProvider,
       taxiStandsProvider,
       busStopsProvider,
+      busRoutesProvider,
+      mrtStationsProvider,
+      bicycleRacksProvider,
+      aroundProvider,
     ]) {
       ref.invalidate(p);
     }
@@ -66,7 +70,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
       extendBody: true,
       body: IndexedStack(
         index: index,
-        children: const [TodayPage(), NearbyPage(), HomesPage(), MorePage()],
+        children: const [TodayPage(), NearbyPage(), HomePage(), MorePage()],
       ),
       bottomNavigationBar: DecoratedBox(
         decoration: BoxDecoration(
@@ -90,7 +94,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
             items: [
               (Icons.wb_sunny_outlined, Icons.wb_sunny, s.tabToday),
               (Icons.explore_outlined, Icons.explore, s.tabNearby),
-              (Icons.apartment_outlined, Icons.apartment, s.tabHomes),
+              (Icons.home_outlined, Icons.home, s.tabHomes),
               (Icons.more_horiz, Icons.more_horiz, s.tabMore),
             ],
           ),

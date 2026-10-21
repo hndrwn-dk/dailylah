@@ -33,7 +33,7 @@ class S {
   // ---------------------------------------------------------------- navigation
   String get tabToday => 'Today';
   String get tabNearby => 'Nearby';
-  String get tabHomes => 'Homes';
+  String get tabHomes => 'Home';
   String get tabMore => 'More';
 
   // ---------------------------------------------------------------- places
@@ -310,7 +310,74 @@ class S {
   String get prayerSource => 'Prayer times: MUIS via data.gov.sg.';
 
   // ---------------------------------------------------------------- homes (HDB)
-  String get homesTitle => 'HDB homes';
+  String get homesTitle => 'Find an HDB block';
+  String get homeTitle => 'Home';
+  String blockLabel(String b) => 'Blk $b';
+  String get setHomeFirst => 'Set your home to see everything around it.';
+  String get setHome => 'Set home';
+  String get notHdb => 'Not an HDB block, so there are no resale or lease details. Everything around your home is below.';
+  String get blockDetails => 'Prices, rent and score';
+  String get watchBlock => 'Watch for new sales';
+  String get watchingBlock => 'Watching';
+  String medianFor(String flatType) => 'median ${flatType.toLowerCase()}';
+  String rentMedian(String amount) => 'Rent around $amount a month in this town';
+  String get worksTitle => 'Upgrading and works';
+  String get worksNone => 'No upgrading or construction listed within 1 km.';
+  String atYourBlock(String what) => 'At your block: $what';
+  String projectKind(String k) => switch (k) {
+        'lup' => 'Lift Upgrading',
+        'nrp' => 'Neighbourhood Renewal',
+        'eup' => 'Estate Upgrading',
+        'hdb' => 'New HDB flats',
+        'hdbroad' => 'HDB road works',
+        'cycling' => 'Cycling path works',
+        'road' => 'LTA road works',
+        'rail' => 'MRT works',
+        'drain' => 'Drainage works',
+        'sewer' => 'Sewer works',
+        'water' => 'Water pipe works',
+        'abc' => 'Waterway works',
+        'park' => 'New park',
+        'pc' => 'Park connector works',
+        'parkfac' => 'Park facility works',
+        'ura' => 'URA project',
+        _ => 'Works',
+      };
+  String projectWhen(String from, String to) => [
+        if (from.isNotEmpty) 'from $from',
+        if (to.isNotEmpty) 'until $to',
+      ].join(' ');
+  String get hipNote => 'HIP (Home Improvement Programme) status is not published as open data. Check your block on the HDB website.';
+  String get checkHip => 'Check HIP on HDB';
+  String get dengueTitle => 'Dengue';
+  String get schoolsTitle => 'Schools';
+  String get healthTitle => 'Health and safety';
+  String get pharmacies => 'Pharmacies';
+  String get police => 'Police posts and centres';
+  String get communityTitle => 'Community';
+  String get residentsCommittees => 'Residents\' Committees';
+  String get mpOffices => 'MP offices (Meet-the-People)';
+  String get hdbBranch => 'HDB branch';
+  String get eldercare => 'Eldercare';
+  String get studentCare => 'Student care';
+  String get familyServices => 'Family services';
+  String get recyclingTitle => 'Recycling';
+  String get ewastePoints => 'E-waste drop-off';
+  String get reuseChannels => 'Donate, resell or repair';
+  String get recyclingNote => 'Blue recycling bins are at every HDB block and collected by your public waste collector; collection days are not published as open data.';
+  String get weekendTitle => 'Weekend near home';
+  String get attractions => 'Attractions';
+  String get museums => 'Museums';
+  String get bbqPits => 'BBQ pits';
+  String get pcnAccess => 'Park connector access';
+  String get parkingFoodTitle => 'Parking and food';
+  String get hdbCarparks => 'HDB car parks';
+  String get hawkerClosures => 'Hawker closures in the next 30 days';
+  String hawkerClosed(String name, String from, String to) => '$name · $from to $to';
+  String showAll(int n) => 'Show all ($n)';
+  String get showLess => 'Show less';
+  String get findBlock => 'Find another HDB block';
+  String get homeDataNote => 'Works, services and places: OneMap (SLA) and agencies via data.gov.sg. Computed on your phone.';
   String get homesIntro => 'Search a block to see resale prices, rent and daily life around it.';
   String get blockSearchHint => 'Block and street, e.g. 123 Bedok North';
   String get watched => 'Watched blocks';

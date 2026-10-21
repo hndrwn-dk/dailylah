@@ -12,6 +12,9 @@ from typing import Any
 
 import redis.asyncio as redis
 
+# Render free has 512 MB; per-query entries (search, agent) must not grow without bound.
+MAX_MEMORY_KEYS = 5000
+
 
 class Cache:
     def __init__(self, redis_url: str | None = None) -> None:
@@ -45,7 +48,19 @@ class Cache:
             await self._redis.set(key, payload, ex=ttl)
         return True
 
+    def get_memory(self, key: str) -> Any | None:
+        """Memory only (never Redis): for per-query answers such as address search."""
+        hit = self._mem.get(key)
+        return hit[1] if hit and hit[0] > time.monotonic() else None
+
     def set_memory_only(self, key: str, value: Any, ttl: int) -> None:
+        if len(self._mem) >= MAX_MEMORY_KEYS:
+            now = time.monotonic()
+            for k in [k for k, (exp, _) in self._mem.items() if exp <= now]:
+                del self._mem[k]
+            while len(self._mem) >= MAX_MEMORY_KEYS:
+                # Oldest expiry first; datasets refresh well before theirs.
+                del self._mem[min(self._mem, key=lambda k: self._mem[k][0])]
         self._mem[key] = (time.monotonic() + ttl, value)
 
     async def close(self) -> None:

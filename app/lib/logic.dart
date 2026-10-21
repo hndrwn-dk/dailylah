@@ -1168,3 +1168,52 @@ MrtPlan? mrtPlan(List<MrtStation> stations, Place from, Place to, {double maxWal
   }
   return MrtPlan(board: a.$1, walkToBoard: a.$2, alight: b.$1, walkFromAlight: b.$2, line: line, stops: stops, via: via);
 }
+
+
+// ---------------------------------------------------------------- home
+
+/// The HDB block of a saved home: same postal code, else the nearest block within 40 m.
+HdbBlock? homeBlock(List<HdbBlock> blocks, Place home) {
+  final postal = home.postal?.trim() ?? '';
+  if (postal.isNotEmpty) {
+    for (final b in blocks) {
+      if (b.postal == postal) return b;
+    }
+  }
+  final n = nearest(blocks, home.lat, home.lng, latOf: (b) => b.lat, lngOf: (b) => b.lng);
+  return n != null && n.$2 <= 40 ? n.$1 : null;
+}
+
+/// Works within [radius] m of a point, nearest edge first. The distance is to the edge of
+/// the site (0 when the point is inside it).
+List<(Project, double)> projectsNear(List<Project> all, double lat, double lng, {double radius = 1000}) {
+  final out = <(Project, double)>[];
+  for (final p in all) {
+    final d = math.max(0.0, distanceMeters(lat, lng, p.lat, p.lng) - p.radius);
+    if (d <= radius) out.add((p, d));
+  }
+  out.sort((a, b) => a.$2.compareTo(b.$2));
+  return out;
+}
+
+/// Upgrading that covers the home itself (inside or right next to the site).
+List<Project> upgradingAtHome(List<(Project, double)> near) =>
+    [for (final (p, d) in near) if (p.isUpgrading && d <= 30) p];
+
+/// Hawker centres within [radius] m that close for cleaning or works in the next [days].
+List<(Hawker, Closure, double)> upcomingClosures(List<Hawker> all, double lat, double lng, DateTime now,
+    {double radius = 1500, int days = 30}) {
+  final today = DateTime(now.year, now.month, now.day);
+  final until = today.add(Duration(days: days));
+  final out = <(Hawker, Closure, double)>[];
+  for (final (h, d) in within(all, lat, lng, radius, latOf: (h) => h.lat, lngOf: (h) => h.lng, limit: 30)) {
+    for (final c in h.closures) {
+      if (!c.to.isBefore(today) && !c.from.isAfter(until)) {
+        out.add((h, c, d));
+        break;
+      }
+    }
+  }
+  out.sort((a, b) => a.$2.from.compareTo(b.$2.from));
+  return out;
+}

@@ -27,7 +27,7 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - Religion-neutral by default: no onboarding question about religion. Faith-specific
   features (MUIS prayer times) are opt-in under More > Extras.
 - `lib/providers.dart` holds all Riverpod providers; widgets in `lib/ui/` only render.
-- UI: `ui/shell.dart` (tabs Today / Nearby / Homes / More), `ui/theme.dart` (design tokens
+- UI: `ui/shell.dart` (tabs Today / Nearby / Home / More), `ui/theme.dart` (design tokens
   in `DL`, fonts Plus Jakarta Sans + Barlow Condensed in `assets/fonts/`), `ui/widgets.dart`
   (Panel, HeroHeader, BusPlate, PillRow, BentoTile...). Keep the sticker style: ink outlines
   and hard offset shadows (`Panel`), not soft Material cards. Layouts must hold at 200% system
@@ -55,7 +55,13 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   `.github/workflows/data.yml` (secret `LTA_ACCOUNT_KEY`, optional `DATAGOV_API_KEY`).
   OneMap geocodes are cached in `backend/data/geocode.json` (committed by the workflow).
   Optional bundles are best effort: a failing upstream keeps yesterday's file.
-- Homes (HDB) data is computed on the phone from bundles; only CEA lookups hit the API.
+- Home tab (`ui/home.dart`) is about the saved home: its HDB block (`homeBlock`), upgrading and
+  works (`around.json` bundle from OneMap themes, `projectsNear`), schools, health, community,
+  recycling, weekend, parking; block search is `BlockSearchPage`. HDB data is computed on the
+  phone from bundles; only CEA lookups hit the API.
+- OneMap needs a token: the backend (`app/onemap.py`) logs in with `ONEMAP_EMAIL` /
+  `ONEMAP_PASSWORD` (Render env and GitHub secrets) and renews it; the app searches via
+  `/v1/search`. Never put OneMap credentials or tokens in the app.
 - CI builds a debug APK, so native changes (manifest, Kotlin widget) are compile-checked.
   Analyze and test failures are emitted as annotations on the commit.
 

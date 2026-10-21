@@ -21,6 +21,7 @@ from typing import Any
 
 import httpx
 
+from .onemap import OneMap
 from .svy21 import to_latlon
 
 log = logging.getLogger(__name__)
@@ -130,8 +131,15 @@ class Geocoder:
     """OneMap search with a JSON cache file committed to the repo, so each address is
     looked up once. Stops after `budget_s` seconds; the next daily run continues."""
 
-    def __init__(self, client: httpx.AsyncClient, cache_path: Path | None, budget_s: float = 2400):
+    def __init__(
+        self,
+        client: httpx.AsyncClient,
+        cache_path: Path | None,
+        budget_s: float = 2400,
+        onemap: OneMap | None = None,
+    ):
         self.client = client
+        self.onemap = onemap
         self.path = cache_path
         self.cache: dict[str, list[float] | None] = {}
         if cache_path and cache_path.exists():
@@ -154,7 +162,10 @@ class Geocoder:
         params = {"searchVal": query, "returnGeom": "Y", "getAddrDetails": "Y", "pageNum": 1}
         try:
             for attempt in range(4):
-                resp = await self.client.get(ONEMAP_SEARCH_URL, params=params)
+                if self.onemap is not None:
+                    resp = await self.onemap.get(ONEMAP_SEARCH_URL, params)
+                else:
+                    resp = await self.client.get(ONEMAP_SEARCH_URL, params=params)
                 if resp.status_code != 429:
                     break
                 await asyncio.sleep(20 * (attempt + 1))
@@ -927,3 +938,222 @@ def compact_mrt_stations(exits: dict, code_rows: list[dict]) -> list[dict]:
 
 async def build_mrt_stations(dg: DataGov) -> list[dict]:
     return compact_mrt_stations(await dg.geojson(MRT_EXITS), await dg.rows(STATION_CODES))
+
+
+# ---------------------------------------------------------------- around home (OneMap themes)
+
+# Works and upgrading near a home. Each theme names its fields differently.
+PROJECT_THEMES = {
+    "lup": "hdbluppropunderconstruction",
+    "nrp": "hdbnrpunderconstruction",
+    "eup": "bca_estate_upg_prog_osp",
+    "hdb": "hdbbuildingunderconstruction",
+    "hdbroad": "hdbroadsunderconstruction",
+    "cycling": "hdbcyclingunderconstruction",
+    "road": "lta_rdproj_unclass",
+    "rail": "ltarailprj_uc_unclass",
+    "drain": "drainageconstruction",
+    "sewer": "sewerageconstruction",
+    "water": "watersupplyconstruction",
+    "abc": "abcwatersconstruction",
+    "park": "nparks_uc_parks",
+    "pc": "nparks_uc_pc",
+    "parkfac": "underconstruction_facilities",
+    "ura": "ura_project_public_pl",
+}
+_P_NAME = ("PROJNAME", "PROJECTTITLE", "INFRA_NAME", "STATIONNAM", "NAME")
+_P_STATUS = ("STATUS", "DEVSTATUS", "DEVELOPMENT_STATUS", "DEVELOPMENTSTATUS", "DEV_STATUS")
+_P_START = (
+    "CNSTRN_CMCMNT",
+    "ESTMT_CNSTRN_CMCMNT",
+    "ESTSTARTDT",
+    "EXPECTED_START_DATE",
+    "STARTQUARTER",
+    "EST_START_CONSTRUCTION",
+    "ST_CON_DT",
+)
+_P_END = (
+    "ESTMT_CNSTRN_CMPLTN",
+    "ESTENDDT",
+    "EXPECTED_COMPLETION_DATE",
+    "ENDQUARTER",
+    "EST_END_CONSTRUCTION",
+    "END_CON_DT",
+)
+_P_BY = ("IMPLMT_ORG", "AGENCY", "IMPLEMENTOR", "OWNER", "IMPL_PARTY")
+_P_CONTACT = ("HOTLINE", "QSM_CONTACT", "QSMCONTACT", "AGENCY_QSM_CONTACT", "CTRCTR_CNTCT")
+
+# Places from OneMap themes: key -> (theme, detail field, phone field, hours field)
+POINT_THEMES = {
+    "police": ("spf_establishments", "DESCRIPTION", "TELEPHONE", "OPERATING_HOURS"),
+    "pharmacy": ("registered_pharmacy", None, None, None),
+    "eldercare": ("eldercare", None, None, None),
+    "studentcare": ("studentcare", "MONTHLY_FEE", "SCC_TELEPHONE", None),
+    "family": ("family", "DESCRIPTION", "TELEPHONE", None),
+    "rc": ("residentscommittee", None, None, None),
+    "mp": ("constituencyoffices", None, None, None),
+    "hdbbranch": ("hdb_branches", None, None, None),
+    "ewaste": ("ewaste", "DESCRIPTION", None, None),
+    "reuse": ("reusechannels", "ACCEPTEDITEMS", None, None),
+    "attraction": ("tourism", "META_DESCRIPTION", None, "OPENING_HOURS"),
+    "museum": ("museum", "DESCRIPTION", None, None),
+    "bbq": ("nparks_bbq_pit", None, None, None),
+    "pcn": ("pcn_access_points", None, None, None),
+}
+
+
+def _first(props: dict, keys: tuple[str, ...]) -> str:
+    for k in keys:
+        v = props.get(k)
+        if v not in (None, "", "null", "undefined", "NA", "-"):
+            return str(v).strip()
+    return ""
+
+
+def project_date(value: str) -> str:
+    """'20240626' -> '2024-06'; '3Q 2026' / '2Q2026' -> '3Q 2026'; placeholders -> ''."""
+    v = (value or "").strip()
+    if not v or "2999" in v:
+        return ""
+    m = re.fullmatch(r"(\d{4})(\d{2})(\d{2})", v)
+    if m:
+        return f"{m.group(1)}-{m.group(2)}"
+    m = re.fullmatch(r"([1-4])Q\s*(\d{4})", v, re.I)
+    if m:
+        return f"{m.group(1)}Q {m.group(2)}"
+    m = re.match(r"(\d{4})-(\d{2})", v)
+    if m:
+        return f"{m.group(1)}-{m.group(2)}"
+    m = re.match(r"(\d{1,2})/(\d{1,2})/(\d{4})", v)
+    if m:
+        return f"{m.group(3)}-{int(m.group(2)):02d}"
+    return v[:20]
+
+
+def _year(value: str) -> int | None:
+    m = re.search(r"(20\d{2})", value or "")
+    return int(m.group(1)) if m else None
+
+
+def _theme_coords(item: dict) -> list[tuple[float, float]]:
+    """(lat, lng) points from a OneMap theme row ('lat,lng' or '[[lng, lat], ...]')."""
+    raw = item.get("LatLng")
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        raw = raw.strip()
+        if raw.startswith("["):
+            try:
+                raw = json.loads(raw)
+            except ValueError:
+                return []
+        else:
+            parts = raw.split(",")
+            try:
+                return [(float(parts[0]), float(parts[1]))]
+            except (IndexError, ValueError):
+                return []
+    pts: list[tuple[float, float]] = []
+
+    def walk(x) -> None:
+        if isinstance(x, list) and len(x) == 2 and all(isinstance(v, (int, float)) for v in x):
+            lng, lat = float(x[0]), float(x[1])
+            if lat > lng:  # some layers give [lat, lng]
+                lat, lng = lng, lat
+            pts.append((lat, lng))
+        elif isinstance(x, list):
+            for y in x:
+                walk(y)
+
+    walk(raw)
+    return pts
+
+
+def _spot(pts: list[tuple[float, float]]) -> tuple[float, float, float] | None:
+    if not pts:
+        return None
+    lat = sum(p[0] for p in pts) / len(pts)
+    lng = sum(p[1] for p in pts) / len(pts)
+    return lat, lng, max(_haversine(lat, lng, p[0], p[1]) for p in pts)
+
+
+def compact_projects(kind: str, rows: list[dict], this_year: int) -> list[dict]:
+    """Theme rows -> [{"k","n","s","from","to","by","t","la","lo","r"}]; finished work dropped."""
+    out = []
+    for row in rows:
+        spot = _spot(_theme_coords(row))
+        name = _first(row, _P_NAME)
+        if not spot or not name or re.fullmatch(r"[A-Z0-9]+(_[A-Z0-9]+)+", name):
+            continue
+        status = _first(row, _P_STATUS)
+        end = project_date(_first(row, _P_END))
+        end_year = _year(end)
+        if "complet" in status.lower() or (end_year is not None and end_year < this_year):
+            continue
+        item = {
+            "k": kind,
+            "n": name.title() if name.isupper() else name,
+            "s": {"U/C": "Under construction"}.get(status, status),
+            "from": project_date(_first(row, _P_START)),
+            "to": end,
+            "by": _first(row, _P_BY),
+            "t": _first(row, _P_CONTACT),
+            "la": _r(spot[0]),
+            "lo": _r(spot[1]),
+            "r": round(spot[2]),
+        }
+        out.append({k: v for k, v in item.items() if v not in ("", None)})
+    return out
+
+
+def compact_theme_points(
+    rows: list[dict], detail: str | None, tel: str | None, hours: str | None
+) -> list[dict]:
+    out = []
+    for row in rows:
+        pts = _theme_coords(row)
+        name = str(row.get("NAME") or "").strip()
+        if not pts or not name:
+            continue
+        lat, lng = pts[0]
+        addr = " ".join(
+            str(row.get(k) or "").strip()
+            for k in ("ADDRESSBLOCKHOUSENUMBER", "ADDRESSSTREETNAME", "ADDRESSPOSTALCODE")
+            if row.get(k) not in (None, "", "null")
+        )
+        item = {"n": name.title() if name.isupper() else name, "la": _r(lat), "lo": _r(lng)}
+        if addr:
+            item["a"] = addr.title()
+        for key, field in (("d", detail), ("t", tel), ("h", hours)):
+            v = str(row.get(field) or "").strip() if field else ""
+            if v and v.lower() not in ("null", "na", "-"):
+                item[key] = re.sub(r"<[^>]+>", " ", html.unescape(v)).strip()[:200]
+        out.append(item)
+    return out
+
+
+async def theme_rows(om: OneMap, query_name: str) -> list[dict]:
+    body = await om.theme(query_name)
+    res = body.get("SrchResults") or []
+    return [r for r in res[1:] if isinstance(r, dict) and "ErrorMessage" not in r]
+
+
+async def build_around(om: OneMap, this_year: int) -> dict:
+    """Upgrading, works and services near homes, from OneMap themes (needs a token)."""
+    if not om.configured:
+        raise RuntimeError("ONEMAP_EMAIL / ONEMAP_PASSWORD not set")
+    projects: list[dict] = []
+    points: dict[str, list] = {}
+    for kind, theme in PROJECT_THEMES.items():
+        try:
+            projects += compact_projects(kind, await theme_rows(om, theme), this_year)
+        except Exception as e:  # one broken layer should not drop the others
+            log.warning("around %s failed: %s", kind, e)
+        await asyncio.sleep(0.3)
+    for key, (theme, detail, tel, hours) in POINT_THEMES.items():
+        try:
+            points[key] = compact_theme_points(await theme_rows(om, theme), detail, tel, hours)
+        except Exception as e:
+            log.warning("around %s failed: %s", key, e)
+        await asyncio.sleep(0.3)
+    return {"projects": projects, "points": points}

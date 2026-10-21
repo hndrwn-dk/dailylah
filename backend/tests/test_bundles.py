@@ -479,3 +479,71 @@ def test_school_level_reads_moe_codes():
     assert b.school_level("MIXED LEVEL (P1-S4)") == "PRIMARY"
     assert b.school_level("JUNIOR COLLEGE") == "SECONDARY"
     assert b.school_level(None) is None
+
+
+def test_project_dates():
+    assert b.project_date("20240626") == "2024-06"
+    assert b.project_date("3Q 2026") == "3Q 2026"
+    assert b.project_date("2Q2026") == "2Q 2026"
+    assert b.project_date("4Q 2999") == ""
+    assert b.project_date("") == ""
+
+
+def test_compact_projects_keep_current_work_near_a_spot():
+    rows = [
+        {
+            "NAME": "MARINE DRIVE(MP12)",
+            "DESCRIPTION": "LUP - Lift Upgrading Programme",
+            "STATUS": "U/C",
+            "CNSTRN_CMCMNT": "20250601",
+            "ESTMT_CNSTRN_CMPLTN": "4Q 2027",
+            "IMPLMT_ORG": "HDB",
+            "QSM_CONTACT": "https://www.hdb.gov.sg/efeedback",
+            "Type": "Polygon",
+            "LatLng": "[[103.9095, 1.3037], [103.9099, 1.3037], "
+            "[103.9099, 1.3041], [103.9095, 1.3041]]",
+        },
+        {  # finished long ago
+            "NAME": "OLD WORK",
+            "STATUS": "U/C",
+            "ESTMT_CNSTRN_CMPLTN": "4Q 2018",
+            "LatLng": "[[103.9, 1.3], [103.91, 1.31]]",
+        },
+        {"NAME": "LTA_RDPROJ_UNCLASS", "LatLng": "[[103.9, 1.3]]"},
+    ]
+    out = b.compact_projects("lup", rows, 2026)
+    assert len(out) == 1
+    p = out[0]
+    assert p["k"] == "lup" and p["s"] == "Under construction"
+    assert p["from"] == "2025-06" and p["to"] == "4Q 2027"
+    assert abs(p["la"] - 1.3039) < 1e-4 and abs(p["lo"] - 103.9097) < 1e-4
+    assert 20 < p["r"] < 40
+
+
+def test_compact_theme_points():
+    rows = [
+        {
+            "NAME": "MARINE PARADE NEIGHBOURHOOD POLICE CENTRE",
+            "DESCRIPTION": "Neighbourhood Police Centre",
+            "TELEPHONE": "64404123",
+            "OPERATING_HOURS": "24 hours",
+            "ADDRESSBLOCKHOUSENUMBER": "3",
+            "ADDRESSSTREETNAME": "MARINE PARADE CENTRAL",
+            "ADDRESSPOSTALCODE": "449267",
+            "Type": "Point",
+            "LatLng": "1.3022,103.9067",
+        },
+        {"NAME": "", "LatLng": "1.3,103.9"},
+    ]
+    out = b.compact_theme_points(rows, "DESCRIPTION", "TELEPHONE", "OPERATING_HOURS")
+    assert out == [
+        {
+            "n": "Marine Parade Neighbourhood Police Centre",
+            "la": 1.3022,
+            "lo": 103.9067,
+            "a": "3 Marine Parade Central 449267",
+            "d": "Neighbourhood Police Centre",
+            "t": "64404123",
+            "h": "24 hours",
+        }
+    ]

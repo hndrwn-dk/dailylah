@@ -280,3 +280,57 @@ def test_compact_racks():
         }
     )
     assert out == [{"n": "12 bicycle racks · sheltered", "la": 1.3, "lo": 103.8}]
+
+
+ONEMAP_TOKEN = "https://www.onemap.gov.sg/api/auth/post/getToken"
+ONEMAP_SEARCH = "https://www.onemap.gov.sg/api/common/elastic/search"
+
+
+@respx.mock
+def test_search_uses_onemap_token_and_caches(monkeypatch):
+    monkeypatch.setenv("ONEMAP_EMAIL", "dev@example.com")
+    monkeypatch.setenv("ONEMAP_PASSWORD", "x")
+    get_settings.cache_clear()
+    tok = respx.post(ONEMAP_TOKEN).mock(
+        return_value=httpx.Response(
+            200, json={"access_token": "T1", "expiry_timestamp": "9999999999"}
+        )
+    )
+    hit = {
+        "found": 1,
+        "results": [{"POSTAL": "440066", "LATITUDE": "1.3039", "LONGITUDE": "103.9097"}],
+    }
+    search = respx.get(ONEMAP_SEARCH).mock(return_value=httpx.Response(200, json=hit))
+    with TestClient(app) as client:
+        r = client.get("/v1/search", params={"q": "440066"})
+        assert r.status_code == 200
+        assert r.json()["data"]["results"][0]["POSTAL"] == "440066"
+        assert search.calls[0].request.headers["Authorization"] == "T1"
+        client.get("/v1/search", params={"q": " 440066 "})
+        assert search.call_count == 1  # served from memory
+        assert tok.call_count == 1
+        assert client.get("/v1/search", params={"q": "x"}).status_code == 422
+    get_settings.cache_clear()
+
+
+@respx.mock
+def test_search_renews_token_when_rejected(monkeypatch):
+    monkeypatch.setenv("ONEMAP_EMAIL", "dev@example.com")
+    monkeypatch.setenv("ONEMAP_PASSWORD", "x")
+    get_settings.cache_clear()
+    respx.post(ONEMAP_TOKEN).mock(
+        side_effect=[
+            httpx.Response(200, json={"access_token": "OLD", "expiry_timestamp": "9999999999"}),
+            httpx.Response(200, json={"access_token": "NEW", "expiry_timestamp": "9999999999"}),
+        ]
+    )
+    respx.get(ONEMAP_SEARCH).mock(
+        side_effect=[
+            httpx.Response(401, json={}),
+            httpx.Response(200, json={"found": 0, "results": []}),
+        ]
+    )
+    with TestClient(app) as client:
+        r = client.get("/v1/search", params={"q": "marine drive"})
+        assert r.status_code == 200
+    get_settings.cache_clear()

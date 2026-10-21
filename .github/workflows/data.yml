@@ -1,6 +1,7 @@
 name: data
 # Rebuilds static bundles in web/data/ once a day and commits them if they changed.
-# Vercel redeploys web/ on push. Needs repo secret LTA_ACCOUNT_KEY; DATAGOV_API_KEY is optional.
+# Vercel redeploys web/ on push. Needs repo secrets LTA_ACCOUNT_KEY, ONEMAP_EMAIL and
+# ONEMAP_PASSWORD (OneMap geocoding and themes); DATAGOV_API_KEY is optional.
 # backend/data/geocode.json caches OneMap lookups between runs.
 on:
   schedule:
@@ -37,6 +38,8 @@ jobs:
           LTA_ACCOUNT_KEY: ${{ secrets.LTA_ACCOUNT_KEY }}
           # Optional: raises data.gov.sg rate limits so the build finishes faster.
           DATAGOV_API_KEY: ${{ secrets.DATAGOV_API_KEY }}
+          ONEMAP_EMAIL: ${{ secrets.ONEMAP_EMAIL }}
+          ONEMAP_PASSWORD: ${{ secrets.ONEMAP_PASSWORD }}
         run: python -m app.build_static ../web/data
       - name: Commit if changed
         run: |
