@@ -641,4 +641,12 @@ void main() {
     expect(privateProjectFor([p], far), isNull);
     expect(titleCase('BT BATOK ST 11'), 'Bt Batok St 11');
   });
+
+  test('order in: rain, then haze, then a closed hawker', () {
+    expect(orderInReason(), isNull);
+    expect(orderInReason(rainMm: 0, air: AirLevel.moderate), isNull);
+    expect(orderInReason(rainMm: 0.2, air: AirLevel.hazardous, nearestHawkerClosed: true), OrderInReason.rain);
+    expect(orderInReason(air: AirLevel.unhealthy, nearestHawkerClosed: true), OrderInReason.haze);
+    expect(orderInReason(nearestHawkerClosed: true), OrderInReason.hawkerClosed);
+  });
 }

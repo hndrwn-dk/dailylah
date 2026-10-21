@@ -753,8 +753,14 @@ const _rideApps = [
 
 const _apps = MethodChannel('dailylah/apps');
 
-/// Opens a ride app directly when installed; otherwise its Play Store page.
-Future<void> _openRideApp(String id) async {
+/// Food delivery apps in Singapore (GrabFood lives inside the Grab app).
+const foodApps = [
+  ('GrabFood', 'com.grabtaxi.passenger', DL.mint),
+  ('foodpanda', 'com.global.foodpanda.android', DL.sky),
+];
+
+/// Opens an app directly when installed; otherwise its Play Store page.
+Future<void> openApp(String id) async {
   try {
     if (await _apps.invokeMethod<bool>('launch', {'package': id}) ?? false) return;
   } on Object {
@@ -825,7 +831,7 @@ class TaxiSheet extends ConsumerWidget {
                   color: color,
                   margin: const EdgeInsets.only(bottom: 12),
                   child: InkWell(
-                    onTap: () => _openRideApp(id),
+                    onTap: () => openApp(id),
                     child: Center(
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
