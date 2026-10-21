@@ -471,8 +471,18 @@ String placeTitle(String Function(String) placeLabel, Place p) =>
 
 /// A horizontally scrolling row of chunky pills: (key, icon, label).
 class PillRow extends StatelessWidget {
-  const PillRow({super.key, required this.items, required this.selected, required this.onTap, this.onDark = false});
+  const PillRow({
+    super.key,
+    required this.items,
+    required this.selected,
+    required this.onTap,
+    this.onDark = false,
+    this.danger = const {},
+  });
   final List<(String, IconData, String)> items;
+
+  /// Keys drawn in red (e.g. "emergency"): red fill when selected, red text otherwise.
+  final Set<String> danger;
   final String selected;
   final ValueChanged<String> onTap;
   final bool onDark;
@@ -493,6 +503,7 @@ class PillRow extends StatelessWidget {
                 icon: icon,
                 label: label,
                 selected: key == selected,
+                danger: danger.contains(key),
                 edge: edge,
                 onDark: onDark,
                 style: t.labelLarge,
@@ -513,10 +524,12 @@ class _Pill extends StatelessWidget {
     required this.onDark,
     required this.style,
     required this.onTap,
+    this.danger = false,
   });
   final IconData icon;
   final String label;
   final bool selected;
+  final bool danger;
   final Color edge;
   final bool onDark;
   final TextStyle? style;
@@ -524,8 +537,10 @@ class _Pill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = selected ? DL.amber : (onDark ? DL.card : Theme.of(context).colorScheme.surfaceContainerLowest);
-    const fg = DL.ink;
+    final bg = selected
+        ? (danger ? DL.stop : DL.amber)
+        : (onDark ? DL.card : Theme.of(context).colorScheme.surfaceContainerLowest);
+    final fg = danger ? (selected ? Colors.white : DL.stop) : DL.ink;
     final r = BorderRadius.circular(12);
     return DecoratedBox(
       decoration: BoxDecoration(
