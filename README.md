@@ -67,3 +67,7 @@ flutter run --dart-define=API_URL=http://10.0.2.2:8000
 | `PUBLIC_BASE_URL` | Your Render service URL |
 
 Data from data.gov.sg and LTA DataMall. Not affiliated with the Singapore Government. A Tursina Labs project.
+
+## License
+
+Copyright (c) 2026 Hendrawan Daryono Karso (Tursina Labs). All rights reserved. See [LICENSE](LICENSE).
