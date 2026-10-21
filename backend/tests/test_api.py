@@ -25,9 +25,23 @@ def test_health(client):
     assert client.get("/health").json() == {"status": "ok"}
 
 
-def test_weather_not_polled_yet(client):
-    assert client.get("/v1/weather/forecast").status_code == 503
+@respx.mock
+def test_weather_fetched_on_miss_when_not_polled(client):
+    route = respx.get(f"{DATAGOV}/two-hr-forecast").mock(
+        return_value=httpx.Response(200, json={"code": 0, "data": {"items": [1]}})
+    )
+    r = client.get("/v1/weather/forecast")
+    assert r.status_code == 200
+    assert r.json()["data"]["data"]["items"] == [1]
+    client.get("/v1/weather/forecast")
+    assert route.call_count == 1  # second read is served from the cache
     assert client.get("/v1/weather/nope").status_code == 404
+
+
+@respx.mock
+def test_weather_upstream_down_and_not_polled(client):
+    respx.get(f"{DATAGOV}/two-hr-forecast").mock(return_value=httpx.Response(500))
+    assert client.get("/v1/weather/forecast").status_code == 502
 
 
 @respx.mock

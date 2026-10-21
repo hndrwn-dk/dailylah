@@ -4,6 +4,7 @@ Public, read-only endpoints for the Flutter app (/v1/*) and one internal
 endpoint (/internal/poll) called by an Upstash QStash schedule.
 """
 
+import asyncio
 import logging
 import re
 import time
@@ -15,7 +16,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from .cache import Cache
 from .config import Settings, get_settings
 from .onemap import OneMap
-from .sources import CEA_REG_RE, LTA_DATASETS, NEA_DATASETS, TRAIN_LINES, Dataset, Sources
+from .sources import CEA_REG_RE, LTA_DATASETS, NEA_DATASETS, TRAIN_LINES, Sources
 
 log = logging.getLogger("dailylah")
 STOP_RE = re.compile(r"^\d{5}$")
@@ -38,6 +39,7 @@ async def lifespan(app: FastAPI):
     app.state.sources = Sources(s, app.state.http)
     app.state.onemap = OneMap(app.state.http, s.onemap_email, s.onemap_password)
     app.state.last_poll: dict[str, float] = {}
+    app.state.locks: dict[str, asyncio.Lock] = {}
     yield
     await app.state.http.aclose()
     await app.state.cache.close()
@@ -64,22 +66,16 @@ async def health() -> dict:
 
 
 @app.get("/v1/weather/{kind}")
-async def weather(kind: str, c: Cache = Depends(cache)) -> dict:
+async def weather(kind: str, request: Request) -> dict:
     key = WEATHER_KEYS.get(kind)
     if key is None:
         raise HTTPException(404, f"unknown weather kind: {kind}")
-    data = await c.get(key)
-    if data is None:
-        raise HTTPException(503, "data not polled yet")
-    return data
+    return await _serve(request, key)
 
 
 @app.get("/v1/train-alerts")
-async def train_alerts(c: Cache = Depends(cache)) -> dict:
-    data = await c.get("lta:train-alerts")
-    if data is None:
-        raise HTTPException(503, "data not polled yet")
-    return data
+async def train_alerts(request: Request) -> dict:
+    return await _serve(request, "lta:train-alerts")
 
 
 @app.get("/v1/bus-arrival/{stop_code}")
@@ -138,40 +134,28 @@ INCIDENTS_KEY = "lta:incidents"
 
 
 @app.get("/v1/carpark")
-async def carpark(c: Cache = Depends(cache)) -> dict:
+async def carpark(request: Request) -> dict:
     """All HDB car parks: {"data": {"ACB": [total, available]}}. Polled every 3 min."""
-    data = await c.get(CARPARK_KEY)
-    if data is None:
-        raise HTTPException(503, "data not polled yet")
-    return data
+    return await _serve(request, CARPARK_KEY)
 
 
 @app.get("/v1/taxi")
-async def taxi(c: Cache = Depends(cache)) -> dict:
+async def taxi(request: Request) -> dict:
     """Available taxi positions [[lat, lng]], rounded. Polled every 5 min."""
-    data = await c.get(TAXI_KEY)
-    if data is None:
-        raise HTTPException(503, "data not polled yet")
-    return data
+    return await _serve(request, TAXI_KEY)
 
 
 @app.get("/v1/parking")
-async def parking(c: Cache = Depends(cache)) -> dict:
+async def parking(request: Request) -> dict:
     """Live lots for LTA/URA/HDB car parks: [[id, agency, lat, lng, lot_type, available, name]].
     lot_type C is cars, Y is motorcycles. Polled every 3 min."""
-    data = await c.get(PARKING_KEY)
-    if data is None:
-        raise HTTPException(503, "data not polled yet")
-    return data
+    return await _serve(request, PARKING_KEY)
 
 
 @app.get("/v1/traffic-incidents")
-async def traffic_incidents(c: Cache = Depends(cache)) -> dict:
+async def traffic_incidents(request: Request) -> dict:
     """Current traffic incidents: [[type, lat, lng, message]]. Polled every 5 min."""
-    data = await c.get(INCIDENTS_KEY)
-    if data is None:
-        raise HTTPException(503, "data not polled yet")
-    return data
+    return await _serve(request, INCIDENTS_KEY)
 
 
 @app.get("/v1/search")
@@ -242,42 +226,67 @@ async def verify_qstash(request: Request, s: Settings = Depends(get_settings)) -
         raise HTTPException(401, "invalid signature") from e
 
 
-async def _poll_key(request: Request, key: str, every_s: int, ttl_s: int, fetch) -> str:
-    """Runs fetch() if [key] is due, and caches its result. One bad source never stops the rest."""
+def _jobs(src: Sources, with_lta: bool) -> dict[str, tuple[int, int, object]]:
+    """Every centrally polled key: (poll every s, cache ttl s, fetch)."""
+    jobs: dict[str, tuple[int, int, object]] = {
+        ds.key: (ds.every_s, ds.ttl_s, (lambda ds=ds: src.datagov(ds))) for ds in NEA_DATASETS
+    }
+    jobs[CARPARK_KEY] = (180, 900, src.carpark_availability)
+    if with_lta:
+        for ds in LTA_DATASETS:
+            jobs[ds.key] = (ds.every_s, ds.ttl_s, (lambda ds=ds: src.lta(ds.path)))
+        jobs[TAXI_KEY] = (300, 900, src.taxis)
+        jobs[PARKING_KEY] = (180, 900, src.parking)
+        jobs[INCIDENTS_KEY] = (300, 900, src.traffic_incidents)
+    return jobs
+
+
+async def _poll_key(
+    request: Request, key: str, every_s: int, ttl_s: int, fetch, force: bool = False
+) -> str:
+    """Runs fetch() if [key] is due (or forced), and caches its result.
+    One bad source never stops the rest."""
     st = request.app.state
-    now = time.monotonic()
-    if now - st.last_poll.get(key, -1e9) < every_s:
-        return "skipped"
-    try:
-        data = await fetch()
-    except Exception as e:  # noqa: BLE001
-        log.warning("poll %s failed: %s", key, e)
-        return "error"
-    st.last_poll[key] = now
-    changed = await st.cache.set(key, {"fetched_at": int(time.time()), "data": data}, ttl_s)
-    return "changed" if changed else "unchanged"
+    lock = st.locks.setdefault(key, asyncio.Lock())
+    async with lock:
+        now = time.monotonic()
+        if not force and now - st.last_poll.get(key, -1e9) < every_s:
+            return "skipped"
+        if force and await st.cache.get(key) is not None:
+            return "skipped"  # another request filled it while we waited
+        try:
+            data = await fetch()
+        except Exception as e:  # noqa: BLE001
+            log.warning("poll %s failed: %s", key, e)
+            return "error"
+        st.last_poll[key] = now
+        changed = await st.cache.set(key, {"fetched_at": int(time.time()), "data": data}, ttl_s)
+        return "changed" if changed else "unchanged"
 
 
-async def _poll_one(request: Request, ds: Dataset, kind: str) -> str:
-    src = request.app.state.sources
-    fetch = (lambda: src.datagov(ds)) if kind == "nea" else (lambda: src.lta(ds.path))
-    return await _poll_key(request, ds.key, ds.every_s, ds.ttl_s, fetch)
+async def _serve(request: Request, key: str) -> dict:
+    """Cached value, or fetched now when the poller has not filled it (cold start,
+    or the QStash schedule stopped). Concurrent misses share one upstream call."""
+    c: Cache = request.app.state.cache
+    data = await c.get(key)
+    if data is not None:
+        return data
+    job = _jobs(request.app.state.sources, bool(get_settings().lta_account_key)).get(key)
+    if job is None:
+        raise HTTPException(503, "data not available")
+    every_s, ttl_s, fetch = job
+    await _poll_key(request, key, every_s, ttl_s, fetch, force=True)
+    data = await c.get(key)
+    if data is None:
+        raise HTTPException(502, "upstream error")
+    return data
 
 
 @app.post("/internal/poll", dependencies=[Depends(verify_qstash)])
 async def poll(request: Request) -> dict:
     """Called every ~2 min by QStash. Each dataset keeps its own interval."""
-    result = {}
-    for ds in NEA_DATASETS:
-        result[ds.key] = await _poll_one(request, ds, "nea")
-    src = request.app.state.sources
-    result[CARPARK_KEY] = await _poll_key(request, CARPARK_KEY, 180, 900, src.carpark_availability)
-    if get_settings().lta_account_key:
-        for ds in LTA_DATASETS:
-            result[ds.key] = await _poll_one(request, ds, "lta")
-        result[TAXI_KEY] = await _poll_key(request, TAXI_KEY, 300, 900, src.taxis)
-        result[PARKING_KEY] = await _poll_key(request, PARKING_KEY, 180, 900, src.parking)
-        result[INCIDENTS_KEY] = await _poll_key(
-            request, INCIDENTS_KEY, 300, 900, src.traffic_incidents
-        )
-    return result
+    jobs = _jobs(request.app.state.sources, bool(get_settings().lta_account_key))
+    return {
+        key: await _poll_key(request, key, every_s, ttl_s, fetch)
+        for key, (every_s, ttl_s, fetch) in jobs.items()
+    }
