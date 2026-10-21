@@ -375,6 +375,32 @@ class _MapPanel extends StatelessWidget {
                   ),
                 ),
                 if (mine != null) CustomPaint(painter: _MePainter(mine, DL.edge(context))),
+                // OneMap requires its logo and credit on its maps.
+                Positioned(
+                  left: 0,
+                  bottom: 0,
+                  child: GestureDetector(
+                    onTap: () => launchUrl(Uri.parse('https://www.onemap.gov.sg/legal/opendatalicence.html'),
+                        mode: LaunchMode.externalApplication),
+                    child: Container(
+                      color: const Color(0xCCFFFFFF),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Image.network(
+                            'https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png',
+                            height: 14,
+                            errorBuilder: (c, e, st) => const SizedBox.shrink(),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(s.oneMapCredit,
+                              style: const TextStyle(fontSize: 9, color: DL.ink), textScaler: TextScaler.noScaling),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ],
             );
           },

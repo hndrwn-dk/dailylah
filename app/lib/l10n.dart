@@ -251,6 +251,7 @@ class S {
   String get getDirections => 'Get directions';
   String get openInMaps => 'Open in Maps';
   String get mapUnavailable => 'Map preview not available. Directions still work.';
+  String get oneMapCredit => 'OneMap © contributors | Singapore Land Authority';
   String get mapNote => 'Map: OneMap, Singapore Land Authority. Directions open in Google Maps from where you are.';
   String get saveCarpark => 'Save car park';
   String get savedCarpark => 'Saved';
