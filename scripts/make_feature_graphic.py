@@ -62,11 +62,13 @@ def feature():
     mark = make_icon.sticker(330, with_bg=False)
     mark = mark.crop(mark.getbbox())
     mark = mark.resize((int(mark.width * 0.9 * S), int(mark.height * 0.9 * S)), Image.LANCZOS)
-    im.paste(mark, (64 * S, 70 * S), mark)
-    text(d, (66, 268), "Know before", jak(44), INK)
-    text(d, (66, 320), "you go lah.", jak(44), INK)
-    text(d, (68, 398), "Bus coming? Rain later? MRT delay?", jak(21, 700), INK)
-    text(d, (68, 430), "One look before you step out. Free, no sign-up.", jak(18, 500), (80, 100, 106))
+    im.paste(mark, (64 * S, 46 * S), mark)
+    text(d, (66, 236), "Know before", jak(44), INK)
+    text(d, (66, 288), "you go lah.", jak(44), INK)
+    for i, line in enumerate(
+        ["Need umbrella meh? Hawker closed ah?", "Haze bad or not? Makan where?", "Bus coming? MRT delay?"]
+    ):
+        text(d, (68, 366 + i * 28), line, jak(19, 700), INK)
 
     # Right: three stickers with the app's signatures.
     # 1. Bus stop LED board.
