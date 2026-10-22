@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../data.dart';
+import '../l10n.dart';
 import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
