@@ -56,7 +56,7 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   reads the cached bundles, then shows local notifications. Keep the alert rules (quiet
   hours, one per event, max 3 rain alerts a day) in `logic.dart` / `AlertLog`.
 - Static bundles (`/data/manifest.json` + `<name>.json`) come from
-  `https://dailylah.tursinalabs.com`, falling back to `https://dailylah-web.vercel.app`
+  `https://dailylah.sg`, falling back to `https://dailylah.tursinalabs.com` and `https://dailylah-web.vercel.app`
   (same Vercel deployment). Never hard-code a single host; use `webUrls` in `lib/api.dart`.
   `backend/app/build_static.py` + `backend/app/bundles.py` build them daily in
   `.github/workflows/data.yml` (secret `LTA_ACCOUNT_KEY`, optional `DATAGOV_API_KEY`).

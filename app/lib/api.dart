@@ -17,9 +17,11 @@ const apiUrl = String.fromEnvironment(
 /// Override with --dart-define=WEB_URL=... to use a single base URL.
 const webUrlOverride = String.fromEnvironment('WEB_URL');
 
-/// Tried in order: our own domain first, then the Vercel URL in case DNS for the
-/// custom domain breaks. Both serve the same deployment.
+/// Tried in order: dailylah.sg, then the tursinalabs.com subdomain, then the Vercel
+/// URL in case DNS for a custom domain breaks (or the .sg renewal lapses).
+/// All three serve the same deployment.
 const webUrls = <String>[
+  'https://dailylah.sg',
   'https://dailylah.tursinalabs.com',
   'https://dailylah-web.vercel.app',
 ];

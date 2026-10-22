@@ -16,6 +16,12 @@ Start here, then read `CLAUDE.md` and `docs/PRD.md`.
 - The last two commits (ActiveSG, taxi dedupe) were merged without CI. Run analyze and test locally first.
 - Still to confirm on a phone: onboarding stays saved after the app is closed and reopened.
 
+## Domains
+- `dailylah.sg` is the website and the first host for data bundles; `dailylah.tursinalabs.com`
+  and `dailylah-web.vercel.app` are fallbacks (same Vercel deployment, `webUrls` in `api.dart`).
+- Privacy and terms stay at `tursinalabs.com/dailylah/privacy` and `/terms`;
+  `dailylah.sg/privacy` and `/terms` redirect there (`web/vercel.json`).
+
 ## Build locally: GitHub Actions minutes are used up
 These workflows do not run until the quota resets: app.yml (APK), data.yml (daily bundles), and the persona and probe workflows.
 
