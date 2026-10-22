@@ -1457,3 +1457,62 @@ MealNudge? mealNudge(List<MealLog> meals, List<Hawker> all, DateTime now, double
 /// True once the parking reminder time has passed.
 bool parkReminderDue(ParkedCar p, DateTime now) =>
     p.remindMinutes != null && !now.isBefore(p.at.add(Duration(minutes: p.remindMinutes!)));
+
+// ---------------------------------------------------------------- weekly digest
+
+/// A public holiday from the holidays.json bundle.
+class Holiday {
+  const Holiday(this.date, this.name);
+  final DateTime date;
+  final String name;
+
+  static List<Holiday> fromBundle(Object? raw) => [
+        if (raw is List)
+          for (final r in raw)
+            if (r is Map && DateTime.tryParse('${r['d']}') != null) Holiday(DateTime.parse('${r['d']}'), '${r['n']}'),
+      ];
+}
+
+const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+/// Lines for the Sunday "This week around you" notification, covering the 7 days after
+/// [now]: favourite hawker closures, works at the home block, dengue near home and public
+/// holidays. Empty when there is nothing worth a notification.
+List<String> weeklyDigest({
+  required S s,
+  required Favorites fav,
+  required DateTime now,
+  List<Hawker> hawkers = const [],
+  List<Project> projects = const [],
+  List<DengueCluster> dengue = const [],
+  List<Holiday> holidays = const [],
+}) {
+  final today = dateOnly(now);
+  final end = today.add(const Duration(days: 8));
+  final out = <String>[];
+  for (final h in hawkers) {
+    if (!fav.hawkers.contains(h.id)) continue;
+    for (final c in h.closures) {
+      if (!c.to.isBefore(today) && c.from.isBefore(end)) {
+        out.add(s.digestHawker(h.name, shortDate(c.from), shortDate(c.to)));
+        break;
+      }
+    }
+  }
+  final home = fav.places[PlaceKind.home];
+  if (home != null) {
+    final works = upgradingAtHome(projectsNear(projects, home.lat, home.lng, radius: 200, now: now));
+    if (works.isNotEmpty) out.add(s.digestWorks(works.first.name));
+    final d = dengueNear(dengue, home.lat, home.lng, km: 1);
+    if (d.isNotEmpty) out.add(s.digestDengue(d.length));
+  }
+  for (final h in holidays) {
+    if (!h.date.isBefore(today) && h.date.isBefore(end)) {
+      out.add(s.digestHoliday(h.name, '${_weekdays[h.date.weekday - 1]} ${shortDate(h.date)}'));
+    }
+  }
+  return out;
+}
+
+/// Sunday from 18:00 to 21:59: when the weekly digest goes out.
+bool inDigestWindow(DateTime now) => now.weekday == DateTime.sunday && now.hour >= 18 && now.hour < 22;

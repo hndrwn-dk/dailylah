@@ -13,6 +13,7 @@ Writes (all compact JSON, keys documented in app/lib/data.dart):
     hdb_resale.json  resale medians per block and town, last 24 months
     hdb_rent.json    median rent per town, last 6 months
     prayer.json      MUIS prayer times for the year
+    holidays.json    MOM public holidays from a month ago onwards
     taxi_stands.json LTA taxi stands and stops
     bus_routes.json  stop order per bus service and direction (for "buses that go home")
     bicycle_racks.json LTA bicycle racks
@@ -56,6 +57,7 @@ MIN_COUNTS = {
     "carparks": 1500,
     "hdb_blocks": 100,
     "prayer": 300,
+    "holidays": 5,
 }
 
 
@@ -129,6 +131,7 @@ async def build(
             await attempt("dengue", b.build_dengue(dg))
             await attempt("carparks", b.build_carparks(dg))
             await attempt("prayer", b.build_prayer(dg))
+            await attempt("holidays", b.build_holidays(dg, today or date.today()))
             await attempt("poi", b.build_poi(dg, geo))
             await attempt("emergency", b.build_emergency(dg, geo))
             await attempt("halal", b.build_halal(client))

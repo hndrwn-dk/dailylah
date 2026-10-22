@@ -730,4 +730,24 @@ void main() {
     expect(wakeRadius(b, c), closeTo(700, 15));
     expect(wakeRadius(null, c), 500);
   });
+
+  test('weekly digest: hawker closures, dengue and holidays in the next week', () {
+    final now = DateTime(2026, 10, 25, 19); // Sunday evening
+    expect(inDigestWindow(now), isTrue);
+    expect(inDigestWindow(DateTime(2026, 10, 24, 19)), isFalse);
+    final h = Hawker.fromBundle({
+      'id': 'h1', 'n': 'Golden Mile', 'a': '', 'la': 1.30, 'lo': 103.86,
+      'c': [['2026-10-27', '2026-10-30', 'cleaning']],
+    });
+    const fav = Favorites(
+      hawkers: {'h1'},
+      places: {PlaceKind.home: Place(kind: PlaceKind.home, address: 'Home', addrLat: 1.30, addrLng: 103.86)},
+    );
+    final holidays = Holiday.fromBundle([{'d': '2026-10-28', 'n': 'Test Day'}, {'d': '2026-12-25', 'n': 'Christmas Day'}]);
+    final lines = weeklyDigest(s: const S(), fav: fav, now: now, hawkers: [h], holidays: holidays);
+    expect(lines.any((l) => l.contains('Golden Mile')), isTrue);
+    expect(lines.any((l) => l.contains('Test Day') && l.contains('Wed')), isTrue);
+    expect(lines.any((l) => l.contains('Christmas')), isFalse);
+    expect(weeklyDigest(s: const S(), fav: const Favorites(), now: now), isEmpty);
+  });
 }

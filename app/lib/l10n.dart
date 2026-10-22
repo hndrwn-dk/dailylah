@@ -303,6 +303,15 @@ class S {
   String get deleteHistoryAsk => 'Delete logged trips, meals and your parked car from this phone?';
   String get deleted => 'Deleted.';
   String get delete => 'Delete';
+
+  // ---------------------------------------------------------------- weekly digest
+  String get digestTitle => 'This week around you';
+  String digestHawker(String name, String from, String to) => '$name closed $from to $to';
+  String digestWorks(String what) => 'Works at your block: $what';
+  String digestDengue(int n) => n == 1 ? '1 dengue cluster within 1 km of home' : '$n dengue clusters within 1 km of home';
+  String digestHoliday(String name, String when) => 'Public holiday: $name, $when';
+  String get alertDigest => 'This week around you';
+  String get alertDigestSub => 'One summary on Sunday evening';
   String get alertLeave => 'When to leave for my bus';
   String get alertLeaveSub => 'Once a day, shortly before you usually leave';
   String get from => 'From';

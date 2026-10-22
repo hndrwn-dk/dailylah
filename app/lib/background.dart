@@ -185,6 +185,41 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     await log.markSent(id);
   });
 
+  // Weekly digest: Sunday evening, once a week, only when there is something to say.
+  await guard(() async {
+    if (!fav.digestAlerts || !inDigestWindow(now) || await log.alreadySent('digest:$day')) return;
+    final hawkersRaw = await repo.load('hawkers');
+    final dengueRaw = await repo.load('dengue');
+    final aroundRaw = await repo.load('around');
+    final lines = weeklyDigest(
+      s: s,
+      fav: fav,
+      now: now,
+      hawkers: [if (hawkersRaw is List) for (final r in hawkersRaw) Hawker.fromBundle(r as Map<String, dynamic>)],
+      dengue: [
+        if (dengueRaw is Map && dengueRaw['clusters'] is List)
+          for (final c in dengueRaw['clusters'] as List) DengueCluster.fromBundle(c as Map<String, dynamic>),
+      ],
+      projects: aroundRaw is Map<String, dynamic> ? AroundSet.fromBundle(aroundRaw).projects : const [],
+      holidays: Holiday.fromBundle(await repo.load('holidays')),
+    );
+    if (lines.isEmpty) return;
+    await notifications.show(
+      id: 12,
+      title: s.digestTitle,
+      body: lines.join('\n'),
+      notificationDetails: NotificationDetails(
+        android: AndroidNotificationDetails(
+          'dailylah_alerts',
+          s.channelName,
+          channelDescription: s.channelDesc,
+          styleInformation: BigTextStyleInformation(lines.join('\n')),
+        ),
+      ),
+    );
+    await log.markSent('digest:$day');
+  });
+
   // Favourite hawker closed tomorrow: in the evening, once per hawker per day.
   await guard(() async {
     if (!fav.hawkerAlerts || fav.hawkers.isEmpty || now.hour < 18 || now.hour >= 22) return;

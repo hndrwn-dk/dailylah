@@ -613,3 +613,18 @@ async def test_build_halal_walks_to_the_listed_total():
         out = await b.build_halal(c, pause=0)
     assert len(out) == 2 and route.call_count == 1  # total 2 fits on one page
     assert b.halal_total(HALAL_PAGE) == 2
+
+
+def test_compact_holidays_keeps_recent_and_sorts():
+    from datetime import date
+
+    from app.bundles import compact_holidays
+
+    rows = [
+        {"date": "2026-12-25", "day": "Friday", "holiday": "Christmas Day"},
+        {"Date": "2026-10-20", "Day": "Tuesday", "Holiday": "Deepavali"},
+        {"date": "2025-01-01", "day": "Wednesday", "holiday": "New Year's Day"},
+        {"date": "", "holiday": "broken"},
+    ]
+    out = compact_holidays(rows, date(2026, 10, 22))
+    assert out == [{"d": "2026-10-20", "n": "Deepavali"}, {"d": "2026-12-25", "n": "Christmas Day"}]
