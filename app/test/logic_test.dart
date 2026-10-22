@@ -847,4 +847,14 @@ void main() {
     expect(e.deck, 'SD');
     expect(const S().busInfo(e), 'Seats · ♿ Wheelchair · Single deck');
   });
+
+  test('MOE school holidays', () {
+    final all = SchoolHoliday.fromBundle([
+      {'f': '2026-11-21', 't': '2026-12-31', 'n': 'Year-end holidays'},
+      {'f': 'bad', 't': '2026-01-01', 'n': 'x'},
+    ]);
+    expect(all, hasLength(1));
+    expect(schoolHolidayOn(all, DateTime(2026, 11, 23, 7))!.name, 'Year-end holidays');
+    expect(schoolHolidayOn(all, DateTime(2026, 11, 20, 7)), isNull);
+  });
 }

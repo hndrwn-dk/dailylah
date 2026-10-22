@@ -152,6 +152,8 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     if (!fav.leaveAlerts || quiet || kind != CardKind.morning || origin == null) return;
     final (goAt, _) = commuteTimes(fav, now);
     if (!inLeaveWindow(now, goAt) || await log.alreadySent('leave:$day')) return;
+    final holiday = schoolHolidayOn(SchoolHoliday.fromBundle(await repo.load('school_holidays')), now);
+    if (holiday != null && commutePlace(fav, now)?.kind == PlaceKind.school) return;
     final dest = destinationFor(kind, fav, now);
     final to = dest == null ? null : fav.places[dest];
     final stops = usableStops(origin);

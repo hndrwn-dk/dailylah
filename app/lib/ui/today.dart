@@ -26,7 +26,10 @@ class TodayPage extends ConsumerWidget {
     final kind = ref.watch(cardKindProvider);
     final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
     final origin = fav.places[originFor(kind, fav, now)];
-    final commute = isCommuteDay(fav, now);
+    // MOE school holidays: no school trip (work trips are not affected).
+    final holiday = schoolHolidayOn(ref.watch(schoolHolidaysProvider).valueOrNull ?? const [], now);
+    final schoolOff = holiday != null && commutePlace(fav, now)?.kind == PlaceKind.school;
+    final commute = isCommuteDay(fav, now) && !schoolOff;
     final destKind = destinationFor(kind, fav, now);
     final dest = destKind == null ? null : fav.places[destKind];
     final alerts = ref.watch(todayAlertsProvider);
@@ -67,6 +70,7 @@ class TodayPage extends ConsumerWidget {
 
     final dests = <Widget>[
       for (final a in alerts) AlertBanner(icon: _alertIcon(a.kind), text: a.text),
+      if (schoolOff) AlertBanner(icon: Icons.beach_access_outlined, tone: AlertTone.info, text: s.schoolHolidayToday(holiday!.name)),
       if (origin != null) _WeatherTiles(origin: origin),
       if (commute && origin != null && dest != null)
         TripSection(

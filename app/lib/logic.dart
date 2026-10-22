@@ -1588,3 +1588,29 @@ Map<String, List<String>> servicesToPlaces(BusRoutes routes, BusStop stop, Map<S
   });
   return out;
 }
+
+// ---------------------------------------------------------------- MOE school holidays
+
+/// A school holiday period from school_holidays.json (MOE, maintained by hand).
+class SchoolHoliday {
+  const SchoolHoliday(this.from, this.to, this.name);
+  final DateTime from;
+  final DateTime to;
+  final String name;
+
+  static List<SchoolHoliday> fromBundle(Object? raw) => [
+        if (raw is List)
+          for (final r in raw)
+            if (r is Map && DateTime.tryParse('${r['f']}') != null && DateTime.tryParse('${r['t']}') != null)
+              SchoolHoliday(DateTime.parse('${r['f']}'), DateTime.parse('${r['t']}'), '${r['n']}'),
+      ];
+}
+
+/// The school holiday covering [now], or null on a school day.
+SchoolHoliday? schoolHolidayOn(List<SchoolHoliday> all, DateTime now) {
+  final d = dateOnly(now);
+  for (final h in all) {
+    if (!d.isBefore(h.from) && !d.isAfter(h.to)) return h;
+  }
+  return null;
+}
