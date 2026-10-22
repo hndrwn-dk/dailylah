@@ -495,7 +495,8 @@ class S {
   String get residentsCommittees => 'Residents\' Committees';
   String get mpOffices => 'MP offices (Meet-the-People)';
   String get hdbBranch => 'HDB branch';
-  String get eldercare => 'Eldercare';
+  String get eldercare => 'Active Ageing Centres and eldercare';
+  String get supermarkets => 'Supermarkets';
   String get studentCare => 'Student care';
   String get familyServices => 'Family services';
   String get recyclingTitle => 'Recycling';

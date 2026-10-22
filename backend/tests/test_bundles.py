@@ -628,3 +628,12 @@ def test_compact_holidays_keeps_recent_and_sorts():
     ]
     out = compact_holidays(rows, date(2026, 10, 22))
     assert out == [{"d": "2026-10-20", "n": "Deepavali"}, {"d": "2026-12-25", "n": "Christmas Day"}]
+
+
+def test_pick_matches_loose_column_names():
+    from app.bundles import _pick
+
+    row = {"BUSINESS_NAME": "FairPrice", "premise_address": "Blk 1", "POSTAL_CODE": "310001"}
+    assert _pick(row, "business_name", "name") == "FairPrice"
+    assert _pick(row, "postal") == "310001"
+    assert _pick(row, "missing") == ""

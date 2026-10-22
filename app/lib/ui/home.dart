@@ -999,6 +999,12 @@ class _Food extends ConsumerWidget {
               NearItem(name: shortPlaceName(h.name), detail: h.address, lat: h.lat, lng: h.lng, distance: d),
           ],
         ),
+        if ((ref.watch(poisProvider).valueOrNull ?? PoiSet.empty).of(PoiKind.supermarket) case final shops when shops.isNotEmpty)
+          NearGroup(
+            title: s.supermarkets,
+            icon: Icons.shopping_cart_outlined,
+            items: NearItem.pois(shops, home, radius: 2000),
+          ),
         if (closures.isNotEmpty) ...[
           Padding(padding: const EdgeInsets.fromLTRB(4, 4, 4, 8), child: Text(s.hawkerClosures, style: t.titleSmall)),
           Panel(

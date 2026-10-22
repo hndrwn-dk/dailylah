@@ -42,6 +42,7 @@ PARKS = "d_0542d48f0991541706b58059381a6eca"
 LIBRARIES = "d_27b8dae65d9ca1539e14d09578b17cbf"
 SPORT_FACILITIES = "d_2cfb0867cdeb2b7303068995699dc33b"
 PUBLIC_HOLIDAYS = "d_8ef23381f9417e4d4254ee8b4dcdb176"  # MOM, consolidated 2020 onwards
+SUPERMARKETS = "d_11edd0117280c5776651d7891114c88c"  # NEA list of supermarket licences
 CARPARK_INFO = "d_23f946fa557947f93a8043bbef41dd09"
 HDB_PROPERTY = "d_17f5382f26140b1fdae0ba2ef6239d2f"
 RESALE = "d_8b84c4ee58e3cfc0ece0d773c8ca6abc"
@@ -625,7 +626,34 @@ async def build_poi(dg: DataGov, geo: Geocoder) -> dict:
     await safe("library", _wrap(compact_points, dg.geojson(LIBRARIES)))
     await safe("cc", ccs())
     await safe("sport", _wrap(compact_sports, dg.rows(SPORT_FACILITIES)))
+    await safe("supermarket", supermarkets(dg, geo))
     return out
+
+
+def _pick(row: dict, *needles: str) -> str:
+    """First non-empty value whose column name contains one of [needles] (case-insensitive)."""
+    for k, v in row.items():
+        if any(n in str(k).lower() for n in needles) and str(v or "").strip():
+            return str(v).strip()
+    return ""
+
+
+async def supermarkets(dg: DataGov, geo: Geocoder) -> list[dict]:
+    """NEA supermarket licences, geocoded by postal code (cached). Column names are matched
+    loosely because the CSV headers are not documented."""
+    items = []
+    seen: set[tuple[str, str]] = set()
+    for r in await dg.rows(SUPERMARKETS):
+        name = _pick(r, "business_name", "licensee_name", "name")
+        pc = "".join(ch for ch in _pick(r, "postal") if ch.isdigit()).zfill(6)
+        if not name or pc == "000000" or (name, pc) in seen:
+            continue
+        seen.add((name, pc))
+        hit = await geo.find(pc)
+        if hit:
+            addr = _pick(r, "premise_address", "address").title()
+            items.append({"n": name.title(), "d": addr, "la": hit[0], "lo": hit[1]})
+    return items
 
 
 async def _wrap(fn, coro):
