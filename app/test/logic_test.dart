@@ -857,4 +857,15 @@ void main() {
     expect(schoolHolidayOn(all, DateTime(2026, 11, 23, 7))!.name, 'Year-end holidays');
     expect(schoolHolidayOn(all, DateTime(2026, 11, 20, 7)), isNull);
   });
+
+  test('custom places with a usual time are due in their leave window', () {
+    const fav = Favorites(extraPlaces: [
+      Place(kind: PlaceKind.other, name: 'Pick-up', addrLat: 1.3, addrLng: 103.8, when: PlaceWhen.weekdays, go: TimeOfDayHM(13, 0)),
+      Place(kind: PlaceKind.other, name: 'Market', addrLat: 1.3, addrLng: 103.8),
+    ]);
+    expect(extrasDueNow(fav, DateTime(2026, 10, 23, 12, 45)), [0]); // Friday
+    expect(extrasDueNow(fav, DateTime(2026, 10, 24, 12, 45)), isEmpty); // Saturday
+    expect(extrasDueNow(fav, DateTime(2026, 10, 23, 12, 0)), isEmpty);
+    expect(fav.extraPlaces.first.copyWith(clearGo: true).go, isNull);
+  });
 }

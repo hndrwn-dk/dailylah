@@ -497,6 +497,10 @@ class S {
   String get hdbBranch => 'HDB branch';
   String get eldercare => 'Active Ageing Centres and eldercare';
   String get supermarkets => 'Supermarkets';
+  String get setLeaveTime => 'Set a usual time (optional)';
+  String leaveHomeAt(String time) => 'Leave home at $time';
+  String get clearTime => 'Clear';
+  String leaveForPlace(String place, String line) => '$place: $line';
   String schoolHolidayToday(String name) => '$name: no school today, so no school trip.';
   String get studentCare => 'Student care';
   String get familyServices => 'Family services';

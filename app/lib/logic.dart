@@ -1614,3 +1614,10 @@ SchoolHoliday? schoolHolidayOn(List<SchoolHoliday> all, DateTime now) {
   }
   return null;
 }
+
+/// Custom places with a usual time that fits [now] (weekday/weekend) and whose leave window
+/// (25 minutes before to 5 after) is now: their indexes.
+List<int> extrasDueNow(Favorites fav, DateTime now) => [
+      for (final i in extrasForToday(fav, now))
+        if (fav.extraPlaces[i].go case final go? when inLeaveWindow(now, go)) i,
+    ];

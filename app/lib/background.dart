@@ -222,6 +222,35 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     await log.markSent('digest:$day');
   });
 
+  // Leave by for custom places with a usual time (e.g. school pick-up): once per place a day.
+  await guard(() async {
+    if (!fav.leaveAlerts || quiet) return;
+    final home = fav.places[PlaceKind.home];
+    final due = extrasDueNow(fav, now);
+    if (home == null || due.isEmpty) return;
+    final routesRaw = await repo.load('bus_routes');
+    final stopsRaw = await repo.load('bus_stops');
+    if (routesRaw is! Map<String, dynamic> || stopsRaw is! List) return;
+    final routes = BusRoutes.fromBundle(routesRaw);
+    final all = [for (final r in stopsRaw) BusStop.fromBundle(r as Map<String, dynamic>)];
+    for (final i in due) {
+      final id = 'leave:$day:extra:$i';
+      if (await log.alreadySent(id)) continue;
+      final to = fav.extraPlaces[i];
+      final destStops = destinationStops(to, all);
+      for (final st in usableStops(home)) {
+        final services = tripRides(routes, st, to, destStops).keys.toSet();
+        if (services.isEmpty) continue;
+        final lb = leaveBy(groupEtas(parseBusArrival(await api.busArrival(st.code), now)), services,
+            walkMinutesTo(distanceMeters(home.lat, home.lng, st.lat, st.lng)));
+        if (lb == null || lb.leaveIn > 10) continue;
+        await notify(13 + i, s.leaveTitle, s.leaveForPlace(to.name ?? '', s.leaveIn(lb.service, lb.leaveIn, lb.walk)));
+        await log.markSent(id);
+        break;
+      }
+    }
+  });
+
   // Favourite hawker closed tomorrow: in the evening, once per hawker per day.
   await guard(() async {
     if (!fav.hawkerAlerts || fav.hawkers.isEmpty || now.hour < 18 || now.hour >= 22) return;

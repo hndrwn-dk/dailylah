@@ -154,11 +154,12 @@ class Place {
     Set<int>? days,
     TimeOfDayHM? go,
     TimeOfDayHM? back,
+    bool clearGo = false,
   }) =>
       Place(
         kind: kind,
         days: days ?? this.days,
-        go: go ?? this.go,
+        go: clearGo ? null : (go ?? this.go),
         back: back ?? this.back,
         name: name ?? this.name,
         modes: modes ?? this.modes,
