@@ -657,4 +657,27 @@ void main() {
     expect(transitResting(DateTime(2026, 10, 22, 5, 29)), isTrue);
     expect(transitResting(DateTime(2026, 10, 22, 5, 30)), isFalse);
   });
+
+  test('stops follow the address when a place moves', () {
+    const marine = BusStop(code: '92049', name: 'Marine Pde Stn', road: 'Marine Pde Rd', lat: 1.3029, lng: 103.9054);
+    const segar = BusStop(code: '44641', name: 'Blk 476', road: 'Segar Rd', lat: 1.3880, lng: 103.7700);
+    const moved = Place(kind: PlaceKind.home, stops: [marine], address: '476 Segar Rd', addrLat: 1.3878, addrLng: 103.7702);
+    expect(usableStops(moved), isEmpty);
+    expect(destinationStops(moved, const [segar, marine]), {'44641'});
+    final (stops, picked) = stopsForNewAddress(const [marine], const [segar, marine], 1.3878, 103.7702);
+    expect(stops.map((s) => s.code), ['44641']);
+    expect(picked, isTrue);
+    final (kept, picked2) = stopsForNewAddress(const [marine], const [segar, marine], 1.3031, 103.9056);
+    expect(kept.single.code, '92049');
+    expect(picked2, isFalse);
+  });
+
+  test('a new address keeps the routine', () {
+    const work = Place(kind: PlaceKind.work, modes: [TravelMode.car], days: {1, 3}, go: TimeOfDayHM(8, 15));
+    final p = work.withAddress(address: 'Changi', lat: 1.33, lng: 103.96, stops: const []);
+    expect(p.modes, [TravelMode.car]);
+    expect(p.days, {1, 3});
+    expect(p.go, const TimeOfDayHM(8, 15));
+    expect(p.address, 'Changi');
+  });
 }

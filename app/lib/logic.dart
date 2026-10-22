@@ -946,9 +946,27 @@ Map<String, DirectRide> tripRides(BusRoutes routes, BusStop stop, Place to, Set<
   };
 }
 
+/// Saved stops that still belong to a place: within [radius] m of its address.
+/// Stops picked for an earlier address (the user moved) are ignored.
+List<BusStop> usableStops(Place p, {double radius = 800}) => !p.hasAddress
+    ? p.stops
+    : [for (final s in p.stops) if (distanceMeters(p.addrLat!, p.addrLng!, s.lat, s.lng) <= radius) s];
+
+/// Stops to keep when a place gets a new address: the saved ones near it, else the
+/// two nearest within 600 m of the new address. The flag says the stops were picked for the user.
+(List<BusStop>, bool) stopsForNewAddress(List<BusStop> saved, List<BusStop> all, double lat, double lng) {
+  final keep = [for (final s in saved) if (distanceMeters(lat, lng, s.lat, s.lng) <= 800) s];
+  if (keep.isNotEmpty) return (keep, false);
+  final picked = [
+    for (final s in nearestStops(all, lat, lng, limit: 2))
+      if (distanceMeters(lat, lng, s.lat, s.lng) <= 600) s,
+  ];
+  return (picked, picked.isNotEmpty);
+}
+
 /// Stops to look for at the destination: the place's own stops plus any within [radius] m.
 Set<String> destinationStops(Place dest, List<BusStop> all, {double radius = 400}) => {
-      for (final s in dest.stops) s.code,
+      for (final s in usableStops(dest)) s.code,
       for (final (s, _) in within(all, dest.lat, dest.lng, radius, latOf: (s) => s.lat, lngOf: (s) => s.lng)) s.code,
     };
 

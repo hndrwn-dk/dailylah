@@ -123,6 +123,29 @@ class Place {
   /// What to show for this place: the address, else the first stop's name.
   String get label => address ?? (stops.isEmpty ? '' : stops.first.name);
 
+  /// The same place at a new address; routines (modes, days, times) are kept.
+  Place withAddress({
+    required String address,
+    String? postal,
+    required double lat,
+    required double lng,
+    required List<BusStop> stops,
+  }) =>
+      Place(
+        kind: kind,
+        stops: stops,
+        address: address,
+        postal: postal,
+        addrLat: lat,
+        addrLng: lng,
+        name: name,
+        modes: modes,
+        when: when,
+        days: days,
+        go: go,
+        back: back,
+      );
+
   Place copyWith({
     List<BusStop>? stops,
     String? name,
