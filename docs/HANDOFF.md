@@ -16,6 +16,12 @@ Start here, then read `CLAUDE.md` and `docs/PRD.md`.
 - The last two commits (ActiveSG, taxi dedupe) were merged without CI. Run analyze and test locally first.
 - Still to confirm on a phone: onboarding stays saved after the app is closed and reopened.
 
+## Latest batch (22 Oct 2026, branch feat/daily-companion)
+Nearby section chips, clearer Watch/Compare, Plan B for MRT disruptions, leave-by, wake me at my
+stop, I parked here, weekly digest (+ holidays.json bundle), weather tips per mode, know-me
+(trip times, meal suggestions). ERP on the route is not possible: LTA removed the ERP rates API
+from DataMall in Sep 2024. Return Right machine locations: website terms forbid reuse; ask BCRS.
+
 ## Domains
 - `dailylah.sg` is the website and the first host for data bundles; `dailylah.tursinalabs.com`
   and `dailylah-web.vercel.app` are fallbacks (same Vercel deployment, `webUrls` in `api.dart`).
