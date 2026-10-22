@@ -829,4 +829,22 @@ void main() {
     expect(servicesToPlaces(routes, a, {'Home': {'A'}}), isEmpty);
     expect(const S().toPlaces(['Home']), 'to Home');
   });
+
+  test('bus arrivals carry wheelchair access and bus type', () {
+    final now = DateTime.utc(2026, 10, 23, 1);
+    final body = {
+      'data': {
+        'Services': [
+          {
+            'ServiceNo': '162',
+            'NextBus': {'EstimatedArrival': now.add(const Duration(minutes: 4)).toIso8601String(), 'Load': 'SEA', 'Feature': 'WAB', 'Type': 'SD'},
+          },
+        ],
+      },
+    };
+    final e = parseBusArrival(body, now).single;
+    expect(e.wheelchair, isTrue);
+    expect(e.deck, 'SD');
+    expect(const S().busInfo(e), 'Seats · ♿ Wheelchair · Single deck');
+  });
 }

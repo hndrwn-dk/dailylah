@@ -123,7 +123,13 @@ List<BusEta> parseBusArrival(Map<String, dynamic> apiBody, DateTime now, {int pe
       final eta = DateTime.tryParse('${nb['EstimatedArrival'] ?? ''}');
       if (eta == null) continue;
       final mins = eta.difference(now).inSeconds / 60;
-      out.add(BusEta(service: no, minutes: mins < 0 ? 0 : mins.floor(), load: '${nb['Load']}'));
+      out.add(BusEta(
+        service: no,
+        minutes: mins < 0 ? 0 : mins.floor(),
+        load: '${nb['Load']}',
+        wheelchair: '${nb['Feature'] ?? ''}' == 'WAB',
+        deck: '${nb['Type'] ?? ''}',
+      ));
       taken++;
     }
   }

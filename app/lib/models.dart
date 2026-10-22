@@ -416,9 +416,15 @@ class Favorites {
 
 /// One upcoming bus for a service at a stop.
 class BusEta {
-  const BusEta({required this.service, required this.minutes, required this.load});
+  const BusEta({required this.service, required this.minutes, required this.load, this.wheelchair = false, this.deck = ''});
   final String service;
   final int minutes;
+
+  /// LTA "Feature": WAB = wheelchair-accessible bus.
+  final bool wheelchair;
+
+  /// LTA "Type": SD single deck, DD double deck, BD bendy.
+  final String deck;
 
   /// LTA load code: SEA (seats), SDA (standing), LSD (limited standing).
   final String load;

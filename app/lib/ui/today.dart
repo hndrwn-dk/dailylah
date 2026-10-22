@@ -474,6 +474,7 @@ class BusRow extends ConsumerWidget {
                 eta0,
                 if (next != null) Text(s.thenIn(next!), style: t.bodyMedium),
                 LoadMeter(eta.load, label: s.loadLabel(eta.load)),
+                if (eta.wheelchair) Text(s.wheelchairBus, style: t.bodySmall),
                 if (note != null) SizedBox(width: double.infinity, child: Text(note!, style: t.bodySmall)),
               ],
             ),
