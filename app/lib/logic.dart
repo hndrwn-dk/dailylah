@@ -141,24 +141,29 @@ String loadLabel(String code) => switch (code) {
 // ---------------------------------------------------------------- MRT
 
 class LineStatus {
-  const LineStatus({required this.line, required this.disrupted, this.detail});
+  const LineStatus({required this.line, required this.disrupted, this.detail, this.freeBus = false});
   final String line;
   final bool disrupted;
   final String? detail;
+
+  /// LTA says free public buses (bridging buses) run along the affected stretch.
+  final bool freeBus;
 }
 
 /// Reads our API's wrapped LTA TrainServiceAlerts. Status 1 = normal, 2 = disrupted.
-List<LineStatus> lineStatuses(Map<String, dynamic> apiBody, Set<String> lines) {
+List<LineStatus> lineStatuses(Map<String, dynamic> apiBody, Set<String> lines, {S s = const S()}) {
   final value = (apiBody['data'] is Map) ? (apiBody['data'] as Map)['value'] : null;
   final affected = <String, String>{};
+  final freeBus = <String>{};
   if (value is Map && '${value['Status']}' == '2') {
     for (final seg in (value['AffectedSegments'] as List? ?? const [])) {
       final m = seg as Map;
       final line = '${m['Line']}';
+      if ((m['FreePublicBus'] ?? '').toString().isNotEmpty) freeBus.add(line);
       final parts = [
-        if ((m['Stations'] ?? '').toString().isNotEmpty) 'Stasiun: ${m['Stations']}',
-        if ((m['FreePublicBus'] ?? '').toString().isNotEmpty) 'Bus gratis tersedia',
-        if ((m['FreeMRTShuttle'] ?? '').toString().isNotEmpty) 'Shuttle tersedia',
+        if ((m['Stations'] ?? '').toString().isNotEmpty) s.mrtStations('${m['Stations']}'),
+        if ((m['FreePublicBus'] ?? '').toString().isNotEmpty) s.freeBusAvailable,
+        if ((m['FreeMRTShuttle'] ?? '').toString().isNotEmpty) s.shuttleAvailable,
       ];
       affected[line] = parts.join(' · ');
     }
@@ -173,7 +178,7 @@ List<LineStatus> lineStatuses(Map<String, dynamic> apiBody, Set<String> lines) {
   final sorted = lines.toList()..sort();
   return [
     for (final l in sorted)
-      LineStatus(line: l, disrupted: affected.containsKey(l), detail: affected[l]),
+      LineStatus(line: l, disrupted: affected.containsKey(l), detail: affected[l], freeBus: freeBus.contains(l)),
   ];
 }
 
@@ -1320,4 +1325,19 @@ OrderInReason? orderInReason({double? rainMm, AirLevel? air, bool nearestHawkerC
 bool transitResting(DateTime now) {
   final m = now.hour * 60 + now.minute;
   return m >= 60 && m < 330;
+}
+
+// ---------------------------------------------------------------- plan B: MRT disrupted
+
+/// Lines an MRT plan rides (from the station codes at both ends).
+Set<String> mrtPlanLines(MrtPlan plan) => {
+      for (final c in [...plan.board.codes, ...plan.alight.codes])
+        if (lineOfCode(c) case final l?) l,
+    };
+
+/// Disrupted lines on this trip's MRT plan, and whether free bridging buses run.
+({List<String> lines, bool freeBus}) planDisruption(MrtPlan? plan, Map<String, dynamic>? alerts) {
+  if (plan == null || alerts == null) return (lines: const <String>[], freeBus: false);
+  final bad = [for (final st in lineStatuses(alerts, mrtPlanLines(plan))) if (st.disrupted) st];
+  return (lines: [for (final st in bad) st.line], freeBus: bad.any((st) => st.freeBus));
 }

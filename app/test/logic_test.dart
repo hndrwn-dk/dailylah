@@ -680,4 +680,27 @@ void main() {
     expect(p.go, const TimeOfDayHM(8, 15));
     expect(p.address, 'Changi');
   });
+
+  test('plan B: disrupted lines on the MRT plan, with free bridging buses', () {
+    const a = MrtStation(name: 'Expo', codes: ['CG1', 'DT35'], lat: 1.334, lng: 103.961);
+    const b = MrtStation(name: 'Segar', codes: ['BP11'], lat: 1.387, lng: 103.769);
+    const plan = MrtPlan(board: a, walkToBoard: 300, alight: b, walkFromAlight: 400);
+    expect(mrtPlanLines(plan), containsAll(['EWL', 'DTL', 'BPL']));
+    final alerts = {
+      'data': {
+        'value': {
+          'Status': 2,
+          'AffectedSegments': [
+            {'Line': 'DTL', 'Stations': 'DT30,DT31', 'FreePublicBus': 'DT30,DT31'},
+          ],
+          'Message': [],
+        },
+      },
+    };
+    final r = planDisruption(plan, alerts);
+    expect(r.lines, ['DTL']);
+    expect(r.freeBus, isTrue);
+    expect(planDisruption(plan, {'data': {'value': {'Status': 1}}}).lines, isEmpty);
+    expect(lineStatuses(alerts, {'DTL'}).single.detail, contains('Free bridging buses'));
+  });
 }

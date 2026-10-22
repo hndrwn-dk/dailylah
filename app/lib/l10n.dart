@@ -239,6 +239,15 @@ class S {
   String get mrtRouteInMaps => 'MRT route in Google Maps';
   String get noMrtNearby => 'No MRT station within a 15-minute walk of both ends.';
   String mrtLineDisrupted(String line) => '$line is disrupted right now';
+  String mrtStations(String stations) => 'Stations: $stations';
+  String get freeBusAvailable => 'Free bridging buses';
+  String get shuttleAvailable => 'Free shuttle';
+  String planB(String lines, {required bool busOk, required bool freeBus}) => [
+        '$lines disrupted on your way.',
+        busOk ? 'Take a direct bus below instead.' : 'No direct bus from here, so a taxi may be quicker.',
+        if (freeBus) 'Free bridging buses run between the affected stations.',
+      ].join(' ');
+  String get taxiInstead => 'Taxi instead';
   String get from => 'From';
   String get to => 'To';
   String get anyAddress => 'Search';

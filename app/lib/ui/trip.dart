@@ -123,6 +123,10 @@ class _TransitBlock extends ConsumerWidget {
         ),
     ];
     final mrt = _MrtOption(from: from, to: to);
+    // Plan B: when the train on this trip is disrupted, buses come first with a note.
+    final stations = ref.watch(mrtStationsProvider).valueOrNull ?? const <MrtStation>[];
+    final plan = stations.isEmpty ? null : mrtPlan(stations, from, to);
+    final bad = planDisruption(plan, ref.watch(trainAlertsProvider).valueOrNull);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -157,9 +161,30 @@ class _TransitBlock extends ConsumerWidget {
           ),
         // No direct bus anywhere near: the train is the real answer, so show it first.
         // Within walking distance the train is never the better answer.
+        if (bad.lines.isNotEmpty && straight >= walkInsteadMetres) ...[
+          AlertBanner(
+            icon: Icons.alt_route,
+            text: s.planB(bad.lines.map(s.lineName).join(', '), busOk: anyDirect, freeBus: bad.freeBus),
+          ),
+          if (!anyDirect)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                icon: const Icon(Icons.local_taxi_outlined),
+                label: Text(s.taxiInstead),
+                onPressed: () => showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  showDragHandle: true,
+                  builder: (_) => TaxiSheet(origin: from),
+                ),
+              ),
+            ),
+        ],
         if (straight < walkInsteadMetres)
           ...buses
-        else if (anyDirect)
+        else if (anyDirect || bad.lines.isNotEmpty)
           ...[...buses, mrt]
         else
           ...[mrt, ...buses],
