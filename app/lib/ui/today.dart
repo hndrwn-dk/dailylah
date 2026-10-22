@@ -70,6 +70,7 @@ class TodayPage extends ConsumerWidget {
       if (origin != null) _WeatherTiles(origin: origin),
       if (commute && origin != null && dest != null)
         TripSection(
+          commute: true,
           fromKey: origin.kind.name,
           from: origin,
           to: dest,

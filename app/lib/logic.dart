@@ -1569,3 +1569,16 @@ String sinceLabel(DateTime at, DateTime now) {
   if (days == 1) return 'yesterday $clock';
   return '${const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][at.weekday - 1]} $clock';
 }
+
+/// Services at [stop] that ride straight to each named place (its destination stops):
+/// service -> place labels, e.g. {"47": ["Home"]}.
+Map<String, List<String>> servicesToPlaces(BusRoutes routes, BusStop stop, Map<String, Set<String>> places) {
+  final out = <String, List<String>>{};
+  places.forEach((label, dest) {
+    if (dest.contains(stop.code)) return; // already there
+    for (final service in directRides(routes, stop.code, dest).keys) {
+      (out[service] ??= []).add(label);
+    }
+  });
+  return out;
+}

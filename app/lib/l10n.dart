@@ -513,6 +513,12 @@ class S {
   String get hawkerClosures => 'Hawker closures in the next 30 days';
   String hawkerClosed(String name, String from, String to) => '$name · $from to $to';
   String showAll(int n) => 'Show all ($n)';
+  String showAllBuses(int n) => 'Show all $n buses';
+  String get showFewer => 'Show fewer';
+  String toPlaces(List<String> places) => 'to ${places.join(' and ')}';
+  String get aedShort => 'AED';
+  String get aeShort => 'A&E';
+  String get policeShort => 'Police';
   String get showLess => 'Show less';
   String get findBlock => 'Find another HDB block';
   String get homeDataNote => 'Works, services and places: OneMap (SLA) and agencies via data.gov.sg. Computed on your phone.';

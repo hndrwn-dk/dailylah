@@ -816,4 +816,17 @@ void main() {
     expect(sinceLabel(DateTime(2026, 10, 20, 9, 10), now), 'Tue 9:10');
     expect(const S().dengueNear('Home', 1), '1 dengue cluster near Home');
   });
+
+  test('services that go straight home from a stop', () {
+    const routes = BusRoutes({
+      '47|1': [('A', 0.0), ('B', 1.0), ('H', 3.0)],
+      '12|1': [('A', 0.0), ('W', 2.0)],
+    });
+    const a = BusStop(code: 'A', name: 'A', road: '', lat: 1.3, lng: 103.8);
+    final m = servicesToPlaces(routes, a, {'Home': {'H'}, 'Work': {'W'}});
+    expect(m['47'], ['Home']);
+    expect(m['12'], ['Work']);
+    expect(servicesToPlaces(routes, a, {'Home': {'A'}}), isEmpty);
+    expect(const S().toPlaces(['Home']), 'to Home');
+  });
 }
