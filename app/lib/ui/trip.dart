@@ -84,8 +84,87 @@ class TripSection extends ConsumerWidget {
             },
           ),
         ),
+        _TripTimer(from: from, to: to),
         body,
       ],
+    );
+  }
+}
+
+/// Know me: "I'm leaving" / "Arrived" logs door-to-door time on this phone, and after a
+/// few trips the card says how long this trip usually takes (and on rainy days).
+class _TripTimer extends ConsumerWidget {
+  const _TripTimer({required this.from, required this.to});
+  final Place from;
+  final Place to;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!ref.watch(favoritesProvider.select((f) => f.learnHabits))) return const SizedBox.shrink();
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final h = ref.watch(habitsProvider);
+    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
+    final route = '${from.kind.name}>${to.kind.name}';
+    final rain = ref.watch(rainfallProvider).valueOrNull;
+    final forecast = ref.watch(forecastProvider).valueOrNull;
+    final rainy = (rain != null && (rainfallNear(rain, from.lat, from.lng)?.$2 ?? 0) > 0) ||
+        (forecast != null && (forecastNear(forecast, from.lat, from.lng)?.isRainy ?? false));
+
+    if (h.tripRoute == route && h.tripStart != null) {
+      final start = h.tripStart!;
+      return Panel(
+        color: DL.mint,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+          child: Row(
+            children: [
+              const Icon(Icons.timer_outlined, color: DL.ink),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(s.onTheWay(clockLabel(start), s.durationShort(now.difference(start).inMinutes)),
+                    style: t.titleSmall?.copyWith(color: DL.ink)),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  final m = await ref.read(habitsProvider.notifier).finishTrip(DateTime.now());
+                  messenger.showSnackBar(SnackBar(content: Text(m == null ? s.tripTooShort : s.tripLogged(m))));
+                },
+                child: Text(s.arrived),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final stats = tripStats(h.trips, route);
+    final usual = rainy ? (stats.rainy ?? stats.usual) : stats.usual;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              stats.usual == null
+                  ? s.tripLearnHint
+                  : [
+                      s.usualTrip(stats.usual!, stats.count),
+                      if (stats.rainy != null) s.rainyTrip(stats.rainy!),
+                      if (usual != null) s.arriveAbout(clockLabel(now.add(Duration(minutes: usual)))),
+                    ].join(' '),
+              style: stats.usual == null ? t.bodySmall : t.bodyMedium,
+            ),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton(
+            onPressed: () => ref.read(habitsProvider.notifier).startTrip(route, DateTime.now(), rainy: rainy),
+            child: Text(s.imLeaving),
+          ),
+        ],
+      ),
     );
   }
 }

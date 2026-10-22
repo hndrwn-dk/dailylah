@@ -760,4 +760,41 @@ void main() {
         [TripAdvice.heat, TripAdvice.haze]);
     expect(tripAdvice(mode: TravelMode.taxi, air: AirLevel.hazardous), isEmpty);
   });
+
+  test('know me: trip stats, trip minutes and meal nudge', () {
+    TripLog trip(int m, {bool rainy = false}) =>
+        TripLog(route: 'home>work', start: DateTime(2026, 10, 20, 8), minutes: m, rainy: rainy);
+    expect(tripStats([trip(40), trip(44)], 'home>work').usual, isNull);
+    final st = tripStats([trip(40), trip(44), trip(42), trip(52, rainy: true), trip(50, rainy: true)], 'home>work');
+    expect(st.usual, 44);
+    expect(st.rainy, 52);
+    expect(st.count, 5);
+    expect(tripMinutes(DateTime(2026, 1, 1, 8), DateTime(2026, 1, 1, 8, 2)), isNull);
+    expect(tripMinutes(DateTime(2026, 1, 1, 8), DateTime(2026, 1, 1, 8, 41)), 41);
+
+    Hawker hk(String id, double lo) => Hawker.fromBundle({'id': id, 'n': 'H$id', 'a': '', 'la': 1.30, 'lo': lo});
+    final all = [hk('a', 103.860), hk('b', 103.865), hk('c', 103.950)];
+    final now = DateTime(2026, 10, 22, 12);
+    final meals = [for (var i = 0; i < 3; i++) MealLog(hawkerId: 'a', at: now.subtract(Duration(days: i)))];
+    final n = mealNudge(meals, all, now, 1.30, 103.860)!;
+    expect(n.usual.id, 'a');
+    expect(n.times, 3);
+    expect(n.instead.id, 'b');
+    expect(mealNudge(meals.take(2).toList(), all, now, 1.30, 103.860), isNull);
+    expect(clockLabel(DateTime(2026, 1, 1, 8, 5)), '8:05');
+  });
+
+  test('habits round-trip through JSON and park reminder', () {
+    final h = Habits(
+      parked: ParkedCar(name: 'Blk 65A', lat: 1.3, lng: 103.9, at: DateTime(2026, 10, 22, 9), level: '3', remindMinutes: 120),
+      trips: [TripLog(route: 'home>work', start: DateTime(2026, 10, 22, 8), minutes: 41, rainy: true)],
+      meals: [MealLog(hawkerId: 'a', at: DateTime(2026, 10, 22, 12))],
+    );
+    final back = Habits.fromJson(h.toJson());
+    expect(back.parked!.level, '3');
+    expect(back.trips.single.rainy, isTrue);
+    expect(back.meals.single.hawkerId, 'a');
+    expect(parkReminderDue(back.parked!, DateTime(2026, 10, 22, 10, 59)), isFalse);
+    expect(parkReminderDue(back.parked!, DateTime(2026, 10, 22, 11)), isTrue);
+  });
 }

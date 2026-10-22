@@ -90,6 +90,27 @@ class MorePage extends ConsumerWidget {
                     children: [
                       toggle(s.showPrayer, fav.showPrayer, (f, v) => f.copyWith(showPrayer: v), sub: s.showPrayerSub),
                       toggle(s.showHalal, fav.showHalal, (f, v) => f.copyWith(showHalal: v), sub: s.showHalalSub),
+                      toggle(s.learnHabits, fav.learnHabits, (f, v) => f.copyWith(learnHabits: v), sub: s.learnHabitsSub),
+                      ListTile(
+                        leading: const Icon(Icons.delete_outline),
+                        title: Text(s.deleteHistory, style: t.bodyMedium),
+                        onTap: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final ok = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              content: Text(s.deleteHistoryAsk),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(s.cancel)),
+                                FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text(s.delete)),
+                              ],
+                            ),
+                          );
+                          if (ok != true) return;
+                          await ref.read(habitsProvider.notifier).clearAll();
+                          messenger.showSnackBar(SnackBar(content: Text(s.deleted)));
+                        },
+                      ),
                     ],
                   ),
                 ),

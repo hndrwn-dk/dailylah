@@ -349,6 +349,13 @@ class _EatSection extends ConsumerWidget {
       children: [
         SectionTitle(s.eat,
             trailing: _seeAll(s, () => _openFull(context, s.hawkers, _HawkerTab(place: place)))),
+        if (fav.learnHabits)
+          if (mealNudge(ref.watch(habitsProvider).meals, all, DateTime.now(), place.lat, place.lng) case final n?)
+            AlertBanner(
+              icon: Icons.explore_outlined,
+              tone: AlertTone.info,
+              text: s.mealNudge(n.usual.name, n.times, n.instead.name, s.metres(n.distance)),
+            ),
         // Delivery only when it helps: rain, unhealthy air, or the nearest hawker closed.
         if (why != null) ...[
           AlertBanner(icon: Icons.delivery_dining_outlined, text: s.orderInWhy(why)),
@@ -371,7 +378,21 @@ class _EatSection extends ConsumerWidget {
                     h.closureOn(today) != null ? '${s.metres(d)} · ${s.closedNow}' : s.metres(d),
                     style: h.closureOn(today) != null ? t.bodySmall?.copyWith(color: const Color(0xFFB45309)) : null,
                   ),
-                  trailing: fav.hawkers.contains(h.id) ? const Icon(Icons.star, color: DL.amber) : null,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (fav.hawkers.contains(h.id)) const Icon(Icons.star, color: DL.amber),
+                      if (fav.learnHabits)
+                        IconButton(
+                          tooltip: s.ateHere,
+                          icon: const Icon(Icons.restaurant_menu),
+                          onPressed: () {
+                            ref.read(habitsProvider.notifier).ateAt(h.id, DateTime.now());
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.ateLogged(h.name))));
+                          },
+                        ),
+                    ],
+                  ),
                   onTap: () => _openFull(context, s.hawkers, _HawkerTab(place: place)),
                 ),
             ],

@@ -1540,3 +1540,6 @@ List<TripAdvice> tripAdvice({
   ];
   return out.take(2).toList();
 }
+
+/// "8:05" style clock time.
+String clockLabel(DateTime t) => '${t.hour}:${t.minute.toString().padLeft(2, '0')}';
