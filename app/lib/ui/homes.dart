@@ -257,11 +257,29 @@ class BlockPage extends ConsumerWidget {
                         ),
                         icon: Icon(comparing ? Icons.check : Icons.add),
                         label: Text(comparing ? s.inCompare : s.compare),
-                        onPressed: () => ref.read(favoritesProvider.notifier).toggleCompare(block.key),
+                        onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final nav = Navigator.of(context);
+                          await ref.read(favoritesProvider.notifier).toggleCompare(block.key);
+                          if (comparing) return;
+                          final n = ref.read(favoritesProvider).compareBlocks.length;
+                          messenger.hideCurrentSnackBar();
+                          messenger.showSnackBar(SnackBar(
+                            content: Text(s.compareAdded(n)),
+                            action: n < 2
+                                ? null
+                                : SnackBarAction(
+                                    label: s.open,
+                                    onPressed: () => nav.push(MaterialPageRoute(builder: (_) => const ComparePage())),
+                                  ),
+                          ));
+                        },
                       ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 8),
+                Text(s.watchNote, style: Theme.of(context).textTheme.bodySmall),
               ],
             ),
           ),
@@ -374,9 +392,9 @@ class _ResaleCard extends ConsumerWidget {
             ),
             if (tm != null && maxV > 0) ...[
               const SizedBox(height: 14),
-              _Bar(label: s.medianOf(stat.count), value: stat.median / maxV, color: scheme.primary),
+              _Bar(label: '${s.thisBlock} ${sgd(stat.median, compact: true)}', value: stat.median / maxV, color: scheme.primary),
               const SizedBox(height: 6),
-              _Bar(label: '${s.townMedian(town)} ${sgd(tm, compact: true)}', value: tm / maxV, color: DL.mist),
+              _Bar(label: '${s.townMedian(titleCase(town))} ${sgd(tm, compact: true)}', value: tm / maxV, color: DL.mist),
             ],
             const SizedBox(height: 10),
             Text(s.latestSale(monthLabel(stat.lastMonth), sgd(stat.lastPrice)), style: t.bodySmall),

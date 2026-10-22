@@ -433,8 +433,12 @@ class S {
   String compareCount(int n) => 'Compare ($n)';
   String get addToCompare => 'Add to compare';
   String get inCompare => 'In comparison';
-  String get watch => 'Watch';
-  String get watching => 'Watching';
+  String get watch => 'Notify me of new sales';
+  String get watching => 'Notifying you';
+  String get watchNote => 'You get a notification when a flat in this block is sold, with the price and flat type.';
+  String get thisBlock => 'This block';
+  String compareAdded(int n) => n < 2 ? 'Added. Add one more block to compare.' : 'Added. $n blocks to compare.';
+  String get open => 'Open';
   String builtIn(int y) => 'Built $y';
   String leaseLeft(int years) => '$years years lease left';
   String storeys(int n) => '$n storeys';
