@@ -70,7 +70,7 @@ class TodayPage extends ConsumerWidget {
 
     final dests = <Widget>[
       for (final a in alerts) AlertBanner(icon: _alertIcon(a.kind), text: a.text),
-      if (schoolOff) AlertBanner(icon: Icons.beach_access_outlined, tone: AlertTone.info, text: s.schoolHolidayToday(holiday!.name)),
+      if (schoolOff) AlertBanner(icon: Icons.beach_access_outlined, tone: AlertTone.info, text: s.schoolHolidayToday(holiday.name)),
       if (origin != null) _WeatherTiles(origin: origin),
       if (commute && origin != null && dest != null)
         TripSection(
