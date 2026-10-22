@@ -916,8 +916,11 @@ class BusRoutes {
 
 /// How a service gets from the origin stop to the destination.
 class DirectRide {
-  const DirectRide({required this.service, required this.alightAt, required this.stops, required this.km});
+  const DirectRide({required this.service, required this.alightAt, required this.stops, required this.km, this.routeKey = ''});
   final String service;
+
+  /// Key into [BusRoutes.routes] ("service|direction"), for the stop before [alightAt].
+  final String routeKey;
   final String alightAt; // bus stop code to get off
   final int stops;
   final double km;
@@ -932,7 +935,8 @@ Map<String, DirectRide> directRides(BusRoutes routes, String origin, Set<String>
     if (i < 0) return;
     for (var j = i + 1; j < stops.length; j++) {
       if (!destStops.contains(stops[j].$1)) continue;
-      final ride = DirectRide(service: service, alightAt: stops[j].$1, stops: j - i, km: stops[j].$2 - stops[i].$2);
+      final ride = DirectRide(
+          service: service, alightAt: stops[j].$1, stops: j - i, km: stops[j].$2 - stops[i].$2, routeKey: key);
       final best = out[service];
       if (best == null || ride.km < best.km) out[service] = ride;
       break;
@@ -1379,3 +1383,19 @@ bool inLeaveWindow(DateTime now, TimeOfDayHM go) {
   final g = go.hour * 60 + go.minute;
   return m >= g - 25 && m <= g + 5;
 }
+
+// ---------------------------------------------------------------- wake me at my stop
+
+/// Code of the stop just before [alightAt] on the ride's route, or null.
+String? stopBefore(BusRoutes routes, DirectRide ride) {
+  final list = routes.routes[ride.routeKey];
+  if (list == null) return null;
+  final j = list.indexWhere((s) => s.$1 == ride.alightAt);
+  return j > 0 ? list[j - 1].$1 : null;
+}
+
+/// Wake the rider when this close (metres) to the stop to get off: about when the bus
+/// leaves the stop before it. Between 300 m and 1.2 km.
+double wakeRadius(BusStop? before, BusStop alight) => before == null
+    ? 500
+    : (distanceMeters(before.lat, before.lng, alight.lat, alight.lng) + 100).clamp(300, 1200).toDouble();

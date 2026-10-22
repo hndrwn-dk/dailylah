@@ -36,6 +36,14 @@ Future<void> initNotifications() async {
   await notifications.initialize(settings: settings);
 }
 
+/// Shows one notification right away (used by screens, e.g. "Wake me at my stop").
+Future<void> notifyNow(int id, String title, String body) => notifications.show(
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: NotificationDetails(android: _channel(const S())),
+    );
+
 Future<void> requestNotificationPermission() async {
   await notifications
       .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()

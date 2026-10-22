@@ -11,6 +11,7 @@ import 'place_sheet.dart';
 import 'stop_picker.dart';
 import 'theme.dart';
 import 'today.dart';
+import 'wake.dart';
 import 'widgets.dart';
 
 IconData modeIcon(TravelMode m) => switch (m) {
@@ -436,6 +437,24 @@ class TripBusCard extends ConsumerWidget {
                               ),
                           ],
                         ),
+                      if (direct.isNotEmpty)
+                        Builder(builder: (context) {
+                          final ride = rides[direct.first.$1.service]!;
+                          final byCode = {for (final x in all) x.code: x};
+                          final alight = byCode[ride.alightAt];
+                          if (alight == null) return const SizedBox.shrink();
+                          final before = byCode[stopBefore(routes, ride)];
+                          return Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              icon: const Icon(Icons.notifications_active_outlined),
+                              label: Text(s.wakeMeAt(alight.name)),
+                              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                                builder: (_) => WakeMePage(service: ride.service, alight: alight, before: before),
+                              )),
+                            ),
+                          );
+                        }),
                       if (others.isNotEmpty)
                         Theme(
                           data: Theme.of(context).copyWith(dividerColor: Colors.transparent),

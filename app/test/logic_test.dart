@@ -717,4 +717,17 @@ void main() {
     expect(inLeaveWindow(DateTime(2026, 10, 22, 7, 40), const TimeOfDayHM(8, 0)), isTrue);
     expect(inLeaveWindow(DateTime(2026, 10, 22, 7, 30), const TimeOfDayHM(8, 0)), isFalse);
   });
+
+  test('wake me: stop before the alight stop and the wake radius', () {
+    const routes = BusRoutes({
+      '47|1': [('A', 0.0), ('B', 1.0), ('C', 1.6)],
+    });
+    final ride = directRides(routes, 'A', {'C'})['47']!;
+    expect(ride.routeKey, '47|1');
+    expect(stopBefore(routes, ride), 'B');
+    const b = BusStop(code: 'B', name: 'B', road: '', lat: 1.3000, lng: 103.8000);
+    const c = BusStop(code: 'C', name: 'C', road: '', lat: 1.3054, lng: 103.8000);
+    expect(wakeRadius(b, c), closeTo(700, 15));
+    expect(wakeRadius(null, c), 500);
+  });
 }

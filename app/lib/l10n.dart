@@ -252,6 +252,16 @@ class S {
       ? 'Leave now to catch $service ($walk min walk)'
       : 'Leave in $minutes min to catch $service ($walk min walk)';
   String get leaveTitle => 'Time to go';
+  String wakeMeAt(String stop) => 'Wake me before $stop';
+  String get wakeTitle => 'Wake me at my stop';
+  String wakeRiding(String service, String stop) => 'On bus $service to $stop';
+  String wakeLeft(String distance) => '$distance to go';
+  String get wakeHow => 'Your phone buzzes and shows a notification as the bus leaves the stop before yours. '
+      'Your location is checked only while this runs and is not saved.';
+  String get wakeRunning => 'Watching for your stop';
+  String get wakeNow => 'Your stop is next. Get ready to alight.';
+  String get wakeStop => 'Stop';
+  String get wakeDone => 'Done';
   String get alertLeave => 'When to leave for my bus';
   String get alertLeaveSub => 'Once a day, shortly before you usually leave';
   String get from => 'From';
