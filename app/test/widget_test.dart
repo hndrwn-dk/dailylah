@@ -108,7 +108,8 @@ void main() {
     expect(find.text('Tampines Int'), findsWidgets);
     expect(find.text('Home → Work'), findsOneWidget);
     expect(find.text('Go somewhere'), findsOneWidget);
-    expect(find.textContaining('Taxis near Home'), findsOneWidget);
+    // Taxis and hawkers live in Nearby now, not at the bottom of Today.
+    expect(find.textContaining('Taxis near Home'), findsNothing);
     // Bottom navigation with four tabs.
     expect(find.byTooltip('Nearby'), findsOneWidget);
     expect(find.byTooltip('More'), findsOneWidget);

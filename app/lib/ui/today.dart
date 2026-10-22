@@ -64,8 +64,6 @@ class TodayPage extends ConsumerWidget {
 
     final modeEnd = kind == CardKind.morning ? dest : origin;
     final tripMode = modeEnd == null ? null : ref.watch(modeOverrideProvider)[modeEnd.kind.name] ?? modeEnd.mode;
-    // The trip already shows taxis when Taxi is the chosen mode; don't repeat the tile below.
-    final tripShowsTaxi = commute && origin != null && dest != null && tripMode == TravelMode.taxi;
 
     final dests = <Widget>[
       for (final a in alerts) AlertBanner(icon: _alertIcon(a.kind), text: a.text),
@@ -81,7 +79,6 @@ class TodayPage extends ConsumerWidget {
       if (!commute || (tripMode ?? TravelMode.transit) == TravelMode.transit)
         _MrtCard(showCrowd: kind == CardKind.evening),
       const GoSomewhere(),
-      if (origin != null) _QuickTiles(origin: origin, showTaxi: !tripShowsTaxi),
       if (fav.carparks.isNotEmpty) const _SavedParking(),
       const SizedBox(height: 8),
       Text('${s.dataSource} ${s.pullToRefresh}', style: t.bodySmall, textAlign: TextAlign.center),
@@ -562,101 +559,6 @@ class _WeatherTiles extends ConsumerWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-/// Bento row: taxis nearby (useful when it rains) and the nearest hawker.
-class _QuickTiles extends ConsumerWidget {
-  const _QuickTiles({required this.origin, this.showTaxi = true});
-  final Place origin;
-  final bool showTaxi;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final s = ref.watch(stringsProvider);
-    final taxis = ref.watch(taxiProvider).valueOrNull;
-    final hawkers = ref.watch(hawkersProvider).valueOrNull ?? const <Hawker>[];
-    final today = dateOnly(ref.watch(clockProvider).valueOrNull ?? DateTime.now());
-    final near = nearest(hawkers, origin.lat, origin.lng, latOf: (h) => h.lat, lngOf: (h) => h.lng);
-    final tiles = <Widget>[
-      if (showTaxi && taxis != null)
-        Expanded(
-          child: BentoTile(
-            icon: Icons.local_taxi_outlined,
-            value: '${taxisWithin(taxis, origin.lat, origin.lng)}',
-            caption: '${s.taxisNear(placeTitle(s.placeLabel, origin))} · 500 m',
-            // Amber only when it needs a look: no free taxi nearby.
-            tint: taxisWithin(taxis, origin.lat, origin.lng) == 0 ? DL.attention : null,
-            onTap: () => showModalBottomSheet<void>(
-              context: context,
-              isScrollControlled: true,
-              showDragHandle: true,
-              builder: (_) => TaxiSheet(origin: origin),
-            ),
-          ),
-        ),
-      if (near != null)
-        Expanded(
-          child: BentoTile(
-            icon: Icons.ramen_dining_outlined,
-            value: s.metres(near.$2),
-            caption: '${s.nearestHawker} · ${shortPlaceName(near.$1.name)}${near.$1.closureOn(today) != null ? ' · ${s.closedNow}' : ''}',
-            onTap: () {
-              final h = near.$1;
-              final closed = h.closureOn(today);
-              final next = h.nextClosure(today);
-              final alt = closed == null ? const <(Hawker, double)>[] : openAlternatives(hawkers, h, today, limit: 1);
-              showPlaceSheet(
-                context,
-                s: s,
-                title: h.name,
-                subtitle: h.address,
-                lat: h.lat,
-                lng: h.lng,
-                distance: near.$2,
-                extra: [
-                  AlertBanner(
-                    icon: closed != null ? Icons.event_busy : Icons.event_available,
-                    tone: closed != null ? AlertTone.warning : AlertTone.info,
-                    text: closed != null
-                        ? [s.closedNow, if (alt.isNotEmpty) s.tryInstead(alt.first.$1.name, s.metres(alt.first.$2))].join('. ')
-                        : next == null
-                            ? s.noUpcomingClosure
-                            : s.closedRange(shortDate(next.from), shortDate(next.to), s.closureReason(next.reason)),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: TextButton.icon(
-                      icon: const Icon(Icons.ramen_dining_outlined),
-                      label: Text(s.seeHawkers),
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        ref.read(nearbyKeyProvider.notifier).state = origin.kind.name;
-                        ref.read(shellTabProvider.notifier).state = 1;
-                      },
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-    ];
-    if (tiles.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (var i = 0; i < tiles.length; i++) ...[
-              if (i > 0) const SizedBox(width: 12),
-              tiles[i],
-            ],
-          ],
-        ),
-      ),
     );
   }
 }
