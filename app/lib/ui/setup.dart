@@ -23,25 +23,14 @@ class SetupPage extends ConsumerWidget {
       MaterialPageRoute(builder: (_) => AddressPickerPage(title: s.addressFor(s.placeLabel(kind.name)))),
     );
     if (hit == null) return;
-    final existing = ref.read(favoritesProvider).places[kind]?.stops ?? const <BusStop>[];
-    var stops = existing;
-    var autoPicked = false;
-    if (stops.isEmpty) {
-      // Suggest the two nearest stops; the user can change them below.
-      final all = await ref.read(busStopsProvider.future).catchError((_) => const <BusStop>[]);
-      stops = nearestStops(all, hit.lat, hit.lng, limit: 2)
-          .where((st) => distanceMeters(hit.lat, hit.lng, st.lat, st.lng) <= 600)
-          .toList();
-      autoPicked = stops.isNotEmpty;
-    }
-    await ref.read(favoritesProvider.notifier).setPlace(Place(
-          kind: kind,
-          stops: stops,
-          address: hit.label,
-          postal: hit.postal.isEmpty ? null : hit.postal,
-          addrLat: hit.lat,
-          addrLng: hit.lng,
-        ));
+    final old = ref.read(favoritesProvider).places[kind];
+    // Keep saved stops near the new address; after a move, pick the nearest ones instead.
+    final all = await ref.read(busStopsProvider.future).catchError((_) => const <BusStop>[]);
+    final (stops, autoPicked) = stopsForNewAddress(old?.stops ?? const <BusStop>[], all, hit.lat, hit.lng);
+    final postal = hit.postal.isEmpty ? null : hit.postal;
+    await ref.read(favoritesProvider.notifier).setPlace(old == null
+        ? Place(kind: kind, stops: stops, address: hit.label, postal: postal, addrLat: hit.lat, addrLng: hit.lng)
+        : old.withAddress(address: hit.label, postal: postal, lat: hit.lat, lng: hit.lng, stops: stops));
     if (autoPicked && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.stopsAutoPicked)));
     }

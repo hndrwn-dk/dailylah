@@ -101,7 +101,7 @@ class _TransitBlock extends ConsumerWidget {
     final routes = ref.watch(busRoutesProvider).valueOrNull ?? BusRoutes.empty;
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    final trip = tripStops(from.stops, all, routes, from, to);
+    final trip = tripStops(usableStops(from), all, routes, from, to);
     final destStops = destinationStops(to, all);
     final anyDirect = routes.routes.isNotEmpty &&
         trip.stops.any((st) => tripRides(routes, st, to, destStops).isNotEmpty);
