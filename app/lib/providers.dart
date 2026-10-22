@@ -172,6 +172,9 @@ final privateHomesProvider =
 /// Section shown on the Home tab ("home", "works", "schools" ...).
 final homeSectionProvider = StateProvider<String>((ref) => 'home');
 
+/// Which Nearby section is shown: bus, eat, park, taxi, prayer or help.
+final nearbySectionProvider = StateProvider<String>((ref) => 'bus');
+
 /// Halal places listed on Muslim.sg (opt-in feature).
 final halalProvider = FutureProvider<List<EPoint>>((ref) => _list(ref, 'halal', EPoint.fromBundle));
 

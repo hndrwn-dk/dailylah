@@ -116,6 +116,10 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
       if (adhoc != null && adhoc.address != s.myLocation) ('adhoc', Icons.place, adhoc.name ?? ''),
       ('search', Icons.search, s.searchPlace),
     ];
+    // One section at a time, like Home: chips under the place pills.
+    final sections = ['bus', 'eat', 'park', 'taxi', if (fav.showPrayer) 'prayer', 'help'];
+    final picked = ref.watch(nearbySectionProvider);
+    final section = sections.contains(picked) ? picked : 'bus';
     final selected = key == 'adhoc'
         ? (adhoc?.address == s.myLocation ? 'here' : 'adhoc')
         : key;
@@ -154,6 +158,15 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
                       }
                     },
                   ),
+                  if (place != null) ...[
+                    const SizedBox(height: 14),
+                    PillRow(
+                      items: [for (final k in sections) (k, _sectionIcons[k]!, s.nearbySection(k))],
+                      selected: section,
+                      danger: const {'help'},
+                      onTap: (k) => ref.read(nearbySectionProvider.notifier).state = k,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -174,12 +187,14 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _BusSection(place: place),
-                        _EatSection(place: place),
-                        _ParkSection(place: place),
-                        _TaxiSection(place: place),
-                        if (fav.showPrayer) const _PrayerSection(),
-                        _HelpSection(place: place),
+                        switch (section) {
+                          'eat' => _EatSection(place: place),
+                          'park' => _ParkSection(place: place),
+                          'taxi' => _TaxiSection(place: place),
+                          'prayer' => const _PrayerSection(),
+                          'help' => _HelpSection(place: place),
+                          _ => _BusSection(place: place),
+                        },
                         Text(s.dataSource, style: t.bodySmall, textAlign: TextAlign.center),
                       ],
                     ),
@@ -190,6 +205,15 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
     );
   }
 }
+
+const _sectionIcons = <String, IconData>{
+  'bus': Icons.directions_bus_outlined,
+  'eat': Icons.ramen_dining_outlined,
+  'park': Icons.local_parking,
+  'taxi': Icons.local_taxi_outlined,
+  'prayer': Icons.mosque_outlined,
+  'help': Icons.emergency_outlined,
+};
 
 /// Opens one full list (all hawkers, all car parks...) on its own page.
 void _openFull(BuildContext context, String title, Widget body) => Navigator.of(context).push(

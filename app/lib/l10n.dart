@@ -564,6 +564,15 @@ class S {
   String get taxiNearby => 'Taxi';
   String get helpNearby => 'Help nearby';
   String get halalNearby => 'Halal food nearby';
+  String nearbySection(String k) => switch (k) {
+        'bus' => 'Bus',
+        'eat' => 'Eat',
+        'park' => 'Parking',
+        'taxi' => 'Taxi',
+        'prayer' => 'Prayer',
+        'help' => 'Help',
+        _ => k,
+      };
   String get searchPlace => 'Search';
   String maxPlaces(int n) => 'You can save up to $n places.';
 
