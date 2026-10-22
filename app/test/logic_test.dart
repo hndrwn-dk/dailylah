@@ -87,7 +87,7 @@ void main() {
     final s = lineStatuses(bad, {'NSL', 'EWL'});
     expect(s.map((x) => x.line), ['EWL', 'NSL']);
     expect(s.first.disrupted, isTrue);
-    expect(s.first.detail, contains('Bus gratis'));
+    expect(s.first.detail, contains('Free bridging buses'));
     expect(s.last.disrupted, isFalse);
   });
 
