@@ -1341,3 +1341,41 @@ Set<String> mrtPlanLines(MrtPlan plan) => {
   final bad = [for (final st in lineStatuses(alerts, mrtPlanLines(plan))) if (st.disrupted) st];
   return (lines: [for (final st in bad) st.line], freeBus: bad.any((st) => st.freeBus));
 }
+
+// ---------------------------------------------------------------- leave by
+
+/// Walking minutes for a straight-line distance (1.3 detour, 80 m a minute), at least 1.
+int walkMinutesTo(double metres) => math.max(1, (metres * 1.3 / 80).round());
+
+class LeaveBy {
+  const LeaveBy(this.service, this.leaveIn, this.walk);
+  final String service;
+
+  /// Minutes until the user should leave (0 = now).
+  final int leaveIn;
+  final int walk;
+}
+
+/// The bus the user can still catch first, among [services] (all when null):
+/// leave in (arrival - walk) minutes, using the following bus when the first is too soon.
+LeaveBy? leaveBy(List<(BusEta, int?)> grouped, Set<String>? services, int walk) {
+  LeaveBy? best;
+  for (final (e, next) in grouped) {
+    if (services != null && !services.contains(e.service)) continue;
+    for (final m in [e.minutes, if (next != null) next]) {
+      final l = m - walk;
+      if (l < 0) continue;
+      if (best == null || l < best.leaveIn) best = LeaveBy(e.service, l, walk);
+      break;
+    }
+  }
+  return best;
+}
+
+/// Morning leave-by reminder window: from 25 minutes before the usual departure
+/// until 5 minutes after it.
+bool inLeaveWindow(DateTime now, TimeOfDayHM go) {
+  final m = now.hour * 60 + now.minute;
+  final g = go.hour * 60 + go.minute;
+  return m >= g - 25 && m <= g + 5;
+}

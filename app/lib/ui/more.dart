@@ -75,6 +75,7 @@ class MorePage extends ConsumerWidget {
                     children: [
                       toggle(s.alertMrt, fav.mrtAlerts, (f, v) => f.copyWith(mrtAlerts: v)),
                       toggle(s.alertRain, fav.rainAlerts, (f, v) => f.copyWith(rainAlerts: v), sub: s.alertRainSub),
+                      toggle(s.alertLeave, fav.leaveAlerts, (f, v) => f.copyWith(leaveAlerts: v), sub: s.alertLeaveSub),
                       toggle(s.alertHawker, fav.hawkerAlerts, (f, v) => f.copyWith(hawkerAlerts: v)),
                       toggle(s.alertDengue, fav.dengueAlerts, (f, v) => f.copyWith(dengueAlerts: v)),
                       toggle(s.alertHeat, fav.heatAlerts, (f, v) => f.copyWith(heatAlerts: v)),

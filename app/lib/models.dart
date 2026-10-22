@@ -236,6 +236,9 @@ class Favorites {
     this.dengueAlerts = true,
     this.heatAlerts = true,
     this.homesAlerts = true,
+    this.learnHabits = true,
+    this.digestAlerts = true,
+    this.leaveAlerts = true,
     this.onboarded = false,
     this.showPrayer = false,
     this.showHalal = false,
@@ -257,6 +260,15 @@ class Favorites {
   final bool dengueAlerts;
   final bool heatAlerts;
   final bool homesAlerts;
+
+  /// Keep trip times and meals the user logs (on this phone only) for insights.
+  final bool learnHabits;
+
+  /// Weekly "This week around you" notification on Sunday evening.
+  final bool digestAlerts;
+
+  /// Leave-by reminder before the usual departure.
+  final bool leaveAlerts;
 
   /// True after the user finished the first-run setup.
   final bool onboarded;
@@ -299,6 +311,9 @@ class Favorites {
     bool? dengueAlerts,
     bool? heatAlerts,
     bool? homesAlerts,
+    bool? learnHabits,
+    bool? digestAlerts,
+    bool? leaveAlerts,
     bool? onboarded,
     bool? showPrayer,
     bool? showHalal,
@@ -320,6 +335,9 @@ class Favorites {
         dengueAlerts: dengueAlerts ?? this.dengueAlerts,
         heatAlerts: heatAlerts ?? this.heatAlerts,
         homesAlerts: homesAlerts ?? this.homesAlerts,
+        learnHabits: learnHabits ?? this.learnHabits,
+        digestAlerts: digestAlerts ?? this.digestAlerts,
+        leaveAlerts: leaveAlerts ?? this.leaveAlerts,
         onboarded: onboarded ?? this.onboarded,
         showPrayer: showPrayer ?? this.showPrayer,
         showHalal: showHalal ?? this.showHalal,
@@ -342,6 +360,9 @@ class Favorites {
         'dengueAlerts': dengueAlerts,
         'heatAlerts': heatAlerts,
         'homesAlerts': homesAlerts,
+        'learnHabits': learnHabits,
+        'digestAlerts': digestAlerts,
+        'leaveAlerts': leaveAlerts,
         'onboarded': onboarded,
         'showPrayer': showPrayer,
         'showHalal': showHalal,
@@ -371,6 +392,9 @@ class Favorites {
       dengueAlerts: (j['dengueAlerts'] ?? true) as bool,
       heatAlerts: (j['heatAlerts'] ?? true) as bool,
       homesAlerts: (j['homesAlerts'] ?? true) as bool,
+      learnHabits: (j['learnHabits'] ?? true) as bool,
+      digestAlerts: (j['digestAlerts'] ?? true) as bool,
+      leaveAlerts: (j['leaveAlerts'] ?? true) as bool,
       onboarded: (j['onboarded'] ?? false) as bool,
       showPrayer: (j['showPrayer'] ?? false) as bool,
       showHalal: (j['showHalal'] ?? false) as bool,

@@ -120,6 +120,7 @@ class _TransitBlock extends ConsumerWidget {
           to: to,
           toLabel: toLabel,
           suggestedMetres: trip.suggested ? distanceMeters(from.lat, from.lng, st.lat, st.lng) : null,
+          from: from,
         ),
     ];
     final mrt = _MrtOption(from: from, to: to);
@@ -301,7 +302,11 @@ class TripBusCard extends ConsumerWidget {
     required this.to,
     required this.toLabel,
     this.suggestedMetres,
+    this.from,
   });
+
+  /// Where the trip starts, for "leave in N min" (walk to the stop plus live arrivals).
+  final Place? from;
 
   /// Set when this is a nearby stop suggested instead of the saved ones.
   final double? suggestedMetres;
@@ -393,6 +398,22 @@ class TripBusCard extends ConsumerWidget {
                             child: Text(s.routeInMaps),
                           ),
                         ),
+                      if (direct.isNotEmpty && from != null)
+                        if (leaveBy(direct, null, walkMinutesTo(distanceMeters(from!.lat, from!.lng, stop.lat, stop.lng))) case final lb?
+                            when distanceMeters(from!.lat, from!.lng, stop.lat, stop.lng) < 1500)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.directions_walk, size: 20, color: DL.tealText),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(s.leaveIn(lb.service, lb.leaveIn, lb.walk),
+                                      style: t.titleSmall?.copyWith(color: DL.tealText)),
+                                ),
+                              ],
+                            ),
+                          ),
                       if (direct.isNotEmpty)
                         BusBoard(
                           arrLabel: s.minutesAway(0),

@@ -248,6 +248,12 @@ class S {
         if (freeBus) 'Free bridging buses run between the affected stations.',
       ].join(' ');
   String get taxiInstead => 'Taxi instead';
+  String leaveIn(String service, int minutes, int walk) => minutes == 0
+      ? 'Leave now to catch $service ($walk min walk)'
+      : 'Leave in $minutes min to catch $service ($walk min walk)';
+  String get leaveTitle => 'Time to go';
+  String get alertLeave => 'When to leave for my bus';
+  String get alertLeaveSub => 'Once a day, shortly before you usually leave';
   String get from => 'From';
   String get to => 'To';
   String get anyAddress => 'Search';

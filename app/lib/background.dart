@@ -139,6 +139,34 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     }
   });
 
+  // Leave by: one reminder near the usual departure, for the first bus worth leaving for.
+  await guard(() async {
+    if (!fav.leaveAlerts || quiet || kind != CardKind.morning || origin == null) return;
+    final (goAt, _) = commuteTimes(fav, now);
+    if (!inLeaveWindow(now, goAt) || await log.alreadySent('leave:$day')) return;
+    final dest = destinationFor(kind, fav, now);
+    final to = dest == null ? null : fav.places[dest];
+    final stops = usableStops(origin);
+    if (to == null || stops.isEmpty) return;
+    final routesRaw = await repo.load('bus_routes');
+    final stopsRaw = await repo.load('bus_stops');
+    if (routesRaw is! Map<String, dynamic> || stopsRaw is! List) return;
+    final routes = BusRoutes.fromBundle(routesRaw);
+    final all = [for (final r in stopsRaw) BusStop.fromBundle(r as Map<String, dynamic>)];
+    final destStops = destinationStops(to, all);
+    for (final st in stops) {
+      final services = tripRides(routes, st, to, destStops).keys.toSet();
+      if (services.isEmpty) continue;
+      final etas = groupEtas(parseBusArrival(await api.busArrival(st.code), now));
+      final walk = walkMinutesTo(distanceMeters(origin.lat, origin.lng, st.lat, st.lng));
+      final lb = leaveBy(etas, services, walk);
+      if (lb == null || lb.leaveIn > 10) continue;
+      await notify(9, s.leaveTitle, s.leaveIn(lb.service, lb.leaveIn, lb.walk));
+      await log.markSent('leave:$day');
+      return;
+    }
+  });
+
   // Favourite hawker closed tomorrow: in the evening, once per hawker per day.
   await guard(() async {
     if (!fav.hawkerAlerts || fav.hawkers.isEmpty || now.hour < 18 || now.hour >= 22) return;

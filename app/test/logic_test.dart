@@ -703,4 +703,18 @@ void main() {
     expect(planDisruption(plan, {'data': {'value': {'Status': 1}}}).lines, isEmpty);
     expect(lineStatuses(alerts, {'DTL'}).single.detail, contains('Free bridging buses'));
   });
+
+  test('leave by: first bus still catchable after the walk', () {
+    const a = BusEta(service: '47', minutes: 2, load: 'SEA');
+    const b = BusEta(service: '12', minutes: 9, load: 'SEA');
+    final grouped = [(a, 12), (b, null)];
+    final lb = leaveBy(grouped, null, 4)!;
+    expect(lb.service, '12');
+    expect(lb.leaveIn, 5);
+    expect(leaveBy(grouped, {'47'}, 4)!.leaveIn, 8); // the next 47
+    expect(leaveBy(grouped, {'99'}, 4), isNull);
+    expect(walkMinutesTo(300), 5);
+    expect(inLeaveWindow(DateTime(2026, 10, 22, 7, 40), const TimeOfDayHM(8, 0)), isTrue);
+    expect(inLeaveWindow(DateTime(2026, 10, 22, 7, 30), const TimeOfDayHM(8, 0)), isFalse);
+  });
 }
