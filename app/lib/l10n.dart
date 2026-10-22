@@ -496,6 +496,7 @@ class S {
   String get familyShareSub => 'Copy your places and lines to another phone';
   String get familyShareIntro => 'Scan or send this code to another phone. It holds your saved stops, lines and times, nothing else. No account or server involved.';
   String get copyCode => 'Copy code';
+  String get website => 'Website';
   String get shareCode => 'Share code';
   String get codeCopied => 'Code copied';
   String get importCode => 'Import from a family member';

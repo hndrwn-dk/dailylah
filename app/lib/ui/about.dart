@@ -8,6 +8,9 @@ import 'widgets.dart';
 const privacyUrl = 'https://www.tursinalabs.com/dailylah/privacy';
 const termsUrl = 'https://www.tursinalabs.com/dailylah/terms';
 const productUrl = 'https://www.tursinalabs.com/products/dailylah';
+
+/// The app's own website (landing page). Legal pages stay on tursinalabs.com.
+const siteUrl = 'https://dailylah.sg';
 const supportEmail = 'support@tursinalabs.com';
 
 /// App version, injected by CI or set manually: --dart-define=APP_VERSION=0.2.0
@@ -43,6 +46,13 @@ class AboutDailyLahPage extends ConsumerWidget {
           Panel(
             child: Column(
               children: [
+                ListTile(
+                  leading: const Icon(Icons.language),
+                  title: Text(s.website),
+                  subtitle: const Text('dailylah.sg'),
+                  trailing: const Icon(Icons.open_in_new, size: 18),
+                  onTap: () => open(siteUrl),
+                ),
                 ListTile(
                   leading: const Icon(Icons.privacy_tip_outlined),
                   title: Text(s.privacyPolicy),
