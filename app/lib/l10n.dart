@@ -10,6 +10,9 @@ enum AirLevel { good, moderate, unhealthy, veryUnhealthy, hazardous }
 /// Why Nearby suggests ordering food in, most pressing first.
 enum OrderInReason { rain, haze, hawkerClosed }
 
+/// Weather tips for the chosen way of travelling (see tripAdvice in logic.dart).
+enum TripAdvice { lightningRide, lightningWalk, rainRide, rainDrive, rainTaxi, heat, haze }
+
 class S {
   const S();
 
@@ -239,6 +242,92 @@ class S {
   String get mrtRouteInMaps => 'MRT route in Google Maps';
   String get noMrtNearby => 'No MRT station within a 15-minute walk of both ends.';
   String mrtLineDisrupted(String line) => '$line is disrupted right now';
+  String mrtStations(String stations) => 'Stations: $stations';
+  String get freeBusAvailable => 'Free bridging buses';
+  String get shuttleAvailable => 'Free shuttle';
+  String planB(String lines, {required bool busOk, required bool freeBus}) => [
+        '$lines disrupted on your way.',
+        busOk ? 'Take a direct bus below instead.' : 'No direct bus from here, so a taxi may be quicker.',
+        if (freeBus) 'Free bridging buses run between the affected stations.',
+      ].join(' ');
+  String get taxiInstead => 'Taxi instead';
+  String leaveIn(String service, int minutes, int walk) => minutes == 0
+      ? 'Leave now to catch $service ($walk min walk)'
+      : 'Leave in $minutes min to catch $service ($walk min walk)';
+  String get leaveTitle => 'Time to go';
+  String wakeMeAt(String stop) => 'Wake me before $stop';
+  String get wakeTitle => 'Wake me at my stop';
+  String wakeRiding(String service, String stop) => 'On bus $service to $stop';
+  String wakeLeft(String distance) => '$distance to go';
+  String get wakeHow => 'Your phone buzzes and shows a notification as the bus leaves the stop before yours. '
+      'Your location is checked only while this runs and is not saved.';
+  String get wakeRunning => 'Watching for your stop';
+  String get wakeNow => 'Your stop is next. Get ready to alight.';
+  String get wakeStop => 'Stop';
+  String get wakeDone => 'Done';
+
+  // ---------------------------------------------------------------- parked car
+  String get parkedHere => 'I parked here';
+  String get yourCar => 'Your car';
+  String parkedAgo(String place, String ago) => '$place · parked $ago ago';
+  String levelLot(String level, String lot) =>
+      [if (level.isNotEmpty) 'Level $level', if (lot.isNotEmpty) 'Lot $lot'].join(', ');
+  String get parkLevel => 'Level (optional)';
+  String get parkLot => 'Lot number (optional)';
+  String get parkRemind => 'Remind me after';
+  String get parkNoReminder => 'No reminder';
+  String hoursShort(int h) => h == 1 ? '1 hour' : '$h hours';
+  String get parkSave => 'Save';
+  String get parkClear => 'I have left';
+  String get parkTitle => 'Parking time';
+  String parkReminder(String place) => 'Your parking time at $place is up. Top up or move your car.';
+  String get parkWhere => 'Car park';
+  String durationShort(int minutes) => minutes < 60
+      ? '$minutes min'
+      : '${minutes ~/ 60} h${minutes % 60 == 0 ? '' : ' ${minutes % 60} min'}';
+
+  // ---------------------------------------------------------------- know me
+  String get imLeaving => "I'm leaving";
+  String get arrived => 'Arrived';
+  String onTheWay(String since, String elapsed) => 'On the way since $since · $elapsed';
+  String tripLogged(int minutes) => 'Logged: $minutes min door to door.';
+  String get tripTooShort => 'Not logged: that trip looked too short or too long.';
+  String usualTrip(int minutes, int count) => 'Usually $minutes min door to door ($count trips).';
+  String rainyTrip(int minutes) => 'On rainy days $minutes min.';
+  String arriveAbout(String time) => 'Leave now and you arrive about $time.';
+  String get tripLearnHint => "Tap I'm leaving and Arrived a few times, and DailyLah learns how long this trip takes you.";
+  String get ateHere => 'Ate here';
+  String ateLogged(String name) => 'Noted: $name.';
+  String mealNudge(String usual, int times, String instead, String distance) =>
+      "You've eaten at $usual $times times this month. Try $instead? Open today, $distance away.";
+  String get learnHabits => 'Learn my habits';
+  String get learnHabitsSub => 'Trip times and meals you log stay on this phone only.';
+  String get deleteHistory => 'Delete my history';
+  String get deleteHistoryAsk => 'Delete logged trips, meals and your parked car from this phone?';
+  String get deleted => 'Deleted.';
+  String get delete => 'Delete';
+
+  // ---------------------------------------------------------------- advice per travel mode
+  String tripAdvice(TripAdvice a) => switch (a) {
+        TripAdvice.lightningRide => 'Lightning nearby. Hold off riding until it passes.',
+        TripAdvice.lightningWalk => 'Lightning nearby. Wait under shelter before walking to the stop.',
+        TripAdvice.rainRide => 'Rain on the way. Bring a rain jacket or wait it out.',
+        TripAdvice.rainDrive => 'Rain on the way. Roads get slower, so allow extra time.',
+        TripAdvice.rainTaxi => 'Rain on the way. Taxis get scarce, so book early.',
+        TripAdvice.heat => 'High heat. Bring water and take the sheltered way.',
+        TripAdvice.haze => 'The air is unhealthy. Wear a mask if you are outdoors for long.',
+      };
+
+  // ---------------------------------------------------------------- weekly digest
+  String get digestTitle => 'This week around you';
+  String digestHawker(String name, String from, String to) => '$name closed $from to $to';
+  String digestWorks(String what) => 'Works at your block: $what';
+  String digestDengue(int n) => n == 1 ? '1 dengue cluster within 1 km of home' : '$n dengue clusters within 1 km of home';
+  String digestHoliday(String name, String when) => 'Public holiday: $name, $when';
+  String get alertDigest => 'This week around you';
+  String get alertDigestSub => 'One summary on Sunday evening';
+  String get alertLeave => 'When to leave for my bus';
+  String get alertLeaveSub => 'Once a day, shortly before you usually leave';
   String get from => 'From';
   String get to => 'To';
   String get anyAddress => 'Search';
@@ -433,8 +522,12 @@ class S {
   String compareCount(int n) => 'Compare ($n)';
   String get addToCompare => 'Add to compare';
   String get inCompare => 'In comparison';
-  String get watch => 'Watch';
-  String get watching => 'Watching';
+  String get watch => 'Notify me of new sales';
+  String get watching => 'Notifying you';
+  String get watchNote => 'You get a notification when a flat in this block is sold, with the price and flat type.';
+  String get thisBlock => 'This block';
+  String compareAdded(int n) => n < 2 ? 'Added. Add one more block to compare.' : 'Added. $n blocks to compare.';
+  String get open => 'Open';
   String builtIn(int y) => 'Built $y';
   String leaseLeft(int years) => '$years years lease left';
   String storeys(int n) => '$n storeys';
@@ -564,6 +657,15 @@ class S {
   String get taxiNearby => 'Taxi';
   String get helpNearby => 'Help nearby';
   String get halalNearby => 'Halal food nearby';
+  String nearbySection(String k) => switch (k) {
+        'bus' => 'Bus',
+        'eat' => 'Eat',
+        'park' => 'Parking',
+        'taxi' => 'Taxi',
+        'prayer' => 'Prayer',
+        'help' => 'Help',
+        _ => k,
+      };
   String get searchPlace => 'Search';
   String maxPlaces(int n) => 'You can save up to $n places.';
 

@@ -116,6 +116,10 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
       if (adhoc != null && adhoc.address != s.myLocation) ('adhoc', Icons.place, adhoc.name ?? ''),
       ('search', Icons.search, s.searchPlace),
     ];
+    // One section at a time, like Home: chips under the place pills.
+    final sections = ['bus', 'eat', 'park', 'taxi', if (fav.showPrayer) 'prayer', 'help'];
+    final picked = ref.watch(nearbySectionProvider);
+    final section = sections.contains(picked) ? picked : 'bus';
     final selected = key == 'adhoc'
         ? (adhoc?.address == s.myLocation ? 'here' : 'adhoc')
         : key;
@@ -154,6 +158,15 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
                       }
                     },
                   ),
+                  if (place != null) ...[
+                    const SizedBox(height: 14),
+                    PillRow(
+                      items: [for (final k in sections) (k, _sectionIcons[k]!, s.nearbySection(k))],
+                      selected: section,
+                      danger: const {'help'},
+                      onTap: (k) => ref.read(nearbySectionProvider.notifier).state = k,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -174,12 +187,14 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _BusSection(place: place),
-                        _EatSection(place: place),
-                        _ParkSection(place: place),
-                        _TaxiSection(place: place),
-                        if (fav.showPrayer) const _PrayerSection(),
-                        _HelpSection(place: place),
+                        switch (section) {
+                          'eat' => _EatSection(place: place),
+                          'park' => _ParkSection(place: place),
+                          'taxi' => _TaxiSection(place: place),
+                          'prayer' => const _PrayerSection(),
+                          'help' => _HelpSection(place: place),
+                          _ => _BusSection(place: place),
+                        },
                         Text(s.dataSource, style: t.bodySmall, textAlign: TextAlign.center),
                       ],
                     ),
@@ -190,6 +205,15 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
     );
   }
 }
+
+const _sectionIcons = <String, IconData>{
+  'bus': Icons.directions_bus_outlined,
+  'eat': Icons.ramen_dining_outlined,
+  'park': Icons.local_parking,
+  'taxi': Icons.local_taxi_outlined,
+  'prayer': Icons.mosque_outlined,
+  'help': Icons.emergency_outlined,
+};
 
 /// Opens one full list (all hawkers, all car parks...) on its own page.
 void _openFull(BuildContext context, String title, Widget body) => Navigator.of(context).push(
@@ -325,6 +349,13 @@ class _EatSection extends ConsumerWidget {
       children: [
         SectionTitle(s.eat,
             trailing: _seeAll(s, () => _openFull(context, s.hawkers, _HawkerTab(place: place)))),
+        if (fav.learnHabits)
+          if (mealNudge(ref.watch(habitsProvider).meals, all, DateTime.now(), place.lat, place.lng) case final n?)
+            AlertBanner(
+              icon: Icons.explore_outlined,
+              tone: AlertTone.info,
+              text: s.mealNudge(n.usual.name, n.times, n.instead.name, s.metres(n.distance)),
+            ),
         // Delivery only when it helps: rain, unhealthy air, or the nearest hawker closed.
         if (why != null) ...[
           AlertBanner(icon: Icons.delivery_dining_outlined, text: s.orderInWhy(why)),
@@ -347,7 +378,21 @@ class _EatSection extends ConsumerWidget {
                     h.closureOn(today) != null ? '${s.metres(d)} · ${s.closedNow}' : s.metres(d),
                     style: h.closureOn(today) != null ? t.bodySmall?.copyWith(color: const Color(0xFFB45309)) : null,
                   ),
-                  trailing: fav.hawkers.contains(h.id) ? const Icon(Icons.star, color: DL.amber) : null,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (fav.hawkers.contains(h.id)) const Icon(Icons.star, color: DL.amber),
+                      if (fav.learnHabits)
+                        IconButton(
+                          tooltip: s.ateHere,
+                          icon: const Icon(Icons.restaurant_menu),
+                          onPressed: () {
+                            ref.read(habitsProvider.notifier).ateAt(h.id, DateTime.now());
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.ateLogged(h.name))));
+                          },
+                        ),
+                    ],
+                  ),
                   onTap: () => _openFull(context, s.hawkers, _HawkerTab(place: place)),
                 ),
             ],
@@ -407,9 +452,16 @@ class _ParkSection extends ConsumerWidget {
             if (n != null) Text(s.freeLots, style: t.labelSmall),
           ],
         );
+    // Name and spot for "I parked here": the nearest car park, else the place itself.
+    final (parkName, parkLat, parkLng) = list.isNotEmpty
+        ? (list.first.$1.address, list.first.$1.lat, list.first.$1.lng)
+        : live.isNotEmpty
+            ? (live.first.$1.name, live.first.$1.lat, live.first.$1.lng)
+            : (place.address ?? s.hereNow, place.lat, place.lng);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _ParkedCard(name: parkName, lat: parkLat, lng: parkLng),
         SectionTitle(s.parkNearby,
             trailing: _seeAll(
                 s, () => _openFull(context, s.parking, _ParkingTab(lat: place.lat, lng: place.lng)))),
@@ -445,6 +497,132 @@ class _ParkSection extends ConsumerWidget {
                   onTap: () => _openFull(context, s.parking, _ParkingTab(lat: place.lat, lng: place.lng)),
                 ),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// "I parked here": the saved spot with how long ago, or a button to save one.
+class _ParkedCard extends ConsumerWidget {
+  const _ParkedCard({required this.name, required this.lat, required this.lng});
+  final String name;
+  final double lat;
+  final double lng;
+
+  Future<void> _save(BuildContext context, WidgetRef ref) async {
+    final s = ref.read(stringsProvider);
+    final level = TextEditingController();
+    final lot = TextEditingController();
+    var remind = 0;
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(s.parkedHere, style: Theme.of(ctx).textTheme.titleLarge),
+              const SizedBox(height: 4),
+              Text('${s.parkWhere}: $name', style: Theme.of(ctx).textTheme.bodyMedium),
+              const SizedBox(height: 12),
+              TextField(controller: level, decoration: InputDecoration(labelText: s.parkLevel)),
+              const SizedBox(height: 8),
+              TextField(controller: lot, decoration: InputDecoration(labelText: s.parkLot)),
+              const SizedBox(height: 14),
+              Text(s.parkRemind, style: Theme.of(ctx).textTheme.labelLarge),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final h in const [0, 1, 2, 3])
+                    ChoiceChip(
+                      label: Text(h == 0 ? s.parkNoReminder : s.hoursShort(h)),
+                      selected: remind == h,
+                      onSelected: (_) => setSheet(() => remind = h),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text(s.parkSave),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (ok != true) return;
+    await ref.read(habitsProvider.notifier).park(ParkedCar(
+          name: name,
+          lat: lat,
+          lng: lng,
+          at: DateTime.now(),
+          level: level.text.trim(),
+          lot: lot.text.trim(),
+          remindMinutes: remind == 0 ? null : remind * 60,
+        ));
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final p = ref.watch(habitsProvider).parked;
+    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
+    if (p == null) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+          icon: const Icon(Icons.push_pin_outlined),
+          label: Text(s.parkedHere),
+          onPressed: () => _save(context, ref),
+        ),
+      );
+    }
+    final spot = s.levelLot(p.level, p.lot);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionTitle(s.yourCar, padding: const EdgeInsets.fromLTRB(4, 8, 4, 10)),
+        Panel(
+          color: parkReminderDue(p, now) ? DL.amber : DL.mint,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(s.parkedAgo(p.name, s.durationShort(now.difference(p.at).inMinutes)),
+                    style: t.titleMedium?.copyWith(color: DL.ink)),
+                if (spot.isNotEmpty) Text(spot, style: t.headlineSmall?.copyWith(color: DL.ink, fontFamily: DL.display)),
+                Wrap(
+                  spacing: 4,
+                  children: [
+                    TextButton.icon(
+                      style: TextButton.styleFrom(foregroundColor: DL.ink),
+                      icon: const Icon(Icons.directions_walk),
+                      label: Text(s.walkingRoute),
+                      onPressed: () => openDirections(p.lat, p.lng, mode: 'walking'),
+                    ),
+                    TextButton.icon(
+                      style: TextButton.styleFrom(foregroundColor: DL.ink),
+                      icon: const Icon(Icons.check),
+                      label: Text(s.parkClear),
+                      onPressed: () => ref.read(habitsProvider.notifier).clearParked(),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ],

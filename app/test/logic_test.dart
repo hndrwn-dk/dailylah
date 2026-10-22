@@ -87,7 +87,7 @@ void main() {
     final s = lineStatuses(bad, {'NSL', 'EWL'});
     expect(s.map((x) => x.line), ['EWL', 'NSL']);
     expect(s.first.disrupted, isTrue);
-    expect(s.first.detail, contains('Bus gratis'));
+    expect(s.first.detail, contains('Free bridging buses'));
     expect(s.last.disrupted, isFalse);
   });
 
@@ -679,5 +679,122 @@ void main() {
     expect(p.days, {1, 3});
     expect(p.go, const TimeOfDayHM(8, 15));
     expect(p.address, 'Changi');
+  });
+
+  test('plan B: disrupted lines on the MRT plan, with free bridging buses', () {
+    const a = MrtStation(name: 'Expo', codes: ['CG1', 'DT35'], lat: 1.334, lng: 103.961);
+    const b = MrtStation(name: 'Segar', codes: ['BP11'], lat: 1.387, lng: 103.769);
+    const plan = MrtPlan(board: a, walkToBoard: 300, alight: b, walkFromAlight: 400);
+    expect(mrtPlanLines(plan), containsAll(['EWL', 'DTL', 'BPL']));
+    final alerts = {
+      'data': {
+        'value': {
+          'Status': 2,
+          'AffectedSegments': [
+            {'Line': 'DTL', 'Stations': 'DT30,DT31', 'FreePublicBus': 'DT30,DT31'},
+          ],
+          'Message': [],
+        },
+      },
+    };
+    final r = planDisruption(plan, alerts);
+    expect(r.lines, ['DTL']);
+    expect(r.freeBus, isTrue);
+    expect(planDisruption(plan, {'data': {'value': {'Status': 1}}}).lines, isEmpty);
+    expect(lineStatuses(alerts, {'DTL'}).single.detail, contains('Free bridging buses'));
+  });
+
+  test('leave by: first bus still catchable after the walk', () {
+    const a = BusEta(service: '47', minutes: 2, load: 'SEA');
+    const b = BusEta(service: '12', minutes: 9, load: 'SEA');
+    final grouped = [(a, 12), (b, null)];
+    final lb = leaveBy(grouped, null, 4)!;
+    expect(lb.service, '12');
+    expect(lb.leaveIn, 5);
+    expect(leaveBy(grouped, {'47'}, 4)!.leaveIn, 8); // the next 47
+    expect(leaveBy(grouped, {'99'}, 4), isNull);
+    expect(walkMinutesTo(300), 5);
+    expect(inLeaveWindow(DateTime(2026, 10, 22, 7, 40), const TimeOfDayHM(8, 0)), isTrue);
+    expect(inLeaveWindow(DateTime(2026, 10, 22, 7, 30), const TimeOfDayHM(8, 0)), isFalse);
+  });
+
+  test('wake me: stop before the alight stop and the wake radius', () {
+    const routes = BusRoutes({
+      '47|1': [('A', 0.0), ('B', 1.0), ('C', 1.6)],
+    });
+    final ride = directRides(routes, 'A', {'C'})['47']!;
+    expect(ride.routeKey, '47|1');
+    expect(stopBefore(routes, ride), 'B');
+    const b = BusStop(code: 'B', name: 'B', road: '', lat: 1.3000, lng: 103.8000);
+    const c = BusStop(code: 'C', name: 'C', road: '', lat: 1.3054, lng: 103.8000);
+    expect(wakeRadius(b, c), closeTo(700, 15));
+    expect(wakeRadius(null, c), 500);
+  });
+
+  test('weekly digest: hawker closures, dengue and holidays in the next week', () {
+    final now = DateTime(2026, 10, 25, 19); // Sunday evening
+    expect(inDigestWindow(now), isTrue);
+    expect(inDigestWindow(DateTime(2026, 10, 24, 19)), isFalse);
+    final h = Hawker.fromBundle({
+      'id': 'h1', 'n': 'Golden Mile', 'a': '', 'la': 1.30, 'lo': 103.86,
+      'c': [['2026-10-27', '2026-10-30', 'cleaning']],
+    });
+    const fav = Favorites(
+      hawkers: {'h1'},
+      places: {PlaceKind.home: Place(kind: PlaceKind.home, address: 'Home', addrLat: 1.30, addrLng: 103.86)},
+    );
+    final holidays = Holiday.fromBundle([{'d': '2026-10-28', 'n': 'Test Day'}, {'d': '2026-12-25', 'n': 'Christmas Day'}]);
+    final lines = weeklyDigest(s: const S(), fav: fav, now: now, hawkers: [h], holidays: holidays);
+    expect(lines.any((l) => l.contains('Golden Mile')), isTrue);
+    expect(lines.any((l) => l.contains('Test Day') && l.contains('Wed')), isTrue);
+    expect(lines.any((l) => l.contains('Christmas')), isFalse);
+    expect(weeklyDigest(s: const S(), fav: const Favorites(), now: now), isEmpty);
+  });
+
+  test('weather advice depends on how you travel', () {
+    expect(tripAdvice(mode: TravelMode.bicycle, lightning: true, rainy: true),
+        [TripAdvice.lightningRide, TripAdvice.rainRide]);
+    expect(tripAdvice(mode: TravelMode.car, lightning: true, highHeat: true), isEmpty);
+    expect(tripAdvice(mode: TravelMode.car, rainy: true), [TripAdvice.rainDrive]);
+    expect(tripAdvice(mode: TravelMode.transit, highHeat: true, air: AirLevel.unhealthy),
+        [TripAdvice.heat, TripAdvice.haze]);
+    expect(tripAdvice(mode: TravelMode.taxi, air: AirLevel.hazardous), isEmpty);
+  });
+
+  test('know me: trip stats, trip minutes and meal nudge', () {
+    TripLog trip(int m, {bool rainy = false}) =>
+        TripLog(route: 'home>work', start: DateTime(2026, 10, 20, 8), minutes: m, rainy: rainy);
+    expect(tripStats([trip(40), trip(44)], 'home>work').usual, isNull);
+    final st = tripStats([trip(40), trip(44), trip(42), trip(52, rainy: true), trip(50, rainy: true)], 'home>work');
+    expect(st.usual, 44);
+    expect(st.rainy, 52);
+    expect(st.count, 5);
+    expect(tripMinutes(DateTime(2026, 1, 1, 8), DateTime(2026, 1, 1, 8, 2)), isNull);
+    expect(tripMinutes(DateTime(2026, 1, 1, 8), DateTime(2026, 1, 1, 8, 41)), 41);
+
+    Hawker hk(String id, double lo) => Hawker.fromBundle({'id': id, 'n': 'H$id', 'a': '', 'la': 1.30, 'lo': lo});
+    final all = [hk('a', 103.860), hk('b', 103.865), hk('c', 103.950)];
+    final now = DateTime(2026, 10, 22, 12);
+    final meals = [for (var i = 0; i < 3; i++) MealLog(hawkerId: 'a', at: now.subtract(Duration(days: i)))];
+    final n = mealNudge(meals, all, now, 1.30, 103.860)!;
+    expect(n.usual.id, 'a');
+    expect(n.times, 3);
+    expect(n.instead.id, 'b');
+    expect(mealNudge(meals.take(2).toList(), all, now, 1.30, 103.860), isNull);
+    expect(clockLabel(DateTime(2026, 1, 1, 8, 5)), '8:05');
+  });
+
+  test('habits round-trip through JSON and park reminder', () {
+    final h = Habits(
+      parked: ParkedCar(name: 'Blk 65A', lat: 1.3, lng: 103.9, at: DateTime(2026, 10, 22, 9), level: '3', remindMinutes: 120),
+      trips: [TripLog(route: 'home>work', start: DateTime(2026, 10, 22, 8), minutes: 41, rainy: true)],
+      meals: [MealLog(hawkerId: 'a', at: DateTime(2026, 10, 22, 12))],
+    );
+    final back = Habits.fromJson(h.toJson());
+    expect(back.parked!.level, '3');
+    expect(back.trips.single.rainy, isTrue);
+    expect(back.meals.single.hawkerId, 'a');
+    expect(parkReminderDue(back.parked!, DateTime(2026, 10, 22, 10, 59)), isFalse);
+    expect(parkReminderDue(back.parked!, DateTime(2026, 10, 22, 11)), isTrue);
   });
 }

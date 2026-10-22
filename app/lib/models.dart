@@ -236,6 +236,9 @@ class Favorites {
     this.dengueAlerts = true,
     this.heatAlerts = true,
     this.homesAlerts = true,
+    this.learnHabits = true,
+    this.digestAlerts = true,
+    this.leaveAlerts = true,
     this.onboarded = false,
     this.showPrayer = false,
     this.showHalal = false,
@@ -257,6 +260,15 @@ class Favorites {
   final bool dengueAlerts;
   final bool heatAlerts;
   final bool homesAlerts;
+
+  /// Keep trip times and meals the user logs (on this phone only) for insights.
+  final bool learnHabits;
+
+  /// Weekly "This week around you" notification on Sunday evening.
+  final bool digestAlerts;
+
+  /// Leave-by reminder before the usual departure.
+  final bool leaveAlerts;
 
   /// True after the user finished the first-run setup.
   final bool onboarded;
@@ -299,6 +311,9 @@ class Favorites {
     bool? dengueAlerts,
     bool? heatAlerts,
     bool? homesAlerts,
+    bool? learnHabits,
+    bool? digestAlerts,
+    bool? leaveAlerts,
     bool? onboarded,
     bool? showPrayer,
     bool? showHalal,
@@ -320,6 +335,9 @@ class Favorites {
         dengueAlerts: dengueAlerts ?? this.dengueAlerts,
         heatAlerts: heatAlerts ?? this.heatAlerts,
         homesAlerts: homesAlerts ?? this.homesAlerts,
+        learnHabits: learnHabits ?? this.learnHabits,
+        digestAlerts: digestAlerts ?? this.digestAlerts,
+        leaveAlerts: leaveAlerts ?? this.leaveAlerts,
         onboarded: onboarded ?? this.onboarded,
         showPrayer: showPrayer ?? this.showPrayer,
         showHalal: showHalal ?? this.showHalal,
@@ -342,6 +360,9 @@ class Favorites {
         'dengueAlerts': dengueAlerts,
         'heatAlerts': heatAlerts,
         'homesAlerts': homesAlerts,
+        'learnHabits': learnHabits,
+        'digestAlerts': digestAlerts,
+        'leaveAlerts': leaveAlerts,
         'onboarded': onboarded,
         'showPrayer': showPrayer,
         'showHalal': showHalal,
@@ -371,6 +392,9 @@ class Favorites {
       dengueAlerts: (j['dengueAlerts'] ?? true) as bool,
       heatAlerts: (j['heatAlerts'] ?? true) as bool,
       homesAlerts: (j['homesAlerts'] ?? true) as bool,
+      learnHabits: (j['learnHabits'] ?? true) as bool,
+      digestAlerts: (j['digestAlerts'] ?? true) as bool,
+      leaveAlerts: (j['leaveAlerts'] ?? true) as bool,
       onboarded: (j['onboarded'] ?? false) as bool,
       showPrayer: (j['showPrayer'] ?? false) as bool,
       showHalal: (j['showHalal'] ?? false) as bool,
@@ -412,3 +436,139 @@ const trainLines = <String, String>{
   'SLRT': 'Sengkang LRT',
   'PLRT': 'Punggol LRT',
 };
+
+// ---------------------------------------------------------------- habits (on this phone only)
+
+/// Where the user left the car or motorbike. Saved only on the phone.
+class ParkedCar {
+  const ParkedCar({
+    required this.name,
+    required this.lat,
+    required this.lng,
+    required this.at,
+    this.level = '',
+    this.lot = '',
+    this.remindMinutes,
+  });
+  final String name;
+  final double lat;
+  final double lng;
+  final DateTime at;
+  final String level;
+  final String lot;
+
+  /// Reminder after this many minutes (e.g. coupon or session time), or null.
+  final int? remindMinutes;
+
+  Map<String, dynamic> toJson() => {
+        'n': name,
+        'la': lat,
+        'lo': lng,
+        'at': at.toIso8601String(),
+        if (level.isNotEmpty) 'lv': level,
+        if (lot.isNotEmpty) 'lt': lot,
+        if (remindMinutes != null) 'r': remindMinutes,
+      };
+
+  factory ParkedCar.fromJson(Map<String, dynamic> j) => ParkedCar(
+        name: '${j['n'] ?? ''}',
+        lat: (j['la'] as num).toDouble(),
+        lng: (j['lo'] as num).toDouble(),
+        at: DateTime.parse('${j['at']}'),
+        level: '${j['lv'] ?? ''}',
+        lot: '${j['lt'] ?? ''}',
+        remindMinutes: (j['r'] as num?)?.toInt(),
+      );
+}
+
+/// One logged trip ("I'm leaving" to "Arrived"), e.g. route "home>work".
+class TripLog {
+  const TripLog({required this.route, required this.start, required this.minutes, this.rainy = false});
+  final String route;
+  final DateTime start;
+  final int minutes;
+  final bool rainy;
+
+  Map<String, dynamic> toJson() => {'r': route, 's': start.toIso8601String(), 'm': minutes, if (rainy) 'w': true};
+
+  factory TripLog.fromJson(Map<String, dynamic> j) => TripLog(
+        route: '${j['r']}',
+        start: DateTime.parse('${j['s']}'),
+        minutes: (j['m'] as num).toInt(),
+        rainy: j['w'] == true,
+      );
+}
+
+/// One "Ate here" tap at a hawker centre.
+class MealLog {
+  const MealLog({required this.hawkerId, required this.at});
+  final String hawkerId;
+  final DateTime at;
+
+  Map<String, dynamic> toJson() => {'h': hawkerId, 'at': at.toIso8601String()};
+
+  factory MealLog.fromJson(Map<String, dynamic> j) =>
+      MealLog(hawkerId: '${j['h']}', at: DateTime.parse('${j['at']}'));
+}
+
+/// What the user chose to log, kept on the phone for "know me" insights.
+/// Never shared (not part of the family share code) and never sent to the server.
+class Habits {
+  const Habits({
+    this.parked,
+    this.trips = const [],
+    this.meals = const [],
+    this.tripRoute,
+    this.tripStart,
+    this.tripRainy = false,
+  });
+  final ParkedCar? parked;
+  final List<TripLog> trips;
+  final List<MealLog> meals;
+
+  /// A trip in progress ("I'm leaving" tapped, "Arrived" not yet).
+  final String? tripRoute;
+  final DateTime? tripStart;
+  final bool tripRainy;
+
+  static const empty = Habits();
+  static const maxTrips = 120;
+  static const maxMeals = 200;
+
+  Habits copyWith({
+    ParkedCar? parked,
+    bool clearParked = false,
+    List<TripLog>? trips,
+    List<MealLog>? meals,
+    String? tripRoute,
+    DateTime? tripStart,
+    bool? tripRainy,
+    bool clearTrip = false,
+  }) =>
+      Habits(
+        parked: clearParked ? null : (parked ?? this.parked),
+        trips: trips ?? this.trips,
+        meals: meals ?? this.meals,
+        tripRoute: clearTrip ? null : (tripRoute ?? this.tripRoute),
+        tripStart: clearTrip ? null : (tripStart ?? this.tripStart),
+        tripRainy: clearTrip ? false : (tripRainy ?? this.tripRainy),
+      );
+
+  Map<String, dynamic> toJson() => {
+        if (parked != null) 'parked': parked!.toJson(),
+        'trips': [for (final t in trips) t.toJson()],
+        'meals': [for (final m in meals) m.toJson()],
+        if (tripRoute != null) 'tr': tripRoute,
+        if (tripStart != null) 'ts': tripStart!.toIso8601String(),
+        if (tripRainy) 'tw': true,
+      };
+
+  factory Habits.fromJson(Map<String, dynamic> j) => Habits(
+        parked: j['parked'] is Map ? ParkedCar.fromJson((j['parked'] as Map).cast<String, dynamic>()) : null,
+        trips: [for (final t in (j['trips'] as List? ?? const [])) TripLog.fromJson((t as Map).cast<String, dynamic>())],
+        meals: [for (final m in (j['meals'] as List? ?? const [])) MealLog.fromJson((m as Map).cast<String, dynamic>())],
+        tripRoute: j['tr'] as String?,
+        tripStart: j['ts'] == null ? null : DateTime.parse('${j['ts']}'),
+        tripRainy: j['tw'] == true,
+      );
+}

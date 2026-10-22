@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../data.dart';
+import '../l10n.dart';
 import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
@@ -11,6 +12,7 @@ import 'place_sheet.dart';
 import 'stop_picker.dart';
 import 'theme.dart';
 import 'today.dart';
+import 'wake.dart';
 import 'widgets.dart';
 
 IconData modeIcon(TravelMode m) => switch (m) {
@@ -69,6 +71,8 @@ class TripSection extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(4, 6, 4, 8),
           child: Text(title, style: t.titleLarge),
         ),
+        for (final a in _advice(ref, mode, from))
+          AlertBanner(icon: _adviceIcon(a), text: s.tripAdvice(a)),
         Padding(
           padding: const EdgeInsets.only(bottom: 14),
           child: PillRow(
@@ -80,11 +84,120 @@ class TripSection extends ConsumerWidget {
             },
           ),
         ),
+        _TripTimer(from: from, to: to),
         body,
       ],
     );
   }
 }
+
+/// Know me: "I'm leaving" / "Arrived" logs door-to-door time on this phone, and after a
+/// few trips the card says how long this trip usually takes (and on rainy days).
+class _TripTimer extends ConsumerWidget {
+  const _TripTimer({required this.from, required this.to});
+  final Place from;
+  final Place to;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!ref.watch(favoritesProvider.select((f) => f.learnHabits))) return const SizedBox.shrink();
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final h = ref.watch(habitsProvider);
+    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
+    final route = '${from.kind.name}>${to.kind.name}';
+    final rain = ref.watch(rainfallProvider).valueOrNull;
+    final forecast = ref.watch(forecastProvider).valueOrNull;
+    final rainy = (rain != null && (rainfallNear(rain, from.lat, from.lng)?.$2 ?? 0) > 0) ||
+        (forecast != null && (forecastNear(forecast, from.lat, from.lng)?.isRainy ?? false));
+
+    if (h.tripRoute == route && h.tripStart != null) {
+      final start = h.tripStart!;
+      return Panel(
+        color: DL.mint,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          // A column, not a row: the app's buttons are full width, which squeezed the text.
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.timer_outlined, color: DL.ink),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(s.onTheWay(clockLabel(start), s.durationShort(now.difference(start).inMinutes)),
+                        style: t.titleSmall?.copyWith(color: DL.ink)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              FilledButton(
+                onPressed: () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  final m = await ref.read(habitsProvider.notifier).finishTrip(DateTime.now());
+                  messenger.showSnackBar(SnackBar(content: Text(m == null ? s.tripTooShort : s.tripLogged(m))));
+                },
+                child: Text(s.arrived),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final stats = tripStats(h.trips, route);
+    final usual = rainy ? (stats.rainy ?? stats.usual) : stats.usual;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+              stats.usual == null
+                  ? s.tripLearnHint
+                  : [
+                      s.usualTrip(stats.usual!, stats.count),
+                      if (stats.rainy != null) s.rainyTrip(stats.rainy!),
+                      if (usual != null) s.arriveAbout(clockLabel(now.add(Duration(minutes: usual)))),
+                    ].join(' '),
+              style: stats.usual == null ? t.bodySmall : t.bodyMedium,
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.timer_outlined),
+            onPressed: () => ref.read(habitsProvider.notifier).startTrip(route, DateTime.now(), rainy: rainy),
+            label: Text(s.imLeaving),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Weather tips for this trip and mode, from the live NEA readings near the start.
+List<TripAdvice> _advice(WidgetRef ref, TravelMode mode, Place from) {
+  final lightning = ref.watch(lightningProvider).valueOrNull;
+  final wbgt = ref.watch(wbgtProvider).valueOrNull;
+  final forecast = ref.watch(forecastProvider).valueOrNull;
+  final rain = ref.watch(rainfallProvider).valueOrNull;
+  final air = airNear(ref.watch(psiProvider).valueOrNull, ref.watch(pm25Provider).valueOrNull, from.lat, from.lng);
+  final raining = rain == null ? 0.0 : (rainfallNear(rain, from.lat, from.lng)?.$2 ?? 0);
+  return tripAdvice(
+    mode: mode,
+    lightning: lightning != null && lightningNear(lightning, from.lat, from.lng),
+    highHeat: wbgt != null && isHighHeat(heatStressNear(wbgt, from.lat, from.lng)),
+    air: air?.level,
+    rainy: raining > 0 || (forecast != null && (forecastNear(forecast, from.lat, from.lng)?.isRainy ?? false)),
+  );
+}
+
+IconData _adviceIcon(TripAdvice a) => switch (a) {
+      TripAdvice.lightningRide || TripAdvice.lightningWalk => Icons.bolt,
+      TripAdvice.rainRide || TripAdvice.rainDrive || TripAdvice.rainTaxi => Icons.umbrella_outlined,
+      TripAdvice.heat => Icons.wb_sunny_outlined,
+      TripAdvice.haze => Icons.masks_outlined,
+    };
 
 // ---------------------------------------------------------------- bus / MRT
 
@@ -120,9 +233,14 @@ class _TransitBlock extends ConsumerWidget {
           to: to,
           toLabel: toLabel,
           suggestedMetres: trip.suggested ? distanceMeters(from.lat, from.lng, st.lat, st.lng) : null,
+          from: from,
         ),
     ];
     final mrt = _MrtOption(from: from, to: to);
+    // Plan B: when the train on this trip is disrupted, buses come first with a note.
+    final stations = ref.watch(mrtStationsProvider).valueOrNull ?? const <MrtStation>[];
+    final plan = stations.isEmpty ? null : mrtPlan(stations, from, to);
+    final bad = planDisruption(plan, ref.watch(trainAlertsProvider).valueOrNull);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -157,9 +275,30 @@ class _TransitBlock extends ConsumerWidget {
           ),
         // No direct bus anywhere near: the train is the real answer, so show it first.
         // Within walking distance the train is never the better answer.
+        if (bad.lines.isNotEmpty && straight >= walkInsteadMetres) ...[
+          AlertBanner(
+            icon: Icons.alt_route,
+            text: s.planB(bad.lines.map(s.lineName).join(', '), busOk: anyDirect, freeBus: bad.freeBus),
+          ),
+          if (!anyDirect)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                icon: const Icon(Icons.local_taxi_outlined),
+                label: Text(s.taxiInstead),
+                onPressed: () => showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  showDragHandle: true,
+                  builder: (_) => TaxiSheet(origin: from),
+                ),
+              ),
+            ),
+        ],
         if (straight < walkInsteadMetres)
           ...buses
-        else if (anyDirect)
+        else if (anyDirect || bad.lines.isNotEmpty)
           ...[...buses, mrt]
         else
           ...[mrt, ...buses],
@@ -276,7 +415,11 @@ class TripBusCard extends ConsumerWidget {
     required this.to,
     required this.toLabel,
     this.suggestedMetres,
+    this.from,
   });
+
+  /// Where the trip starts, for "leave in N min" (walk to the stop plus live arrivals).
+  final Place? from;
 
   /// Set when this is a nearby stop suggested instead of the saved ones.
   final double? suggestedMetres;
@@ -368,6 +511,22 @@ class TripBusCard extends ConsumerWidget {
                             child: Text(s.routeInMaps),
                           ),
                         ),
+                      if (direct.isNotEmpty && from != null)
+                        if (leaveBy(direct, null, walkMinutesTo(distanceMeters(from!.lat, from!.lng, stop.lat, stop.lng))) case final lb?
+                            when distanceMeters(from!.lat, from!.lng, stop.lat, stop.lng) < 1500)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.directions_walk, size: 20, color: DL.tealText),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(s.leaveIn(lb.service, lb.leaveIn, lb.walk),
+                                      style: t.titleSmall?.copyWith(color: DL.tealText)),
+                                ),
+                              ],
+                            ),
+                          ),
                       if (direct.isNotEmpty)
                         BusBoard(
                           arrLabel: s.minutesAway(0),
@@ -390,6 +549,24 @@ class TripBusCard extends ConsumerWidget {
                               ),
                           ],
                         ),
+                      if (direct.isNotEmpty)
+                        Builder(builder: (context) {
+                          final ride = rides[direct.first.$1.service]!;
+                          final byCode = {for (final x in all) x.code: x};
+                          final alight = byCode[ride.alightAt];
+                          if (alight == null) return const SizedBox.shrink();
+                          final before = byCode[stopBefore(routes, ride)];
+                          return Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              icon: const Icon(Icons.notifications_active_outlined),
+                              label: Text(s.wakeMeAt(alight.name)),
+                              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                                builder: (_) => WakeMePage(service: ride.service, alight: alight, before: before),
+                              )),
+                            ),
+                          );
+                        }),
                       if (others.isNotEmpty)
                         Theme(
                           data: Theme.of(context).copyWith(dividerColor: Colors.transparent),

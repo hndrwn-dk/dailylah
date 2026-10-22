@@ -62,6 +62,17 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   `.github/workflows/data.yml` (secret `LTA_ACCOUNT_KEY`, optional `DATAGOV_API_KEY`).
   OneMap geocodes are cached in `backend/data/geocode.json` (committed by the workflow).
   Optional bundles are best effort: a failing upstream keeps yesterday's file.
+- Nearby (`ui/nearby.dart`) is "I am here now": starts on Here, chips for one section at a time
+  (`nearbySectionProvider`: bus, eat, park, taxi, prayer, help). Eat offers GrabFood/foodpanda only
+  when it rains, the air is unhealthy or the nearest hawker is closed (`orderInReason`).
+- Trip extras (`ui/trip.dart`, rules in logic.dart): Plan B when the trip's MRT line is disrupted
+  (`planDisruption`), "Leave in N min" (`leaveBy`, plus one background reminder), weather tips per
+  mode (`tripAdvice`), "Wake me at my stop" (`ui/wake.dart`, `wakeRadius`; foreground location only
+  while it runs, never stored).
+- Habits (`Habits` in models.dart, `HabitsStore` in store.dart, `habitsProvider`): parked car, trips
+  logged with I'm leaving/Arrived (`tripStats`), "Ate here" meals (`mealNudge`). On the phone only,
+  behind `Favorites.learnHabits`, never in the share code. Weekly Sunday digest (`weeklyDigest`)
+  uses the `holidays.json` bundle (MOM public holidays).
 - Home tab (`ui/home.dart`) is about the saved home, one section at a time (chips under the hero,
   `homeSectionProvider`): its HDB block (`homeBlock`) or private project (`private_homes.json` from
   URA, `privateProjectFor`; backend `app/ura.py`, secret `URA_ACCESS_KEY`), upgrading and

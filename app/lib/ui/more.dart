@@ -75,6 +75,8 @@ class MorePage extends ConsumerWidget {
                     children: [
                       toggle(s.alertMrt, fav.mrtAlerts, (f, v) => f.copyWith(mrtAlerts: v)),
                       toggle(s.alertRain, fav.rainAlerts, (f, v) => f.copyWith(rainAlerts: v), sub: s.alertRainSub),
+                      toggle(s.alertLeave, fav.leaveAlerts, (f, v) => f.copyWith(leaveAlerts: v), sub: s.alertLeaveSub),
+                      toggle(s.alertDigest, fav.digestAlerts, (f, v) => f.copyWith(digestAlerts: v), sub: s.alertDigestSub),
                       toggle(s.alertHawker, fav.hawkerAlerts, (f, v) => f.copyWith(hawkerAlerts: v)),
                       toggle(s.alertDengue, fav.dengueAlerts, (f, v) => f.copyWith(dengueAlerts: v)),
                       toggle(s.alertHeat, fav.heatAlerts, (f, v) => f.copyWith(heatAlerts: v)),
@@ -88,6 +90,27 @@ class MorePage extends ConsumerWidget {
                     children: [
                       toggle(s.showPrayer, fav.showPrayer, (f, v) => f.copyWith(showPrayer: v), sub: s.showPrayerSub),
                       toggle(s.showHalal, fav.showHalal, (f, v) => f.copyWith(showHalal: v), sub: s.showHalalSub),
+                      toggle(s.learnHabits, fav.learnHabits, (f, v) => f.copyWith(learnHabits: v), sub: s.learnHabitsSub),
+                      ListTile(
+                        leading: const Icon(Icons.delete_outline),
+                        title: Text(s.deleteHistory, style: t.bodyMedium),
+                        onTap: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final ok = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              content: Text(s.deleteHistoryAsk),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(s.cancel)),
+                                FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text(s.delete)),
+                              ],
+                            ),
+                          );
+                          if (ok != true) return;
+                          await ref.read(habitsProvider.notifier).clearAll();
+                          messenger.showSnackBar(SnackBar(content: Text(s.deleted)));
+                        },
+                      ),
                     ],
                   ),
                 ),

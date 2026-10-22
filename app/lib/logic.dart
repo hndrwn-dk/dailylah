@@ -141,24 +141,29 @@ String loadLabel(String code) => switch (code) {
 // ---------------------------------------------------------------- MRT
 
 class LineStatus {
-  const LineStatus({required this.line, required this.disrupted, this.detail});
+  const LineStatus({required this.line, required this.disrupted, this.detail, this.freeBus = false});
   final String line;
   final bool disrupted;
   final String? detail;
+
+  /// LTA says free public buses (bridging buses) run along the affected stretch.
+  final bool freeBus;
 }
 
 /// Reads our API's wrapped LTA TrainServiceAlerts. Status 1 = normal, 2 = disrupted.
-List<LineStatus> lineStatuses(Map<String, dynamic> apiBody, Set<String> lines) {
+List<LineStatus> lineStatuses(Map<String, dynamic> apiBody, Set<String> lines, {S s = const S()}) {
   final value = (apiBody['data'] is Map) ? (apiBody['data'] as Map)['value'] : null;
   final affected = <String, String>{};
+  final freeBus = <String>{};
   if (value is Map && '${value['Status']}' == '2') {
     for (final seg in (value['AffectedSegments'] as List? ?? const [])) {
       final m = seg as Map;
       final line = '${m['Line']}';
+      if ((m['FreePublicBus'] ?? '').toString().isNotEmpty) freeBus.add(line);
       final parts = [
-        if ((m['Stations'] ?? '').toString().isNotEmpty) 'Stasiun: ${m['Stations']}',
-        if ((m['FreePublicBus'] ?? '').toString().isNotEmpty) 'Bus gratis tersedia',
-        if ((m['FreeMRTShuttle'] ?? '').toString().isNotEmpty) 'Shuttle tersedia',
+        if ((m['Stations'] ?? '').toString().isNotEmpty) s.mrtStations('${m['Stations']}'),
+        if ((m['FreePublicBus'] ?? '').toString().isNotEmpty) s.freeBusAvailable,
+        if ((m['FreeMRTShuttle'] ?? '').toString().isNotEmpty) s.shuttleAvailable,
       ];
       affected[line] = parts.join(' · ');
     }
@@ -173,7 +178,7 @@ List<LineStatus> lineStatuses(Map<String, dynamic> apiBody, Set<String> lines) {
   final sorted = lines.toList()..sort();
   return [
     for (final l in sorted)
-      LineStatus(line: l, disrupted: affected.containsKey(l), detail: affected[l]),
+      LineStatus(line: l, disrupted: affected.containsKey(l), detail: affected[l], freeBus: freeBus.contains(l)),
   ];
 }
 
@@ -911,8 +916,11 @@ class BusRoutes {
 
 /// How a service gets from the origin stop to the destination.
 class DirectRide {
-  const DirectRide({required this.service, required this.alightAt, required this.stops, required this.km});
+  const DirectRide({required this.service, required this.alightAt, required this.stops, required this.km, this.routeKey = ''});
   final String service;
+
+  /// Key into [BusRoutes.routes] ("service|direction"), for the stop before [alightAt].
+  final String routeKey;
   final String alightAt; // bus stop code to get off
   final int stops;
   final double km;
@@ -927,7 +935,8 @@ Map<String, DirectRide> directRides(BusRoutes routes, String origin, Set<String>
     if (i < 0) return;
     for (var j = i + 1; j < stops.length; j++) {
       if (!destStops.contains(stops[j].$1)) continue;
-      final ride = DirectRide(service: service, alightAt: stops[j].$1, stops: j - i, km: stops[j].$2 - stops[i].$2);
+      final ride = DirectRide(
+          service: service, alightAt: stops[j].$1, stops: j - i, km: stops[j].$2 - stops[i].$2, routeKey: key);
       final best = out[service];
       if (best == null || ride.km < best.km) out[service] = ride;
       break;
@@ -1321,3 +1330,216 @@ bool transitResting(DateTime now) {
   final m = now.hour * 60 + now.minute;
   return m >= 60 && m < 330;
 }
+
+// ---------------------------------------------------------------- plan B: MRT disrupted
+
+/// Lines an MRT plan rides (from the station codes at both ends).
+Set<String> mrtPlanLines(MrtPlan plan) => {
+      for (final c in [...plan.board.codes, ...plan.alight.codes])
+        if (lineOfCode(c) case final l?) l,
+    };
+
+/// Disrupted lines on this trip's MRT plan, and whether free bridging buses run.
+({List<String> lines, bool freeBus}) planDisruption(MrtPlan? plan, Map<String, dynamic>? alerts) {
+  if (plan == null || alerts == null) return (lines: const <String>[], freeBus: false);
+  final bad = [for (final st in lineStatuses(alerts, mrtPlanLines(plan))) if (st.disrupted) st];
+  return (lines: [for (final st in bad) st.line], freeBus: bad.any((st) => st.freeBus));
+}
+
+// ---------------------------------------------------------------- leave by
+
+/// Walking minutes for a straight-line distance (1.3 detour, 80 m a minute), at least 1.
+int walkMinutesTo(double metres) => math.max(1, (metres * 1.3 / 80).round());
+
+class LeaveBy {
+  const LeaveBy(this.service, this.leaveIn, this.walk);
+  final String service;
+
+  /// Minutes until the user should leave (0 = now).
+  final int leaveIn;
+  final int walk;
+}
+
+/// The bus the user can still catch first, among [services] (all when null):
+/// leave in (arrival - walk) minutes, using the following bus when the first is too soon.
+LeaveBy? leaveBy(List<(BusEta, int?)> grouped, Set<String>? services, int walk) {
+  LeaveBy? best;
+  for (final (e, next) in grouped) {
+    if (services != null && !services.contains(e.service)) continue;
+    for (final m in [e.minutes, if (next != null) next]) {
+      final l = m - walk;
+      if (l < 0) continue;
+      if (best == null || l < best.leaveIn) best = LeaveBy(e.service, l, walk);
+      break;
+    }
+  }
+  return best;
+}
+
+/// Morning leave-by reminder window: from 25 minutes before the usual departure
+/// until 5 minutes after it.
+bool inLeaveWindow(DateTime now, TimeOfDayHM go) {
+  final m = now.hour * 60 + now.minute;
+  final g = go.hour * 60 + go.minute;
+  return m >= g - 25 && m <= g + 5;
+}
+
+// ---------------------------------------------------------------- wake me at my stop
+
+/// Code of the stop just before [alightAt] on the ride's route, or null.
+String? stopBefore(BusRoutes routes, DirectRide ride) {
+  final list = routes.routes[ride.routeKey];
+  if (list == null) return null;
+  final j = list.indexWhere((s) => s.$1 == ride.alightAt);
+  return j > 0 ? list[j - 1].$1 : null;
+}
+
+/// Wake the rider when this close (metres) to the stop to get off: about when the bus
+/// leaves the stop before it. Between 300 m and 1.2 km.
+double wakeRadius(BusStop? before, BusStop alight) => before == null
+    ? 500
+    : (distanceMeters(before.lat, before.lng, alight.lat, alight.lng) + 100).clamp(300, 1200).toDouble();
+
+// ---------------------------------------------------------------- know me (habits on the phone)
+
+int _median(List<int> xs) {
+  final s = [...xs]..sort();
+  return s.isEmpty ? 0 : s[s.length ~/ 2];
+}
+
+/// Minutes of a finished trip, or null when it does not look like one (under 3 min or over 3 h).
+int? tripMinutes(DateTime start, DateTime end) {
+  final m = end.difference(start).inMinutes;
+  return m < 3 || m > 180 ? null : m;
+}
+
+/// Usual door-to-door minutes on a route ("home>work") from logged trips: the median once
+/// there are 3 trips, and the rainy-day median once there are 2 rainy ones.
+({int? usual, int? rainy, int count}) tripStats(List<TripLog> logs, String route) {
+  final mine = [for (final t in logs) if (t.route == route) t];
+  final wet = [for (final t in mine) if (t.rainy) t.minutes];
+  return (
+    usual: mine.length >= 3 ? _median([for (final t in mine) t.minutes]) : null,
+    rainy: wet.length >= 2 ? _median(wet) : null,
+    count: mine.length,
+  );
+}
+
+class MealNudge {
+  const MealNudge(this.usual, this.times, this.instead, this.distance);
+  final Hawker usual;
+  final int times;
+  final Hawker instead;
+  final double distance;
+}
+
+/// When one hawker centre had 3 or more "Ate here" taps in 30 days, suggest the nearest
+/// other one (within 2 km of the place) that is open today and not tried in that time.
+MealNudge? mealNudge(List<MealLog> meals, List<Hawker> all, DateTime now, double lat, double lng) {
+  final since = now.subtract(const Duration(days: 30));
+  final counts = <String, int>{};
+  for (final m in meals) {
+    if (m.at.isAfter(since)) counts[m.hawkerId] = (counts[m.hawkerId] ?? 0) + 1;
+  }
+  if (counts.isEmpty) return null;
+  final top = counts.entries.reduce((a, b) => b.value > a.value ? b : a);
+  if (top.value < 3) return null;
+  final usual = all.where((h) => h.id == top.key).firstOrNull;
+  if (usual == null) return null;
+  final today = dateOnly(now);
+  for (final (h, d) in within(all, lat, lng, 2000, latOf: (h) => h.lat, lngOf: (h) => h.lng)) {
+    if (counts.containsKey(h.id) || h.closureOn(today) != null) continue;
+    return MealNudge(usual, top.value, h, d);
+  }
+  return null;
+}
+
+/// True once the parking reminder time has passed.
+bool parkReminderDue(ParkedCar p, DateTime now) =>
+    p.remindMinutes != null && !now.isBefore(p.at.add(Duration(minutes: p.remindMinutes!)));
+
+// ---------------------------------------------------------------- weekly digest
+
+/// A public holiday from the holidays.json bundle.
+class Holiday {
+  const Holiday(this.date, this.name);
+  final DateTime date;
+  final String name;
+
+  static List<Holiday> fromBundle(Object? raw) => [
+        if (raw is List)
+          for (final r in raw)
+            if (r is Map && DateTime.tryParse('${r['d']}') != null) Holiday(DateTime.parse('${r['d']}'), '${r['n']}'),
+      ];
+}
+
+const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+/// Lines for the Sunday "This week around you" notification, covering the 7 days after
+/// [now]: favourite hawker closures, works at the home block, dengue near home and public
+/// holidays. Empty when there is nothing worth a notification.
+List<String> weeklyDigest({
+  required S s,
+  required Favorites fav,
+  required DateTime now,
+  List<Hawker> hawkers = const [],
+  List<Project> projects = const [],
+  List<DengueCluster> dengue = const [],
+  List<Holiday> holidays = const [],
+}) {
+  final today = dateOnly(now);
+  final end = today.add(const Duration(days: 8));
+  final out = <String>[];
+  for (final h in hawkers) {
+    if (!fav.hawkers.contains(h.id)) continue;
+    for (final c in h.closures) {
+      if (!c.to.isBefore(today) && c.from.isBefore(end)) {
+        out.add(s.digestHawker(h.name, shortDate(c.from), shortDate(c.to)));
+        break;
+      }
+    }
+  }
+  final home = fav.places[PlaceKind.home];
+  if (home != null) {
+    final works = upgradingAtHome(projectsNear(projects, home.lat, home.lng, radius: 200, now: now));
+    if (works.isNotEmpty) out.add(s.digestWorks(works.first.name));
+    final d = dengueNear(dengue, home.lat, home.lng, km: 1);
+    if (d.isNotEmpty) out.add(s.digestDengue(d.length));
+  }
+  for (final h in holidays) {
+    if (!h.date.isBefore(today) && h.date.isBefore(end)) {
+      out.add(s.digestHoliday(h.name, '${_weekdays[h.date.weekday - 1]} ${shortDate(h.date)}'));
+    }
+  }
+  return out;
+}
+
+/// Sunday from 18:00 to 21:59: when the weekly digest goes out.
+bool inDigestWindow(DateTime now) => now.weekday == DateTime.sunday && now.hour >= 18 && now.hour < 22;
+
+// ---------------------------------------------------------------- weather advice per travel mode
+
+/// Up to two concrete tips for the chosen way of travelling, most urgent first.
+List<TripAdvice> tripAdvice({
+  required TravelMode mode,
+  bool lightning = false,
+  bool highHeat = false,
+  AirLevel? air,
+  bool rainy = false,
+}) {
+  final riding = mode == TravelMode.bicycle || mode == TravelMode.motorcycle;
+  final out = <TripAdvice>[
+    if (lightning && riding) TripAdvice.lightningRide,
+    if (lightning && mode == TravelMode.transit) TripAdvice.lightningWalk,
+    if (rainy && riding) TripAdvice.rainRide,
+    if (rainy && mode == TravelMode.car) TripAdvice.rainDrive,
+    if (rainy && mode == TravelMode.taxi) TripAdvice.rainTaxi,
+    if (highHeat && (riding || mode == TravelMode.transit)) TripAdvice.heat,
+    if (air != null && air.index >= AirLevel.unhealthy.index && mode != TravelMode.car && mode != TravelMode.taxi)
+      TripAdvice.haze,
+  ];
+  return out.take(2).toList();
+}
+
+/// "8:05" style clock time.
+String clockLabel(DateTime t) => '${t.hour}:${t.minute.toString().padLeft(2, '0')}';

@@ -15,7 +15,7 @@ import re
 import statistics
 import time
 from collections import Counter, defaultdict
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -41,6 +41,7 @@ COMMUNITY_CLUBS = "d_9de02d3fb33d96da1855f4fbef549a0f"
 PARKS = "d_0542d48f0991541706b58059381a6eca"
 LIBRARIES = "d_27b8dae65d9ca1539e14d09578b17cbf"
 SPORT_FACILITIES = "d_2cfb0867cdeb2b7303068995699dc33b"
+PUBLIC_HOLIDAYS = "d_8ef23381f9417e4d4254ee8b4dcdb176"  # MOM, consolidated 2020 onwards
 CARPARK_INFO = "d_23f946fa557947f93a8043bbef41dd09"
 HDB_PROPERTY = "d_17f5382f26140b1fdae0ba2ef6239d2f"
 RESALE = "d_8b84c4ee58e3cfc0ece0d773c8ca6abc"
@@ -554,6 +555,23 @@ async def build_dengue(dg: DataGov) -> dict:
 
 async def build_carparks(dg: DataGov) -> list[dict]:
     return compact_carparks(await dg.rows(CARPARK_INFO))
+
+
+def compact_holidays(rows: list[dict], today: date) -> list[dict]:
+    """MOM public holidays from a month ago onwards: [{"d": "2026-12-25", "n": "Christmas Day"}]."""
+    since = (today - timedelta(days=31)).isoformat()
+    out = []
+    for r in rows:
+        low = {str(k).lower(): v for k, v in r.items()}
+        d = str(low.get("date", "")).strip()[:10]
+        name = str(low.get("holiday", "")).strip()
+        if len(d) == 10 and name and d >= since:
+            out.append({"d": d, "n": name})
+    return sorted(out, key=lambda x: x["d"])
+
+
+async def build_holidays(dg: DataGov, today: date) -> list[dict]:
+    return compact_holidays(await dg.rows(PUBLIC_HOLIDAYS), today)
 
 
 async def build_prayer(dg: DataGov) -> dict:

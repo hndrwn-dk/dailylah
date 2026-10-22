@@ -112,6 +112,61 @@ class FavoritesNotifier extends Notifier<Favorites> {
 
 final favoritesProvider = NotifierProvider<FavoritesNotifier, Favorites>(FavoritesNotifier.new);
 
+/// Parked car, logged trips and meals. On this phone only (SharedPreferences).
+class HabitsNotifier extends Notifier<Habits> {
+  final _store = HabitsStore();
+
+  @override
+  Habits build() {
+    Future(() async {
+      final h = await _store.load();
+      state = h;
+    });
+    return Habits.empty;
+  }
+
+  Future<void> _set(Habits h) async {
+    state = h;
+    await _store.save(h);
+  }
+
+  Future<void> park(ParkedCar p) => _set(state.copyWith(parked: p));
+  Future<void> clearParked() => _set(state.copyWith(clearParked: true));
+
+  Future<void> startTrip(String route, DateTime now, {bool rainy = false}) =>
+      _set(state.copyWith(tripRoute: route, tripStart: now, tripRainy: rainy));
+
+  /// Finishes the running trip; returns its minutes, or null when it was not kept.
+  Future<int?> finishTrip(DateTime now) async {
+    final start = state.tripStart;
+    final route = state.tripRoute;
+    if (start == null || route == null) return null;
+    final m = tripMinutes(start, now);
+    final trips = [
+      ...state.trips,
+      if (m != null) TripLog(route: route, start: start, minutes: m, rainy: state.tripRainy),
+    ];
+    await _set(state.copyWith(
+      trips: trips.length > Habits.maxTrips ? trips.sublist(trips.length - Habits.maxTrips) : trips,
+      clearTrip: true,
+    ));
+    return m;
+  }
+
+  Future<void> ateAt(String hawkerId, DateTime now) {
+    final meals = [...state.meals, MealLog(hawkerId: hawkerId, at: now)];
+    return _set(state.copyWith(meals: meals.length > Habits.maxMeals ? meals.sublist(meals.length - Habits.maxMeals) : meals));
+  }
+
+  /// Deletes logged trips and meals and the parked car.
+  Future<void> clearAll() async {
+    state = Habits.empty;
+    await _store.clear();
+  }
+}
+
+final habitsProvider = NotifierProvider<HabitsNotifier, Habits>(HabitsNotifier.new);
+
 
 final stringsProvider = Provider<S>((ref) => const S());
 
@@ -171,6 +226,9 @@ final privateHomesProvider =
 
 /// Section shown on the Home tab ("home", "works", "schools" ...).
 final homeSectionProvider = StateProvider<String>((ref) => 'home');
+
+/// Which Nearby section is shown: bus, eat, park, taxi, prayer or help.
+final nearbySectionProvider = StateProvider<String>((ref) => 'bus');
 
 /// Halal places listed on Muslim.sg (opt-in feature).
 final halalProvider = FutureProvider<List<EPoint>>((ref) => _list(ref, 'halal', EPoint.fromBundle));

@@ -36,6 +36,14 @@ Future<void> initNotifications() async {
   await notifications.initialize(settings: settings);
 }
 
+/// Shows one notification right away (used by screens, e.g. "Wake me at my stop").
+Future<void> notifyNow(int id, String title, String body) => notifications.show(
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: NotificationDetails(android: _channel(const S())),
+    );
+
 Future<void> requestNotificationPermission() async {
   await notifications
       .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
@@ -137,6 +145,79 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
       await log.markSent(id);
       break;
     }
+  });
+
+  // Leave by: one reminder near the usual departure, for the first bus worth leaving for.
+  await guard(() async {
+    if (!fav.leaveAlerts || quiet || kind != CardKind.morning || origin == null) return;
+    final (goAt, _) = commuteTimes(fav, now);
+    if (!inLeaveWindow(now, goAt) || await log.alreadySent('leave:$day')) return;
+    final dest = destinationFor(kind, fav, now);
+    final to = dest == null ? null : fav.places[dest];
+    final stops = usableStops(origin);
+    if (to == null || stops.isEmpty) return;
+    final routesRaw = await repo.load('bus_routes');
+    final stopsRaw = await repo.load('bus_stops');
+    if (routesRaw is! Map<String, dynamic> || stopsRaw is! List) return;
+    final routes = BusRoutes.fromBundle(routesRaw);
+    final all = [for (final r in stopsRaw) BusStop.fromBundle(r as Map<String, dynamic>)];
+    final destStops = destinationStops(to, all);
+    for (final st in stops) {
+      final services = tripRides(routes, st, to, destStops).keys.toSet();
+      if (services.isEmpty) continue;
+      final etas = groupEtas(parseBusArrival(await api.busArrival(st.code), now));
+      final walk = walkMinutesTo(distanceMeters(origin.lat, origin.lng, st.lat, st.lng));
+      final lb = leaveBy(etas, services, walk);
+      if (lb == null || lb.leaveIn > 10) continue;
+      await notify(9, s.leaveTitle, s.leaveIn(lb.service, lb.leaveIn, lb.walk));
+      await log.markSent('leave:$day');
+      return;
+    }
+  });
+
+  // Parking time is up (set with "I parked here"): once per parking.
+  await guard(() async {
+    final p = (await HabitsStore().load()).parked;
+    if (p == null || !parkReminderDue(p, now)) return;
+    final id = 'park:${p.at.toIso8601String()}';
+    if (await log.alreadySent(id)) return;
+    await notify(11, s.parkTitle, s.parkReminder(p.name));
+    await log.markSent(id);
+  });
+
+  // Weekly digest: Sunday evening, once a week, only when there is something to say.
+  await guard(() async {
+    if (!fav.digestAlerts || !inDigestWindow(now) || await log.alreadySent('digest:$day')) return;
+    final hawkersRaw = await repo.load('hawkers');
+    final dengueRaw = await repo.load('dengue');
+    final aroundRaw = await repo.load('around');
+    final lines = weeklyDigest(
+      s: s,
+      fav: fav,
+      now: now,
+      hawkers: [if (hawkersRaw is List) for (final r in hawkersRaw) Hawker.fromBundle(r as Map<String, dynamic>)],
+      dengue: [
+        if (dengueRaw is Map && dengueRaw['clusters'] is List)
+          for (final c in dengueRaw['clusters'] as List) DengueCluster.fromBundle(c as Map<String, dynamic>),
+      ],
+      projects: aroundRaw is Map<String, dynamic> ? AroundSet.fromBundle(aroundRaw).projects : const [],
+      holidays: Holiday.fromBundle(await repo.load('holidays')),
+    );
+    if (lines.isEmpty) return;
+    await notifications.show(
+      id: 12,
+      title: s.digestTitle,
+      body: lines.join('\n'),
+      notificationDetails: NotificationDetails(
+        android: AndroidNotificationDetails(
+          'dailylah_alerts',
+          s.channelName,
+          channelDescription: s.channelDesc,
+          styleInformation: BigTextStyleInformation(lines.join('\n')),
+        ),
+      ),
+    );
+    await log.markSent('digest:$day');
   });
 
   // Favourite hawker closed tomorrow: in the evening, once per hawker per day.
