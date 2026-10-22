@@ -66,6 +66,18 @@ def sticker(size, with_bg=True, mono=False):
            stroke_width=round(0.5 * u), stroke_fill=ink)
     return im.resize((size, size), Image.LANCZOS)
 
+def fit_safe(im, span=60):
+    """Adaptive icon layer: shrink the mark (with its shadow) to [span] of 108 units and
+    centre it, so launcher masks (circle, squircle; safe zone is the central 66) never cut it."""
+    size = im.size[0]
+    box = im.getbbox()
+    mark = im.crop(box)
+    k = (span / 108.0 * size) / max(mark.size)
+    mark = mark.resize((max(1, round(mark.size[0] * k)), max(1, round(mark.size[1] * k))), Image.LANCZOS)
+    out = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    out.paste(mark, ((size - mark.size[0]) // 2, (size - mark.size[1]) // 2), mark)
+    return out
+
 def rounded(im, radius_frac=0.22):
     size = im.size[0]
     mask = Image.new("L", (size * 4, size * 4), 0)
@@ -84,9 +96,9 @@ if __name__ == "__main__":
         os.makedirs(dirp, exist_ok=True)
         legacy = rounded(sticker(int(48 * k) * 4).resize((int(48 * k),) * 2, Image.LANCZOS))
         legacy.save(os.path.join(dirp, "ic_launcher.png"))
-        fg = sticker(int(108 * k), with_bg=False)
+        fg = fit_safe(sticker(int(108 * k) * 4, with_bg=False)).resize((int(108 * k),) * 2, Image.LANCZOS)
         fg.save(os.path.join(dirp, "ic_launcher_foreground.png"))
-        mono = sticker(int(108 * k), with_bg=False, mono=True)
+        mono = fit_safe(sticker(int(108 * k) * 4, with_bg=False, mono=True)).resize((int(108 * k),) * 2, Image.LANCZOS)
         mono.save(os.path.join(dirp, "ic_launcher_monochrome.png"))
     rounded(sticker(512)).save(os.path.join(out, "play_store_512.png"))
     sticker(1024).save(os.path.join(out, "icon_1024.png"))
