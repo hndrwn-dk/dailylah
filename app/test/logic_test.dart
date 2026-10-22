@@ -750,4 +750,14 @@ void main() {
     expect(lines.any((l) => l.contains('Christmas')), isFalse);
     expect(weeklyDigest(s: const S(), fav: const Favorites(), now: now), isEmpty);
   });
+
+  test('weather advice depends on how you travel', () {
+    expect(tripAdvice(mode: TravelMode.bicycle, lightning: true, rainy: true),
+        [TripAdvice.lightningRide, TripAdvice.rainRide]);
+    expect(tripAdvice(mode: TravelMode.car, lightning: true, highHeat: true), isEmpty);
+    expect(tripAdvice(mode: TravelMode.car, rainy: true), [TripAdvice.rainDrive]);
+    expect(tripAdvice(mode: TravelMode.transit, highHeat: true, air: AirLevel.unhealthy),
+        [TripAdvice.heat, TripAdvice.haze]);
+    expect(tripAdvice(mode: TravelMode.taxi, air: AirLevel.hazardous), isEmpty);
+  });
 }

@@ -70,6 +70,8 @@ class TripSection extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(4, 6, 4, 8),
           child: Text(title, style: t.titleLarge),
         ),
+        for (final a in _advice(ref, mode, from))
+          AlertBanner(icon: _adviceIcon(a), text: s.tripAdvice(a)),
         Padding(
           padding: const EdgeInsets.only(bottom: 14),
           child: PillRow(
@@ -86,6 +88,30 @@ class TripSection extends ConsumerWidget {
     );
   }
 }
+
+/// Weather tips for this trip and mode, from the live NEA readings near the start.
+List<TripAdvice> _advice(WidgetRef ref, TravelMode mode, Place from) {
+  final lightning = ref.watch(lightningProvider).valueOrNull;
+  final wbgt = ref.watch(wbgtProvider).valueOrNull;
+  final forecast = ref.watch(forecastProvider).valueOrNull;
+  final rain = ref.watch(rainfallProvider).valueOrNull;
+  final air = airNear(ref.watch(psiProvider).valueOrNull, ref.watch(pm25Provider).valueOrNull, from.lat, from.lng);
+  final raining = rain == null ? 0.0 : (rainfallNear(rain, from.lat, from.lng)?.$2 ?? 0);
+  return tripAdvice(
+    mode: mode,
+    lightning: lightning != null && lightningNear(lightning, from.lat, from.lng),
+    highHeat: wbgt != null && isHighHeat(heatStressNear(wbgt, from.lat, from.lng)),
+    air: air?.level,
+    rainy: raining > 0 || (forecast != null && (forecastNear(forecast, from.lat, from.lng)?.isRainy ?? false)),
+  );
+}
+
+IconData _adviceIcon(TripAdvice a) => switch (a) {
+      TripAdvice.lightningRide || TripAdvice.lightningWalk => Icons.bolt,
+      TripAdvice.rainRide || TripAdvice.rainDrive || TripAdvice.rainTaxi => Icons.umbrella_outlined,
+      TripAdvice.heat => Icons.wb_sunny_outlined,
+      TripAdvice.haze => Icons.masks_outlined,
+    };
 
 // ---------------------------------------------------------------- bus / MRT
 

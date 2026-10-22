@@ -1516,3 +1516,27 @@ List<String> weeklyDigest({
 
 /// Sunday from 18:00 to 21:59: when the weekly digest goes out.
 bool inDigestWindow(DateTime now) => now.weekday == DateTime.sunday && now.hour >= 18 && now.hour < 22;
+
+// ---------------------------------------------------------------- weather advice per travel mode
+
+/// Up to two concrete tips for the chosen way of travelling, most urgent first.
+List<TripAdvice> tripAdvice({
+  required TravelMode mode,
+  bool lightning = false,
+  bool highHeat = false,
+  AirLevel? air,
+  bool rainy = false,
+}) {
+  final riding = mode == TravelMode.bicycle || mode == TravelMode.motorcycle;
+  final out = <TripAdvice>[
+    if (lightning && riding) TripAdvice.lightningRide,
+    if (lightning && mode == TravelMode.transit) TripAdvice.lightningWalk,
+    if (rainy && riding) TripAdvice.rainRide,
+    if (rainy && mode == TravelMode.car) TripAdvice.rainDrive,
+    if (rainy && mode == TravelMode.taxi) TripAdvice.rainTaxi,
+    if (highHeat && (riding || mode == TravelMode.transit)) TripAdvice.heat,
+    if (air != null && air.index >= AirLevel.unhealthy.index && mode != TravelMode.car && mode != TravelMode.taxi)
+      TripAdvice.haze,
+  ];
+  return out.take(2).toList();
+}

@@ -10,6 +10,9 @@ enum AirLevel { good, moderate, unhealthy, veryUnhealthy, hazardous }
 /// Why Nearby suggests ordering food in, most pressing first.
 enum OrderInReason { rain, haze, hawkerClosed }
 
+/// Weather tips for the chosen way of travelling (see tripAdvice in logic.dart).
+enum TripAdvice { lightningRide, lightningWalk, rainRide, rainDrive, rainTaxi, heat, haze }
+
 class S {
   const S();
 
@@ -303,6 +306,17 @@ class S {
   String get deleteHistoryAsk => 'Delete logged trips, meals and your parked car from this phone?';
   String get deleted => 'Deleted.';
   String get delete => 'Delete';
+
+  // ---------------------------------------------------------------- advice per travel mode
+  String tripAdvice(TripAdvice a) => switch (a) {
+        TripAdvice.lightningRide => 'Lightning nearby. Hold off riding until it passes.',
+        TripAdvice.lightningWalk => 'Lightning nearby. Wait under shelter before walking to the stop.',
+        TripAdvice.rainRide => 'Rain on the way. Bring a rain jacket or wait it out.',
+        TripAdvice.rainDrive => 'Rain on the way. Roads get slower, so allow extra time.',
+        TripAdvice.rainTaxi => 'Rain on the way. Taxis get scarce, so book early.',
+        TripAdvice.heat => 'High heat. Bring water and take the sheltered way.',
+        TripAdvice.haze => 'The air is unhealthy. Wear a mask if you are outdoors for long.',
+      };
 
   // ---------------------------------------------------------------- weekly digest
   String get digestTitle => 'This week around you';
