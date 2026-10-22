@@ -116,15 +116,22 @@ class _TripTimer extends ConsumerWidget {
       return Panel(
         color: DL.mint,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-          child: Row(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          // A column, not a row: the app's buttons are full width, which squeezed the text.
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(Icons.timer_outlined, color: DL.ink),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(s.onTheWay(clockLabel(start), s.durationShort(now.difference(start).inMinutes)),
-                    style: t.titleSmall?.copyWith(color: DL.ink)),
+              Row(
+                children: [
+                  const Icon(Icons.timer_outlined, color: DL.ink),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(s.onTheWay(clockLabel(start), s.durationShort(now.difference(start).inMinutes)),
+                        style: t.titleSmall?.copyWith(color: DL.ink)),
+                  ),
+                ],
               ),
+              const SizedBox(height: 10),
               FilledButton(
                 onPressed: () async {
                   final messenger = ScaffoldMessenger.of(context);
@@ -143,11 +150,10 @@ class _TripTimer extends ConsumerWidget {
     final usual = rainy ? (stats.rainy ?? stats.usual) : stats.usual;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: Text(
+          Text(
               stats.usual == null
                   ? s.tripLearnHint
                   : [
@@ -156,12 +162,12 @@ class _TripTimer extends ConsumerWidget {
                       if (usual != null) s.arriveAbout(clockLabel(now.add(Duration(minutes: usual)))),
                     ].join(' '),
               style: stats.usual == null ? t.bodySmall : t.bodyMedium,
-            ),
           ),
-          const SizedBox(width: 8),
-          OutlinedButton(
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.timer_outlined),
             onPressed: () => ref.read(habitsProvider.notifier).startTrip(route, DateTime.now(), rainy: rainy),
-            child: Text(s.imLeaving),
+            label: Text(s.imLeaving),
           ),
         ],
       ),
