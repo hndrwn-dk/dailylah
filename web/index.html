@@ -1,35 +1,198 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-SG">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DailyLah — your daily SG kaki</title>
-<meta name="description" content="Free app that turns Singapore open data into a simple morning and evening card: buses, MRT, rain, hawkers and more.">
+<title>DailyLah: know before you go lah</title>
+<meta name="description" content="A free Android app for Singapore. Your bus, your MRT line, rain before you leave, hawker closures and what is around your block, from open government data. No account, your places stay on your phone.">
+<link rel="canonical" href="https://dailylah.sg/">
+<link rel="icon" href="/favicon.png" sizes="32x32">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<meta property="og:title" content="DailyLah: know before you go lah">
+<meta property="og:description" content="Bus coming? MRT delay? Need umbrella meh? One free app for your Singapore day.">
+<meta property="og:image" content="https://dailylah.sg/brand/og.jpg">
+<meta property="og:url" content="https://dailylah.sg/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#E8F3F6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B1214" media="(prefers-color-scheme: dark)">
+<link rel="preload" href="/fonts/BarlowCondensed-Bold.woff2" as="font" type="font/woff2" crossorigin>
 <style>
-  :root { --bg:#fffaf3; --ink:#1d1b18; --muted:#6b645a; --accent:#d9480f; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#171513; --ink:#f3eee6; --muted:#a59d91; --accent:#ff8a4c; } }
-  * { box-sizing:border-box } body { margin:0; background:var(--bg); color:var(--ink); font:17px/1.6 system-ui, sans-serif }
-  main { max-width:640px; margin:0 auto; padding:64px 20px }
-  h1 { font-size:44px; line-height:1.1; margin:0 0 12px } h1 span { color:var(--accent) }
-  p { color:var(--muted) } ul { padding-left:20px } footer { margin-top:48px; font-size:14px; color:var(--muted) }
-  a { color:var(--accent) }
+  @font-face { font-family: "Barlow Condensed"; src: url(/fonts/BarlowCondensed-Bold.woff2) format("woff2"); font-weight: 700; font-display: swap; }
+  @font-face { font-family: "Plus Jakarta Sans"; src: url(/fonts/PlusJakartaSans.woff2) format("woff2"); font-weight: 200 800; font-display: swap; }
+
+  /* Same tokens as the app (app/lib/ui/theme.dart, class DL). */
+  :root {
+    --paper: #E8F3F6; --card: #F4FBFE; --ink: #0F1618; --mist: #50646A;
+    --teal: #0E9488; --teal-text: #0A7068; --amber: #EDAD2B; --stop: #DC4A37;
+    --mint: #CFEDEA; --sky: #BFE4F1;
+    --board: #101719; --led: #FFB627; --led-dim: #B9C7CB;
+    --edge: var(--ink); --shadow: var(--ink);
+    --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+    --body: "Plus Jakarta Sans", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #0B1214; --card: #152024; --ink: #E8F3F6; --mist: #A9BCC2; --teal-text: #3CC4B6;
+            --mint: #17322F; --sky: #16303A; --edge: #5E7880; --shadow: #000; }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.6 var(--body); }
+  a { color: var(--teal-text); text-underline-offset: 3px; }
+  a:focus-visible, .sticker:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; border-radius: 6px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+
+  /* Sticker: ink outline and a hard offset shadow, like the app's Panel. */
+  .sticker { background: var(--card); border: 2.5px solid var(--edge); border-radius: 16px; box-shadow: 4px 5px 0 var(--shadow); }
+
+  /* ---------------- hero */
+  .hero { padding: 40px 0 56px; display: grid; gap: 40px; align-items: center; }
+  @media (min-width: 880px) { .hero { grid-template-columns: 1.05fr 1fr; padding: 72px 0 88px; } }
+  .logo { width: 168px; height: auto; display: block; margin-bottom: 28px; }
+  h1 { font: 700 clamp(52px, 9vw, 92px)/0.92 var(--display); letter-spacing: -0.01em; margin: 0 0 22px; max-width: 9ch; }
+  .asks { list-style: none; padding: 0; margin: 0 0 30px; color: var(--mist); font-size: 19px; line-height: 1.5; }
+  .play { display: inline-flex; align-items: center; gap: 12px; padding: 12px 18px; background: var(--amber); color: #0F1618;
+          border: 2.5px solid var(--edge); border-radius: 14px; box-shadow: 3px 4px 0 var(--shadow); font-weight: 700; }
+  .play svg { flex: none; }
+  .fine { margin: 14px 0 0; color: var(--mist); font-size: 15px; }
+
+  /* ---------------- LED bus board (the one loud thing) */
+  .stop { padding: 18px 18px 20px; max-width: 460px; justify-self: center; width: 100%; }
+  .stop-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .pole { width: 40px; height: 40px; border-radius: 10px; background: var(--teal); display: grid; place-items: center; flex: none; border: 2.5px solid var(--edge); }
+  .stop-name { font-weight: 700; line-height: 1.25; }
+  .stop-sub { color: var(--mist); font-size: 14px; }
+  .board { background: var(--board); border-radius: 12px; padding: 6px 16px; border: 2.5px solid var(--edge); box-shadow: 3px 3px 0 var(--shadow); }
+  .row { display: grid; grid-template-columns: 74px 1fr auto; align-items: baseline; gap: 10px; padding: 10px 0; color: var(--led); font-family: var(--display); }
+  .row + .row { border-top: 1px solid rgba(255, 182, 39, 0.2); }
+  .svc { font-size: 34px; line-height: 1; }
+  .eta { font-size: 34px; line-height: 1; text-align: right; }
+  .eta small { font-size: 18px; margin-left: 3px; }
+  .then { font: 600 14px/1.2 var(--body); color: var(--led-dim); }
+  .arr { display: inline-block; background: var(--led); color: var(--board); border-radius: 7px; padding: 0 8px; }
+  @media (prefers-reduced-motion: no-preference) {
+    .arr { animation: blink 1.1s steps(1) 0.6s 4; }
+    @keyframes blink { 50% { opacity: 0.15; } }
+  }
+  .load { font: 500 13px/1.3 var(--body); color: var(--led-dim); grid-column: 2 / 4; margin-top: -4px; }
+
+  /* ---------------- tabs */
+  h2 { font: 700 clamp(36px, 5vw, 52px)/1 var(--display); margin: 0 0 10px; }
+  .lead { color: var(--mist); max-width: 60ch; margin: 0 0 32px; }
+  .tabs { display: grid; gap: 22px; padding-bottom: 72px; }
+  @media (min-width: 760px) { .tabs { grid-template-columns: repeat(3, 1fr); } }
+  .tab { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .tab h3 { font: 700 30px/1 var(--display); margin: 0; }
+  .tab p { margin: 0; color: var(--mist); font-size: 16px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .line { font: 700 15px/1 var(--display); color: #fff; padding: 6px 9px; border-radius: 8px; border: 2px solid var(--edge); }
+  .note { border-radius: 12px; padding: 10px 12px; font-weight: 600; font-size: 15px; border: 2px solid var(--edge); color: #0F1618; }
+  .note.look { background: var(--amber); }
+  .note.go { background: var(--mint); color: var(--ink); }
+  .blk { font: 700 64px/0.9 var(--display); color: var(--teal-text); }
+  .blk small { display: block; font: 600 15px/1.3 var(--body); color: var(--mist); margin-top: 6px; }
+  .order { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .order span { text-align: center; padding: 8px; border-radius: 10px; border: 2px solid var(--edge); background: var(--sky); font-weight: 700; font-size: 15px; color: var(--ink); }
+
+  /* ---------------- privacy */
+  .private { padding: 28px 24px; margin-bottom: 72px; background: var(--mint); display: grid; gap: 18px; }
+  @media (min-width: 760px) { .private { grid-template-columns: 1fr 1.4fr; padding: 36px; } }
+  .private h2 { margin: 0; }
+  .private ul { margin: 0; padding-left: 20px; }
+  .private li + li { margin-top: 6px; }
+
+  footer { padding: 28px 0 48px; color: var(--mist); font-size: 14px; border-top: 2px solid var(--edge); }
+  footer p { margin: 0 0 8px; max-width: 70ch; }
+  footer nav { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; font-weight: 600; }
 </style>
 </head>
 <body>
-<main>
-  <h1>Daily<span>Lah</span></h1>
-  <p>Your daily SG kaki. One morning card, one evening card, and only the alerts that matter.</p>
-  <ul>
-    <li>Next bus at your stop, and how crowded it is</li>
-    <li>MRT disruptions on your line</li>
-    <li>Rain coming before you leave the office</li>
-    <li>Your favourite hawker closed tomorrow</li>
-  </ul>
-  <p>Coming soon to Google Play. Free, no account, your locations stay on your phone.</p>
-  <footer>
-    Data: data.gov.sg and LTA DataMall, used under their open data terms. Not affiliated with the Singapore Government.
-    · <a href="https://www.tursinalabs.com/dailylah/privacy">Privacy</a> · <a href="https://www.tursinalabs.com/dailylah/terms">Terms</a> · <a href="https://www.tursinalabs.com">Tursina Labs</a>
-  </footer>
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <img class="logo" src="/brand/wordmark.png" width="383" height="266" alt="DailyLah">
+      <h1>Know before you go lah.</h1>
+      <ul class="asks">
+        <li>Need umbrella meh? Hawker closed ah?</li>
+        <li>Haze bad or not? Makan where?</li>
+        <li>Bus coming? MRT delay? Alamak...</li>
+      </ul>
+      <span class="play" role="note">
+        <svg width="22" height="24" viewBox="0 0 22 24" aria-hidden="true"><path d="M2 1.5v21L20.5 12z" fill="#0F1618"/></svg>
+        Coming soon to Google Play
+      </span>
+      <p class="fine">Free for Android. No account, no ads, and your places stay on your phone.</p>
+    </div>
+
+    <figure class="stop sticker" aria-label="Example of live bus arrivals in DailyLah">
+      <div class="stop-head">
+        <span class="pole" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#fff" d="M4 16c0 .9.4 1.7 1 2.2V20a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h8v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1.8c.6-.5 1-1.3 1-2.2V6c0-3.5-3.6-4-8-4S4 2.5 4 6v10zm3.5 1a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm9 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM18 11H6V6h12v5z"/></svg>
+        </span>
+        <div>
+          <div class="stop-name">Opp Blk 123</div>
+          <div class="stop-sub">Your stop, 2 minutes' walk</div>
+        </div>
+      </div>
+      <div class="board">
+        <div class="row"><span class="svc">36</span><span class="then">then 7 min</span><span class="eta"><span class="arr">Arr</span></span>
+          <span class="load">Seats available</span></div>
+        <div class="row"><span class="svc">16</span><span class="then">then 12 min</span><span class="eta">4<small>min</small></span>
+          <span class="load">Standing room</span></div>
+        <div class="row"><span class="svc">197</span><span class="then">then 15 min</span><span class="eta">9<small>min</small></span>
+          <span class="load">Seats available</span></div>
+      </div>
+    </figure>
+  </section>
+
+  <h2>Three tabs for your day</h2>
+  <p class="lead">Each tab answers one question, so you can check it in a few seconds and get going.</p>
+  <section class="tabs">
+    <article class="tab sticker">
+      <h3>Today</h3>
+      <p>Your trip to work or school, the weather on the way and your MRT lines. In the evening it flips to the trip home.</p>
+      <div class="chips" aria-label="MRT lines">
+        <span class="line" style="background:#D42E12">NSL</span><span class="line" style="background:#009645">EWL</span>
+        <span class="line" style="background:#9D5B25">TEL</span><span class="line" style="background:#005EC4">DTL</span>
+      </div>
+      <div class="note look">Rain from 6 pm near your office. Bring an umbrella.</div>
+    </article>
+
+    <article class="tab sticker">
+      <h3>Nearby</h3>
+      <p>Wherever you are now: the next buses at the stops around you, food, car parks with free lots, taxis and the nearest AED.</p>
+      <div class="note go">Golden Mile Food Centre is open today, 400 m away.</div>
+      <div class="order" aria-label="Order in when it rains"><span>GrabFood</span><span>foodpanda</span></div>
+    </article>
+
+    <article class="tab sticker">
+      <h3>Home</h3>
+      <p>About your block: upgrading works, schools, clinics, dengue clusters, recycling and where to go in an emergency.</p>
+      <div class="blk">BLK 123<small>Your HDB block</small></div>
+      <div class="note look">Lift upgrading at your block</div>
+    </article>
+  </section>
+
+  <section class="private sticker">
+    <h2>Your places stay on your phone</h2>
+    <ul>
+      <li>No sign-up and no account.</li>
+      <li>Home, work and school are saved on your phone only, never on our server.</li>
+      <li>Alerts are worked out on your phone: rain before you leave, MRT disruptions, your favourite hawker closed tomorrow.</li>
+      <li>No ads and no tracking.</li>
+    </ul>
+  </section>
 </main>
+
+<footer>
+  <div class="wrap">
+    <p>Data from data.gov.sg (NEA, HDB, CEA), LTA DataMall, OneMap and URA, used under their open data terms. DailyLah is not affiliated with the Singapore Government. Halal listings come from Muslim.sg and are not affiliated with MUIS; always verify halal status directly.</p>
+    <nav aria-label="Legal">
+      <a href="/privacy">Privacy policy</a>
+      <a href="/terms">Terms of use</a>
+      <a href="https://www.tursinalabs.com">Made by Tursina Labs</a>
+    </nav>
+  </div>
+</footer>
 </body>
 </html>
