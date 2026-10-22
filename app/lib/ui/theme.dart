@@ -217,6 +217,8 @@ ThemeData buildTheme(Brightness brightness) {
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         minimumSize: const Size.fromHeight(54),
+        // Vertical padding so labels never touch the outline at large text sizes.
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         backgroundColor: dark ? DL.tealLight : DL.ink,
         foregroundColor: dark ? DL.ink : DL.card,
         side: stroke,
@@ -227,6 +229,8 @@ ThemeData buildTheme(Brightness brightness) {
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
+        minimumSize: const Size(48, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         backgroundColor: card,
         foregroundColor: ink,
         side: stroke,
@@ -235,7 +239,11 @@ ThemeData buildTheme(Brightness brightness) {
       ),
     ),
     textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(foregroundColor: dark ? DL.tealLight : DL.tealText, textStyle: text.labelLarge),
+      style: TextButton.styleFrom(
+        foregroundColor: dark ? DL.tealLight : DL.tealText,
+        textStyle: text.labelLarge,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
