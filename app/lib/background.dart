@@ -175,6 +175,16 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     }
   });
 
+  // Parking time is up (set with "I parked here"): once per parking.
+  await guard(() async {
+    final p = (await HabitsStore().load()).parked;
+    if (p == null || !parkReminderDue(p, now)) return;
+    final id = 'park:${p.at.toIso8601String()}';
+    if (await log.alreadySent(id)) return;
+    await notify(11, s.parkTitle, s.parkReminder(p.name));
+    await log.markSent(id);
+  });
+
   // Favourite hawker closed tomorrow: in the evening, once per hawker per day.
   await guard(() async {
     if (!fav.hawkerAlerts || fav.hawkers.isEmpty || now.hour < 18 || now.hour >= 22) return;

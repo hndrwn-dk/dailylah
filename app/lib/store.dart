@@ -26,6 +26,32 @@ class FavoritesStore {
   }
 }
 
+/// Habits the user logged (parked car, trip times, meals). Only on this phone.
+class HabitsStore {
+  static const _key = 'habits.v1';
+
+  Future<Habits> load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_key);
+    if (raw == null) return Habits.empty;
+    try {
+      return Habits.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } on Object {
+      return Habits.empty;
+    }
+  }
+
+  Future<void> save(Habits h) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_key, jsonEncode(h.toJson()));
+  }
+
+  Future<void> clear() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_key);
+  }
+}
+
 /// Remembers which alerts were already sent so one event gives one notification.
 class AlertLog {
   AlertLog(this._prefs);

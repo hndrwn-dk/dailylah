@@ -1399,3 +1399,61 @@ String? stopBefore(BusRoutes routes, DirectRide ride) {
 double wakeRadius(BusStop? before, BusStop alight) => before == null
     ? 500
     : (distanceMeters(before.lat, before.lng, alight.lat, alight.lng) + 100).clamp(300, 1200).toDouble();
+
+// ---------------------------------------------------------------- know me (habits on the phone)
+
+int _median(List<int> xs) {
+  final s = [...xs]..sort();
+  return s.isEmpty ? 0 : s[s.length ~/ 2];
+}
+
+/// Minutes of a finished trip, or null when it does not look like one (under 3 min or over 3 h).
+int? tripMinutes(DateTime start, DateTime end) {
+  final m = end.difference(start).inMinutes;
+  return m < 3 || m > 180 ? null : m;
+}
+
+/// Usual door-to-door minutes on a route ("home>work") from logged trips: the median once
+/// there are 3 trips, and the rainy-day median once there are 2 rainy ones.
+({int? usual, int? rainy, int count}) tripStats(List<TripLog> logs, String route) {
+  final mine = [for (final t in logs) if (t.route == route) t];
+  final wet = [for (final t in mine) if (t.rainy) t.minutes];
+  return (
+    usual: mine.length >= 3 ? _median([for (final t in mine) t.minutes]) : null,
+    rainy: wet.length >= 2 ? _median(wet) : null,
+    count: mine.length,
+  );
+}
+
+class MealNudge {
+  const MealNudge(this.usual, this.times, this.instead, this.distance);
+  final Hawker usual;
+  final int times;
+  final Hawker instead;
+  final double distance;
+}
+
+/// When one hawker centre had 3 or more "Ate here" taps in 30 days, suggest the nearest
+/// other one (within 2 km of the place) that is open today and not tried in that time.
+MealNudge? mealNudge(List<MealLog> meals, List<Hawker> all, DateTime now, double lat, double lng) {
+  final since = now.subtract(const Duration(days: 30));
+  final counts = <String, int>{};
+  for (final m in meals) {
+    if (m.at.isAfter(since)) counts[m.hawkerId] = (counts[m.hawkerId] ?? 0) + 1;
+  }
+  if (counts.isEmpty) return null;
+  final top = counts.entries.reduce((a, b) => b.value > a.value ? b : a);
+  if (top.value < 3) return null;
+  final usual = all.where((h) => h.id == top.key).firstOrNull;
+  if (usual == null) return null;
+  final today = dateOnly(now);
+  for (final (h, d) in within(all, lat, lng, 2000, latOf: (h) => h.lat, lngOf: (h) => h.lng)) {
+    if (counts.containsKey(h.id) || h.closureOn(today) != null) continue;
+    return MealNudge(usual, top.value, h, d);
+  }
+  return null;
+}
+
+/// True once the parking reminder time has passed.
+bool parkReminderDue(ParkedCar p, DateTime now) =>
+    p.remindMinutes != null && !now.isBefore(p.at.add(Duration(minutes: p.remindMinutes!)));

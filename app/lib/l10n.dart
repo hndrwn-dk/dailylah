@@ -262,6 +262,47 @@ class S {
   String get wakeNow => 'Your stop is next. Get ready to alight.';
   String get wakeStop => 'Stop';
   String get wakeDone => 'Done';
+
+  // ---------------------------------------------------------------- parked car
+  String get parkedHere => 'I parked here';
+  String get yourCar => 'Your car';
+  String parkedAgo(String place, String ago) => '$place · parked $ago ago';
+  String levelLot(String level, String lot) =>
+      [if (level.isNotEmpty) 'Level $level', if (lot.isNotEmpty) 'Lot $lot'].join(', ');
+  String get parkLevel => 'Level (optional)';
+  String get parkLot => 'Lot number (optional)';
+  String get parkRemind => 'Remind me after';
+  String get parkNoReminder => 'No reminder';
+  String hoursShort(int h) => h == 1 ? '1 hour' : '$h hours';
+  String get parkSave => 'Save';
+  String get parkClear => 'I have left';
+  String get parkTitle => 'Parking time';
+  String parkReminder(String place) => 'Your parking time at $place is up. Top up or move your car.';
+  String get parkWhere => 'Car park';
+  String durationShort(int minutes) => minutes < 60
+      ? '$minutes min'
+      : '${minutes ~/ 60} h${minutes % 60 == 0 ? '' : ' ${minutes % 60} min'}';
+
+  // ---------------------------------------------------------------- know me
+  String get imLeaving => "I'm leaving";
+  String get arrived => 'Arrived';
+  String onTheWay(String since, String elapsed) => 'On the way since $since · $elapsed';
+  String tripLogged(int minutes) => 'Logged: $minutes min door to door.';
+  String get tripTooShort => 'Not logged: that trip looked too short or too long.';
+  String usualTrip(int minutes, int count) => 'Usually $minutes min door to door ($count trips).';
+  String rainyTrip(int minutes) => 'On rainy days $minutes min.';
+  String arriveAbout(String time) => 'Leave now and you arrive about $time.';
+  String get tripLearnHint => "Tap I'm leaving and Arrived a few times, and DailyLah learns how long this trip takes you.";
+  String get ateHere => 'Ate here';
+  String ateLogged(String name) => 'Noted: $name.';
+  String mealNudge(String usual, int times, String instead, String distance) =>
+      "You've eaten at $usual $times times this month. Try $instead? Open today, $distance away.";
+  String get learnHabits => 'Learn my habits';
+  String get learnHabitsSub => 'Trip times and meals you log stay on this phone only.';
+  String get deleteHistory => 'Delete my history';
+  String get deleteHistoryAsk => 'Delete logged trips, meals and your parked car from this phone?';
+  String get deleted => 'Deleted.';
+  String get delete => 'Delete';
   String get alertLeave => 'When to leave for my bus';
   String get alertLeaveSub => 'Once a day, shortly before you usually leave';
   String get from => 'From';
