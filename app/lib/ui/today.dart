@@ -406,7 +406,7 @@ class BusStopCard extends ConsumerWidget {
               loading: () => const Padding(padding: EdgeInsets.all(12), child: LinearProgressIndicator()),
               error: (_, __) => EmptyNote(s.busesUnavailable),
               data: (list) => list.isEmpty
-                  ? EmptyNote(transitResting(DateTime.now()) ? s.busesResting : s.noBusesNow)
+                  ? EmptyNote(transitResting(ref.watch(clockProvider).valueOrNull ?? DateTime.now()) ? s.busesResting : s.noBusesNow)
                   : Column(children: [
                       for (final (i, (e, next)) in groupEtas(list).take(8).indexed)
                         BusRow(eta: e, next: next, pulse: i == 0 && e.minutes == 0),

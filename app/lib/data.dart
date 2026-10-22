@@ -310,15 +310,39 @@ class EPoint {
   final String tel;
 
   factory EPoint.fromBundle(Map<String, dynamic> j) => EPoint(
-        name: '${j['n'] ?? ''}',
+        name: cleanPlaceName('${j['n'] ?? ''}'),
         lat: _d(j['la']),
         lng: _d(j['lo']),
         address: '${j['a'] ?? ''}',
-        detail: '${j['d'] ?? ''}',
+        detail: cleanDetail('${j['d'] ?? ''}'),
         hours: '${j['h'] ?? ''}',
         tel: '${j['t'] ?? ''}',
       );
 }
+
+/// Readable place names: ALL-CAPS names (CHAS clinics) in title case, and the long
+/// "NEA Producer Responsibility Scheme - " prefix on e-waste points dropped.
+String cleanPlaceName(String s) {
+  var n = s.trim();
+  const prefix = 'NEA Producer Responsibility Scheme - ';
+  if (n.startsWith(prefix)) n = n.substring(prefix.length);
+  final letters = n.replaceAll(RegExp(r'[^A-Za-z]'), '');
+  if (letters.length > 3 && letters == letters.toUpperCase()) {
+    n = n
+        .toLowerCase()
+        .split(' ')
+        .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+        .join(' ');
+  }
+  return n;
+}
+
+/// Detail text without empty "; ;" parts left by the source data.
+String cleanDetail(String s) =>
+    s.split(';').map((x) => x.trim()).where((x) => x.isNotEmpty).join('; ');
+
+/// Places a source marks as closed for now (e.g. "... (Temporarily Closed)").
+bool isTemporarilyClosed(String name) => name.toLowerCase().contains('temporarily closed');
 
 enum EmergencyKind { ae, aed, fire, clinic, shelter }
 

@@ -485,7 +485,7 @@ class TripBusCard extends ConsumerWidget {
                 data: (list) {
                   // Nothing at the stop (late at night, or a gap): say so, not "no direct bus".
                   if (list.isEmpty) {
-                    return EmptyNote(transitResting(DateTime.now()) ? s.busesResting : s.noBusesNow);
+                    return EmptyNote(transitResting(ref.watch(clockProvider).valueOrNull ?? DateTime.now()) ? s.busesResting : s.noBusesNow);
                   }
                   if (rides == null) {
                     // Route data not downloaded yet: show every bus, as before.
