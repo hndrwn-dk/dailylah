@@ -10,6 +10,9 @@ enum AirLevel { good, moderate, unhealthy, veryUnhealthy, hazardous }
 /// Why Nearby suggests ordering food in, most pressing first.
 enum OrderInReason { rain, haze, hawkerClosed }
 
+/// Whether now is a good time for a park (see parkTime in logic.dart).
+enum ParkTime { lightning, rain, haze, heat, uv, showers, good }
+
 /// Weather tips for the chosen way of travelling (see tripAdvice in logic.dart).
 enum TripAdvice { lightningRide, lightningWalk, rainRide, rainDrive, rainTaxi, heat, haze }
 
@@ -695,6 +698,16 @@ class S {
         OrderInReason.haze => 'The air is unhealthy. Order in instead?',
         OrderInReason.hawkerClosed => 'The nearest hawker is closed today. Order in instead?',
       };
+  String parkTimeLine(ParkTime p) => switch (p) {
+        ParkTime.lightning => 'Lightning nearby. Stay under cover for now.',
+        ParkTime.rain => 'Raining near home. Better later.',
+        ParkTime.haze => 'The air is unhealthy. Keep it short, or go indoors.',
+        ParkTime.heat => 'High heat now. Go before 10 am or after 5 pm.',
+        ParkTime.uv => 'UV is very high. Pick shade, bring a hat and water.',
+        ParkTime.showers => 'Showers expected today. Bring an umbrella.',
+        ParkTime.good => 'Good time to go.',
+      };
+  String get facilities => 'Facilities';
   String get orderInNote => 'Opens the app on your phone. DailyLah does not take orders.';
   String get parkNearby => 'Parking nearby';
   String get taxiNearby => 'Taxi';

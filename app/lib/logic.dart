@@ -1323,6 +1323,29 @@ OrderInReason? orderInReason({double? rainMm, AirLevel? air, bool nearestHawkerC
   return null;
 }
 
+// ---------------------------------------------------------------- parks: good time to go?
+
+/// One line on whether to head to a park now, worst first: lightning within 5 km, rain
+/// at the nearest gauge, unhealthy air, high heat stress, very high UV (8+) between 10 am
+/// and 4 pm, then showers in today's forecast.
+ParkTime parkTime({
+  required DateTime now,
+  bool lightning = false,
+  double? rainMm,
+  AirLevel? air,
+  String? heat,
+  int? uv,
+  bool showersForecast = false,
+}) {
+  if (lightning) return ParkTime.lightning;
+  if ((rainMm ?? 0) > 0) return ParkTime.rain;
+  if (air != null && air.index >= AirLevel.unhealthy.index) return ParkTime.haze;
+  if (isHighHeat(heat)) return ParkTime.heat;
+  if ((uv ?? 0) >= 8 && now.hour >= 10 && now.hour < 16) return ParkTime.uv;
+  if (showersForecast) return ParkTime.showers;
+  return ParkTime.good;
+}
+
 // ---------------------------------------------------------------- night: no trains
 
 /// Overnight, when MRT/LRT and regular buses are not running: 1:00 to 5:30 am.

@@ -39,6 +39,7 @@ PRESCHOOLS = "d_61eefab99958fd70e6aab17320a71f1c"
 SCHOOLS = "d_688b934f82c1059ed0a6993d2a829089"
 COMMUNITY_CLUBS = "d_9de02d3fb33d96da1855f4fbef549a0f"
 PARKS = "d_0542d48f0991541706b58059381a6eca"
+PARK_FACILITIES = "d_14d807e20158338fd578c2913953516e"  # NParks points: NAME, CLASS (weekly)
 LIBRARIES = "d_27b8dae65d9ca1539e14d09578b17cbf"
 SPORT_FACILITIES = "d_2cfb0867cdeb2b7303068995699dc33b"
 PUBLIC_HOLIDAYS = "d_8ef23381f9417e4d4254ee8b4dcdb176"  # MOM, consolidated 2020 onwards
@@ -618,15 +619,95 @@ async def build_poi(dg: DataGov, geo: Geocoder) -> dict:
         ]
         return compact_points({"features": feats})
 
+    async def parks() -> list[dict]:
+        items = compact_points(await dg.geojson(PARKS))
+        try:
+            return attach_facilities(items, await dg.geojson(PARK_FACILITIES))
+        except Exception as e:  # parks without facility chips are still useful
+            log.warning("park facilities failed: %s", e)
+            return items
+
     await safe("mrt", _wrap(compact_mrt, dg.geojson(MRT_EXITS)))
     await safe("primary", schools("PRIMARY"))
     await safe("school", schools("SECONDARY"))
     await safe("preschool", _wrap(compact_points, dg.geojson(PRESCHOOLS)))
-    await safe("park", _wrap(compact_points, dg.geojson(PARKS)))
+    await safe("park", parks())
     await safe("library", _wrap(compact_points, dg.geojson(LIBRARIES)))
     await safe("cc", ccs())
     await safe("sport", _wrap(compact_sports, dg.rows(SPORT_FACILITIES)))
     await safe("supermarket", supermarkets(dg, geo))
+    return out
+
+
+# Facility classes worth a chip, in the order shown. Others in the layer (lamp posts,
+# benches, signs) are left out.
+FACILITY_LABELS = {
+    "PLAYGROUND": "Playground",
+    "FITNESS AREA": "Fitness corner",
+    "FITNESS CORNER": "Fitness corner",
+    "TOILET": "Toilet",
+    "CARPARK": "Car park",
+    "CAR PARK": "Car park",
+    "SHELTER": "Shelter",
+    "BBQ PIT": "BBQ pit",
+    "DOG RUN": "Dog run",
+    "CYCLING PATH": "Cycling",
+    "BICYCLE RACK": "Bike rack",
+    "WATER POINT": "Water",
+    "DRINKING FOUNTAIN": "Water",
+    "EXERCISE STATION": "Fitness corner",
+    "CAFE": "Food",
+    "F&B": "Food",
+    "RESTAURANT": "Food",
+    "POND": "Pond",
+    "LOOKOUT POINT": "Lookout",
+    "CAMPSITE": "Camping",
+}
+
+
+def _facility_label(cls: str) -> str | None:
+    c = cls.strip().upper()
+    if c in FACILITY_LABELS:
+        return FACILITY_LABELS[c]
+    for k, v in FACILITY_LABELS.items():
+        if k in c:
+            return v
+    return None
+
+
+def attach_facilities(parks: list[dict], geo: dict, radius: float = 250.0) -> list[dict]:
+    """Add "f": facility labels to each park, from NParks facility points that share the
+    park's name or lie within [radius] metres of its centre. Points are bucketed on a
+    ~500 m grid so 15k facilities x 500 parks stays quick."""
+    cell = 0.0045
+    grid: dict[tuple[int, int], list[tuple[float, float, str]]] = defaultdict(list)
+    by_name: dict[str, set[str]] = defaultdict(set)
+    for f in geo.get("features", []):
+        props = f.get("properties") or {}
+        desc = str(props.get("Description", ""))
+        cls = str(props.get("CLASS") or props.get("Class") or html_field(desc, "CLASS") or "")
+        label = _facility_label(cls) if cls else None
+        c = centroid(f.get("geometry"))
+        if not label or not c:
+            continue
+        grid[(int(c[0] / cell), int(c[1] / cell))].append((c[0], c[1], label))
+        name = _props_name(props).strip().lower()
+        if name:
+            by_name[name].add(label)
+    order = list(dict.fromkeys(FACILITY_LABELS.values()))
+    out = []
+    for p in parks:
+        found = set(by_name.get(str(p["n"]).strip().lower(), ()))
+        gx, gy = int(p["la"] / cell), int(p["lo"] / cell)
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                for la, lo, label in grid.get((gx + dx, gy + dy), ()):
+                    if label not in found and _haversine(p["la"], p["lo"], la, lo) <= radius:
+                        found.add(label)
+        item = dict(p)
+        if found:
+            item["f"] = sorted(found, key=order.index)
+        out.append(item)
     return out
 
 

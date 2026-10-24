@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n.dart';
 import '../logic.dart';
 import '../models.dart';
 import 'theme.dart';
@@ -821,4 +822,65 @@ class BusBoard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// "Good time to go?" for parks: teal when fine, amber when the weather says wait.
+class ParkTimeBanner extends StatelessWidget {
+  const ParkTimeBanner({super.key, required this.time, required this.text, this.margin = const EdgeInsets.only(bottom: 12)});
+  final ParkTime time;
+  final String text;
+  final EdgeInsetsGeometry margin;
+
+  @override
+  Widget build(BuildContext context) {
+    final good = time == ParkTime.good;
+    return Panel(
+      margin: margin,
+      color: good ? DL.mint : DL.attention,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            Icon(
+              switch (time) {
+                ParkTime.lightning => Icons.flash_on,
+                ParkTime.rain || ParkTime.showers => Icons.umbrella_outlined,
+                ParkTime.haze => Icons.masks_outlined,
+                ParkTime.heat || ParkTime.uv => Icons.wb_sunny_outlined,
+                ParkTime.good => Icons.check_circle_outline,
+              },
+              color: good ? DL.tealText : DL.ink,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(text, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: DL.ink)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Small outlined chips, e.g. park facilities, that wrap at large text sizes.
+class InfoChips extends StatelessWidget {
+  const InfoChips(this.labels, {super.key});
+  final List<String> labels;
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          for (final l in labels)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: DL.edge(context), width: 1.5),
+              ),
+              child: Text(l, style: Theme.of(context).textTheme.labelMedium),
+            ),
+        ],
+      );
 }

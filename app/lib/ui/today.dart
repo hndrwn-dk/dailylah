@@ -586,7 +586,8 @@ class _WeekendCard extends ConsumerWidget {
     final air = airNear(ref.watch(psiProvider).valueOrNull, ref.watch(pm25Provider).valueOrNull, home.lat, home.lng);
     final indoor = preferIndoor(forecast == null ? null : forecastNear(forecast, home.lat, home.lng)) ||
         (air != null && air.level.index >= AirLevel.unhealthy.index);
-    EPoint fromPoi(Poi p) => EPoint(name: p.name, lat: p.lat, lng: p.lng, detail: p.detail);
+    EPoint fromPoi(Poi p) =>
+        EPoint(name: p.name, lat: p.lat, lng: p.lng, detail: p.detail.isNotEmpty ? p.detail : p.facilities.join(', '));
     final picks = weekendPicks({
       for (final k in const ['museum', 'activesg', 'attraction', 'bbq', 'pcn']) k: around.of(k),
       'park': [for (final p in pois.of(PoiKind.park)) fromPoi(p)],
@@ -641,6 +642,9 @@ class _WeekendCard extends ConsumerWidget {
         ],
         if (indoor && picks.isNotEmpty)
           Padding(padding: const EdgeInsets.fromLTRB(4, 0, 4, 8), child: Text(s.weekendIndoor, style: t.bodySmall)),
+        if (!indoor && picks.any((x) => x.$1 == 'park' || x.$1 == 'pcn' || x.$1 == 'bbq'))
+          if (ref.watch(parkTimeProvider((home.lat, home.lng))) case final p?)
+            ParkTimeBanner(time: p, text: s.parkTimeLine(p)),
         if (picks.isNotEmpty)
         Panel(
           child: Column(
