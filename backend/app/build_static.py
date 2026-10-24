@@ -133,7 +133,7 @@ async def build(
             await attempt("hawkers", b.build_hawkers(dg))
             await attempt("dengue", b.build_dengue(dg))
             await attempt("carparks", b.build_carparks(dg))
-            await attempt("prayer", b.build_prayer(dg))
+            await attempt("prayer", b.build_prayer(dg, today or date.today()))
             await attempt("holidays", b.build_holidays(dg, today or date.today()))
             await attempt(
                 "events",

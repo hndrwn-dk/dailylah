@@ -661,3 +661,73 @@ def test_attach_facilities_by_distance_and_name():
     assert out[0]["f"] == ["Playground", "Fitness corner", "Toilet"]
     assert "f" not in out[1]
     assert "f" not in parks[0]  # input left untouched
+
+
+def test_pick_prayer_datasets_by_year():
+    names = {
+        "d_all": "Muslim Prayer Timetable (consolidated) 2024-2027",
+        "d_26": "Muslim Prayer Timetable 2026",
+        "d_27": "Muslim Prayer Timetable 2027",
+    }
+    assert b.pick_prayer_datasets(names, [2026, 2027]) == ["d_26", "d_27"]
+    assert b.pick_prayer_datasets(names, [2028]) == []
+
+
+def _prayer_row(d: str) -> dict:
+    return {
+        "Date": d,
+        "Subuh": "05:44",
+        "Syuruk": "07:07",
+        "Zohor": "13:10",
+        "Asar": "16:34",
+        "Maghrib": "19:10",
+        "Isyak": "20:25",
+    }
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_build_prayer_merges_this_and_next_year():
+    respx.get(b.COLLECTION_META_URL.format(id=b.PRAYER_COLLECTION)).mock(
+        return_value=httpx.Response(
+            200, json={"data": {"collectionMetadata": {"childDatasets": ["d_26", "d_27"]}}}
+        )
+    )
+    for i, n in (
+        ("d_26", "Muslim Prayer Timetable 2026"),
+        ("d_27", "Muslim Prayer Timetable 2027"),
+    ):
+        respx.get(b.DATASET_META_URL.format(id=i)).mock(
+            return_value=httpx.Response(200, json={"data": {"name": n}})
+        )
+
+    def rows(request):
+        rid = request.url.params["resource_id"]
+        dates = {"d_26": ["2025-12-31", "2026-12-31"], "d_27": ["2027-01-01"]}[rid]
+        return httpx.Response(200, json={"result": {"records": [_prayer_row(d) for d in dates]}})
+
+    respx.get(url__startswith=b.DATASTORE_URL).mock(side_effect=rows)
+    async with httpx.AsyncClient() as c:
+        out = await b.build_prayer(b.DataGov(c, pause=0), date(2026, 10, 24))
+    assert list(out["days"]) == ["2026-12-31", "2027-01-01"]
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_build_prayer_falls_back_to_known_dataset():
+    respx.get(url__startswith="https://api-production.data.gov.sg").mock(
+        return_value=httpx.Response(500)
+    )
+    route = respx.get(url__startswith=b.DATASTORE_URL).mock(
+        return_value=httpx.Response(200, json={"result": {"records": [_prayer_row("2026-10-24")]}})
+    )
+    async with httpx.AsyncClient() as c:
+        out = await b.build_prayer(b.DataGov(c, pause=0), date(2026, 10, 24))
+    assert route.calls.last.request.url.params["resource_id"] == b.PRAYER_TIMES
+    assert out["days"]["2026-10-24"][0] == "05:44"
+
+
+def test_in_sg_drops_bad_coordinates():
+    assert b.in_sg(1.3521, 103.8198)
+    assert not b.in_sg(1.01626, 103.58175)
+    assert not b.in_sg(None, "x")

@@ -357,7 +357,7 @@ class NearItem {
             nameOf: (p) => p.name, latOf: (p) => p.lat, lngOf: (p) => p.lng).take(limit))
           NearItem(
             name: p.name,
-            detail: p.detail.isNotEmpty ? p.detail : p.facilities.join(', '),
+            detail: p.detail,
             lat: p.lat,
             lng: p.lng,
             distance: d,
@@ -406,10 +406,16 @@ class _NearGroupState extends ConsumerState<NearGroup> {
                 ListTile(
                   leading: Icon(widget.icon),
                   title: Text(it.name),
-                  subtitle: Text(
-                    [s.metres(it.distance), if (it.detail.isNotEmpty) it.detail].join(' · '),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        [s.metres(it.distance), if (it.detail.isNotEmpty) it.detail].join(' · '),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (it.chips.isNotEmpty) FacilityIcons(it.chips),
+                    ],
                   ),
                   trailing: it.big != null
                       ? _BigNumber(value: it.big!, label: it.bigLabel, warn: it.bigWarn)
@@ -433,7 +439,7 @@ class _NearGroupState extends ConsumerState<NearGroup> {
                       if (it.chips.isNotEmpty) ...[
                         Text(s.facilities, style: t.titleSmall),
                         const SizedBox(height: 8),
-                        InfoChips(it.chips),
+                        InfoChips(it.chips, icons: true),
                         const SizedBox(height: 12),
                       ],
                       if (widget.header case final h?) h,

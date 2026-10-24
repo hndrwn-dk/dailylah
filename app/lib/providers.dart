@@ -380,6 +380,7 @@ final todayAlertsProvider = Provider.autoDispose<List<TodayAlert>>((ref) {
     lightning: ref.watch(lightningProvider).valueOrNull,
     psi: ref.watch(psiProvider).valueOrNull,
     pm25: ref.watch(pm25Provider).valueOrNull,
+    schoolHolidays: ref.watch(schoolHolidaysProvider).valueOrNull ?? const [],
   );
 });
 

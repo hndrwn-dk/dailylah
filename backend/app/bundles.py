@@ -28,6 +28,8 @@ log = logging.getLogger(__name__)
 
 DATASTORE_URL = "https://data.gov.sg/api/action/datastore_search"
 POLL_DOWNLOAD_URL = "https://api-open.data.gov.sg/v1/public/api/datasets/{id}/poll-download"
+COLLECTION_META_URL = "https://api-production.data.gov.sg/v2/public/api/collections/{id}/metadata"
+DATASET_META_URL = "https://api-production.data.gov.sg/v2/public/api/datasets/{id}/metadata"
 ONEMAP_SEARCH_URL = "https://www.onemap.gov.sg/api/common/elastic/search"
 
 # data.gov.sg dataset ids (verified against the live catalogue, Oct 2026).
@@ -48,7 +50,8 @@ CARPARK_INFO = "d_23f946fa557947f93a8043bbef41dd09"
 HDB_PROPERTY = "d_17f5382f26140b1fdae0ba2ef6239d2f"
 RESALE = "d_8b84c4ee58e3cfc0ece0d773c8ca6abc"
 RENTING_OUT = "d_c9f57187485a850908655db0e8cfe651"
-PRAYER_TIMES = "d_d441e7242e78efc566024dd5b0d9829c"  # 2026 timetable
+PRAYER_TIMES = "d_d441e7242e78efc566024dd5b0d9829c"  # 2026 timetable, fallback
+PRAYER_COLLECTION = "2312"  # MUIS: one dataset per year, named "... Timetable <year>"
 BICYCLE_RACKS = "d_937424cca6d1617288a82a7aeb89f76d"  # LTA racks near MRT stations
 AEDS = "d_4e6b82c58a8a832f6f1fee5dfa6d47ea"  # SCDF public access AEDs
 FIRE_STATIONS = "d_5d3d2c4f3556edb5d8c995f42e603b24"
@@ -61,6 +64,14 @@ PAGE = 10000
 
 def _r(x: float) -> float:
     return round(float(x), 5)
+
+
+def in_sg(la: object, lo: object) -> bool:
+    """Inside Singapore's bounding box; catches bad source coordinates."""
+    try:
+        return 1.15 <= float(la) <= 1.48 and 103.59 <= float(lo) <= 104.1  # type: ignore
+    except (TypeError, ValueError):
+        return False
 
 
 def _haversine(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -118,6 +129,16 @@ class DataGov:
             if len(records) < page:
                 break
             offset += page
+        return out
+
+    async def collection_datasets(self, collection_id: str) -> dict[str, str]:
+        """{dataset id: dataset name} for every dataset in a data.gov.sg collection."""
+        meta = (await self._get(COLLECTION_META_URL.format(id=collection_id))).json()
+        ids = ((meta.get("data") or {}).get("collectionMetadata") or {}).get("childDatasets") or []
+        out = {}
+        for i in ids:
+            d = (await self._get(DATASET_META_URL.format(id=i))).json().get("data") or {}
+            out[str(i)] = str(d.get("name", ""))
         return out
 
     async def geojson(self, dataset_id: str) -> dict:
@@ -576,8 +597,34 @@ async def build_holidays(dg: DataGov, today: date) -> list[dict]:
     return compact_holidays(await dg.rows(PUBLIC_HOLIDAYS), today)
 
 
-async def build_prayer(dg: DataGov) -> dict:
-    return compact_prayer(await dg.rows(PRAYER_TIMES))
+def pick_prayer_datasets(names: dict[str, str], years: list[int]) -> list[str]:
+    """Dataset ids of the yearly MUIS timetables for [years], skipping the consolidated one."""
+    out = []
+    for y in years:
+        for i, n in names.items():
+            if str(y) in n and "consolidated" not in n.lower() and i not in out:
+                out.append(i)
+                break
+    return out
+
+
+async def build_prayer(dg: DataGov, today: date) -> dict:
+    """This year's and next year's timetables, so the app keeps working on 1 January.
+    MUIS publishes next year's file late in the year; until then only this year is in."""
+    try:
+        ids = pick_prayer_datasets(
+            await dg.collection_datasets(PRAYER_COLLECTION), [today.year, today.year + 1]
+        )
+    except Exception as e:  # discovery is best effort; the known id still works
+        log.warning("prayer collection lookup failed: %s", e)
+        ids = []
+    if not ids:
+        ids = [PRAYER_TIMES]
+    days: dict[str, list[str]] = {}
+    for i in ids:
+        days.update(compact_prayer(await dg.rows(i))["days"])
+    since = f"{today.year}-01-01"
+    return {"days": {d: t for d, t in sorted(days.items()) if d >= since}}
 
 
 def school_level(code: object) -> str | None:
@@ -662,6 +709,12 @@ FACILITY_LABELS = {
     "POND": "Pond",
     "LOOKOUT POINT": "Lookout",
     "CAMPSITE": "Camping",
+    # Broader words last: substring matches try the keys in this order.
+    "PAVILION": "Shelter",
+    "WASHROOM": "Toilet",
+    "RESTROOM": "Toilet",
+    "PLAY AREA": "Playground",
+    "FITNESS": "Fitness corner",
 }
 
 
@@ -682,11 +735,14 @@ def attach_facilities(parks: list[dict], geo: dict, radius: float = 250.0) -> li
     cell = 0.0045
     grid: dict[tuple[int, int], list[tuple[float, float, str]]] = defaultdict(list)
     by_name: dict[str, set[str]] = defaultdict(set)
+    unknown: Counter[str] = Counter()
     for f in geo.get("features", []):
         props = f.get("properties") or {}
         desc = str(props.get("Description", ""))
         cls = str(props.get("CLASS") or props.get("Class") or html_field(desc, "CLASS") or "")
         label = _facility_label(cls) if cls else None
+        if cls and not label:
+            unknown[cls.strip().upper()] += 1
         c = centroid(f.get("geometry"))
         if not label or not c:
             continue
@@ -694,6 +750,8 @@ def attach_facilities(parks: list[dict], geo: dict, radius: float = 250.0) -> li
         name = _props_name(props).strip().lower()
         if name:
             by_name[name].add(label)
+    if unknown:  # shown in the data workflow log, to tune FACILITY_LABELS
+        log.info("park facility classes without a label: %s", unknown.most_common(25))
     order = list(dict.fromkeys(FACILITY_LABELS.values()))
     out = []
     for p in parks:
@@ -953,9 +1011,16 @@ async def build_emergency(dg: DataGov, geo: Geocoder) -> dict:
 
     async def safe(key: str, coro) -> None:
         try:
-            out[key] = await coro
+            items = await coro
         except Exception as e:
             log.warning("emergency %s failed: %s", key, e)
+            return
+        good = [x for x in items if in_sg(x.get("la"), x.get("lo"))]
+        if len(good) < len(items):
+            log.info(
+                "emergency %s: dropped %d points outside Singapore", key, len(items) - len(good)
+            )
+        out[key] = good
 
     await safe("aed", _wrap(compact_aeds, dg.geojson(AEDS)))
     await safe("fire", _wrap(compact_fire_stations, dg.geojson(FIRE_STATIONS)))

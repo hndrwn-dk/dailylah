@@ -936,4 +936,71 @@ void main() {
       expect(parkTime(now: noon, uv: 5, showersForecast: true), ParkTime.showers);
     });
   });
+
+  test('school alerts only on days with class', () {
+    final heat = {
+      'data': {
+        'data': {
+          'records': [
+            {
+              'item': {
+                'readings': [
+                  {'location': {'latitude': '1.354', 'longitude': '103.943'}, 'wbgt': '33', 'heatStress': 'High'},
+                ],
+              },
+            },
+          ],
+        },
+      },
+    };
+    final lightning = {
+      'data': {
+        'data': {
+          'records': [
+            {
+              'item': {
+                'readings': [
+                  {'location': {'latitude': '1.354', 'longitude': '103.943'}, 'type': 'C'},
+                ],
+              },
+            },
+          ],
+        },
+      },
+    };
+    const fav = Favorites(places: {PlaceKind.school: Place(kind: PlaceKind.school, stops: [tampines])});
+    final holidays = [SchoolHoliday(DateTime(2026, 11, 21), DateTime(2026, 12, 31), 'Year-end holidays')];
+    List<AlertKind> kinds(DateTime now) => [
+          for (final a in todayAlerts(
+              fav: fav, now: now, s: const S(), wbgt: heat, lightning: lightning, schoolHolidays: holidays))
+            a.kind,
+        ];
+    expect(isSchoolDay(fav, DateTime(2026, 10, 26), holidays), isTrue); // Monday
+    expect(kinds(DateTime(2026, 10, 26, 10)), containsAll([AlertKind.heat, AlertKind.lightning]));
+    expect(isSchoolDay(fav, DateTime(2026, 10, 24), holidays), isFalse); // Saturday
+    expect(kinds(DateTime(2026, 10, 24, 10)), isEmpty);
+    expect(isSchoolDay(fav, DateTime(2026, 11, 23), holidays), isFalse); // Monday, year-end holidays
+    expect(kinds(DateTime(2026, 11, 23, 10)), isEmpty);
+  });
+
+  test('bad numbers from upstream are skipped, not thrown', () {
+    final body = {
+      'data': {
+        'data': {
+          'records': [
+            {
+              'item': {
+                'readings': [
+                  {'location': {'latitude': 'n/a', 'longitude': '103.9'}},
+                  {'location': {'latitude': '1.354', 'longitude': '103.943'}},
+                ],
+              },
+            },
+          ],
+        },
+      },
+    };
+    expect(lightningNear(body, tampines.lat, tampines.lng), isTrue);
+    expect(nextPrayerIndex(['xx:yy', '07:00', '13:00'], DateTime(2026, 10, 24, 6)), 1);
+  });
 }

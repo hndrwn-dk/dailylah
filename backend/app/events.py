@@ -23,6 +23,11 @@ def _day(s: str) -> date | None:
         return None
 
 
+def _truthy(v: object) -> bool:
+    """Eventfinda sends flags as true/false, 1/0 or "1"/"0"."""
+    return str(v).strip().lower() in ("1", "true", "yes")
+
+
 def compact_eventfinda(rows: list[dict], today: date, days: int = 30) -> list[dict]:
     """Upcoming or running events within [days], with a point: compact rows for the app."""
     until = today + timedelta(days=days)
@@ -30,7 +35,7 @@ def compact_eventfinda(rows: list[dict], today: date, days: int = 30) -> list[di
     for e in rows:
         start, end = _day(str(e.get("datetime_start", ""))), _day(str(e.get("datetime_end", "")))
         p = e.get("point") or {}
-        if e.get("is_cancelled") or start is None or not p.get("lat") or not p.get("lng"):
+        if _truthy(e.get("is_cancelled")) or start is None or not p.get("lat") or not p.get("lng"):
             continue
         if (end or start) < today or start > until:
             continue
@@ -44,7 +49,7 @@ def compact_eventfinda(rows: list[dict], today: date, days: int = 30) -> list[di
                 "p": str((e.get("location") or {}).get("name") or e.get("location_summary", "")),
                 "la": round(float(p["lat"]), 5),
                 "lo": round(float(p["lng"]), 5),
-                "f": bool(e.get("is_free")),
+                "f": _truthy(e.get("is_free")),
                 "c": str((e.get("category") or {}).get("name", "")),
                 "src": "Eventfinda",
             }
@@ -74,9 +79,13 @@ async def eventfinda(
         body = r.json()
         page = body.get("events") or []
         rows.extend(page)
-        total = int((body.get("@attributes") or {}).get("count", 0))
+        try:
+            total = int((body.get("@attributes") or {}).get("count") or 0)
+        except (TypeError, ValueError):
+            total = 0
         offset += 20
-        if not page or offset >= total:
+        # Keep paging while pages come back full; "count" is not always sent.
+        if len(page) < 20 or (total and offset >= total):
             break
     return compact_eventfinda(rows, today)
 
