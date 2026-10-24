@@ -58,6 +58,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   (same Vercel deployment). Never hard-code a single host; use `webUrls` in `lib/api.dart`.
   `backend/app/build_static.py` + `backend/app/bundles.py` build them daily in
   `.github/workflows/data.yml` (secret `LTA_ACCOUNT_KEY`, optional `DATAGOV_API_KEY`).
+  data.gov.sg keys expire: every data.gov.sg call goes through `DataGovKey` (`app/datagov.py`),
+  which retries without the key on 401/403 and logs a warning; the data workflow then fails
+  its last step ("Check data.gov.sg key") so the expiry is visible. Renew it in both GitHub and Render.
   OneMap geocodes are cached in `backend/data/geocode.json` (committed by the workflow).
   Optional bundles are best effort: a failing upstream keeps yesterday's file.
 - Nearby (`ui/nearby.dart`) is "I am here now": starts on Here, chips for one section at a time

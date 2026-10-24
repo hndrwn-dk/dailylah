@@ -164,6 +164,8 @@ async def build(
             await attempt("hdb_blocks", b.build_blocks(dg, geo, block_town))
             geo.save()
             log.info("geocoded %d new addresses", geo.looked_up)
+            # The workflow fails its last step on this, after the bundles are committed.
+            report["datagov_key_rejected"] = dg.key.rejected
             report["geocoded_new"] = geo.looked_up
             report["geocode_cache"] = len(geo.cache)
     finally:

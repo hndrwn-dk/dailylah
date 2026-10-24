@@ -14,6 +14,7 @@ on:
       - "backend/app/build_static.py"
       - "backend/app/sources.py"
       - "backend/app/bundles.py"
+      - "backend/app/datagov.py"
 permissions:
   contents: write
 concurrency:
@@ -36,7 +37,8 @@ jobs:
         working-directory: backend
         env:
           LTA_ACCOUNT_KEY: ${{ secrets.LTA_ACCOUNT_KEY }}
-          # Optional: raises data.gov.sg rate limits so the build finishes faster.
+          # Optional: raises data.gov.sg rate limits so the build finishes faster. Keys expire;
+          # a rejected key falls back to no key and the last step below turns the run red.
           DATAGOV_API_KEY: ${{ secrets.DATAGOV_API_KEY }}
           ONEMAP_EMAIL: ${{ secrets.ONEMAP_EMAIL }}
           ONEMAP_PASSWORD: ${{ secrets.ONEMAP_PASSWORD }}
@@ -60,3 +62,18 @@ jobs:
             sleep 10
           done
           exit 1
+      # Runs after the commit, so fresh bundles are published either way.
+      - name: Check data.gov.sg key
+        run: |
+          python - <<'PY'
+          import json, sys
+          try:
+              report = json.load(open("backend/data/build_report.json"))
+          except (OSError, ValueError):
+              sys.exit(0)
+          if report.get("datagov_key_rejected"):
+              print("::error::DATAGOV_API_KEY was rejected by data.gov.sg (expired?). "
+                    "The build ran without it. Generate a new key and update the GitHub "
+                    "secret DATAGOV_API_KEY and the Render env var.")
+              sys.exit(1)
+          PY

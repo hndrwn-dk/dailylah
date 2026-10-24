@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import httpx
 
 from .config import Settings
+from .datagov import DataGovKey
 
 
 @dataclass(frozen=True)
@@ -36,16 +37,25 @@ LTA_DATASETS: list[Dataset] = [
 ]
 
 
+_KEYS: dict[str | None, DataGovKey] = {}
+
+
+def _key_for(key: str | None) -> DataGovKey:
+    """One DataGovKey per key value, so a rejected key is skipped for the life of the
+    process (a new key in the env restarts the service)."""
+    if key not in _KEYS:
+        _KEYS[key] = DataGovKey(key)
+    return _KEYS[key]
+
+
 class Sources:
     def __init__(self, settings: Settings, client: httpx.AsyncClient) -> None:
         self.s = settings
         self.http = client
+        self.key = _key_for(settings.datagov_api_key)
 
     async def datagov(self, ds: Dataset) -> dict:
-        headers = {"x-api-key": self.s.datagov_api_key} if self.s.datagov_api_key else {}
-        r = await self.http.get(
-            f"{self.s.datagov_base_url}/{ds.path}", params=ds.params, headers=headers
-        )
+        r = await self.key.get(self.http, f"{self.s.datagov_base_url}/{ds.path}", ds.params)
         r.raise_for_status()
         return r.json()
 
@@ -70,7 +80,7 @@ class Sources:
 
     async def carpark_availability(self) -> dict[str, list[int]]:
         """All HDB car parks: {"ACB": [total_car_lots, available_car_lots]}."""
-        r = await self.http.get(self.s.carpark_url, headers=self._datagov_headers())
+        r = await self.key.get(self.http, self.s.carpark_url)
         r.raise_for_status()
         return compact_carparks(r.json())
 
@@ -88,14 +98,14 @@ class Sources:
 
     async def cea_agent(self, reg_no: str) -> list[dict]:
         """CEA salesperson register rows for one registration number."""
-        r = await self.http.get(
+        r = await self.key.get(
+            self.http,
             self.s.datastore_url,
-            params={
+            {
                 "resource_id": self.s.cea_dataset_id,
                 "filters": json.dumps({"registration_no": reg_no}),
                 "limit": 5,
             },
-            headers=self._datagov_headers(),
         )
         r.raise_for_status()
         rows = r.json().get("result", {}).get("records", [])
@@ -110,9 +120,6 @@ class Sources:
             }
             for row in rows
         ]
-
-    def _datagov_headers(self) -> dict:
-        return {"x-api-key": self.s.datagov_api_key} if self.s.datagov_api_key else {}
 
     async def taxi_stands(self, page_size: int = 500, max_pages: int = 10) -> list[dict]:
         """All taxi stands and stops (static, refreshed daily in the data bundle)."""
