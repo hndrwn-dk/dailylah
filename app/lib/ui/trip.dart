@@ -525,7 +525,10 @@ class TripBusCard extends ConsumerWidget {
                                 const Icon(Icons.directions_walk, size: 20, color: DL.tealText),
                                 const SizedBox(width: 8),
                                 Expanded(
-                                  child: Text(s.leaveIn(lb.service, lb.leaveIn, lb.walk),
+                                  child: Text(
+                                      direct.first.$1.service != lb.service && direct.first.$1.minutes < lb.walk
+                                          ? s.tooSoonThen(direct.first.$1.service, s.leaveIn(lb.service, lb.leaveIn, lb.walk))
+                                          : s.leaveIn(lb.service, lb.leaveIn, lb.walk),
                                       style: t.titleSmall?.copyWith(color: DL.tealText)),
                                 ),
                               ],
@@ -751,7 +754,8 @@ class _TaxiBlock extends ConsumerWidget {
 
 /// Pick any saved place and see how to get there now, from Home or from where you are.
 class GoSomewhere extends ConsumerWidget {
-  const GoSomewhere({super.key});
+  const GoSomewhere({super.key, this.showTitle = true});
+  final bool showTitle;
 
   Future<void> _useHere(BuildContext context, WidgetRef ref) async {
     final s = ref.read(stringsProvider);
@@ -785,7 +789,7 @@ class GoSomewhere extends ConsumerWidget {
     if (hit == null) return;
     ref.read(goAdhocDestProvider.notifier).state = Place(
       kind: PlaceKind.other,
-      name: hit.label,
+      name: shortAddress(hit.label),
       address: hit.label,
       postal: hit.postal.isEmpty ? null : hit.postal,
       addrLat: hit.lat,
@@ -823,23 +827,25 @@ class GoSomewhere extends ConsumerWidget {
     }
 
     // Where the trip starts: a saved place (not the destination itself) or "here".
+    // "Here" first: away from home, starting from where you are is the usual case.
     final starts = <(String, IconData, String)>[
+      ('here', Icons.my_location, s.hereNow),
       for (final k in [PlaceKind.home, PlaceKind.work, PlaceKind.school])
         if (fav.places[k] != null && k.name != key) (k.name, PlaceSelector.iconOf(k), s.placeLabel(k.name)),
-      ('here', Icons.my_location, s.hereNow),
     ];
     if (!starts.any((o) => o.$1 == fromKey) || (fromKey == 'here' && here == null)) {
-      fromKey = starts.first.$1;
+      fromKey = starts.length > 1 && here == null ? starts[1].$1 : starts.first.$1;
     }
     final from = fromKey == 'here' ? here : fav.places[PlaceKind.values.byName(fromKey)];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 10, 4, 4),
-          child: Text(s.goSomewhere, style: t.titleLarge),
-        ),
+        if (showTitle)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 10, 4, 4),
+            child: Text(s.goSomewhere, style: t.titleLarge),
+          ),
         Padding(
           padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
           child: Text(fav.extraPlaces.isEmpty ? s.addPlacesHint : s.goSomewhereHint, style: t.bodySmall),
@@ -883,6 +889,84 @@ class GoSomewhere extends ConsumerWidget {
             ),
         ],
       ],
+    );
+  }
+}
+
+/// Trip planner on its own page, so it is not mixed up with the daily trip on Today.
+/// Starts from "Here" when location is already allowed.
+class TripPlannerPage extends ConsumerStatefulWidget {
+  const TripPlannerPage({super.key});
+
+  @override
+  ConsumerState<TripPlannerPage> createState() => _TripPlannerPageState();
+}
+
+class _TripPlannerPageState extends ConsumerState<TripPlannerPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        final perm = await Geolocator.checkPermission();
+        if (perm != LocationPermission.always && perm != LocationPermission.whileInUse) return;
+        final pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+        );
+        if (!mounted) return;
+        ref.read(goFromHereProvider.notifier).state =
+            Place(kind: PlaceKind.other, name: ref.read(stringsProvider).hereNow, addrLat: pos.latitude, addrLng: pos.longitude);
+        ref.read(goFromKeyProvider.notifier).state = 'here';
+      } on Object {
+        // No location: the planner starts from a saved place.
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = ref.watch(stringsProvider);
+    return Scaffold(
+      appBar: AppBar(title: Text(s.planTrip)),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+        children: const [GoSomewhere(showTitle: false)],
+      ),
+    );
+  }
+}
+
+/// Today's entry to the trip planner.
+class PlanTripCard extends ConsumerWidget {
+  const PlanTripCard({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    return Panel(
+      child: InkWell(
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TripPlannerPage())),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const Icon(Icons.alt_route),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(s.planTrip, style: t.titleMedium),
+                    Text(s.planTripSub, style: t.bodySmall),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
