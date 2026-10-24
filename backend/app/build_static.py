@@ -14,6 +14,7 @@ Writes (all compact JSON, keys documented in app/lib/data.dart):
     hdb_rent.json    median rent per town, last 6 months
     prayer.json      MUIS prayer times for the year
     holidays.json    MOM public holidays from a month ago onwards
+    events.json      public events in the next 30 days (Eventfinda)
     taxi_stands.json LTA taxi stands and stops
     bus_routes.json  stop order per bus service and direction (for "buses that go home")
     bicycle_racks.json LTA bicycle racks
@@ -36,6 +37,7 @@ import httpx
 
 from . import bundles as b
 from .config import get_settings
+from .events import build_events
 from .onemap import OneMap
 from .sources import Sources, compact_bus_stops, compact_taxi_stands
 from .ura import build_private
@@ -58,6 +60,7 @@ MIN_COUNTS = {
     "hdb_blocks": 100,
     "prayer": 300,
     "holidays": 5,
+    "events": 1,
 }
 
 
@@ -132,6 +135,15 @@ async def build(
             await attempt("carparks", b.build_carparks(dg))
             await attempt("prayer", b.build_prayer(dg))
             await attempt("holidays", b.build_holidays(dg, today or date.today()))
+            await attempt(
+                "events",
+                build_events(
+                    client,
+                    today or date.today(),
+                    settings.eventfinda_user,
+                    settings.eventfinda_password,
+                ),
+            )
             await attempt("poi", b.build_poi(dg, geo))
             await attempt("emergency", b.build_emergency(dg, geo))
             await attempt("halal", b.build_halal(client))

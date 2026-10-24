@@ -167,6 +167,16 @@ class HabitsNotifier extends Notifier<Habits> {
 
 final habitsProvider = NotifierProvider<HabitsNotifier, Habits>(HabitsNotifier.new);
 
+final eventsProvider = FutureProvider<List<PublicEvent>>((ref) async {
+  final raw = await ref.watch(bundleRepoProvider).load('events');
+  return [
+    if (raw is List)
+      for (final r in raw)
+        if (r is Map<String, dynamic>)
+          if (PublicEvent.fromBundle(r) case final e?) e,
+  ];
+});
+
 final schoolHolidaysProvider = FutureProvider<List<SchoolHoliday>>((ref) async =>
     SchoolHoliday.fromBundle(await ref.watch(bundleRepoProvider).load('school_holidays')));
 

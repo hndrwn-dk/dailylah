@@ -1639,3 +1639,29 @@ List<(String, EPoint, double)> weekendPicks(Map<String, List<EPoint>> kinds, dou
   }
   return out;
 }
+
+// ---------------------------------------------------------------- events
+
+/// Events near a place that run on one of the next [days] days (weekend card: up to Sunday),
+/// soonest first, then nearest. Long-running shows rank after one-off events.
+List<(PublicEvent, double)> eventsNear(List<PublicEvent> all, double lat, double lng, DateTime now,
+    {double radius = 10000, int days = 3, int limit = 3}) {
+  final today = dateOnly(now);
+  final until = today.add(Duration(days: days));
+  final out = <(PublicEvent, double)>[
+    for (final e in all)
+      if (!dateOnly(e.end).isBefore(today) && dateOnly(e.start).isBefore(until))
+        if (distanceMeters(lat, lng, e.lat, e.lng) case final d when d <= radius) (e, d),
+  ];
+  int span(PublicEvent e) => e.end.difference(e.start).inDays > 2 ? 1 : 0;
+  out.sort((a, b) {
+    final s = span(a.$1).compareTo(span(b.$1));
+    if (s != 0) return s;
+    final t = a.$1.start.compareTo(b.$1.start);
+    return t != 0 ? t : a.$2.compareTo(b.$2);
+  });
+  return out.take(limit).toList();
+}
+
+/// Days from [now] to the end of this weekend (Sunday), at least 1.
+int daysToWeekendEnd(DateTime now) => math.max(1, DateTime.sunday - now.weekday + 1);

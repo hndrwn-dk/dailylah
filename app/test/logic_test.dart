@@ -882,4 +882,19 @@ void main() {
     expect(out.first.$1, 'park');
     expect(out.any((e) => e.$1 == 'bbq'), isFalse); // more than 5 km away
   });
+
+  test('events near home this weekend, one-off events first', () {
+    PublicEvent ev(String n, String s, String e, {double lng = 103.90}) =>
+        PublicEvent.fromBundle({'n': n, 'u': 'https://x', 's': s, 'e': e, 'la': 1.30, 'lo': lng})!;
+    final now = DateTime(2026, 10, 24, 10); // Saturday
+    expect(daysToWeekendEnd(now), 2);
+    final all = [
+      ev('Long show', '2026-08-01 20:00', '2026-12-30 22:00'),
+      ev('Fair', '2026-10-25 10:00', '2026-10-25 18:00'),
+      ev('Next week', '2026-10-28 10:00', '2026-10-28 18:00'),
+      ev('Far fair', '2026-10-24 10:00', '2026-10-24 18:00', lng: 104.2),
+    ];
+    final out = eventsNear(all, 1.30, 103.90, now, days: daysToWeekendEnd(now));
+    expect(out.map((e) => e.$1.name), ['Fair', 'Long show']);
+  });
 }

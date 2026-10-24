@@ -505,3 +505,52 @@ class PrivateProject {
         rentals: (j['rc'] as num?)?.toInt() ?? 0,
       );
 }
+
+/// A public event from events.json (Eventfinda).
+class PublicEvent {
+  const PublicEvent({
+    required this.name,
+    required this.url,
+    required this.start,
+    required this.end,
+    required this.lat,
+    required this.lng,
+    this.when = '',
+    this.place = '',
+    this.free = false,
+    this.category = '',
+    this.source = '',
+  });
+  final String name;
+  final String url;
+  final DateTime start;
+  final DateTime end;
+  final double lat;
+  final double lng;
+
+  /// Source's own short date text, e.g. "Sat 24 Oct" or "Wed 12 Aug - Wed 30 Dec".
+  final String when;
+  final String place;
+  final bool free;
+  final String category;
+  final String source;
+
+  static PublicEvent? fromBundle(Map<String, dynamic> j) {
+    final s = DateTime.tryParse('${j['s']}'.replaceFirst(' ', 'T'));
+    if (s == null) return null;
+    final e = DateTime.tryParse('${j['e']}'.replaceFirst(' ', 'T')) ?? s;
+    return PublicEvent(
+      name: '${j['n'] ?? ''}',
+      url: '${j['u'] ?? ''}',
+      start: s,
+      end: e,
+      lat: _d(j['la']),
+      lng: _d(j['lo']),
+      when: '${j['w'] ?? ''}',
+      place: '${j['p'] ?? ''}',
+      free: j['f'] == true,
+      category: '${j['c'] ?? ''}',
+      source: '${j['src'] ?? ''}',
+    );
+  }
+}

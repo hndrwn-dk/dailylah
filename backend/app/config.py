@@ -30,6 +30,9 @@ class Settings(BaseSettings):
 
     # URA Data Service (private property); a daily token is requested from the key.
     ura_access_key: str | None = None
+    # Events for the weekend card (daily build only).
+    eventfinda_user: str | None = None
+    eventfinda_password: str | None = None
 
     # Upstash Redis (redis:// or rediss:// URL). Empty = in-memory only (local dev).
     redis_url: str | None = None

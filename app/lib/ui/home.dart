@@ -886,6 +886,26 @@ class _Weekend extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _Heading(s.weekendTitle, Icons.park_outlined),
+        if (eventsNear(ref.watch(eventsProvider).valueOrNull ?? const <PublicEvent>[], home.lat, home.lng,
+                ref.watch(clockProvider).valueOrNull ?? DateTime.now(),
+                days: 7, limit: 10) case final evs when evs.isNotEmpty)
+          NearGroup(
+            title: s.eventsNearby,
+            icon: Icons.event_outlined,
+            items: [
+              for (final (e, d) in evs)
+                NearItem(
+                  name: e.name,
+                  detail: [if (e.when.isNotEmpty) e.when, if (e.place.isNotEmpty) e.place, if (e.free) s.freeEvent, e.source]
+                      .join(' · '),
+                  lat: e.lat,
+                  lng: e.lng,
+                  distance: d,
+                  linkUrl: e.url,
+                  linkLabel: s.eventDetails,
+                ),
+            ],
+          ),
         if (pois != null) NearGroup(title: s.parks, icon: Icons.park_outlined, items: NearItem.pois(pois.of(PoiKind.park), home, radius: 2000)),
         NearGroup(title: s.attractions, icon: Icons.attractions_outlined, items: NearItem.points(around.of('attraction'), home, radius: 6000)),
         NearGroup(title: s.museums, icon: Icons.museum_outlined, items: NearItem.points(around.of('museum'), home, radius: 10000, limit: 3)),
