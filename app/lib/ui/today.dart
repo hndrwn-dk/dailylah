@@ -592,7 +592,10 @@ class _WeekendCard extends ConsumerWidget {
       'park': [for (final p in pois.of(PoiKind.park)) fromPoi(p)],
       'library': [for (final p in pois.of(PoiKind.library)) fromPoi(p)],
     }, home.lat, home.lng, indoor: indoor);
-    if (picks.isEmpty) return const SizedBox.shrink();
+    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
+    final events = eventsNear(ref.watch(eventsProvider).valueOrNull ?? const <PublicEvent>[], home.lat, home.lng, now,
+        days: daysToWeekendEnd(now));
+    if (picks.isEmpty && events.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -606,7 +609,39 @@ class _WeekendCard extends ConsumerWidget {
             child: Text(s.seeAll),
           ),
         ),
-        if (indoor) Padding(padding: const EdgeInsets.fromLTRB(4, 0, 4, 8), child: Text(s.weekendIndoor, style: t.bodySmall)),
+        if (events.isNotEmpty) ...[
+          Padding(padding: const EdgeInsets.fromLTRB(4, 0, 4, 8), child: Text(s.eventsNearby, style: t.titleSmall)),
+          Panel(
+            child: Column(
+              children: [
+                for (final (e, d) in events)
+                  ListTile(
+                    leading: const Icon(Icons.event_outlined),
+                    title: Text(e.name),
+                    subtitle: Text(
+                      [
+                        if (e.when.isNotEmpty) e.when,
+                        if (e.place.isNotEmpty) e.place,
+                        s.metres(d),
+                        if (e.free) s.freeEvent,
+                      ].join(' · '),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: const Icon(Icons.open_in_new, size: 18),
+                    onTap: () => launchUrl(Uri.parse(e.url), mode: LaunchMode.externalApplication),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Text(s.eventsFrom({for (final (e, _) in events) e.source}.join(' and ')), style: t.bodySmall),
+                ),
+              ],
+            ),
+          ),
+        ],
+        if (indoor && picks.isNotEmpty)
+          Padding(padding: const EdgeInsets.fromLTRB(4, 0, 4, 8), child: Text(s.weekendIndoor, style: t.bodySmall)),
+        if (picks.isNotEmpty)
         Panel(
           child: Column(
             children: [

@@ -206,6 +206,10 @@ class S {
   String tooSoonThen(String skipped, String line) => '$skipped is too soon to catch. $line';
   String get weekendCard => 'This weekend near home';
   String get weekendIndoor => 'Rain or haze around: indoor ideas first.';
+  String get eventsNearby => 'Events nearby';
+  String get freeEvent => 'Free';
+  String get eventDetails => 'Details and tickets';
+  String eventsFrom(String sources) => 'Events from $sources. Check details and tickets on their pages.';
   String weekendKind(String k) => switch (k) {
         'museum' => 'Museum',
         'library' => 'Library',
