@@ -1,26 +1,43 @@
 # DailyLah: handoff for the next chat
 
-Start here, then read `CLAUDE.md` and `docs/PRD.md`.
+Start here, then read `CLAUDE.md` (the feature map is kept current there) and `docs/PRD.md`.
 
-## Status (21 Oct 2026)
-- PR #24 is merged into `main`. It contains:
-  - Release start-up fix: R8 is off.
-  - "Leave work" / "Leave school" labels.
-  - "Upgrading" chip.
-  - Red Emergency and Meeting points chips.
-  - New logo and Welcome wordmark.
-  - Play Store icon (`app/assets/store/play-icon-512.png`) and feature graphic (`docs/feature_design/`).
-  - Home: Food and Parking split, with a Halal chip.
-  - ActiveSG "Book on ActiveSG".
-  - Today: taxis shown once when Taxi is the trip mode.
-- The last two commits (ActiveSG, taxi dedupe) were merged without CI. Run analyze and test locally first.
-- Still to confirm on a phone: onboarding stays saved after the app is closed and reopened.
+## Status (24 Oct 2026)
+- `main` is at PR #42. All feature branches are merged and deleted on GitHub, except
+  `wip/floating-nav-edge`: an unmerged WIP from 20 Oct, kept for now.
+- The repo is public with an all-rights-reserved LICENSE. "Require approval for all external
+  contributors" is on.
+- GitHub Actions runs again: app (APK), backend, and data (daily bundles, about 40 min).
+  - Dispatch data with `gh api -X POST repos/hndrwn-dk/dailylah/actions/workflows/389579101/dispatches -f ref=main`.
+  - Persona harness: branch `probe/persona2` was deleted. Recreate it if needed.
+- Proxy limits in Claude sessions:
+  - Use REST, not GraphQL. Merge with `gh api -X PUT repos/hndrwn-dk/dailylah/pulls/N/merge -f merge_method=squash`.
+  - Branch deletion and repo settings are blocked, so give Hendrawan the commands to run.
 
-## Latest batch (22 Oct 2026, branch feat/daily-companion)
-Nearby section chips, clearer Watch/Compare, Plan B for MRT disruptions, leave-by, wake me at my
-stop, I parked here, weekly digest (+ holidays.json bundle), weather tips per mode, know-me
-(trip times, meal suggestions). ERP on the route is not possible: LTA removed the ERP rates API
-from DataMall in Sep 2024. Return Right machine locations: website terms forbid reuse; ask BCRS.
+## Recent batches (22 to 24 Oct)
+- #36 to #39:
+  - Nearby section chips.
+  - Plan B for MRT disruptions, leave-by and wake-me.
+  - Habits: parked car, trip times, Ate here.
+  - Weekly digest, with holidays.json and the hand-kept school_holidays.json.
+  - Compare UX fixes.
+- #40: Plan a trip page (Here first), and a weekend card on Today on days without a commute.
+- #41: events from Eventfinda (`backend/app/events.py`, secrets `EVENTFINDA_USER`/`EVENTFINDA_PASSWORD`).
+  - Eventbrite was removed: it has no public search. The unused `EVENTBRITE_TOKEN` secret can be deleted.
+- #42: parks.
+  - Facility chips from NParks Park Facilities (`attach_facilities`, key `f` in poi.json).
+  - "Good time to go?" line (`parkTime`).
+  - Spelled-out names (`expandPlaceName`).
+  - 2-line details in lists.
+  - **Check after the data build:** confirm the facility chips actually appear. The CLASS values in
+    that dataset were not visible from the sandbox, so `FACILITY_LABELS` in bundles.py may need tuning.
+
+## Open ideas / not possible
+- Wikimedia photos for big parks: not started.
+- OnePA and NParks events: written permission needed. A short email to PA was drafted, not sent.
+- Return Right machine locations: the website terms forbid reuse; ask BCRS.
+- ERP on the route: LTA removed the ERP rates API in Sep 2024.
+- QStash sometimes stops polling (unresolved on Upstash). Fetch-on-miss in the backend covers it.
 
 ## Domains
 - `dailylah.sg` is the website and the first host for data bundles; `dailylah.tursinalabs.com`
@@ -28,41 +45,25 @@ from DataMall in Sep 2024. Return Right machine locations: website terms forbid 
 - Privacy and terms stay at `tursinalabs.com/dailylah/privacy` and `/terms`;
   `dailylah.sg/privacy` and `/terms` redirect there (`web/vercel.json`).
 
-## Build locally: GitHub Actions minutes are used up
-These workflows do not run until the quota resets: app.yml (APK), data.yml (daily bundles), and the persona and probe workflows.
-
-App:
-```
-cd app
-flutter pub get
-flutter analyze
-flutter test
-```
-
-Signed release APK. Set these env vars, never commit them, then build:
-- `ANDROID_KEYSTORE_PATH` = `C:\Users\hendr\Deployment\signed\dailylah\dailylah-upload.jks`
-- `ANDROID_KEYSTORE_PASSWORD`
-- `ANDROID_KEY_ALIAS`
-- `ANDROID_KEY_PASSWORD`
-
-Run `flutter build apk --release`. The output is `app/build/app/outputs/flutter-apk/app-release.apk`.
-
-Backend:
-```
-cd backend
-pip install -r requirements-dev.txt
-pytest
-ruff check .
-```
-
-Data bundles:
-- Build with `cd backend && python -m app.build_static`. It needs the secrets in `.env`: LTA, OneMap, URA.
-- Copy the output into `web/data/` and push. Vercel serves it.
-- Until this runs, `around.json` has no ActiveSG points.
+## Build locally (if Actions minutes run out again)
+- App: `cd app && flutter pub get && flutter analyze && flutter test`.
+- Release APK:
+  - Set `ANDROID_KEYSTORE_PATH` (`C:\Users\hendr\Deployment\signed\dailylah\dailylah-upload.jks`),
+    `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD` as env vars. Never commit them.
+  - Run `flutter build apk --release`.
+- Backend: `cd backend && pip install -r requirements-dev.txt && pytest && ruff check .`
+- Bundles:
+  - Run `cd backend && python -m app.build_static`. It needs the secrets in `.env`.
+  - Copy the output into `web/data/` and push.
 
 ## How Hendrawan works
 - Chats in Indonesian. The app is English only.
 - "diskusi dulu" = discuss only, do not build.
-- One PR and one APK per batch. Ask before merging.
+- One PR and one APK per batch. Ask before merging unless he already said merge.
+- Track every to-do so nothing is missed.
 - Never ask for secrets in chat. Keep the app religion-neutral: halal and prayer times are opt-in.
-- Keep the sticker theme.
+- Keep the sticker theme: amber = look now, teal = go.
+- Drafts to outside parties stay short, so the idea is not given away.
+- CI rules:
+  - Analyzer infos are fatal.
+  - The Dart SDK is >=3.5, so no `?x` null-aware elements; use `if (x case final v?)`.
