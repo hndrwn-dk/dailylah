@@ -318,7 +318,11 @@ class NearItem {
     this.bigWarn = false,
     this.linkUrl,
     this.linkLabel = '',
+    this.chips = const [],
   });
+
+  /// Labels shown as chips on the place sheet, e.g. park facilities.
+  final List<String> chips;
 
   /// Optional button on the place sheet, e.g. booking on ActiveSG.
   final String? linkUrl;
@@ -351,14 +355,24 @@ class NearItem {
         for (final (p, d) in dedupePlaces(
             within(all, home.lat, home.lng, radius, latOf: (p) => p.lat, lngOf: (p) => p.lng, limit: limit * 2),
             nameOf: (p) => p.name, latOf: (p) => p.lat, lngOf: (p) => p.lng).take(limit))
-          NearItem(name: p.name, detail: p.detail, lat: p.lat, lng: p.lng, distance: d),
+          NearItem(
+            name: p.name,
+            detail: p.detail.isNotEmpty ? p.detail : p.facilities.join(', '),
+            lat: p.lat,
+            lng: p.lng,
+            distance: d,
+            chips: p.facilities,
+          ),
       ];
 }
 
 /// A titled list that shows the nearest few and expands to the rest.
 class NearGroup extends ConsumerStatefulWidget {
-  const NearGroup({super.key, required this.title, required this.icon, required this.items, this.show = 3});
+  const NearGroup({super.key, required this.title, required this.icon, required this.items, this.show = 3, this.header});
   final String title;
+
+  /// Shown between the title and the list, e.g. the parks "good time to go?" line.
+  final Widget? header;
   final IconData icon;
   final List<NearItem> items;
   final int show;
@@ -384,6 +398,7 @@ class _NearGroupState extends ConsumerState<NearGroup> {
           padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
           child: Text(widget.title, style: t.titleSmall),
         ),
+        if (widget.header case final h?) h,
         Panel(
           child: Column(
             children: [
@@ -393,7 +408,7 @@ class _NearGroupState extends ConsumerState<NearGroup> {
                   title: Text(it.name),
                   subtitle: Text(
                     [s.metres(it.distance), if (it.detail.isNotEmpty) it.detail].join(' · '),
-                    maxLines: 5,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   trailing: it.big != null
@@ -415,6 +430,13 @@ class _NearGroupState extends ConsumerState<NearGroup> {
                     distance: it.distance,
                     phone: it.tel,
                     extra: [
+                      if (it.chips.isNotEmpty) ...[
+                        Text(s.facilities, style: t.titleSmall),
+                        const SizedBox(height: 8),
+                        InfoChips(it.chips),
+                        const SizedBox(height: 12),
+                      ],
+                      if (widget.header case final h?) h,
                       if (it.linkUrl != null)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 12),
@@ -906,7 +928,16 @@ class _Weekend extends ConsumerWidget {
                 ),
             ],
           ),
-        if (pois != null) NearGroup(title: s.parks, icon: Icons.park_outlined, items: NearItem.pois(pois.of(PoiKind.park), home, radius: 2000)),
+        if (pois != null)
+          NearGroup(
+            title: s.parks,
+            icon: Icons.park_outlined,
+            items: NearItem.pois(pois.of(PoiKind.park), home, radius: 2000),
+            header: switch (ref.watch(parkTimeProvider((home.lat, home.lng)))) {
+              final p? => ParkTimeBanner(time: p, text: s.parkTimeLine(p)),
+              null => null,
+            },
+          ),
         NearGroup(title: s.attractions, icon: Icons.attractions_outlined, items: NearItem.points(around.of('attraction'), home, radius: 6000)),
         NearGroup(title: s.museums, icon: Icons.museum_outlined, items: NearItem.points(around.of('museum'), home, radius: 10000, limit: 3)),
         NearGroup(

@@ -77,6 +77,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   and events (`eventsNear`) from `events.json`, built daily by `backend/app/events.py` from
   Eventfinda (secrets `EVENTFINDA_USER`/`EVENTFINDA_PASSWORD`; key stays in CI). Each event links
   to its Eventfinda page with attribution. Eventbrite was left out: it has no public event search.
+- Parks: names spelled out on the phone (`expandPlaceName`: Pk, Pg, Jln...), facility chips from NParks
+  Park Facilities attached per park in `poi.json` (`attach_facilities`, key `f`), and a "good time to go?"
+  line (`parkTime`, `parkTimeProvider`) from lightning, rain, haze, heat stress, UV and the forecast.
 - Home tab (`ui/home.dart`) is about the saved home, one section at a time (chips under the hero,
   `homeSectionProvider`): its HDB block (`homeBlock`) or private project (`private_homes.json` from
   URA, `privateProjectFor`; backend `app/ura.py`, secret `URA_ACCESS_KEY`), upgrading and

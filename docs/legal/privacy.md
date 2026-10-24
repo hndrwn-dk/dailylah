@@ -22,7 +22,7 @@ DailyLah is a free daily companion for people in Singapore. It shows bus arrival
 - Favourite hawker centres, saved car parks, and HDB blocks you watch or compare
 - A short log of alerts already shown, so the same alert is not sent twice
 - What you choose to log with **Learn my habits**: trips you start and end with "I'm leaving" and "Arrived" (route, start time, minutes, whether it was raining), hawker centres you mark with "Ate here", and the car park, level and lot you save with "I parked here". You can turn this off and delete it any time in More > Extras. It is not part of the family share code.
-- Copies of public data bundles (bus stops, hawker centres, dengue clusters, schools, parks, supermarkets, car parks, HDB blocks, resale and rent statistics, prayer times, public and MOE school holidays, and public events listed on Eventfinda), and the text shown on the home screen widget
+- Copies of public data bundles (bus stops, hawker centres, dengue clusters, schools, parks and their facilities, supermarkets, car parks, HDB blocks, resale and rent statistics, prayer times, public and MOE school holidays, and public events listed on Eventfinda), and the text shown on the home screen widget
 
 This data never leaves your phone. It is not backed up to Tursina Labs.
 
@@ -99,7 +99,7 @@ DailyLah adalah teman harian gratis untuk warga Singapura. Aplikasi ini menampil
 - Hawker favorit, parkir yang disimpan, serta blok HDB yang Anda pantau atau bandingkan
 - Catatan singkat notifikasi yang sudah tampil, supaya notifikasi yang sama tidak dikirim dua kali
 - Yang Anda catat sendiri lewat **Learn my habits**: perjalanan yang Anda mulai dan akhiri dengan "I'm leaving" dan "Arrived" (rute, jam mulai, durasi, dan apakah sedang hujan), hawker yang Anda tandai dengan "Ate here", serta lokasi parkir, level, dan nomor lot yang Anda simpan dengan "I parked here". Fitur ini bisa dimatikan dan datanya dihapus kapan saja di More > Extras. Data ini tidak ikut dalam kode berbagi keluarga.
-- Salinan bundel data publik (halte bus, hawker, cluster dengue, sekolah, taman, supermarket, parkir, blok HDB, statistik harga resale dan sewa, jadwal sholat, hari libur nasional dan libur sekolah MOE, serta event publik dari Eventfinda), dan teks yang tampil di widget layar utama
+- Salinan bundel data publik (halte bus, hawker, cluster dengue, sekolah, taman beserta fasilitasnya, supermarket, parkir, blok HDB, statistik harga resale dan sewa, jadwal sholat, hari libur nasional dan libur sekolah MOE, serta event publik dari Eventfinda), dan teks yang tampil di widget layar utama
 
 Data ini tidak pernah keluar dari HP Anda dan tidak dicadangkan ke Tursina Labs.
 

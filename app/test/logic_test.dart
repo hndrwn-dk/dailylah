@@ -897,4 +897,43 @@ void main() {
     final out = eventsNear(all, 1.30, 103.90, now, days: daysToWeekendEnd(now));
     expect(out.map((e) => e.$1.name), ['Fair', 'Long show']);
   });
+
+  group('parks', () {
+    test('expandPlaceName spells out short forms', () {
+      expect(expandPlaceName('Jln Kebaya Pg'), 'Jalan Kebaya Playground');
+      expect(expandPlaceName('Hazel Pk Os'), 'Hazel Park Open Space');
+      expect(expandPlaceName('Siglap Linear Pk (Jln B\'Wan-Upp Ec Rd)'), 'Siglap Linear Park (Jalan B\'Wan-Upper East Coast Road)');
+      expect(expandPlaceName('Sunrise Dr Pg Ii'), 'Sunrise Drive Playground II');
+      expect(expandPlaceName('St Anne\'S Wood Pg'), 'St Anne\'s Wood Playground');
+      expect(expandPlaceName('St. Nicholas View Playground'), 'St. Nicholas View Playground');
+      expect(expandPlaceName('Pasir Ris Park'), 'Pasir Ris Park');
+    });
+
+    test('park bundle carries facilities and expanded names', () {
+      final set = PoiSet.fromBundle({
+        'park': [
+          {'n': 'Bishan Pk', 'la': 1.3, 'lo': 103.8, 'f': ['Playground', 'Toilet']},
+        ],
+        'library': [
+          {'n': 'Bishan Pk Library', 'la': 1.3, 'lo': 103.8},
+        ],
+      });
+      expect(set.of(PoiKind.park).single.name, 'Bishan Park');
+      expect(set.of(PoiKind.park).single.facilities, ['Playground', 'Toilet']);
+      expect(set.of(PoiKind.library).single.name, 'Bishan Pk Library');
+      expect(set.of(PoiKind.library).single.facilities, isEmpty);
+    });
+
+    test('parkTime picks the most pressing reason', () {
+      final noon = DateTime(2026, 10, 24, 12);
+      expect(parkTime(now: noon), ParkTime.good);
+      expect(parkTime(now: noon, lightning: true, rainMm: 2), ParkTime.lightning);
+      expect(parkTime(now: noon, rainMm: 0.2, air: AirLevel.unhealthy), ParkTime.rain);
+      expect(parkTime(now: noon, air: AirLevel.unhealthy, heat: 'High'), ParkTime.haze);
+      expect(parkTime(now: noon, air: AirLevel.moderate, heat: 'High'), ParkTime.heat);
+      expect(parkTime(now: noon, uv: 9), ParkTime.uv);
+      expect(parkTime(now: DateTime(2026, 10, 24, 17), uv: 9), ParkTime.good);
+      expect(parkTime(now: noon, uv: 5, showersForecast: true), ParkTime.showers);
+    });
+  });
 }

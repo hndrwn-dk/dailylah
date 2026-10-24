@@ -637,3 +637,27 @@ def test_pick_matches_loose_column_names():
     assert _pick(row, "business_name", "name") == "FairPrice"
     assert _pick(row, "postal") == "310001"
     assert _pick(row, "missing") == ""
+
+
+def test_attach_facilities_by_distance_and_name():
+    def pt(lat, lng, cls, name="X"):
+        return {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [lng, lat]},
+            "properties": {"NAME": name, "CLASS": cls},
+        }
+
+    geo = {
+        "features": [
+            pt(1.3000, 103.8000, "PLAYGROUND"),  # at the park
+            pt(1.3010, 103.8000, "TOILET"),  # ~110 m away
+            pt(1.3100, 103.8000, "CARPARK"),  # ~1.1 km away, too far
+            pt(1.3200, 103.8200, "FITNESS AREA", name="Bishan Park"),  # far, but same name
+            pt(1.3000, 103.8001, "LAMP POST"),  # not a chip
+        ]
+    }
+    parks = [{"n": "Bishan Park", "la": 1.3, "lo": 103.8}, {"n": "Empty", "la": 1.4, "lo": 103.9}]
+    out = b.attach_facilities(parks, geo)
+    assert out[0]["f"] == ["Playground", "Fitness corner", "Toilet"]
+    assert "f" not in out[1]
+    assert "f" not in parks[0]  # input left untouched

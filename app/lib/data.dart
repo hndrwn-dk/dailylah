@@ -90,16 +90,66 @@ class DengueCluster {
 
 /// A point of interest: MRT station, school, park, library, CC, sport facility, mosque.
 class Poi {
-  const Poi({required this.name, required this.lat, required this.lng, this.detail = ''});
+  const Poi({required this.name, required this.lat, required this.lng, this.detail = '', this.facilities = const []});
   final String name;
   final double lat;
   final double lng;
   final String detail;
 
-  /// {"n","la","lo","d"?}
-  factory Poi.fromBundle(Map<String, dynamic> j) =>
-      Poi(name: '${j['n']}', lat: _d(j['la']), lng: _d(j['lo']), detail: '${j['d'] ?? ''}');
+  /// Park facilities from NParks, e.g. ["Playground", "Toilet"]. Empty for other kinds.
+  final List<String> facilities;
+
+  /// {"n","la","lo","d"?,"f"?}
+  factory Poi.fromBundle(Map<String, dynamic> j, {bool expand = false}) => Poi(
+        name: expand ? expandPlaceName('${j['n']}') : '${j['n']}',
+        lat: _d(j['la']),
+        lng: _d(j['lo']),
+        detail: '${j['d'] ?? ''}',
+        facilities: [for (final f in (j['f'] as List? ?? const [])) '$f'],
+      );
 }
+
+/// Short forms in NParks and street names spelled out: "Jln Kebaya Pg" -> "Jalan Kebaya
+/// Playground", "Bishan Pk" -> "Bishan Park". Only whole words; "St" is left alone because
+/// it is usually Saint here ("St Michael's"). Also fixes "Anne'S" from title-casing.
+String expandPlaceName(String s) => s
+    .replaceAllMapped(_abbrev, (m) => _abbrevs[m[1]!.toLowerCase()]!)
+    .replaceAllMapped(RegExp(r"'S\b"), (_) => "'s");
+
+const _abbrevs = {
+  'pg': 'Playground',
+  'pk': 'Park',
+  'os': 'Open Space',
+  'fc': 'Fitness Corner',
+  'jln': 'Jalan',
+  'lor': 'Lorong',
+  'rd': 'Road',
+  'ave': 'Avenue',
+  'dr': 'Drive',
+  'ln': 'Lane',
+  'cres': 'Crescent',
+  'cl': 'Close',
+  'pl': 'Place',
+  'ter': 'Terrace',
+  'mt': 'Mount',
+  'bt': 'Bukit',
+  'kg': 'Kampong',
+  'tg': 'Tanjong',
+  'sg': 'Sungei',
+  'ec': 'East Coast',
+  'pt': 'Point',
+  'upp': 'Upper',
+  'ctrl': 'Central',
+  'nth': 'North',
+  'sth': 'South',
+  'gdn': 'Garden',
+  'gdns': 'Gardens',
+  'blk': 'Block',
+  'hdb': 'HDB',
+  'ii': 'II',
+};
+
+final _abbrev = RegExp(r'\b(' + _abbrevs.keys.join('|') + r')\b(?!\.)', caseSensitive: false);
 
 enum PoiKind { mrt, primarySchool, school, preschool, park, library, cc, sport, mosque, supermarket }
 
@@ -124,7 +174,10 @@ class PoiSet {
 
   factory PoiSet.fromBundle(Map<String, dynamic> j) => PoiSet({
         for (final e in _keys.entries)
-          e.key: [for (final p in (j[e.value] as List? ?? const [])) Poi.fromBundle(p as Map<String, dynamic>)],
+          e.key: [
+            for (final p in (j[e.value] as List? ?? const []))
+              Poi.fromBundle(p as Map<String, dynamic>, expand: e.key == PoiKind.park),
+          ],
       });
 
   static const empty = PoiSet({});

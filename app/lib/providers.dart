@@ -318,6 +318,27 @@ final uvProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).we
 
 final lightningProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).weather('lightning'));
 
+/// Good time for a park near a point? Null until at least one weather reading has loaded.
+final parkTimeProvider = Provider.autoDispose.family<ParkTime?, (double, double)>((ref, at) {
+  final (lat, lng) = at;
+  final lightning = ref.watch(lightningProvider).valueOrNull;
+  final rain = ref.watch(rainfallProvider).valueOrNull;
+  final wbgt = ref.watch(wbgtProvider).valueOrNull;
+  final uv = ref.watch(uvProvider).valueOrNull;
+  final forecast = ref.watch(forecastProvider).valueOrNull;
+  final air = airNear(ref.watch(psiProvider).valueOrNull, ref.watch(pm25Provider).valueOrNull, lat, lng);
+  if (lightning == null && rain == null && wbgt == null && uv == null && air == null) return null;
+  return parkTime(
+    now: nowOf(ref),
+    lightning: lightning != null && lightningNear(lightning, lat, lng),
+    rainMm: rain == null ? null : rainfallNear(rain, lat, lng)?.$2,
+    air: air?.level,
+    heat: wbgt == null ? null : heatStressNear(wbgt, lat, lng),
+    uv: uv == null ? null : uvIndex(uv),
+    showersForecast: forecast != null && preferIndoor(forecastNear(forecast, lat, lng)),
+  );
+});
+
 final carparkLiveProvider = FutureProvider.autoDispose((ref) async => carparkLots(await ref.watch(apiProvider).carparks()));
 
 final taxiProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).taxis());
