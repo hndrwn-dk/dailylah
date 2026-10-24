@@ -21,6 +21,7 @@ from typing import Any
 
 import httpx
 
+from .datagov import DataGovKey
 from .onemap import OneMap
 from .svy21 import to_latlon
 
@@ -91,12 +92,12 @@ class DataGov:
 
     def __init__(self, client: httpx.AsyncClient, api_key: str | None = None, pause: float = 12.0):
         self.client = client
-        self.headers = {"x-api-key": api_key} if api_key else {}
+        self.key = DataGovKey(api_key)
         self.pause = pause
 
     async def _get(self, url: str, params: dict | None = None) -> httpx.Response:
         for attempt in range(6):
-            resp = await self.client.get(url, params=params, headers=self.headers)
+            resp = await self.key.get(self.client, url, params)
             if resp.status_code != 429:
                 resp.raise_for_status()
                 return resp
