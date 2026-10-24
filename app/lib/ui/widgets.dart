@@ -878,6 +878,14 @@ IconData facilityIcon(String label) => switch (label) {
       'Pond' => Icons.water,
       'Lookout' => Icons.landscape_outlined,
       'Camping' => Icons.cabin_outlined,
+      'Bike rental' => Icons.directions_bike_outlined,
+      'Foot reflexology' => Icons.spa_outlined,
+      'Sports court' => Icons.sports_basketball_outlined,
+      'Amphitheatre' => Icons.theater_comedy_outlined,
+      'Community garden' => Icons.yard_outlined,
+      'Therapeutic garden' => Icons.local_florist_outlined,
+      'Baby room' => Icons.child_friendly_outlined,
+      'Jetty' => Icons.sailing_outlined,
       _ => Icons.check_circle_outline,
     };
 

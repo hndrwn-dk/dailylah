@@ -710,6 +710,17 @@ FACILITY_LABELS = {
     "POND": "Pond",
     "LOOKOUT POINT": "Lookout",
     "CAMPSITE": "Camping",
+    # Seen in the NParks data (build_report.json, 24 Oct 2026).
+    "DOG-AREA": "Dog run",
+    "BICYCLE PARKING": "Bike rack",
+    "BICYCLE RENTAL SHOP": "Bike rental",
+    "FOOT RELAX": "Foot reflexology",
+    "MULTIPURPOSE COURT": "Sports court",
+    "AMPHITHEATRE": "Amphitheatre",
+    "ALLOTMENT GARDEN": "Community garden",
+    "THERAPEUTIC GARDEN": "Therapeutic garden",
+    "BABY": "Baby room",
+    "JETTY": "Jetty",
     # Broader words last: substring matches try the keys in this order.
     "PAVILION": "Shelter",
     "WASHROOM": "Toilet",
