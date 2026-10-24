@@ -548,7 +548,7 @@ class TripBusCard extends ConsumerWidget {
                                     rides[e.service]!.km,
                                     names[rides[e.service]!.alightAt] ?? rides[e.service]!.alightAt,
                                   ),
-                                  s.loadLabel(e.load),
+                                  s.busInfo(e),
                                 ].join(' · '),
                               ),
                           ],

@@ -495,7 +495,13 @@ class S {
   String get residentsCommittees => 'Residents\' Committees';
   String get mpOffices => 'MP offices (Meet-the-People)';
   String get hdbBranch => 'HDB branch';
-  String get eldercare => 'Eldercare';
+  String get eldercare => 'Active Ageing Centres and eldercare';
+  String get supermarkets => 'Supermarkets';
+  String get setLeaveTime => 'Set a usual time (optional)';
+  String leaveHomeAt(String time) => 'Leave home at $time';
+  String get clearTime => 'Clear';
+  String leaveForPlace(String place, String line) => '$place: $line';
+  String schoolHolidayToday(String name) => '$name: no school today, so no school trip.';
   String get studentCare => 'Student care';
   String get familyServices => 'Family services';
   String get recyclingTitle => 'Recycling';
@@ -515,6 +521,16 @@ class S {
   String showAll(int n) => 'Show all ($n)';
   String showAllBuses(int n) => 'Show all $n buses';
   String get showFewer => 'Show fewer';
+  String get wheelchairBus => '♿ Wheelchair';
+  String deckLabel(String type) => switch (type) {
+        'SD' => 'Single deck',
+        'DD' => 'Double deck',
+        'BD' => 'Bendy bus',
+        _ => '',
+      };
+  /// Load, wheelchair access and bus type in one line, e.g. "Seats · ♿ Wheelchair · Single deck".
+  String busInfo(BusEta e) =>
+      [loadLabel(e.load), if (e.wheelchair) wheelchairBus, deckLabel(e.deck)].where((x) => x.isNotEmpty).join(' · ');
   String toPlaces(List<String> places) => 'to ${places.join(' and ')}';
   String get aedShort => 'AED';
   String get aeShort => 'A&E';

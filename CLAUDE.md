@@ -70,7 +70,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - Habits (`Habits` in models.dart, `HabitsStore` in store.dart, `habitsProvider`): parked car, trips
   logged with I'm leaving/Arrived (`tripStats`), "Ate here" meals (`mealNudge`). On the phone only,
   behind `Favorites.learnHabits`, never in the share code. Weekly Sunday digest (`weeklyDigest`)
-  uses the `holidays.json` bundle (MOM public holidays).
+  uses the `holidays.json` bundle (MOM public holidays). `school_holidays.json` (MOE, kept by hand,
+  see web/data/README.md) turns off the school trip and its reminder on school holidays. Custom
+  places can carry a usual time (`Place.go`) for a leave-by reminder (`extrasDueNow`).
 - Home tab (`ui/home.dart`) is about the saved home, one section at a time (chips under the hero,
   `homeSectionProvider`): its HDB block (`homeBlock`) or private project (`private_homes.json` from
   URA, `privateProjectFor`; backend `app/ura.py`, secret `URA_ACCESS_KEY`), upgrading and

@@ -310,7 +310,7 @@ class _StopBoardState extends ConsumerState<_StopBoard> {
                             next: next,
                             note: [
                               if (goesTo[e.service] case final to?) s.toPlaces(to),
-                              s.loadLabel(e.load),
+                              s.busInfo(e),
                             ].where((x) => x.isNotEmpty).join(' · '),
                           ),
                       ],

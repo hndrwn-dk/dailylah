@@ -829,4 +829,43 @@ void main() {
     expect(servicesToPlaces(routes, a, {'Home': {'A'}}), isEmpty);
     expect(const S().toPlaces(['Home']), 'to Home');
   });
+
+  test('bus arrivals carry wheelchair access and bus type', () {
+    final now = DateTime.utc(2026, 10, 23, 1);
+    final body = {
+      'data': {
+        'Services': [
+          {
+            'ServiceNo': '162',
+            'NextBus': {'EstimatedArrival': now.add(const Duration(minutes: 4)).toIso8601String(), 'Load': 'SEA', 'Feature': 'WAB', 'Type': 'SD'},
+          },
+        ],
+      },
+    };
+    final e = parseBusArrival(body, now).single;
+    expect(e.wheelchair, isTrue);
+    expect(e.deck, 'SD');
+    expect(const S().busInfo(e), 'Seats · ♿ Wheelchair · Single deck');
+  });
+
+  test('MOE school holidays', () {
+    final all = SchoolHoliday.fromBundle([
+      {'f': '2026-11-21', 't': '2026-12-31', 'n': 'Year-end holidays'},
+      {'f': 'bad', 't': '2026-01-01', 'n': 'x'},
+    ]);
+    expect(all, hasLength(1));
+    expect(schoolHolidayOn(all, DateTime(2026, 11, 23, 7))!.name, 'Year-end holidays');
+    expect(schoolHolidayOn(all, DateTime(2026, 11, 20, 7)), isNull);
+  });
+
+  test('custom places with a usual time are due in their leave window', () {
+    const fav = Favorites(extraPlaces: [
+      Place(kind: PlaceKind.other, name: 'Pick-up', addrLat: 1.3, addrLng: 103.8, when: PlaceWhen.weekdays, go: TimeOfDayHM(13, 0)),
+      Place(kind: PlaceKind.other, name: 'Market', addrLat: 1.3, addrLng: 103.8),
+    ]);
+    expect(extrasDueNow(fav, DateTime(2026, 10, 23, 12, 45)), [0]); // Friday
+    expect(extrasDueNow(fav, DateTime(2026, 10, 24, 12, 45)), isEmpty); // Saturday
+    expect(extrasDueNow(fav, DateTime(2026, 10, 23, 12, 0)), isEmpty);
+    expect(fav.extraPlaces.first.copyWith(clearGo: true).go, isNull);
+  });
 }

@@ -167,6 +167,9 @@ class HabitsNotifier extends Notifier<Habits> {
 
 final habitsProvider = NotifierProvider<HabitsNotifier, Habits>(HabitsNotifier.new);
 
+final schoolHolidaysProvider = FutureProvider<List<SchoolHoliday>>((ref) async =>
+    SchoolHoliday.fromBundle(await ref.watch(bundleRepoProvider).load('school_holidays')));
+
 
 final stringsProvider = Provider<S>((ref) => const S());
 

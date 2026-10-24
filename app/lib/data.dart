@@ -101,7 +101,7 @@ class Poi {
       Poi(name: '${j['n']}', lat: _d(j['la']), lng: _d(j['lo']), detail: '${j['d'] ?? ''}');
 }
 
-enum PoiKind { mrt, primarySchool, school, preschool, park, library, cc, sport, mosque }
+enum PoiKind { mrt, primarySchool, school, preschool, park, library, cc, sport, mosque, supermarket }
 
 class PoiSet {
   const PoiSet(this.byKind);
@@ -119,6 +119,7 @@ class PoiSet {
     PoiKind.cc: 'cc',
     PoiKind.sport: 'sport',
     PoiKind.mosque: 'mosque',
+    PoiKind.supermarket: 'supermarket',
   };
 
   factory PoiSet.fromBundle(Map<String, dynamic> j) => PoiSet({

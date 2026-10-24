@@ -123,7 +123,13 @@ List<BusEta> parseBusArrival(Map<String, dynamic> apiBody, DateTime now, {int pe
       final eta = DateTime.tryParse('${nb['EstimatedArrival'] ?? ''}');
       if (eta == null) continue;
       final mins = eta.difference(now).inSeconds / 60;
-      out.add(BusEta(service: no, minutes: mins < 0 ? 0 : mins.floor(), load: '${nb['Load']}'));
+      out.add(BusEta(
+        service: no,
+        minutes: mins < 0 ? 0 : mins.floor(),
+        load: '${nb['Load']}',
+        wheelchair: '${nb['Feature'] ?? ''}' == 'WAB',
+        deck: '${nb['Type'] ?? ''}',
+      ));
       taken++;
     }
   }
@@ -1582,3 +1588,36 @@ Map<String, List<String>> servicesToPlaces(BusRoutes routes, BusStop stop, Map<S
   });
   return out;
 }
+
+// ---------------------------------------------------------------- MOE school holidays
+
+/// A school holiday period from school_holidays.json (MOE, maintained by hand).
+class SchoolHoliday {
+  const SchoolHoliday(this.from, this.to, this.name);
+  final DateTime from;
+  final DateTime to;
+  final String name;
+
+  static List<SchoolHoliday> fromBundle(Object? raw) => [
+        if (raw is List)
+          for (final r in raw)
+            if (r is Map && DateTime.tryParse('${r['f']}') != null && DateTime.tryParse('${r['t']}') != null)
+              SchoolHoliday(DateTime.parse('${r['f']}'), DateTime.parse('${r['t']}'), '${r['n']}'),
+      ];
+}
+
+/// The school holiday covering [now], or null on a school day.
+SchoolHoliday? schoolHolidayOn(List<SchoolHoliday> all, DateTime now) {
+  final d = dateOnly(now);
+  for (final h in all) {
+    if (!d.isBefore(h.from) && !d.isAfter(h.to)) return h;
+  }
+  return null;
+}
+
+/// Custom places with a usual time that fits [now] (weekday/weekend) and whose leave window
+/// (25 minutes before to 5 after) is now: their indexes.
+List<int> extrasDueNow(Favorites fav, DateTime now) => [
+      for (final i in extrasForToday(fav, now))
+        if (fav.extraPlaces[i].go case final go? when inLeaveWindow(now, go)) i,
+    ];

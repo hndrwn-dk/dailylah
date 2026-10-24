@@ -407,6 +407,34 @@ class _ExtraPlaces extends ConsumerWidget {
                           selected: fav.extraPlaces[i].modes,
                           onChanged: (m) => n.setExtra(i, fav.extraPlaces[i].copyWith(modes: m)),
                         ),
+                        const SizedBox(height: 8),
+                        // Optional usual time (e.g. school pick-up): drives "leave in" and a reminder.
+                        Wrap(
+                          spacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.schedule, size: 18),
+                              label: Text(fav.extraPlaces[i].go == null
+                                  ? s.setLeaveTime
+                                  : s.leaveHomeAt(fav.extraPlaces[i].go!.format())),
+                              onPressed: () async {
+                                final p = fav.extraPlaces[i];
+                                final cur = p.go ?? const TimeOfDayHM(9, 0);
+                                final picked = await showTimePicker(
+                                  context: context,
+                                  initialTime: TimeOfDay(hour: cur.hour, minute: cur.minute),
+                                );
+                                if (picked != null) await n.setExtra(i, p.copyWith(go: TimeOfDayHM(picked.hour, picked.minute)));
+                              },
+                            ),
+                            if (fav.extraPlaces[i].go != null)
+                              TextButton(
+                                onPressed: () => n.setExtra(i, fav.extraPlaces[i].copyWith(clearGo: true)),
+                                child: Text(s.clearTime),
+                              ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
