@@ -246,6 +246,31 @@ class _TransitBlock extends ConsumerWidget {
     final plan = stations.isEmpty ? null : mrtPlan(stations, from, to);
     final bad = planDisruption(plan, ref.watch(trainAlertsProvider).valueOrNull);
 
+    // Already there (e.g. "Here" after the ride): no walk or buses to suggest.
+    if (fromKey == null && straight < arrivedMetres) {
+      return Panel(
+        color: DL.mint,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const Icon(Icons.where_to_vote_outlined, color: DL.ink),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(s.youAreHere, style: t.titleMedium?.copyWith(color: DL.ink)),
+                    Text(s.arrivedAt(toLabel), style: t.bodyMedium?.copyWith(color: DL.ink)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -558,19 +583,50 @@ class TripBusCard extends ConsumerWidget {
                         ),
                       if (direct.isNotEmpty)
                         Builder(builder: (context) {
-                          final ride = rides[direct.first.$1.service]!;
+                          // One choice per direct service: the rider picks the bus they boarded,
+                          // which may not be the first one shown.
                           final byCode = {for (final x in all) x.code: x};
-                          final alight = byCode[ride.alightAt];
-                          if (alight == null) return const SizedBox.shrink();
-                          final before = byCode[stopBefore(routes, ride)];
+                          final choices = <(String, BusStop, BusStop?)>[
+                            for (final (e, _) in direct)
+                              if (byCode[rides[e.service]!.alightAt] case final alight?)
+                                (e.service, alight, byCode[stopBefore(routes, rides[e.service]!)]),
+                          ];
+                          if (choices.isEmpty) return const SizedBox.shrink();
+                          void open((String, BusStop, BusStop?) c) => Navigator.of(context).push(MaterialPageRoute(
+                                builder: (_) => WakeMePage(service: c.$1, alight: c.$2, before: c.$3),
+                              ));
+                          final stops = {for (final c in choices) c.$2.code};
                           return Align(
                             alignment: Alignment.centerLeft,
                             child: TextButton.icon(
                               icon: const Icon(Icons.notifications_active_outlined),
-                              label: Text(s.wakeMeAt(alight.name)),
-                              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                                builder: (_) => WakeMePage(service: ride.service, alight: alight, before: before),
-                              )),
+                              label: Text(stops.length == 1 ? s.wakeMeAt(choices.first.$2.name) : s.wakeTitle),
+                              onPressed: () => choices.length == 1
+                                  ? open(choices.first)
+                                  : showModalBottomSheet<void>(
+                                      context: context,
+                                      showDragHandle: true,
+                                      builder: (sheet) => SafeArea(
+                                        child: ListView(
+                                          shrinkWrap: true,
+                                          children: [
+                                            Padding(
+                                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                                              child: Text(s.wakePickBus, style: t.titleMedium),
+                                            ),
+                                            for (final c in choices)
+                                              ListTile(
+                                                leading: BusPlate(c.$1),
+                                                title: Text(s.wakeMeAt(c.$2.name)),
+                                                onTap: () {
+                                                  Navigator.of(sheet).pop();
+                                                  open(c);
+                                                },
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
                             ),
                           );
                         }),

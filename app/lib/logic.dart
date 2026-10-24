@@ -105,6 +105,24 @@ bool isRainyForecast(String forecast) {
 
 // ---------------------------------------------------------------- bus
 
+/// How often live bus arrivals refresh while on screen (the API caches them for 20 s).
+const busRefreshEvery = Duration(seconds: 30);
+
+/// Within this distance of the destination the trip is done: say "You're here".
+const arrivedMetres = 150.0;
+
+/// What a "Wake me" position update means for the rider.
+enum WakeEvent { none, wake, passed }
+
+/// [d] metres to the alight stop now, [closest] the closest so far before this update.
+/// Wake inside [radius]. If the rider came near (within radius + 400 m) but never inside,
+/// e.g. a GPS gap, and is now 300 m further away again, say the stop may have passed.
+WakeEvent wakeEvent(double d, double radius, double? closest) {
+  if (d <= radius) return WakeEvent.wake;
+  if (closest != null && closest <= radius + 400 && d >= closest + 300) return WakeEvent.passed;
+  return WakeEvent.none;
+}
+
 /// Parses our API's wrapped LTA BusArrival v3 response into the next buses per service.
 List<BusEta> parseBusArrival(Map<String, dynamic> apiBody, DateTime now, {int perService = 2}) {
   final upstream = apiBody['data'];

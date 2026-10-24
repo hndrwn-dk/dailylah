@@ -1012,4 +1012,15 @@ void main() {
     expect(top(DateTime(2026, 10, 24, 9, 30)), isTrue);
     expect(top(DateTime(2026, 10, 24, 9, 5), CardKind.morning, CardKind.evening), isTrue);
   });
+
+  test('wakeEvent wakes inside the radius and spots a passed stop', () {
+    expect(wakeEvent(900, 500, null), WakeEvent.none);
+    expect(wakeEvent(450, 500, 900), WakeEvent.wake);
+    // Came to 600 m (GPS gap, never inside 500 m), now 950 m away: probably passed.
+    expect(wakeEvent(950, 500, 600), WakeEvent.passed);
+    // Still approaching or a small wobble: nothing.
+    expect(wakeEvent(700, 500, 600), WakeEvent.none);
+    // Never came close: moving away is not "passed".
+    expect(wakeEvent(2000, 500, 1500), WakeEvent.none);
+  });
 }

@@ -8,6 +8,7 @@ import 'more.dart';
 import 'nearby.dart';
 import 'widgets.dart';
 import 'today.dart';
+import 'wake.dart';
 
 
 /// Four tabs: Today, Nearby, Home, More. Pages are kept alive between switches and keep
@@ -143,7 +144,12 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
             heightFactor: 1,
             child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 360),
-            child: PillNav(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const WakeBanner(),
+                PillNav(
             index: index,
             onTap: _onTab,
             items: [
@@ -153,6 +159,8 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
               (Icons.more_horiz, Icons.more_horiz, s.tabMore),
             ],
           ),
+              ],
+            ),
             ),
           ),
         ),
