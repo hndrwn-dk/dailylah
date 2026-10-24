@@ -255,9 +255,13 @@ class BlockPage extends ConsumerWidget {
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size.fromHeight(54),
                         ),
-                        icon: Icon(comparing ? Icons.check : Icons.add),
-                        label: Text(comparing ? s.inCompare : s.compare),
+                        icon: Icon(comparing ? Icons.compare_arrows : Icons.add),
+                        label: Text(comparing ? s.openCompare(fav.compareBlocks.length) : s.compare),
                         onPressed: () async {
+                          if (comparing) {
+                            await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ComparePage()));
+                            return;
+                          }
                           final messenger = ScaffoldMessenger.of(context);
                           final nav = Navigator.of(context);
                           await ref.read(favoritesProvider.notifier).toggleCompare(block.key);
@@ -543,7 +547,10 @@ class ComparePage extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               children: [
                 Panel(
-                  child: Padding(
+                  // Clip so the striped rows stay inside the rounded outline.
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(DL.radius - 2),
+                    child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Table(
                       columnWidths: const {0: FlexColumnWidth(1.4)},
@@ -552,18 +559,23 @@ class ComparePage extends ConsumerWidget {
                         TableRow(children: [
                           const SizedBox(),
                           for (final b in chosen)
-                            Padding(
-                              padding: const EdgeInsets.all(8),
-                              child: Column(
-                                children: [
-                                  _BlockNumber(b.block),
-                                  const SizedBox(height: 6),
-                                  Text(b.street, style: t.labelSmall, textAlign: TextAlign.center, maxLines: 2),
-                                  TextButton(
-                                    onPressed: () => ref.read(favoritesProvider.notifier).toggleCompare(b.key),
-                                    child: Text(s.remove),
-                                  ),
-                                ],
+                            // Top-aligned so the block numbers line up whatever the street length.
+                            TableCell(
+                              verticalAlignment: TableCellVerticalAlignment.top,
+                              child: Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: Column(
+                                  children: [
+                                    _BlockNumber(b.block),
+                                    const SizedBox(height: 6),
+                                    Text(b.street, style: t.labelSmall, textAlign: TextAlign.center, maxLines: 3),
+                                    IconButton(
+                                      tooltip: s.remove,
+                                      icon: const Icon(Icons.close),
+                                      onPressed: () => ref.read(favoritesProvider.notifier).toggleCompare(b.key),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                         ]),
@@ -583,6 +595,7 @@ class ComparePage extends ConsumerWidget {
                           ),
                       ],
                     ),
+                  ),
                   ),
                 ),
                 Text(s.homesDisclaimer, style: t.bodySmall),
