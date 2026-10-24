@@ -221,6 +221,16 @@ CardKind cardFor(DateTime now, [Favorites? fav]) {
   return m < (go.minutes + back.minutes) ~/ 2 ? CardKind.morning : CardKind.evening;
 }
 
+/// Today starts from the top again when its content has moved on: the app was away for
+/// 30 minutes or more, or the card switched (morning to evening). Other tabs keep their place.
+bool todayBackToTop({
+  required DateTime awaySince,
+  required DateTime now,
+  required CardKind cardBefore,
+  required CardKind cardNow,
+}) =>
+    cardBefore != cardNow || now.difference(awaySince) >= const Duration(minutes: 30);
+
 /// True when today is a work or school day for one of those places.
 bool isCommuteDay(Favorites fav, DateTime now) => commutePlace(fav, now) != null;
 

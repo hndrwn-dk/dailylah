@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../logic.dart';
 import '../providers.dart';
 import 'home.dart';
 import 'more.dart';
@@ -9,7 +10,8 @@ import 'widgets.dart';
 import 'today.dart';
 
 
-/// Four tabs: Today, Nearby, Home, More. Pages are kept alive between switches.
+/// Four tabs: Today, Nearby, Home, More. Pages are kept alive between switches and keep
+/// their scroll position; tapping the selected tab again scrolls it to the top.
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
 
@@ -20,6 +22,13 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver {
   DateTime _lastRefresh = DateTime.now();
 
+  /// One scroll controller per tab's main list.
+  final _scroll = List.generate(4, (_) => ScrollController());
+
+  /// When the app last went to the background, and which card Today showed then.
+  DateTime? _awaySince;
+  CardKind? _cardWhenAway;
+
   @override
   void initState() {
     super.initState();
@@ -29,13 +38,29 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    for (final c in _scroll) {
+      c.dispose();
+    }
     super.dispose();
   }
 
   /// Back in the foreground after a while: look for new data bundles.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+      _awaySince ??= DateTime.now();
+      _cardWhenAway ??= ref.read(cardKindProvider);
+      return;
+    }
     if (state != AppLifecycleState.resumed) return;
+    if (_awaySince case final since?) {
+      final card = cardFor(DateTime.now(), ref.read(favoritesProvider));
+      if (todayBackToTop(awaySince: since, now: DateTime.now(), cardBefore: _cardWhenAway ?? card, cardNow: card)) {
+        _toTop(0, animate: false);
+      }
+      _awaySince = null;
+      _cardWhenAway = null;
+    }
     if (DateTime.now().difference(_lastRefresh) < const Duration(minutes: 10)) return;
     _lastRefresh = DateTime.now();
     ref.read(bundleRepoProvider).refresh();
@@ -62,8 +87,31 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     }
   }
 
+  void _toTop(int tab, {bool animate = true}) {
+    final c = _scroll[tab];
+    if (!c.hasClients) return;
+    if (animate) {
+      c.animateTo(0, duration: const Duration(milliseconds: 350), curve: Curves.easeOutCubic);
+    } else {
+      c.jumpTo(0);
+    }
+  }
+
+  void _onTab(int i) {
+    if (i == ref.read(shellTabProvider)) {
+      _toTop(i);
+    } else {
+      ref.read(shellTabProvider.notifier).state = i;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Today's card switched (morning to evening) while another tab was open: start Today at
+    // the top. If Today is on screen, leave the reader where they are.
+    ref.listen(cardKindProvider, (before, now) {
+      if (before != null && before != now && ref.read(shellTabProvider) != 0) _toTop(0, animate: false);
+    });
     final s = ref.watch(stringsProvider);
     final index = ref.watch(shellTabProvider);
     final paper = Theme.of(context).scaffoldBackgroundColor;
@@ -72,7 +120,12 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
       extendBody: true,
       body: IndexedStack(
         index: index,
-        children: const [TodayPage(), NearbyPage(), HomePage(), MorePage()],
+        children: [
+          TodayPage(controller: _scroll[0]),
+          NearbyPage(controller: _scroll[1]),
+          HomePage(controller: _scroll[2]),
+          MorePage(controller: _scroll[3]),
+        ],
       ),
       bottomNavigationBar: DecoratedBox(
         decoration: BoxDecoration(
@@ -92,7 +145,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
             constraints: const BoxConstraints(maxWidth: 360),
             child: PillNav(
             index: index,
-            onTap: (i) => ref.read(shellTabProvider.notifier).state = i,
+            onTap: _onTab,
             items: [
               (Icons.wb_sunny_outlined, Icons.wb_sunny, s.tabToday),
               (Icons.explore_outlined, Icons.explore, s.tabNearby),

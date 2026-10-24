@@ -17,7 +17,10 @@ import 'widgets.dart';
 
 /// Today: morning card before 14:00, evening card after.
 class TodayPage extends ConsumerWidget {
-  const TodayPage({super.key});
+  const TodayPage({super.key, this.controller});
+
+  /// Main list scroll, owned by the shell (tap the tab again to go to the top).
+  final ScrollController? controller;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -95,6 +98,7 @@ class TodayPage extends ConsumerWidget {
         onRefresh: refresh,
         edgeOffset: 80,
         child: ListView(
+          controller: controller,
           padding: const EdgeInsets.only(bottom: kNavClearance),
           children: [
             HeroHeader(

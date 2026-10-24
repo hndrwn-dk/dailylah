@@ -15,7 +15,10 @@ import 'widgets.dart';
 /// Home tab: everything about and around the user's own home, one section at a time
 /// (chips under the hero). Other blocks are one tap away (search).
 class HomePage extends ConsumerWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, this.controller});
+
+  /// Main list scroll, owned by the shell.
+  final ScrollController? controller;
 
   static const sections = [
     'home', 'emergency', 'shelter', 'works', 'schools', 'health', 'community', 'weekend', 'recycling', 'food', 'parking', 'blocks',
@@ -112,6 +115,7 @@ class HomePage extends ConsumerWidget {
 
     return Scaffold(
       body: ListView(
+        controller: controller,
         padding: const EdgeInsets.only(bottom: kNavClearance),
         children: [
           HeroHeader(
