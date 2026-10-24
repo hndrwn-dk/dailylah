@@ -282,9 +282,15 @@ class S {
   String wakeRiding(String service, String stop) => 'On bus $service to $stop';
   String wakeLeft(String distance) => '$distance to go';
   String get wakeHow => 'Your phone buzzes and shows a notification as the bus leaves the stop before yours. '
+      'It keeps watching if you leave this screen; stop it here or from the banner above the tabs. '
       'Your location is checked only while this runs and is not saved.';
   String get wakeRunning => 'Watching for your stop';
   String get wakeNow => 'Your stop is next. Get ready to alight.';
+  String wakeNowAt(String stop) => 'Next stop: $stop. Get ready to alight.';
+  String wakePassed(String stop) => 'You may have passed $stop. Check where you are.';
+  String get wakePickBus => 'Which bus are you on?';
+  String get youAreHere => "You're here";
+  String arrivedAt(String place) => 'You are at $place.';
   String get wakeStop => 'Stop';
   String get wakeDone => 'Done';
 

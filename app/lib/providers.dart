@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'api.dart';
@@ -343,7 +345,11 @@ final carparkLiveProvider = FutureProvider.autoDispose((ref) async => carparkLot
 
 final taxiProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).taxis());
 
+/// Live arrivals for one stop. Refetched every 30 s while a screen shows it, so the board
+/// keeps up when the user is waiting (the last list stays on screen during a refetch).
 final busArrivalProvider = FutureProvider.autoDispose.family<List<BusEta>, String>((ref, code) async {
+  final timer = Timer(busRefreshEvery, ref.invalidateSelf);
+  ref.onDispose(timer.cancel);
   final body = await ref.watch(apiProvider).busArrival(code);
   return parseBusArrival(body, DateTime.now());
 });

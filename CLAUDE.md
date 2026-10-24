@@ -71,8 +71,11 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   when it rains, the air is unhealthy or the nearest hawker is closed (`orderInReason`).
 - Trip extras (`ui/trip.dart`, rules in logic.dart): Plan B when the trip's MRT line is disrupted
   (`planDisruption`), "Leave in N min" (`leaveBy`, plus one background reminder), weather tips per
-  mode (`tripAdvice`), "Wake me at my stop" (`ui/wake.dart`, `wakeRadius`; foreground location only
-  while it runs, never stored).
+  mode (`tripAdvice`), "Wake me at my stop" (`ui/wake.dart`, session in `lib/wake_session.dart` /
+  `wakeProvider` so it survives leaving the page, `WakeBanner` above the tabs, rider picks the bus,
+  `wakeRadius` / `wakeEvent` incl. "may have passed"; foreground location only while it runs, never
+  stored, auto-stops after 2 h). Live arrivals refetch every 30 s while shown (`busRefreshEvery`).
+  From "Here" within `arrivedMetres` of the destination the trip shows "You're here".
 - Habits (`Habits` in models.dart, `HabitsStore` in store.dart, `habitsProvider`): parked car, trips
   logged with I'm leaving/Arrived (`tripStats`), "Ate here" meals (`mealNudge`). On the phone only,
   behind `Favorites.learnHabits`, never in the share code. Weekly Sunday digest (`weeklyDigest`)
