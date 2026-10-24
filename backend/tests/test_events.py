@@ -4,7 +4,7 @@ import httpx
 import pytest
 import respx
 
-from app.events import EVENTFINDA, build_events, compact_eventbrite, compact_eventfinda
+from app.events import EVENTFINDA, build_events, compact_eventfinda
 
 TODAY = date(2026, 10, 24)
 
@@ -35,25 +35,6 @@ def test_compact_eventfinda_keeps_upcoming_with_point():
     assert e["s"] == "2026-10-24 09:00" and e["src"] == "Eventfinda"
 
 
-def test_compact_eventbrite_needs_sg_venue():
-    row = {
-        "name": {"text": "Night Market"},
-        "url": "https://www.eventbrite.sg/e/1",
-        "start": {"local": "2026-10-25T18:00:00"},
-        "end": {"local": "2026-10-25T23:00:00"},
-        "is_free": True,
-        "venue": {
-            "name": "Somerset",
-            "latitude": "1.30",
-            "longitude": "103.84",
-            "address": {"country": "SG"},
-        },
-    }
-    abroad = {**row, "venue": {**row["venue"], "address": {"country": "MY"}}}
-    out = compact_eventbrite([row, abroad], TODAY)
-    assert [e["n"] for e in out] == ["Night Market"]
-
-
 @pytest.mark.asyncio
 @respx.mock
 async def test_build_events_pages_eventfinda_and_skips_missing_keys():
@@ -61,7 +42,7 @@ async def test_build_events_pages_eventfinda_and_skips_missing_keys():
         return_value=httpx.Response(200, json={"@attributes": {"count": 1}, "events": [EF_ROW]})
     )
     async with httpx.AsyncClient() as c:
-        out = await build_events(c, TODAY, "u", "p", None)
-        none = await build_events(c, TODAY, None, None, None)
+        out = await build_events(c, TODAY, "u", "p")
+        none = await build_events(c, TODAY, None, None)
     assert len(out) == 1
     assert none == []

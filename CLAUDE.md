@@ -75,9 +75,8 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   places can carry a usual time (`Place.go`) for a leave-by reminder (`extrasDueNow`).
 - Weekend card on Today (days without a work/school trip) and Home > Weekend: places (`weekendPicks`)
   and events (`eventsNear`) from `events.json`, built daily by `backend/app/events.py` from
-  Eventfinda (secrets `EVENTFINDA_USER`/`EVENTFINDA_PASSWORD`) and Eventbrite organizers listed in
-  `backend/data/eventbrite_organizers.json` (secret `EVENTBRITE_TOKEN`; no public search). Keys stay
-  in CI; each event links to its source page with attribution.
+  Eventfinda (secrets `EVENTFINDA_USER`/`EVENTFINDA_PASSWORD`; key stays in CI). Each event links
+  to its Eventfinda page with attribution. Eventbrite was left out: it has no public event search.
 - Home tab (`ui/home.dart`) is about the saved home, one section at a time (chips under the hero,
   `homeSectionProvider`): its HDB block (`homeBlock`) or private project (`private_homes.json` from
   URA, `privateProjectFor`; backend `app/ura.py`, secret `URA_ACCESS_KEY`), upgrading and

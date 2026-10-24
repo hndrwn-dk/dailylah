@@ -14,7 +14,7 @@ Writes (all compact JSON, keys documented in app/lib/data.dart):
     hdb_rent.json    median rent per town, last 6 months
     prayer.json      MUIS prayer times for the year
     holidays.json    MOM public holidays from a month ago onwards
-    events.json      public events in the next 30 days (Eventfinda, Eventbrite organizers)
+    events.json      public events in the next 30 days (Eventfinda)
     taxi_stands.json LTA taxi stands and stops
     bus_routes.json  stop order per bus service and direction (for "buses that go home")
     bicycle_racks.json LTA bicycle racks
@@ -142,7 +142,6 @@ async def build(
                     today or date.today(),
                     settings.eventfinda_user,
                     settings.eventfinda_password,
-                    settings.eventbrite_token,
                 ),
             )
             await attempt("poi", b.build_poi(dg, geo))

@@ -33,7 +33,6 @@ class Settings(BaseSettings):
     # Events for the weekend card (daily build only).
     eventfinda_user: str | None = None
     eventfinda_password: str | None = None
-    eventbrite_token: str | None = None
 
     # Upstash Redis (redis:// or rediss:// URL). Empty = in-memory only (local dev).
     redis_url: str | None = None

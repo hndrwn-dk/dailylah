@@ -506,7 +506,7 @@ class PrivateProject {
       );
 }
 
-/// A public event from events.json (Eventfinda, Eventbrite).
+/// A public event from events.json (Eventfinda).
 class PublicEvent {
   const PublicEvent({
     required this.name,

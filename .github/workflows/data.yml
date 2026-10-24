@@ -43,7 +43,6 @@ jobs:
           URA_ACCESS_KEY: ${{ secrets.URA_ACCESS_KEY }}
           EVENTFINDA_USER: ${{ secrets.EVENTFINDA_USER }}
           EVENTFINDA_PASSWORD: ${{ secrets.EVENTFINDA_PASSWORD }}
-          EVENTBRITE_TOKEN: ${{ secrets.EVENTBRITE_TOKEN }}
         run: python -m app.build_static ../web/data
       - name: Commit if changed
         run: |
