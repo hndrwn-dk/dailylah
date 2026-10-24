@@ -426,7 +426,10 @@ bool lightningNear(Map<String, dynamic> apiBody, double lat, double lng, {double
     final la = loc?['latitude'];
     final lo = loc?['longitude'] ?? loc?['longtitude'];
     if (la == null || lo == null) continue;
-    if (distanceMeters(lat, lng, double.parse('$la'), double.parse('$lo')) <= km * 1000) return true;
+    final pla = double.tryParse('$la');
+    final plo = double.tryParse('$lo');
+    if (pla == null || plo == null) continue;
+    if (distanceMeters(lat, lng, pla, plo) <= km * 1000) return true;
   }
   return false;
 }
@@ -442,7 +445,10 @@ int? nextPrayerIndex(List<String> times, DateTime now) {
   for (var i = 0; i < times.length; i++) {
     final p = times[i].split(':');
     if (p.length < 2) continue;
-    final t = int.parse(p[0]) * 60 + int.parse(p[1]);
+    final h = int.tryParse(p[0].trim());
+    final mi = int.tryParse(p[1].trim());
+    if (h == null || mi == null) continue;
+    final t = h * 60 + mi;
     if (t > m) return i;
   }
   return null;
@@ -580,6 +586,7 @@ List<TodayAlert> todayAlerts({
   Map<String, dynamic>? lightning,
   Map<String, dynamic>? psi,
   Map<String, dynamic>? pm25,
+  List<SchoolHoliday> schoolHolidays = const [],
 }) {
   final out = <TodayAlert>[];
   final kind = cardFor(now, fav);
@@ -597,7 +604,8 @@ List<TodayAlert> todayAlerts({
     if (bad.isNotEmpty) out.add(TodayAlert(AlertKind.mrt, s.mrtAlert(bad.join(', '))));
   }
 
-  final school = fav.places[PlaceKind.school];
+  // School alerts only on days with class; at weekends and in the holidays the school is empty.
+  final school = isSchoolDay(fav, now, schoolHolidays) ? fav.places[PlaceKind.school] : null;
   final home = fav.places[PlaceKind.home];
   if (lightning != null) {
     final spots = <Place>[if (home != null) home, if (school != null) school];
@@ -1636,6 +1644,13 @@ SchoolHoliday? schoolHolidayOn(List<SchoolHoliday> all, DateTime now) {
     if (!d.isBefore(h.from) && !d.isAfter(h.to)) return h;
   }
   return null;
+}
+
+/// True when the saved school has class today: one of its days and not a school holiday.
+/// School-only alerts (heat, lightning, dengue at school) are skipped otherwise.
+bool isSchoolDay(Favorites fav, DateTime now, [List<SchoolHoliday> holidays = const []]) {
+  final p = fav.places[PlaceKind.school];
+  return p != null && p.days.contains(now.weekday) && schoolHolidayOn(holidays, now) == null;
 }
 
 /// Custom places with a usual time that fits [now] (weekday/weekend) and whose leave window

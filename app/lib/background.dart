@@ -281,7 +281,8 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     final list = raw is Map ? raw['clusters'] : null;
     if (list is! List) return;
     final clusters = [for (final c in list) DengueCluster.fromBundle(c as Map<String, dynamic>)];
-    for (final kindToCheck in const [PlaceKind.home, PlaceKind.school]) {
+    final holidays = SchoolHoliday.fromBundle(await repo.load('school_holidays'));
+    for (final kindToCheck in [PlaceKind.home, if (isSchoolDay(fav, now, holidays)) PlaceKind.school]) {
       final p = fav.places[kindToCheck];
       if (p == null) continue;
       for (final (c, _) in dengueNear(clusters, p.lat, p.lng, km: 1)) {
@@ -296,7 +297,9 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
   // High heat stress or lightning near school (or home) during the day.
   await guard(() async {
     if (!fav.heatAlerts || now.hour < 7 || now.hour >= 19) return;
-    final p = fav.places[PlaceKind.school] ?? fav.places[PlaceKind.home];
+    // School while there is class; otherwise home (weekends, school holidays).
+    final schoolDay = isSchoolDay(fav, now, SchoolHoliday.fromBundle(await repo.load('school_holidays')));
+    final p = (schoolDay ? fav.places[PlaceKind.school] : null) ?? fav.places[PlaceKind.home];
     if (p == null) return;
     final place = s.placeLabel(p.kind.name);
     final heat = heatStressNear(await api.weather('wbgt'), p.lat, p.lng);

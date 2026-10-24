@@ -9,6 +9,7 @@ import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
 import 'address_picker.dart';
+import 'home.dart' show NearGroup, NearItem;
 import 'place_sheet.dart';
 import 'today.dart' show TaxiSheet, foodApps, openApp;
 import 'theme.dart';
@@ -117,7 +118,7 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
       ('search', Icons.search, s.searchPlace),
     ];
     // One section at a time, like Home: chips under the place pills.
-    final sections = ['bus', 'eat', 'park', 'taxi', if (fav.showPrayer) 'prayer', 'help'];
+    final sections = ['bus', 'eat', 'green', 'park', 'taxi', if (fav.showPrayer) 'prayer', 'help'];
     final picked = ref.watch(nearbySectionProvider);
     final section = sections.contains(picked) ? picked : 'bus';
     final selected = key == 'adhoc'
@@ -189,6 +190,7 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
                       children: [
                         switch (section) {
                           'eat' => _EatSection(place: place),
+                          'green' => _GreenSection(place: place),
                           'park' => _ParkSection(place: place),
                           'taxi' => _TaxiSection(place: place),
                           'prayer' => const _PrayerSection(),
@@ -209,6 +211,7 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
 const _sectionIcons = <String, IconData>{
   'bus': Icons.directions_bus_outlined,
   'eat': Icons.ramen_dining_outlined,
+  'green': Icons.park_outlined,
   'park': Icons.local_parking,
   'taxi': Icons.local_taxi_outlined,
   'prayer': Icons.mosque_outlined,
@@ -469,6 +472,35 @@ class _EatSection extends ConsumerWidget {
   }
 }
 
+// ---------------------------------------------------------------- green (parks)
+
+/// Parks within 2 km with facility icons and the "good time to go?" line.
+class _GreenSection extends ConsumerWidget {
+  const _GreenSection({required this.place});
+  final Place place;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final pois = ref.watch(poisProvider).valueOrNull;
+    final items = pois == null ? const <NearItem>[] : NearItem.pois(pois.of(PoiKind.park), place, radius: 2000);
+    if (items.isEmpty) return Panel(child: EmptyNote(pois == null ? s.bundlesLoading : s.notAvailable));
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: NearGroup(
+        title: s.parks,
+        icon: Icons.park_outlined,
+        show: 5,
+        items: items,
+        header: switch (ref.watch(parkTimeProvider((place.lat, place.lng)))) {
+          final p? => ParkTimeBanner(time: p, text: s.parkTimeLine(p)),
+          null => null,
+        },
+      ),
+    );
+  }
+}
+
 // ---------------------------------------------------------------- park
 
 class _ParkSection extends ConsumerWidget {
@@ -718,8 +750,17 @@ class _PrayerSection extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
     final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
-    final times = ref.watch(prayerProvider).valueOrNull?.on(dayKey(now));
+    final prayer = ref.watch(prayerProvider).valueOrNull;
+    final times = prayer?.on(dayKey(now));
     final next = times == null ? null : nextPrayerIndex(times, now);
+    // After Isyak, show tomorrow's Subuh instead of nothing.
+    final tomorrow = times != null && next == null ? prayer?.on(dayKey(now.add(const Duration(days: 1)))) : null;
+    final (String label, String? at) = switch ((times, next, tomorrow)) {
+      (final ts?, final i?, _) when i < ts.length && i < s.prayerNames.length => ('${s.nextPrayer}: ${s.prayerNames[i]}', ts[i]),
+      (_, _, final tm?) when tm.isNotEmpty => ('${s.prayerTomorrow}: ${s.prayerNames.first}', tm.first),
+      (null, _, _) when prayer != null && prayer.days.isNotEmpty => (s.prayerYearPending(now.year), null),
+      _ => (s.notAvailable, null),
+    };
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -728,12 +769,8 @@ class _PrayerSection extends ConsumerWidget {
         Panel(
           child: ListTile(
             leading: const Icon(Icons.mosque_outlined),
-            title: Text(times == null || next == null || next >= s.prayerNames.length
-                ? s.notAvailable
-                : '${s.nextPrayer}: ${s.prayerNames[next]}'),
-            trailing: times == null || next == null || next >= times.length
-                ? null
-                : Text(times[next], style: t.titleLarge?.copyWith(fontFamily: DL.display)),
+            title: Text(label),
+            trailing: at == null ? null : Text(at, style: t.titleLarge?.copyWith(fontFamily: DL.display)),
             onTap: () => _openFull(context, s.prayerTab, const _PrayerTab()),
           ),
         ),
@@ -1182,7 +1219,7 @@ class _PrayerTab extends ConsumerWidget {
         children: [
           SectionTitle(s.prayerTimes, padding: const EdgeInsets.fromLTRB(4, 4, 4, 10)),
           if (times == null)
-            Panel(child: EmptyNote(s.notAvailable))
+            Panel(child: EmptyNote(prayer.days.isEmpty ? s.notAvailable : s.prayerYearPending(now.year)))
           else
             Panel(
               child: Column(

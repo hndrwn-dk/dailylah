@@ -862,10 +862,31 @@ class ParkTimeBanner extends StatelessWidget {
   }
 }
 
+/// Icon for a park facility label from the poi bundle ("Toilet", "Playground"...).
+IconData facilityIcon(String label) => switch (label) {
+      'Playground' => Icons.toys_outlined,
+      'Fitness corner' => Icons.fitness_center,
+      'Toilet' => Icons.wc,
+      'Car park' => Icons.local_parking,
+      'Shelter' => Icons.roofing,
+      'BBQ pit' => Icons.outdoor_grill_outlined,
+      'Dog run' => Icons.pets,
+      'Cycling' => Icons.directions_bike,
+      'Bike rack' => Icons.pedal_bike,
+      'Water' => Icons.water_drop_outlined,
+      'Food' => Icons.restaurant_outlined,
+      'Pond' => Icons.water,
+      'Lookout' => Icons.landscape_outlined,
+      'Camping' => Icons.cabin_outlined,
+      _ => Icons.check_circle_outline,
+    };
+
 /// Small outlined chips, e.g. park facilities, that wrap at large text sizes.
+/// With [icons], each chip starts with its facility icon.
 class InfoChips extends StatelessWidget {
-  const InfoChips(this.labels, {super.key});
+  const InfoChips(this.labels, {super.key, this.icons = false});
   final List<String> labels;
+  final bool icons;
 
   @override
   Widget build(BuildContext context) => Wrap(
@@ -879,8 +900,36 @@ class InfoChips extends StatelessWidget {
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(color: DL.edge(context), width: 1.5),
               ),
-              child: Text(l, style: Theme.of(context).textTheme.labelMedium),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (icons) ...[Icon(facilityIcon(l), size: 16), const SizedBox(width: 4)],
+                  Flexible(child: Text(l, style: Theme.of(context).textTheme.labelMedium)),
+                ],
+              ),
             ),
         ],
+      );
+}
+
+/// A row of small facility icons for list rows; the labels are read out by screen readers.
+class FacilityIcons extends StatelessWidget {
+  const FacilityIcons(this.labels, {super.key});
+  final List<String> labels;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        label: labels.join(', '),
+        excludeSemantics: true,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final l in labels) Tooltip(message: l, child: Icon(facilityIcon(l), size: 18)),
+            ],
+          ),
+        ),
       );
 }

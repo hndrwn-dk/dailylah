@@ -46,3 +46,29 @@ async def test_build_events_pages_eventfinda_and_skips_missing_keys():
         none = await build_events(c, TODAY, None, None)
     assert len(out) == 1
     assert none == []
+
+
+def test_compact_eventfinda_reads_string_flags():
+    free = {**EF_ROW, "is_free": "1", "is_cancelled": "0"}
+    paid = {**EF_ROW, "id": 2, "url": "https://www.eventfinda.sg/2026/y", "is_free": "0"}
+    out = compact_eventfinda([free, paid], TODAY)
+    assert [e["f"] for e in out] == [True, False]
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_eventfinda_keeps_paging_without_count():
+    rows = [
+        {**EF_ROW, "id": i, "url": f"https://www.eventfinda.sg/2026/e{i}", "name": f"Event {i}"}
+        for i in range(25)
+    ]
+
+    def page(request):
+        offset = int(request.url.params["offset"])
+        return httpx.Response(200, json={"events": rows[offset : offset + 20]})
+
+    route = respx.get(url__startswith=EVENTFINDA).mock(side_effect=page)
+    async with httpx.AsyncClient() as c:
+        out = await build_events(c, TODAY, "u", "p")
+    assert route.call_count == 2
+    assert len(out) == 25

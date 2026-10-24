@@ -586,8 +586,9 @@ class _WeekendCard extends ConsumerWidget {
     final air = airNear(ref.watch(psiProvider).valueOrNull, ref.watch(pm25Provider).valueOrNull, home.lat, home.lng);
     final indoor = preferIndoor(forecast == null ? null : forecastNear(forecast, home.lat, home.lng)) ||
         (air != null && air.level.index >= AirLevel.unhealthy.index);
-    EPoint fromPoi(Poi p) =>
-        EPoint(name: p.name, lat: p.lat, lng: p.lng, detail: p.detail.isNotEmpty ? p.detail : p.facilities.join(', '));
+    EPoint fromPoi(Poi p) => EPoint(name: p.name, lat: p.lat, lng: p.lng, detail: p.detail);
+    // Park facilities by name, for icons on the park picks.
+    final facilities = {for (final p in pois.of(PoiKind.park)) if (p.facilities.isNotEmpty) p.name: p.facilities};
     final picks = weekendPicks({
       for (final k in const ['museum', 'activesg', 'attraction', 'bbq', 'pcn']) k: around.of(k),
       'park': [for (final p in pois.of(PoiKind.park)) fromPoi(p)],
@@ -661,8 +662,32 @@ class _WeekendCard extends ConsumerWidget {
                     _ => Icons.attractions_outlined,
                   }),
                   title: Text(p.name),
-                  subtitle: Text('${s.weekendKind(k)} · ${s.metres(d)}'),
-                  onTap: () => showPlaceSheet(context, s: s, title: p.name, subtitle: p.detail, lat: p.lat, lng: p.lng, distance: d),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${s.weekendKind(k)} · ${s.metres(d)}'),
+                      if (k == 'park')
+                        if (facilities[p.name] case final f?) FacilityIcons(f),
+                    ],
+                  ),
+                  onTap: () => showPlaceSheet(
+                    context,
+                    s: s,
+                    title: p.name,
+                    subtitle: p.detail,
+                    lat: p.lat,
+                    lng: p.lng,
+                    distance: d,
+                    extra: [
+                      if (k == 'park')
+                        if (facilities[p.name] case final f?) ...[
+                          Text(s.facilities, style: t.titleSmall),
+                          const SizedBox(height: 8),
+                          InfoChips(f, icons: true),
+                          const SizedBox(height: 12),
+                        ],
+                    ],
+                  ),
                 ),
             ],
           ),

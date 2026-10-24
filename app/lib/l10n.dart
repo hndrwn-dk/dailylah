@@ -435,6 +435,8 @@ class S {
   String get findMosque => 'Find a mosque (MUIS directory)';
   String get prayerTab => 'Prayer';
   String get prayerSource => 'Prayer times: MUIS via data.gov.sg.';
+  String get prayerTomorrow => 'Tomorrow';
+  String prayerYearPending(int year) => 'MUIS has not published the $year timetable yet. It usually comes out near the end of the year.';
 
   // ---------------------------------------------------------------- homes (HDB)
   String get homesTitle => 'Find an HDB block';
@@ -716,6 +718,7 @@ class S {
   String nearbySection(String k) => switch (k) {
         'bus' => 'Bus',
         'eat' => 'Eat',
+        'green' => 'Parks',
         'park' => 'Parking',
         'taxi' => 'Taxi',
         'prayer' => 'Prayer',

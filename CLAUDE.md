@@ -61,7 +61,7 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   OneMap geocodes are cached in `backend/data/geocode.json` (committed by the workflow).
   Optional bundles are best effort: a failing upstream keeps yesterday's file.
 - Nearby (`ui/nearby.dart`) is "I am here now": starts on Here, chips for one section at a time
-  (`nearbySectionProvider`: bus, eat, park, taxi, prayer, help). Eat offers GrabFood/foodpanda only
+  (`nearbySectionProvider`: bus, eat, green = parks, park = car parking, taxi, prayer, help). Eat offers GrabFood/foodpanda only
   when it rains, the air is unhealthy or the nearest hawker is closed (`orderInReason`).
 - Trip extras (`ui/trip.dart`, rules in logic.dart): Plan B when the trip's MRT line is disrupted
   (`planDisruption`), "Leave in N min" (`leaveBy`, plus one background reminder), weather tips per
@@ -78,8 +78,14 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   Eventfinda (secrets `EVENTFINDA_USER`/`EVENTFINDA_PASSWORD`; key stays in CI). Each event links
   to its Eventfinda page with attribution. Eventbrite was left out: it has no public event search.
 - Parks: names spelled out on the phone (`expandPlaceName`: Pk, Pg, Jln...), facility chips from NParks
-  Park Facilities attached per park in `poi.json` (`attach_facilities`, key `f`), and a "good time to go?"
-  line (`parkTime`, `parkTimeProvider`) from lightning, rain, haze, heat stress, UV and the forecast.
+  Park Facilities attached per park in `poi.json` (`attach_facilities`, key `f`; unmapped CLASS values are
+  logged in the data build), shown as icons in lists (`FacilityIcons`, `facilityIcon` in widgets.dart) and
+  as chips on the place sheet, and a "good time to go?" line (`parkTime`, `parkTimeProvider`) from
+  lightning, rain, haze, heat stress, UV and the forecast.
+- Prayer times (`prayer.json`): this year's and next year's MUIS timetables, found by name in data.gov.sg
+  collection 2312 (`build_prayer`); next year appears once MUIS publishes it.
+- School alerts (heat, lightning, dengue at school) only fire on school days (`isSchoolDay`: the school's
+  days and not a school holiday); otherwise the heat/lightning checks use home.
 - Home tab (`ui/home.dart`) is about the saved home, one section at a time (chips under the hero,
   `homeSectionProvider`): its HDB block (`homeBlock`) or private project (`private_homes.json` from
   URA, `privateProjectFor`; backend `app/ura.py`, secret `URA_ACCESS_KEY`), upgrading and
