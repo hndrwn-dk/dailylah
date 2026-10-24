@@ -5,7 +5,7 @@
   "bus_routes": 26833,
   "bus_stops": 5209,
   "carparks": 2273,
-  "dengue": 8,
+  "dengue": 7,
   "emergency": 11453,
   "halal": 3697,
   "hawkers": 108,
@@ -14,12 +14,12 @@
   "hdb_resale": 9242,
   "holidays": 15,
   "mrt_stations": 180,
-  "poi": 5258,
+  "poi": 5709,
   "prayer": 365,
   "private_homes": 4801,
   "taxi_stands": 316
  },
  "errors": {},
- "geocode_cache": 1515,
- "geocoded_new": 0
+ "geocode_cache": 1958,
+ "geocoded_new": 443
 }
