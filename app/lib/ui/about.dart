@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../providers.dart';
@@ -12,6 +13,18 @@ const productUrl = 'https://www.tursinalabs.com/products/dailylah';
 /// The app's own website (landing page). Legal pages stay on tursinalabs.com.
 const siteUrl = 'https://dailylah.sg';
 const supportEmail = 'support@tursinalabs.com';
+
+/// Google Play listing. The market:// link opens the Play Store app; the web link is the fallback.
+const playPackage = 'com.tursinalabs.dailylah';
+const playMarketUrl = 'market://details?id=$playPackage';
+const playWebUrl = 'https://play.google.com/store/apps/details?id=$playPackage';
+
+/// Opens the Play Store listing to rate the app (Play app first, then the browser).
+Future<void> openPlayListing(BuildContext context, String failText) async {
+  if (await launchUrl(Uri.parse(playMarketUrl), mode: LaunchMode.externalApplication)) return;
+  if (!context.mounted) return;
+  await openExternal(context, Uri.parse(playWebUrl), failText);
+}
 
 /// App version, injected by CI or set manually: --dart-define=APP_VERSION=0.2.0
 const appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '0.2.0');
@@ -52,6 +65,19 @@ class AboutDailyLahPage extends ConsumerWidget {
                   subtitle: const Text('dailylah.sg'),
                   trailing: const Icon(Icons.open_in_new, size: 18),
                   onTap: () => open(siteUrl),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.ios_share),
+                  title: Text(s.shareApp),
+                  subtitle: Text(s.shareAppSub),
+                  onTap: () => SharePlus.instance.share(ShareParams(text: s.shareAppText, subject: 'DailyLah')),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.star_outline),
+                  title: Text(s.rateApp),
+                  subtitle: Text(s.rateAppSub),
+                  trailing: const Icon(Icons.open_in_new, size: 18),
+                  onTap: () => openPlayListing(context, s.cannotOpen('Google Play')),
                 ),
                 ListTile(
                   leading: const Icon(Icons.privacy_tip_outlined),

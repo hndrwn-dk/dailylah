@@ -1023,4 +1023,44 @@ void main() {
     // Never came close: moving away is not "passed".
     expect(wakeEvent(2000, 500, 1500), WakeEvent.none);
   });
+
+  test('family share: sender picks, receiver keeps their own places', () {
+    const home = Place(kind: PlaceKind.home, stops: [tampines]);
+    const work = Place(kind: PlaceKind.work, stops: [raffles]);
+    const school = Place(kind: PlaceKind.school, addrLat: 1.3353, addrLng: 103.7021);
+    const sender = Favorites(
+      places: {PlaceKind.home: home, PlaceKind.work: work, PlaceKind.school: school},
+      lines: {'EWL'},
+      hawkers: {'h1', 'h2'},
+    );
+    // Default choice: home and school, lines on, hawkers off.
+    final imp = readShareCode(encodeShareCode(sender, const ShareChoice()))!;
+    expect(imp.places.keys.toSet(), {PlaceKind.home, PlaceKind.school});
+    expect(imp.lines, {'EWL'});
+    expect(imp.hawkers, isEmpty);
+
+    // Receiver already has their own work and a different school.
+    const mySchool = Place(kind: PlaceKind.school, addrLat: 1.40, addrLng: 103.90);
+    const myWork = Place(kind: PlaceKind.work, addrLat: 1.28, addrLng: 103.85);
+    const me = Favorites(
+      places: {PlaceKind.work: myWork, PlaceKind.school: mySchool},
+      hawkers: {'h9'},
+      showPrayer: true,
+    );
+    expect(shareConflicts(imp, me), {PlaceKind.school});
+    final after = applyShare(me, imp, take: {PlaceKind.home});
+    expect(after.places[PlaceKind.home]!.stops.single.code, '75009');
+    expect(after.places[PlaceKind.school]!.lat, 1.40); // not replaced
+    expect(after.places[PlaceKind.work]!.lat, 1.28); // not in the code, untouched
+    expect(after.lines, {'EWL'});
+    expect(after.showPrayer, isTrue);
+
+    // Hawkers are added to the receiver's own.
+    final withHawkers = readShareCode(encodeShareCode(sender, const ShareChoice(places: {}, lines: false, hawkers: true)))!;
+    expect(withHawkers.places, isEmpty);
+    expect(withHawkers.lines, isNull);
+    expect(applyShare(me, withHawkers, take: const {}).hawkers, {'h1', 'h2', 'h9'});
+    // A code with nothing in it is not a code.
+    expect(readShareCode(encodeShareCode(sender, const ShareChoice(places: {}, lines: false))), isNull);
+  });
 }
