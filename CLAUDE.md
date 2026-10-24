@@ -52,7 +52,10 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   start (home/work/school/here) and a destination (saved places or a searched address); driving uses `/v1/parking`
   (lot type C/Y) and `/v1/traffic-incidents`.
 - Favourites, custom places, watched/compared blocks and extras are stored with SharedPreferences
-  (`lib/store.dart`). Family share is a `DL1:` code built on-device (`encodeShareCode`).
+  (`lib/store.dart`). Family share is a `DL1:` code built on-device: the sender picks home/school/work, lines+times
+  and hawkers (`ShareChoice`, `encodeShareCode`); the receiver ticks what to take (`readShareCode`,
+  `shareConflicts`, `applyShare`), and a saved place is only replaced when ticked. About has Share
+  DailyLah and Rate (Play Store, `openPlayListing`).
 - Alerts run on-device: WorkManager every 15 min (`lib/background.dart`) calls the API and
   reads the cached bundles, then shows local notifications. Keep the alert rules (quiet
   hours, one per event, max 3 rain alerts a day) in `logic.dart` / `AlertLog`.

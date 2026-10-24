@@ -555,19 +555,63 @@ List<HdbBlock> searchBlocks(List<HdbBlock> all, String query, {int limit = 30}) 
 
 const _sharePrefix = 'DL1:';
 
-/// Compact share code with places, lines and departure times. No account or server.
-String encodeShareCode(Favorites fav) {
+/// What goes into a family share code. Default: home and school (work is usually personal).
+class ShareChoice {
+  const ShareChoice({
+    this.places = const {PlaceKind.home, PlaceKind.school},
+    this.lines = true,
+    this.hawkers = false,
+  });
+  final Set<PlaceKind> places;
+
+  /// Starred MRT lines and the default leave times.
+  final bool lines;
+  final bool hawkers;
+
+  ShareChoice copyWith({Set<PlaceKind>? places, bool? lines, bool? hawkers}) => ShareChoice(
+        places: places ?? this.places,
+        lines: lines ?? this.lines,
+        hawkers: hawkers ?? this.hawkers,
+      );
+}
+
+/// Compact share code with the chosen places, lines and times, and hawkers. No account or server.
+String encodeShareCode(Favorites fav, [ShareChoice choice = const ShareChoice(places: {
+  PlaceKind.home,
+  PlaceKind.work,
+  PlaceKind.school,
+})]) {
   final payload = {
-    'p': [for (final p in fav.places.values) p.toJson()],
-    'l': fav.lines.toList()..sort(),
-    'h': fav.leaveHome.toString(),
-    'w': fav.leaveWork.toString(),
+    'p': [
+      for (final p in fav.places.values)
+        if (choice.places.contains(p.kind)) p.toJson(),
+    ],
+    if (choice.lines) ...{
+      'l': fav.lines.toList()..sort(),
+      'h': fav.leaveHome.toString(),
+      'w': fav.leaveWork.toString(),
+    },
+    if (choice.hawkers && fav.hawkers.isNotEmpty) 'k': fav.hawkers.toList()..sort(),
   };
   return _sharePrefix + base64Url.encode(utf8.encode(jsonEncode(payload)));
 }
 
-/// Applies a share code on top of [current]. Returns null when the code is invalid.
-Favorites? decodeShareCode(String code, Favorites current) {
+/// What a share code holds, before the receiver decides what to take.
+class ShareImport {
+  const ShareImport({this.places = const {}, this.lines, this.leaveHome, this.leaveWork, this.hawkers = const {}});
+  final Map<PlaceKind, Place> places;
+
+  /// Null when the code did not include lines and times.
+  final Set<String>? lines;
+  final TimeOfDayHM? leaveHome;
+  final TimeOfDayHM? leaveWork;
+  final Set<String> hawkers;
+
+  bool get isEmpty => places.isEmpty && lines == null && hawkers.isEmpty;
+}
+
+/// Reads a share code, or null when it is not one (or holds nothing).
+ShareImport? readShareCode(String code) {
   final c = code.trim();
   if (!c.startsWith(_sharePrefix)) return null;
   try {
@@ -578,16 +622,48 @@ Favorites? decodeShareCode(String code, Favorites current) {
       final place = Place.fromJson(p as Map<String, dynamic>);
       places[place.kind] = place;
     }
-    if (!places.containsKey(PlaceKind.home)) return null;
-    return current.copyWith(
+    final hasLines = j.containsKey('l');
+    final imp = ShareImport(
       places: places,
-      lines: {for (final l in (j['l'] as List? ?? const [])) '$l'},
-      leaveHome: TimeOfDayHM.parse('${j['h'] ?? '7:30'}'),
-      leaveWork: TimeOfDayHM.parse('${j['w'] ?? '18:0'}'),
+      lines: hasLines ? {for (final l in (j['l'] as List? ?? const [])) '$l'} : null,
+      leaveHome: hasLines ? TimeOfDayHM.parse('${j['h'] ?? '7:30'}') : null,
+      leaveWork: hasLines ? TimeOfDayHM.parse('${j['w'] ?? '18:0'}') : null,
+      hawkers: {for (final h in (j['k'] as List? ?? const [])) '$h'},
     );
+    return imp.isEmpty ? null : imp;
   } on Object {
     return null;
   }
+}
+
+/// Places in [imp] that would replace a different place the receiver already saved.
+Set<PlaceKind> shareConflicts(ShareImport imp, Favorites current) => {
+      for (final e in imp.places.entries)
+        if (current.places[e.key] case final mine?
+            when distanceMeters(mine.lat, mine.lng, e.value.lat, e.value.lng) > 50)
+          e.key,
+    };
+
+/// Applies the parts of [imp] the receiver picked. Places in [take] are added or replaced;
+/// the rest of the receiver's places and settings stay. Hawkers are added, not replaced.
+Favorites applyShare(Favorites current, ShareImport imp, {required Set<PlaceKind> take, bool lines = true, bool hawkers = true}) =>
+    current.copyWith(
+      places: {
+        ...current.places,
+        for (final e in imp.places.entries)
+          if (take.contains(e.key)) e.key: e.value,
+      },
+      lines: lines && imp.lines != null ? imp.lines : null,
+      leaveHome: lines ? imp.leaveHome : null,
+      leaveWork: lines ? imp.leaveWork : null,
+      hawkers: hawkers && imp.hawkers.isNotEmpty ? {...current.hawkers, ...imp.hawkers} : null,
+    );
+
+/// Old behaviour, kept for callers that take everything: applies [code] on top of [current].
+Favorites? decodeShareCode(String code, Favorites current) {
+  final imp = readShareCode(code);
+  if (imp == null) return null;
+  return applyShare(current, imp, take: imp.places.keys.toSet());
 }
 
 // ---------------------------------------------------------------- today alerts

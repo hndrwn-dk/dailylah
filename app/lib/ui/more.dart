@@ -161,8 +161,9 @@ class _NavTile extends StatelessWidget {
   }
 }
 
-/// Family share: a QR code and a copyable code with places, lines and times.
-/// Import works by pasting a code; nothing goes through a server.
+/// Family share: the sender picks what goes in the code (QR or text); the receiver picks
+/// what to take, and places they already saved are only replaced when they tick them.
+/// Nothing goes through a server.
 class FamilySharePage extends ConsumerStatefulWidget {
   const FamilySharePage({super.key});
 
@@ -172,6 +173,7 @@ class FamilySharePage extends ConsumerStatefulWidget {
 
 class _FamilySharePageState extends ConsumerState<FamilySharePage> {
   final _ctrl = TextEditingController();
+  ShareChoice _choice = const ShareChoice();
 
   @override
   void dispose() {
@@ -181,13 +183,25 @@ class _FamilySharePageState extends ConsumerState<FamilySharePage> {
 
   Future<void> _import() async {
     final s = ref.read(stringsProvider);
-    final next = decodeShareCode(_ctrl.text, ref.read(favoritesProvider));
     final messenger = ScaffoldMessenger.of(context);
-    if (next == null) {
+    final imp = readShareCode(_ctrl.text);
+    if (imp == null) {
       messenger.showSnackBar(SnackBar(content: Text(s.importInvalid)));
       return;
     }
-    await ref.read(favoritesProvider.notifier).update((_) => next);
+    final current = ref.read(favoritesProvider);
+    final conflicts = shareConflicts(imp, current);
+    final picked = await showModalBottomSheet<(Set<PlaceKind>, bool, bool)>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => _ImportSheet(imp: imp, conflicts: conflicts),
+    );
+    if (picked == null) return;
+    final (take, lines, hawkers) = picked;
+    await ref
+        .read(favoritesProvider.notifier)
+        .update((f) => applyShare(f, imp, take: take, lines: lines, hawkers: hawkers));
     _ctrl.clear();
     messenger.showSnackBar(SnackBar(content: Text(s.importDone)));
   }
@@ -197,7 +211,10 @@ class _FamilySharePageState extends ConsumerState<FamilySharePage> {
     final s = ref.watch(stringsProvider);
     final fav = ref.watch(favoritesProvider);
     final t = Theme.of(context).textTheme;
-    final code = fav.isSetUp ? encodeShareCode(fav) : null;
+    final kinds = [for (final k in const [PlaceKind.home, PlaceKind.school, PlaceKind.work]) if (fav.places.containsKey(k)) k];
+    final choice = _choice.copyWith(places: _choice.places.where(kinds.contains).toSet());
+    final empty = choice.places.isEmpty && !choice.lines && !(choice.hawkers && fav.hawkers.isNotEmpty);
+    final code = !fav.isSetUp || empty ? null : encodeShareCode(fav, choice);
     return Scaffold(
       appBar: AppBar(title: Text(s.familyShare)),
       body: ListView(
@@ -205,56 +222,88 @@ class _FamilySharePageState extends ConsumerState<FamilySharePage> {
         children: [
           Text(s.familyShareIntro, style: t.bodyMedium),
           const SizedBox(height: 16),
-          if (code == null)
+          if (!fav.isSetUp)
             Panel(child: EmptyNote(s.pickHomeFirst))
-          else
-            Panel(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-                      child: QrImageView(
-                        data: code,
-                        size: 220,
-                        eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: DL.ink),
-                        dataModuleStyle:
-                            const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: DL.ink),
+          else ...[
+            Text(s.shareInclude, style: t.titleSmall),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final k in kinds)
+                  FilterChip(
+                    label: Text(s.placeLabel(k.name)),
+                    selected: choice.places.contains(k),
+                    onSelected: (on) => setState(() => _choice = _choice.copyWith(
+                          places: on ? {..._choice.places, k} : ({..._choice.places}..remove(k)),
+                        )),
+                  ),
+                FilterChip(
+                  label: Text(s.shareLinesTimes),
+                  selected: choice.lines,
+                  onSelected: (on) => setState(() => _choice = _choice.copyWith(lines: on)),
+                ),
+                if (fav.hawkers.isNotEmpty)
+                  FilterChip(
+                    label: Text(s.shareHawkers),
+                    selected: choice.hawkers,
+                    onSelected: (on) => setState(() => _choice = _choice.copyWith(hawkers: on)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (code == null)
+              Panel(child: EmptyNote(s.shareNothing))
+            else
+              Panel(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+                        child: QrImageView(
+                          data: code,
+                          size: 220,
+                          eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: DL.ink),
+                          dataModuleStyle:
+                              const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: DL.ink),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                            icon: const Icon(Icons.copy),
-                            label: Text(s.copyCode),
-                            onPressed: () async {
-                              await Clipboard.setData(ClipboardData(text: code));
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.codeCopied)));
-                              }
-                            },
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                              icon: const Icon(Icons.copy),
+                              label: Text(s.copyCode),
+                              onPressed: () async {
+                                await Clipboard.setData(ClipboardData(text: code));
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.codeCopied)));
+                                }
+                              },
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: FilledButton.icon(
-                            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                            icon: const Icon(Icons.share),
-                            label: Text(s.shareCode),
-                            onPressed: () => SharePlus.instance.share(ShareParams(text: code, subject: 'DailyLah')),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: FilledButton.icon(
+                              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                              icon: const Icon(Icons.share),
+                              label: Text(s.shareCode),
+                              onPressed: () => SharePlus.instance.share(ShareParams(text: code, subject: 'DailyLah')),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
+          ],
           SectionTitle(s.importCode),
           TextField(
             controller: _ctrl,
@@ -264,6 +313,75 @@ class _FamilySharePageState extends ConsumerState<FamilySharePage> {
           ),
           const SizedBox(height: 12),
           FilledButton.tonal(onPressed: _import, child: Text(s.importCode)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Lets the receiver tick what to take from a code. New places are ticked; places that
+/// would replace one they saved are not, and say so.
+class _ImportSheet extends ConsumerStatefulWidget {
+  const _ImportSheet({required this.imp, required this.conflicts});
+  final ShareImport imp;
+  final Set<PlaceKind> conflicts;
+
+  @override
+  ConsumerState<_ImportSheet> createState() => _ImportSheetState();
+}
+
+class _ImportSheetState extends ConsumerState<_ImportSheet> {
+  late final Set<PlaceKind> _take = widget.imp.places.keys.where((k) => !widget.conflicts.contains(k)).toSet();
+  late bool _lines = widget.imp.lines != null;
+  late bool _hawkers = widget.imp.hawkers.isNotEmpty;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final imp = widget.imp;
+    final nothing = _take.isEmpty && !_lines && !_hawkers;
+    return SafeArea(
+      child: ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Text(s.importWhat, style: t.titleMedium),
+          ),
+          for (final e in imp.places.entries)
+            CheckboxListTile(
+              value: _take.contains(e.key),
+              onChanged: (on) => setState(() => on == true ? _take.add(e.key) : _take.remove(e.key)),
+              title: Text(s.placeLabel(e.key.name)),
+              subtitle: Text([
+                if (e.value.address case final a? when a.isNotEmpty) a,
+                if (widget.conflicts.contains(e.key)) s.replacesYours(s.placeLabel(e.key.name).toLowerCase()),
+              ].join(' · ')),
+            ),
+          if (imp.lines != null)
+            CheckboxListTile(
+              value: _lines,
+              onChanged: (on) => setState(() => _lines = on ?? false),
+              title: Text(s.shareLinesTimes),
+              subtitle: imp.lines!.isEmpty ? null : Text(imp.lines!.map(s.lineName).join(', ')),
+            ),
+          if (imp.hawkers.isNotEmpty)
+            CheckboxListTile(
+              value: _hawkers,
+              onChanged: (on) => setState(() => _hawkers = on ?? false),
+              title: Text(s.shareHawkers),
+              subtitle: Text(s.hawkersCount(imp.hawkers.length)),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: FilledButton(
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+              onPressed: nothing ? null : () => Navigator.of(context).pop((_take, _lines, _hawkers)),
+              child: Text(s.importSelected),
+            ),
+          ),
         ],
       ),
     );
