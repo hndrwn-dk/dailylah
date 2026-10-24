@@ -83,7 +83,8 @@ class TodayPage extends ConsumerWidget {
         ),
       if (!commute || (tripMode ?? TravelMode.transit) == TravelMode.transit)
         _MrtCard(showCrowd: kind == CardKind.evening),
-      const GoSomewhere(),
+      if (!commute && fav.places[PlaceKind.home] != null) _WeekendCard(home: fav.places[PlaceKind.home]!),
+      const PlanTripCard(),
       if (fav.carparks.isNotEmpty) const _SavedParking(),
       const SizedBox(height: 8),
       Text('${s.dataSource} ${s.pullToRefresh}', style: t.bodySmall, textAlign: TextAlign.center),
@@ -564,6 +565,69 @@ class _WeatherTiles extends ConsumerWidget {
               ),
             ),
           ),
+      ],
+    );
+  }
+}
+
+/// On days without a trip to work or school: a few weekend ideas near home, indoor ones
+/// first when it rains or the air is unhealthy.
+class _WeekendCard extends ConsumerWidget {
+  const _WeekendCard({required this.home});
+  final Place home;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final around = ref.watch(aroundProvider).valueOrNull ?? AroundSet.empty;
+    final pois = ref.watch(poisProvider).valueOrNull ?? PoiSet.empty;
+    final forecast = ref.watch(forecastProvider).valueOrNull;
+    final air = airNear(ref.watch(psiProvider).valueOrNull, ref.watch(pm25Provider).valueOrNull, home.lat, home.lng);
+    final indoor = preferIndoor(forecast == null ? null : forecastNear(forecast, home.lat, home.lng)) ||
+        (air != null && air.level.index >= AirLevel.unhealthy.index);
+    EPoint fromPoi(Poi p) => EPoint(name: p.name, lat: p.lat, lng: p.lng, detail: p.detail);
+    final picks = weekendPicks({
+      for (final k in const ['museum', 'activesg', 'attraction', 'bbq', 'pcn']) k: around.of(k),
+      'park': [for (final p in pois.of(PoiKind.park)) fromPoi(p)],
+      'library': [for (final p in pois.of(PoiKind.library)) fromPoi(p)],
+    }, home.lat, home.lng, indoor: indoor);
+    if (picks.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionTitle(
+          s.weekendCard,
+          trailing: TextButton(
+            onPressed: () {
+              ref.read(homeSectionProvider.notifier).state = 'weekend';
+              ref.read(shellTabProvider.notifier).state = 2;
+            },
+            child: Text(s.seeAll),
+          ),
+        ),
+        if (indoor) Padding(padding: const EdgeInsets.fromLTRB(4, 0, 4, 8), child: Text(s.weekendIndoor, style: t.bodySmall)),
+        Panel(
+          child: Column(
+            children: [
+              for (final (k, p, d) in picks)
+                ListTile(
+                  leading: Icon(switch (k) {
+                    'museum' => Icons.museum_outlined,
+                    'library' => Icons.local_library_outlined,
+                    'activesg' => Icons.sports_tennis,
+                    'park' => Icons.park_outlined,
+                    'bbq' => Icons.outdoor_grill_outlined,
+                    'pcn' => Icons.directions_bike,
+                    _ => Icons.attractions_outlined,
+                  }),
+                  title: Text(p.name),
+                  subtitle: Text('${s.weekendKind(k)} · ${s.metres(d)}'),
+                  onTap: () => showPlaceSheet(context, s: s, title: p.name, subtitle: p.detail, lat: p.lat, lng: p.lng, distance: d),
+                ),
+            ],
+          ),
+        ),
       ],
     );
   }

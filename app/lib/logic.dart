@@ -1621,3 +1621,21 @@ List<int> extrasDueNow(Favorites fav, DateTime now) => [
       for (final i in extrasForToday(fav, now))
         if (fav.extraPlaces[i].go case final go? when inLeaveWindow(now, go)) i,
     ];
+
+/// An address label without the building name in brackets: "451 Marine Parade Road".
+String shortAddress(String label) => label.replaceAll(RegExp(r'\s*\([^)]*\)\s*$'), '').trim();
+
+/// Weekend ideas near a place: one nearest pick per kind within [radius] m, indoor kinds
+/// first when it rains or the air is unhealthy. [kinds] maps a kind to its points.
+List<(String, EPoint, double)> weekendPicks(Map<String, List<EPoint>> kinds, double lat, double lng,
+    {required bool indoor, double radius = 5000, int limit = 4}) {
+  const indoorKinds = ['museum', 'library', 'activesg', 'attraction'];
+  const outdoorKinds = ['park', 'attraction', 'bbq', 'pcn', 'activesg'];
+  final out = <(String, EPoint, double)>[];
+  for (final k in indoor ? indoorKinds : outdoorKinds) {
+    final hit = nearestPoints(kinds[k] ?? const [], lat, lng, limit: 1, radius: radius);
+    if (hit.isNotEmpty) out.add((k, hit.first.$1, hit.first.$2));
+    if (out.length >= limit) break;
+  }
+  return out;
+}

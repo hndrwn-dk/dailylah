@@ -201,6 +201,21 @@ class S {
   String get otherBuses => 'Other buses at this stop';
   String get changeStop => 'Change stop';
   String get goSomewhere => 'Go somewhere';
+  String get planTrip => 'Plan a trip';
+  String get planTripSub => 'From here or a saved place to anywhere, by bus, MRT, car or taxi.';
+  String tooSoonThen(String skipped, String line) => '$skipped is too soon to catch. $line';
+  String get weekendCard => 'This weekend near home';
+  String get weekendIndoor => 'Rain or haze around: indoor ideas first.';
+  String weekendKind(String k) => switch (k) {
+        'museum' => 'Museum',
+        'library' => 'Library',
+        'activesg' => 'Sport centre',
+        'attraction' => 'Attraction',
+        'park' => 'Park',
+        'bbq' => 'BBQ pit',
+        'pcn' => 'Park connector',
+        _ => k,
+      };
   String get goSomewhereHint => 'Pick a place to see how to get there now.';
   String get fromHome => 'From Home';
   String get fromHere => 'From here';

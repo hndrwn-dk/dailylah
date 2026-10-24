@@ -868,4 +868,18 @@ void main() {
     expect(extrasDueNow(fav, DateTime(2026, 10, 23, 12, 0)), isEmpty);
     expect(fav.extraPlaces.first.copyWith(clearGo: true).go, isNull);
   });
+
+  test('trip planner names and weekend picks', () {
+    expect(shortAddress('451 Marine Parade Road (Kampung Siglap Mosque Kindergarten)'), '451 Marine Parade Road');
+    expect(shortAddress('1 Raffles Quay'), '1 Raffles Quay');
+    final kinds = {
+      'museum': [const EPoint(name: 'Museum', lat: 1.301, lng: 103.90)],
+      'park': [const EPoint(name: 'Park', lat: 1.302, lng: 103.90)],
+      'bbq': [const EPoint(name: 'Far BBQ', lat: 1.50, lng: 103.90)],
+    };
+    expect(weekendPicks(kinds, 1.30, 103.90, indoor: true).first.$1, 'museum');
+    final out = weekendPicks(kinds, 1.30, 103.90, indoor: false);
+    expect(out.first.$1, 'park');
+    expect(out.any((e) => e.$1 == 'bbq'), isFalse); // more than 5 km away
+  });
 }
