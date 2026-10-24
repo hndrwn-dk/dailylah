@@ -1003,4 +1003,13 @@ void main() {
     expect(lightningNear(body, tampines.lat, tampines.lng), isTrue);
     expect(nextPrayerIndex(['xx:yy', '07:00', '13:00'], DateTime(2026, 10, 24, 6)), 1);
   });
+
+  test('Today goes back to the top after 30 minutes away or a new card', () {
+    final away = DateTime(2026, 10, 24, 9);
+    bool top(DateTime now, [CardKind before = CardKind.morning, CardKind after = CardKind.morning]) =>
+        todayBackToTop(awaySince: away, now: now, cardBefore: before, cardNow: after);
+    expect(top(DateTime(2026, 10, 24, 9, 10)), isFalse);
+    expect(top(DateTime(2026, 10, 24, 9, 30)), isTrue);
+    expect(top(DateTime(2026, 10, 24, 9, 5), CardKind.morning, CardKind.evening), isTrue);
+  });
 }

@@ -729,6 +729,10 @@ def _facility_label(cls: str) -> str | None:
     return None
 
 
+# NParks CLASS values seen without a label in the last build, for build_report.json.
+LAST_UNKNOWN_FACILITIES: list[tuple[str, int]] = []
+
+
 def attach_facilities(parks: list[dict], geo: dict, radius: float = 250.0) -> list[dict]:
     """Add "f": facility labels to each park, from NParks facility points that share the
     park's name or lie within [radius] metres of its centre. Points are bucketed on a
@@ -751,7 +755,8 @@ def attach_facilities(parks: list[dict], geo: dict, radius: float = 250.0) -> li
         name = _props_name(props).strip().lower()
         if name:
             by_name[name].add(label)
-    if unknown:  # shown in the data workflow log, to tune FACILITY_LABELS
+    LAST_UNKNOWN_FACILITIES[:] = unknown.most_common(40)
+    if unknown:  # also in build_report.json, to tune FACILITY_LABELS
         log.info("park facility classes without a label: %s", unknown.most_common(25))
     order = list(dict.fromkeys(FACILITY_LABELS.values()))
     out = []

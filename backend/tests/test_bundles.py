@@ -731,3 +731,24 @@ def test_in_sg_drops_bad_coordinates():
     assert b.in_sg(1.3521, 103.8198)
     assert not b.in_sg(1.01626, 103.58175)
     assert not b.in_sg(None, "x")
+
+
+def test_attach_facilities_records_unknown_classes():
+    geo = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {"NAME": "X", "CLASS": "NOTICEBOARD"},
+                "geometry": {"type": "Point", "coordinates": [103.9, 1.35]},
+            },
+            {
+                "type": "Feature",
+                "properties": {"NAME": "X", "CLASS": "TOILET"},
+                "geometry": {"type": "Point", "coordinates": [103.9, 1.35]},
+            },
+        ],
+    }
+    out = b.attach_facilities([{"n": "X", "la": 1.35, "lo": 103.9}], geo)
+    assert out[0]["f"] == ["Toilet"]
+    assert dict(b.LAST_UNKNOWN_FACILITIES) == {"NOTICEBOARD": 1}

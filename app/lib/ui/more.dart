@@ -14,7 +14,10 @@ import 'widgets.dart';
 
 /// More: setup, alert toggles, language, family share and about.
 class MorePage extends ConsumerWidget {
-  const MorePage({super.key});
+  const MorePage({super.key, this.controller});
+
+  /// Main list scroll, owned by the shell.
+  final ScrollController? controller;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,6 +36,7 @@ class MorePage extends ConsumerWidget {
 
     return Scaffold(
       body: ListView(
+        controller: controller,
         padding: const EdgeInsets.only(bottom: kNavClearance),
         children: [
           HeroHeader(

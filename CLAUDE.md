@@ -29,6 +29,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   listings) are opt-in under More > Extras. Halal screens always say "Not affiliated with MUIS.
   Always verify halal status directly" (`S.halalDisclaimer`).
 - `lib/providers.dart` holds all Riverpod providers; widgets in `lib/ui/` only render.
+- Tabs keep their scroll position (`IndexedStack`, one `ScrollController` per tab in `ui/shell.dart`);
+  tapping the selected tab scrolls it to the top, and Today goes back to the top after 30 min away
+  or when the card switches while another tab is open (`todayBackToTop`).
 - UI: `ui/shell.dart` (tabs Today / Nearby / Home / More), `ui/theme.dart` (design tokens
   in `DL`, fonts Plus Jakarta Sans + Barlow Condensed in `assets/fonts/`), `ui/widgets.dart`
   (Panel, HeroHeader, BusPlate, PillRow, BentoTile...). Keep the sticker style: ink outlines
@@ -82,7 +85,7 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   to its Eventfinda page with attribution. Eventbrite was left out: it has no public event search.
 - Parks: names spelled out on the phone (`expandPlaceName`: Pk, Pg, Jln...), facility chips from NParks
   Park Facilities attached per park in `poi.json` (`attach_facilities`, key `f`; unmapped CLASS values are
-  logged in the data build), shown as icons in lists (`FacilityIcons`, `facilityIcon` in widgets.dart) and
+  logged in the data build and listed in `backend/data/build_report.json` as `park_facility_unknown`), shown as icons in lists (`FacilityIcons`, `facilityIcon` in widgets.dart) and
   as chips on the place sheet, and a "good time to go?" line (`parkTime`, `parkTimeProvider`) from
   lightning, rain, haze, heat stress, UV and the forecast.
 - Prayer times (`prayer.json`): this year's and next year's MUIS timetables, found by name in data.gov.sg

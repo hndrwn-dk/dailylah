@@ -19,7 +19,10 @@ import 'widgets.dart';
 /// live buses, food (and delivery when it makes sense), parking, taxis and help.
 /// Things about home (schools, dengue, weekend) live in the Home tab.
 class NearbyPage extends ConsumerStatefulWidget {
-  const NearbyPage({super.key});
+  const NearbyPage({super.key, this.controller});
+
+  /// Main list scroll, owned by the shell.
+  final ScrollController? controller;
 
   /// The place the tab is about, from the selected key.
   static Place? resolve(String key, Favorites fav, Place? adhoc) {
@@ -136,6 +139,7 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
           if (key == 'adhoc' && adhoc?.address == s.myLocation) await _useHere(quiet: true);
         },
         child: ListView(
+          controller: widget.controller,
           padding: EdgeInsets.zero,
           children: [
             HeroHeader(
