@@ -545,6 +545,7 @@ class S {
   String compareCount(int n) => 'Compare ($n)';
   String get addToCompare => 'Add to compare';
   String get inCompare => 'In comparison';
+  String openCompare(int n) => 'See comparison ($n)';
   String get watch => 'Notify me of new sales';
   String get watching => 'Notifying you';
   String get watchNote => 'You get a notification when a flat in this block is sold, with the price and flat type.';
