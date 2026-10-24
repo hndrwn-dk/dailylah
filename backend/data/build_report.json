@@ -20,6 +20,7 @@
   "private_homes": 4801,
   "taxi_stands": 316
  },
+ "datagov_key_rejected": false,
  "errors": {},
  "geocode_cache": 1958,
  "geocoded_new": 0
