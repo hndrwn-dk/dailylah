@@ -29,6 +29,13 @@ Future<void> openPlayListing(BuildContext context, String failText) async {
 /// App version, injected by CI or set manually: --dart-define=APP_VERSION=0.2.0
 const appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '0.2.0');
 
+/// Short commit the APK was built from: --dart-define=GIT_SHA=$(git rev-parse --short HEAD).
+/// Empty for builds that skip it (flutter run).
+const appCommit = String.fromEnvironment('GIT_SHA');
+
+/// Version as shown on About and the licence page, e.g. "0.2.0 (a8d2bba)".
+String get appVersionLabel => appCommit.isEmpty ? appVersion : '$appVersion ($appCommit)';
+
 Future<void> openExternal(BuildContext context, Uri uri, String failText) async {
   final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
   if (!ok && context.mounted) {
@@ -52,7 +59,7 @@ class AboutDailyLahPage extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           Text('DailyLah', style: t.displayMedium),
-          Text(s.version(appVersion), style: t.bodySmall),
+          Text(s.version(appVersionLabel), style: t.bodySmall),
           const SizedBox(height: 12),
           Text(s.aboutIntro, style: t.bodyLarge),
           const SizedBox(height: 16),
@@ -118,7 +125,7 @@ class AboutDailyLahPage extends ConsumerWidget {
             onPressed: () => showLicensePage(
               context: context,
               applicationName: 'DailyLah',
-              applicationVersion: appVersion,
+              applicationVersion: appVersionLabel,
             ),
             child: Text(s.openSourceLicences),
           ),

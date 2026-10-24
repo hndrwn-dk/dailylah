@@ -646,6 +646,7 @@ Set<PlaceKind> shareConflicts(ShareImport imp, Favorites current) => {
 
 /// Applies the parts of [imp] the receiver picked. Places in [take] are added or replaced;
 /// the rest of the receiver's places and settings stay. Hawkers are added, not replaced.
+/// Starred lines are only replaced when the code has some; leave times always come along.
 Favorites applyShare(Favorites current, ShareImport imp, {required Set<PlaceKind> take, bool lines = true, bool hawkers = true}) =>
     current.copyWith(
       places: {
@@ -653,7 +654,8 @@ Favorites applyShare(Favorites current, ShareImport imp, {required Set<PlaceKind
         for (final e in imp.places.entries)
           if (take.contains(e.key)) e.key: e.value,
       },
-      lines: lines && imp.lines != null ? imp.lines : null,
+      // An empty set from the sender means "no starred lines", not "clear mine": keep the receiver's.
+      lines: lines && imp.lines != null && imp.lines!.isNotEmpty ? imp.lines : null,
       leaveHome: lines ? imp.leaveHome : null,
       leaveWork: lines ? imp.leaveWork : null,
       hawkers: hawkers && imp.hawkers.isNotEmpty ? {...current.hawkers, ...imp.hawkers} : null,

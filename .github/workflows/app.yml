@@ -50,7 +50,7 @@ jobs:
             echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
             export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/upload.jks"
             flutter build apk --release --build-number=${GITHUB_RUN_NUMBER} \
-              --dart-define=APP_VERSION=0.2.0-${GITHUB_SHA::7}
+              --dart-define=APP_VERSION=0.2.0 --dart-define=GIT_SHA=${GITHUB_SHA::7}
             cp build/app/outputs/flutter-apk/app-release.apk build/dailylah.apk
             # App Bundle for Google Play, same version code and upload key.
             flutter build appbundle --release --build-number=${GITHUB_RUN_NUMBER} \
@@ -59,7 +59,7 @@ jobs:
             rm -f "$RUNNER_TEMP/upload.jks"
           else
             flutter build apk --debug --build-number=${GITHUB_RUN_NUMBER} \
-              --dart-define=APP_VERSION=0.2.0-${GITHUB_SHA::7}
+              --dart-define=APP_VERSION=0.2.0 --dart-define=GIT_SHA=${GITHUB_SHA::7}
             cp build/app/outputs/flutter-apk/app-debug.apk build/dailylah.apk
           fi
       - name: Check Google Play target API (36 or higher)
