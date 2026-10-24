@@ -348,7 +348,9 @@ class NearItem {
       ];
 
   static List<NearItem> pois(List<Poi> all, Place home, {double radius = 3000, int limit = 15}) => [
-        for (final (p, d) in within(all, home.lat, home.lng, radius, latOf: (p) => p.lat, lngOf: (p) => p.lng, limit: limit))
+        for (final (p, d) in dedupePlaces(
+            within(all, home.lat, home.lng, radius, latOf: (p) => p.lat, lngOf: (p) => p.lng, limit: limit * 2),
+            nameOf: (p) => p.name, latOf: (p) => p.lat, lngOf: (p) => p.lng).take(limit))
           NearItem(name: p.name, detail: p.detail, lat: p.lat, lng: p.lng, distance: d),
       ];
 }

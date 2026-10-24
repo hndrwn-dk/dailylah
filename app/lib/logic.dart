@@ -131,12 +131,6 @@ List<BusEta> parseBusArrival(Map<String, dynamic> apiBody, DateTime now, {int pe
   return out;
 }
 
-String loadLabel(String code) => switch (code) {
-      'SEA' => 'Ada kursi',
-      'SDA' => 'Berdiri',
-      'LSD' => 'Penuh',
-      _ => '',
-    };
 
 // ---------------------------------------------------------------- MRT
 
@@ -863,8 +857,10 @@ AirQuality? airNear(Map<String, dynamic>? psiBody, Map<String, dynamic>? pm25Bod
 // ---------------------------------------------------------------- emergency
 
 /// Nearest points of one emergency layer.
+/// Places marked "Temporarily Closed" are left out.
 List<(EPoint, double)> nearestPoints(List<EPoint> all, double lat, double lng, {int limit = 3, double radius = 30000}) =>
-    within(all, lat, lng, radius, latOf: (p) => p.lat, lngOf: (p) => p.lng, limit: limit);
+    within(all.where((p) => !isTemporarilyClosed(p.name)), lat, lng, radius,
+        latOf: (p) => p.lat, lngOf: (p) => p.lng, limit: limit);
 
 
 // ---------------------------------------------------------------- taxis (detail)
@@ -1543,3 +1539,46 @@ List<TripAdvice> tripAdvice({
 
 /// "8:05" style clock time.
 String clockLabel(DateTime t) => '${t.hour}:${t.minute.toString().padLeft(2, '0')}';
+
+/// Drops repeats: the same place listed twice (within 30 m, and one name starts like the
+/// other, e.g. a name cut short in the source).
+List<(T, double)> dedupePlaces<T>(List<(T, double)> list,
+    {required String Function(T) nameOf, required double Function(T) latOf, required double Function(T) lngOf}) {
+  final out = <(T, double)>[];
+  String key(String n) => n.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+  for (final e in list) {
+    final k = key(nameOf(e.$1));
+    final dup = out.any((o) {
+      final ko = key(nameOf(o.$1));
+      final short = k.length < ko.length ? k : ko;
+      final long = k.length < ko.length ? ko : k;
+      return short.length >= 8 &&
+          long.startsWith(short) &&
+          distanceMeters(latOf(e.$1), lngOf(e.$1), latOf(o.$1), lngOf(o.$1)) < 30;
+    });
+    if (!dup) out.add(e);
+  }
+  return out;
+}
+
+/// "9:10", "yesterday 9:10" or "Wed 9:10" for a past time.
+String sinceLabel(DateTime at, DateTime now) {
+  final days = dateOnly(now).difference(dateOnly(at)).inDays;
+  final clock = clockLabel(at);
+  if (days <= 0) return clock;
+  if (days == 1) return 'yesterday $clock';
+  return '${const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][at.weekday - 1]} $clock';
+}
+
+/// Services at [stop] that ride straight to each named place (its destination stops):
+/// service -> place labels, e.g. {"47": ["Home"]}.
+Map<String, List<String>> servicesToPlaces(BusRoutes routes, BusStop stop, Map<String, Set<String>> places) {
+  final out = <String, List<String>>{};
+  places.forEach((label, dest) {
+    if (dest.contains(stop.code)) return; // already there
+    for (final service in directRides(routes, stop.code, dest).keys) {
+      (out[service] ??= []).add(label);
+    }
+  });
+  return out;
+}

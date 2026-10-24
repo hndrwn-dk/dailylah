@@ -111,7 +111,7 @@ class S {
   // alerts strip
   String hawkerClosedToday(String name) => '$name is closed today';
   String hawkerClosedTomorrow(String name) => '$name is closed tomorrow';
-  String dengueNear(String place, int n) => '$n dengue cluster(s) near $place';
+  String dengueNear(String place, int n) => n == 1 ? '1 dengue cluster near $place' : '$n dengue clusters near $place';
   String heatAt(String place, String level) => 'Heat stress $level near $place';
   String get lightningNear => 'Lightning nearby. Stay indoors.';
   String mrtAlert(String lines) => 'Disruption on $lines';
@@ -270,6 +270,7 @@ class S {
   String get parkedHere => 'I parked here';
   String get yourCar => 'Your car';
   String parkedAgo(String place, String ago) => '$place · parked $ago ago';
+  String parkedSince(String place, String since) => '$place · parked since $since';
   String levelLot(String level, String lot) =>
       [if (level.isNotEmpty) 'Level $level', if (lot.isNotEmpty) 'Lot $lot'].join(', ');
   String get parkLevel => 'Level (optional)';
@@ -448,8 +449,8 @@ class S {
   String get setHome => 'Set home';
   String get notHdb => 'No HDB block or private project found at this address. Everything around your home is in the chips above.';
   String get blockDetails => 'Prices, rent and score';
-  String get watchBlock => 'Watch for new sales';
-  String get watchingBlock => 'Watching';
+  String get watchBlock => 'Notify me of new sales';
+  String get watchingBlock => 'Notifying you';
   String medianFor(String flatType) => 'median ${flatType.toLowerCase()}';
   String rentMedian(String flatType, String amount) => 'Rent around $amount a month for a ${flatType.toLowerCase().replaceAll('-', ' ')} in this town';
   String get propertyAgents => 'Property agents';
@@ -512,6 +513,12 @@ class S {
   String get hawkerClosures => 'Hawker closures in the next 30 days';
   String hawkerClosed(String name, String from, String to) => '$name · $from to $to';
   String showAll(int n) => 'Show all ($n)';
+  String showAllBuses(int n) => 'Show all $n buses';
+  String get showFewer => 'Show fewer';
+  String toPlaces(List<String> places) => 'to ${places.join(' and ')}';
+  String get aedShort => 'AED';
+  String get aeShort => 'A&E';
+  String get policeShort => 'Police';
   String get showLess => 'Show less';
   String get findBlock => 'Find another HDB block';
   String get homeDataNote => 'Works, services and places: OneMap (SLA) and agencies via data.gov.sg. Computed on your phone.';

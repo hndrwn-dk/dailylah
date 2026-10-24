@@ -33,7 +33,11 @@ class TripSection extends ConsumerWidget {
     required this.modeKey,
     required this.modePlace,
     this.fromLabel,
+    this.commute = false,
   });
+
+  /// The daily trip to work or school: shows I'm leaving / Arrived and the usual time.
+  final bool commute;
 
   /// Key of the start place for editing its stops ("home", "work", "extra:0"), or null for "here".
   final String? fromKey;
@@ -84,7 +88,7 @@ class TripSection extends ConsumerWidget {
             },
           ),
         ),
-        _TripTimer(from: from, to: to),
+        if (commute) _TripTimer(from: from, to: to),
         body,
       ],
     );
@@ -485,7 +489,7 @@ class TripBusCard extends ConsumerWidget {
                 data: (list) {
                   // Nothing at the stop (late at night, or a gap): say so, not "no direct bus".
                   if (list.isEmpty) {
-                    return EmptyNote(transitResting(DateTime.now()) ? s.busesResting : s.noBusesNow);
+                    return EmptyNote(transitResting(ref.watch(clockProvider).valueOrNull ?? DateTime.now()) ? s.busesResting : s.noBusesNow);
                   }
                   if (rides == null) {
                     // Route data not downloaded yet: show every bus, as before.

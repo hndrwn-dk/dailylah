@@ -66,7 +66,7 @@ void main() {
     };
     final etas = parseBusArrival(body, now);
     expect(etas.map((e) => '${e.service}:${e.minutes}'), ['39:0', '15:7', '15:15']);
-    expect(loadLabel(etas.first.load), 'Penuh');
+    expect(const S().loadLabel(etas.first.load), 'Full');
   });
 
   test('lineStatuses flags only affected chosen lines', () {
@@ -796,5 +796,37 @@ void main() {
     expect(back.meals.single.hawkerId, 'a');
     expect(parkReminderDue(back.parked!, DateTime(2026, 10, 22, 10, 59)), isFalse);
     expect(parkReminderDue(back.parked!, DateTime(2026, 10, 22, 11)), isTrue);
+  });
+
+  test('persona fixes: names, details, closed places, duplicates, since label', () {
+    expect(cleanPlaceName('1 MEDICAL TECK GHEE'), '1 Medical Teck Ghee');
+    expect(cleanPlaceName('NEA Producer Responsibility Scheme - ALBA E-waste Recycling Programme'),
+        'ALBA E-waste Recycling Programme');
+    expect(cleanPlaceName('McDonald\'s'), "McDonald's");
+    expect(cleanDetail('Manned collection; ; ; E-waste accepted: Batteries'), 'Manned collection; E-waste accepted: Batteries');
+    const open = EPoint(name: 'Ang Mo Kio NPC', lat: 1.3700, lng: 103.85);
+    const closed = EPoint(name: 'Teck Ghee NPP (Temporarily Closed)', lat: 1.3621, lng: 103.854);
+    expect(nearestPoints([closed, open], 1.362, 103.854, limit: 1).single.$1.name, 'Ang Mo Kio NPC');
+    final d = dedupePlaces<String>([('PCF Sparkletots Preschool @ Bukit Batok Blk 148 (KN', 186.0), ('PCF Sparkletots Preschool @ Bukit Batok Blk 148 (KN)', 186.0), ('Just Kids', 179.0)],
+        nameOf: (n) => n, latOf: (_) => 1.35, lngOf: (_) => 103.75);
+    expect(d.length, 2);
+    final now = DateTime(2026, 10, 23, 10, 30);
+    expect(sinceLabel(DateTime(2026, 10, 23, 9, 10), now), '9:10');
+    expect(sinceLabel(DateTime(2026, 10, 22, 9, 10), now), 'yesterday 9:10');
+    expect(sinceLabel(DateTime(2026, 10, 20, 9, 10), now), 'Tue 9:10');
+    expect(const S().dengueNear('Home', 1), '1 dengue cluster near Home');
+  });
+
+  test('services that go straight home from a stop', () {
+    const routes = BusRoutes({
+      '47|1': [('A', 0.0), ('B', 1.0), ('H', 3.0)],
+      '12|1': [('A', 0.0), ('W', 2.0)],
+    });
+    const a = BusStop(code: 'A', name: 'A', road: '', lat: 1.3, lng: 103.8);
+    final m = servicesToPlaces(routes, a, {'Home': {'H'}, 'Work': {'W'}});
+    expect(m['47'], ['Home']);
+    expect(m['12'], ['Work']);
+    expect(servicesToPlaces(routes, a, {'Home': {'A'}}), isEmpty);
+    expect(const S().toPlaces(['Home']), 'to Home');
   });
 }

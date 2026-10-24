@@ -250,16 +250,32 @@ class _BusSection extends ConsumerWidget {
   }
 }
 
-class _StopBoard extends ConsumerWidget {
+class _StopBoard extends ConsumerStatefulWidget {
   const _StopBoard({required this.stop, required this.distance});
   final BusStop stop;
   final double distance;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_StopBoard> createState() => _StopBoardState();
+}
+
+class _StopBoardState extends ConsumerState<_StopBoard> {
+  bool _all = false;
+
+  @override
+  Widget build(BuildContext context) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
+    final stop = widget.stop;
     final etas = ref.watch(busArrivalProvider(stop.code));
+    final fav = ref.watch(favoritesProvider);
+    final routes = ref.watch(busRoutesProvider).valueOrNull ?? BusRoutes.empty;
+    final stops = ref.watch(busStopsProvider).valueOrNull ?? const <BusStop>[];
+    // Which services here go straight to Home, Work or School: "to Home" on the board.
+    final goesTo = servicesToPlaces(routes, stop, {
+      for (final k in const [PlaceKind.home, PlaceKind.work, PlaceKind.school])
+        if (fav.places[k] case final p?) s.placeLabel(k.name): destinationStops(p, stops),
+    });
     return Panel(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
@@ -267,22 +283,49 @@ class _StopBoard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(stop.name, style: t.titleMedium),
-            Text('${stop.code} · ${stop.road} · ${s.metres(distance)}', style: t.bodySmall),
+            Text('${stop.code} · ${stop.road} · ${s.metres(widget.distance)}', style: t.bodySmall),
             const SizedBox(height: 6),
             etas.when(
               loading: () => const Padding(padding: EdgeInsets.all(12), child: LinearProgressIndicator()),
               error: (_, __) => EmptyNote(s.busesUnavailable),
-              data: (list) => list.isEmpty
-                  ? EmptyNote(transitResting(DateTime.now()) ? s.busesResting : s.noBusesNow)
-                  : BusBoard(
+              data: (list) {
+                if (list.isEmpty) {
+                  return EmptyNote(transitResting(ref.watch(clockProvider).valueOrNull ?? DateTime.now())
+                      ? s.busesResting
+                      : s.noBusesNow);
+                }
+                final grouped = groupEtas(list);
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    BusBoard(
                       arrLabel: s.minutesAway(0),
                       minLabel: s.min,
                       thenLabel: s.thenIn,
                       rows: [
-                        for (final (e, next) in groupEtas(list).take(5))
-                          BoardRow(service: e.service, minutes: e.minutes, next: next, note: s.loadLabel(e.load)),
+                        for (final (e, next) in _all ? grouped : grouped.take(5))
+                          BoardRow(
+                            service: e.service,
+                            minutes: e.minutes,
+                            next: next,
+                            note: [
+                              if (goesTo[e.service] case final to?) s.toPlaces(to),
+                              s.loadLabel(e.load),
+                            ].where((x) => x.isNotEmpty).join(' · '),
+                          ),
                       ],
                     ),
+                    if (grouped.length > 5)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: () => setState(() => _all = !_all),
+                          child: Text(_all ? s.showFewer : s.showAllBuses(grouped.length)),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ],
         ),
@@ -383,9 +426,8 @@ class _EatSection extends ConsumerWidget {
                     children: [
                       if (fav.hawkers.contains(h.id)) const Icon(Icons.star, color: DL.amber),
                       if (fav.learnHabits)
-                        IconButton(
-                          tooltip: s.ateHere,
-                          icon: const Icon(Icons.restaurant_menu),
+                        TextButton(
+                          child: Text(s.ateHere),
                           onPressed: () {
                             ref.read(habitsProvider.notifier).ateAt(h.id, DateTime.now());
                             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.ateLogged(h.name))));
@@ -601,7 +643,10 @@ class _ParkedCard extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(s.parkedAgo(p.name, s.durationShort(now.difference(p.at).inMinutes)),
+                Text(
+                    now.difference(p.at).inHours >= 12
+                        ? s.parkedSince(p.name, sinceLabel(p.at, now))
+                        : s.parkedAgo(p.name, s.durationShort(now.difference(p.at).inMinutes)),
                     style: t.titleMedium?.copyWith(color: DL.ink)),
                 if (spot.isNotEmpty) Text(spot, style: t.headlineSmall?.copyWith(color: DL.ink, fontFamily: DL.display)),
                 Wrap(
@@ -708,10 +753,10 @@ class _HelpSection extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final em = ref.watch(emergencyProvider).valueOrNull ?? EmergencySet.empty;
     final around = ref.watch(aroundProvider).valueOrNull ?? AroundSet.empty;
-    final rows = <(IconData, List<EPoint>, int)>[
-      (Icons.monitor_heart_outlined, em.of(EmergencyKind.aed), 1),
-      (Icons.local_hospital_outlined, em.of(EmergencyKind.ae), 1),
-      (Icons.local_police_outlined, around.of('police'), 1),
+    final rows = <(IconData, List<EPoint>, int, String)>[
+      (Icons.monitor_heart_outlined, em.of(EmergencyKind.aed), 1, s.aedShort),
+      (Icons.local_hospital_outlined, em.of(EmergencyKind.ae), 1, s.aeShort),
+      (Icons.local_police_outlined, around.of('police'), 1, s.policeShort),
     ];
     // Civil Defence shelters: where to go from here if something happens.
     final shelters = nearestPoints(em.of(EmergencyKind.shelter), place.lat, place.lng, limit: 2, radius: 3000);
@@ -740,13 +785,29 @@ class _HelpSection extends ConsumerWidget {
           ),
         ),
         Panel(
+          color: DL.amber,
+          child: InkWell(
+            onTap: () => launchUrl(Uri(scheme: 'tel', path: '999')),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  const Icon(Icons.call, color: DL.ink),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(s.call999, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: DL.ink))),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Panel(
           child: Column(
             children: [
-              for (final (icon, points, n) in rows)
+              for (final (icon, points, n, label) in rows)
                 for (final (p, d) in nearestPoints(points, place.lat, place.lng, limit: n))
                   ListTile(
                     leading: Icon(icon),
-                    title: Text(p.name),
+                    title: Text('$label: ${p.name}'),
                     subtitle: Text([s.metres(d), if (p.detail.isNotEmpty) p.detail].join(' · '),
                         maxLines: 2, overflow: TextOverflow.ellipsis),
                     onTap: () => showPlaceSheet(
