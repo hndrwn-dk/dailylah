@@ -1105,4 +1105,59 @@ void main() {
     // Old saved habits (no new keys) still load.
     expect(Habits.fromJson({'trips': [], 'meals': []}).parkings, isEmpty);
   });
+
+  test('fares, parking and costs on History', () {
+    final oct = DateTime(2026, 10, 25);
+    expect(adultCardFare(2.0, oct), 128);
+    expect(adultCardFare(3.2, oct), 128);
+    expect(adultCardFare(3.3, oct), 138);
+    expect(adultCardFare(4.2, oct), 138);
+    expect(adultCardFare(10.0, oct), 186);
+    expect(adultCardFare(55, oct), 257);
+    // From 26 Dec 2026: +12 c up to 3.2 km, +13 c beyond.
+    expect(adultCardFare(2.0, DateTime(2026, 12, 26)), 140);
+    expect(adultCardFare(10.0, DateTime(2027, 1, 5)), 199);
+
+    final bus = TripLog(route: 'home>work', start: oct, minutes: 40, mode: 'transit', km: 7.0);
+    expect(tripFareEstimate(bus), adultCardFare(9.1, oct));
+    expect(tripFareEstimate(TripLog(route: 'home>work', start: oct, minutes: 40, mode: 'car', km: 7)), isNull);
+    expect(tripFareEstimate(TripLog(route: 'home>work', start: oct, minutes: 40)), isNull);
+
+    // HDB: 15 min free, $0.60 per half hour, central $1.20 Mon-Sat 7am-5pm, caps.
+    final mon10 = DateTime(2026, 10, 26, 10);
+    expect(hdbParkingCost(mon10, 15), 0);
+    expect(hdbParkingCost(mon10, 60), 120);
+    expect(hdbParkingCost(mon10, 60, central: true), 240);
+    expect(hdbParkingCost(DateTime(2026, 10, 25, 10), 60, central: true), 120); // Sunday
+    expect(hdbParkingCost(DateTime(2026, 10, 26, 7), 15 * 60), 1200); // day cap
+    expect(hdbParkingCost(DateTime(2026, 10, 26, 23), 7 * 60), 500); // night cap
+
+    final park = ParkLog(name: 'Blk 1', start: mon10, minutes: 90, hdb: true);
+    final mall = ParkLog(name: 'Mall', start: mon10, minutes: 90);
+    expect(parkingEstimate(park), 180);
+    expect(parkingEstimate(mall), isNull);
+
+    // Entered amounts win over estimates; estimates count in the total.
+    final h = Habits(trips: [bus, bus.withCost(300)], parkings: [park, mall.withCost(450)]);
+    final entries = historyEntries(h);
+    expect(entries.where((e) => e.estimated && e.costCents != null).length, 2);
+    expect(historySummary(entries).costCents, tripFareEstimate(bus)! + 300 + 180 + 450);
+    expect(historyOfKinds(entries, {HistoryKind.parking}).length, 2);
+
+    expect(parseCents('2.19'), 219);
+    expect(parseCents(r'$ 2'), 200);
+    expect(parseCents('2,5'), 250);
+    expect(parseCents('abc'), isNull);
+    expect(parseCents(''), isNull);
+  });
+
+  test('two Ate here taps within 30 minutes are one meal', () {
+    final t = DateTime(2026, 10, 25, 12);
+    var meals = addMeal(const [], MealLog(hawkerId: 'a', at: t));
+    meals = addMeal(meals, MealLog(hawkerId: 'b', at: t.add(const Duration(minutes: 1))));
+    meals = addMeal(meals, MealLog(hawkerId: 'c', at: t.add(const Duration(minutes: 2))));
+    expect(meals.map((m) => m.hawkerId), ['c']);
+    meals = addMeal(meals, MealLog(hawkerId: 'd', at: t.add(const Duration(hours: 6))));
+    expect(meals.map((m) => m.hawkerId), ['c', 'd']);
+  });
 }

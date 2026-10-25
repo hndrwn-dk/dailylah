@@ -1567,6 +1567,13 @@ int? tripMinutes(DateTime start, DateTime end) {
   return m < 3 || m > 180 ? null : m;
 }
 
+/// "Ate here" twice within 30 minutes is one meal: the newer tap replaces the older one.
+List<MealLog> addMeal(List<MealLog> meals, MealLog m) => [
+      for (final x in meals)
+        if (m.at.difference(x.at).abs() >= const Duration(minutes: 30)) x,
+      m,
+    ];
+
 /// Minutes of a finished parking, or null when it is not one (under 5 min or over 3 days).
 int? parkMinutes(DateTime start, DateTime end) {
   final m = end.difference(start).inMinutes;
@@ -1575,16 +1582,101 @@ int? parkMinutes(DateTime start, DateTime end) {
 
 // ---------------------------------------------------------------- history
 
+// Costs. Estimates only: the user can always type the real amount.
+
+/// Adult card fare (cents) for basic bus and MRT/LRT by journey distance, from the Public
+/// Transport Council fare table. Bands: up to 3.2 km, then every 1 km up to 40.2 km, then over.
+const _adultCardFares = [
+  128, 138, 149, 159, 168, 175, 182, 186, 190, 194, 198, 202, 207, 211, 215, 220, 224, 227, 230, 233,
+  236, 238, 240, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257,
+];
+
+/// Fare change from 26 Dec 2026 (PTC, announced 29 Sep 2026): +12 c up to 3.2 km, +13 c beyond.
+final _fareChange2026 = DateTime(2026, 12, 26);
+
+/// Adult card fare in cents for a journey of [km] on [day].
+int adultCardFare(double km, DateTime day) {
+  final band = km <= 3.2 ? 0 : math.min(((km - 3.2) - 1e-9).ceil(), _adultCardFares.length - 1);
+  final base = _adultCardFares[band];
+  if (day.isBefore(_fareChange2026)) return base;
+  return base + (band == 0 ? 12 : 13);
+}
+
+/// Bus/MRT fare estimate for a logged trip: the route is longer than the straight line, so
+/// the straight-line km is scaled by 1.3. Null for other modes or trips without a distance.
+int? tripFareEstimate(TripLog t) {
+  if ((t.mode ?? TravelMode.transit.name) != TravelMode.transit.name || t.km == null) return null;
+  return adultCardFare(t.km! * 1.3, t.start);
+}
+
+/// HDB car parks in the Central Area ($1.20 per half hour, Mon–Sat 7 am–5 pm).
+const hdbCentralCarparks = {
+  'ACB', 'BBB', 'BRB1', 'CY', 'DUXM', 'HLM', 'KAB', 'KAM', 'KAS', 'PRM', 'SLS', 'SR1', 'SR2', 'TPM', 'UCS', 'WCB',
+};
+
+/// HDB short-term car parking (Electronic Parking System) in cents: per minute at $0.60 per
+/// half hour ($1.20 in the Central Area, Mon–Sat 7 am–5 pm), free within 15 minutes, daytime
+/// (7 am–10.30 pm) capped at $12 a day ($20 Central), and 10.30 pm–7 am capped at $5 a night.
+int hdbParkingCost(DateTime start, int minutes, {bool central = false}) {
+  if (minutes <= 15) return 0;
+  final dayCents = <DateTime, double>{};
+  final nightCents = <DateTime, double>{};
+  for (var i = 0; i < minutes; i++) {
+    final t = start.add(Duration(minutes: i));
+    final m = t.hour * 60 + t.minute;
+    final night = m >= 22 * 60 + 30 || m < 7 * 60;
+    final centralHours = central && t.weekday != DateTime.sunday && m >= 7 * 60 && m < 17 * 60;
+    final perMinute = (centralHours ? 120 : 60) / 30;
+    if (night) {
+      // A night belongs to the evening it started.
+      final key = dateOnly(m < 7 * 60 ? t.subtract(const Duration(days: 1)) : t);
+      nightCents[key] = (nightCents[key] ?? 0) + perMinute;
+    } else {
+      final key = dateOnly(t);
+      dayCents[key] = (dayCents[key] ?? 0) + perMinute;
+    }
+  }
+  final dayCap = central ? 2000 : 1200;
+  var total = 0.0;
+  for (final c in dayCents.values) {
+    total += math.min(c, dayCap.toDouble());
+  }
+  for (final c in nightCents.values) {
+    total += math.min(c, 500);
+  }
+  return total.round();
+}
+
+/// Parking estimate for a finished parking: only for HDB car parks, where the rate is known.
+int? parkingEstimate(ParkLog p) => p.hdb ? hdbParkingCost(p.start, p.minutes, central: p.central) : null;
+
+
 enum HistoryKind { trip, parking, meal }
 
 /// One row on the History tab. [source] is the logged item (TripLog, ParkLog or MealLog).
 class HistoryEntry {
-  const HistoryEntry(this.kind, this.at, this.source, {this.minutes, this.costCents});
+  const HistoryEntry(this.kind, this.at, this.source, {this.minutes, this.costCents, this.estimated = false});
   final HistoryKind kind;
   final DateTime at;
   final Object source;
   final int? minutes;
+
+  /// What it cost: the amount the user entered, else an estimate ([estimated]), else null.
   final int? costCents;
+  final bool estimated;
+}
+
+/// Only entries of [kinds] (all when empty).
+List<HistoryEntry> historyOfKinds(List<HistoryEntry> entries, Set<HistoryKind> kinds) =>
+    kinds.isEmpty ? entries : [for (final e in entries) if (kinds.contains(e.kind)) e];
+
+/// Cents from what the user typed ("2.19", "\$2", "2,19"), or null when it is not an amount.
+int? parseCents(String text) {
+  final t = text.trim().replaceAll(r'$', '').replaceAll(',', '.').trim();
+  if (t.isEmpty) return null;
+  final v = double.tryParse(t);
+  if (v == null || v < 0 || v > 10000) return null;
+  return (v * 100).round();
 }
 
 /// Periods to look back on History.
@@ -1603,9 +1695,12 @@ DateTime? historySince(HistoryPeriod period, DateTime now) {
 /// Every logged trip, parking and meal since [since] (all when null), newest first.
 List<HistoryEntry> historyEntries(Habits h, {DateTime? since}) {
   final out = <HistoryEntry>[
-    for (final t in h.trips) HistoryEntry(HistoryKind.trip, t.start, t, minutes: t.minutes, costCents: t.costCents),
+    for (final t in h.trips)
+      HistoryEntry(HistoryKind.trip, t.start, t,
+          minutes: t.minutes, costCents: t.costCents ?? tripFareEstimate(t), estimated: t.costCents == null),
     for (final p in h.parkings)
-      HistoryEntry(HistoryKind.parking, p.start, p, minutes: p.minutes, costCents: p.costCents),
+      HistoryEntry(HistoryKind.parking, p.start, p,
+          minutes: p.minutes, costCents: p.costCents ?? parkingEstimate(p), estimated: p.costCents == null),
     for (final m in h.meals) HistoryEntry(HistoryKind.meal, m.at, m),
   ];
   return [

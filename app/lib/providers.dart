@@ -141,7 +141,7 @@ class HabitsNotifier extends Notifier<Habits> {
     final m = p == null ? null : parkMinutes(p.at, end);
     final parkings = [
       ...state.parkings,
-      if (p != null && m != null) ParkLog(name: p.name, start: p.at, minutes: m),
+      if (p != null && m != null) ParkLog(name: p.name, start: p.at, minutes: m, hdb: p.hdb, central: p.central),
     ];
     return _set(state.copyWith(
       clearParked: true,
@@ -154,6 +154,24 @@ class HabitsNotifier extends Notifier<Habits> {
 
   /// Puts History back as it was (Undo after a delete).
   Future<void> restore(Habits h) => _set(h);
+
+  /// Sets (or clears, with null) the cost of a trip or parking on History.
+  Future<void> setCost(HistoryEntry e, int? cents) => _set(switch (e.source) {
+        final TripLog t => state.copyWith(trips: [for (final x in state.trips) identical(x, t) ? t.withCost(cents) : x]),
+        final ParkLog p =>
+          state.copyWith(parkings: [for (final x in state.parkings) identical(x, p) ? p.withCost(cents) : x]),
+        _ => state,
+      });
+
+  /// Removes several History entries at once (e.g. all meals shown).
+  Future<void> forgetAll(Iterable<HistoryEntry> entries) {
+    final drop = {for (final e in entries) e.source};
+    return _set(state.copyWith(
+      trips: [for (final t in state.trips) if (!drop.contains(t)) t],
+      parkings: [for (final p in state.parkings) if (!drop.contains(p)) p],
+      meals: [for (final m in state.meals) if (!drop.contains(m)) m],
+    ));
+  }
 
   /// Removes one History entry the user deleted.
   Future<void> forget(HistoryEntry e) => _set(switch (e.kind) {
@@ -181,7 +199,7 @@ class HabitsNotifier extends Notifier<Habits> {
   }
 
   Future<void> ateAt(String hawkerId, DateTime now) {
-    final meals = [...state.meals, MealLog(hawkerId: hawkerId, at: now)];
+    final meals = addMeal(state.meals, MealLog(hawkerId: hawkerId, at: now));
     return _set(state.copyWith(meals: meals.length > Habits.maxMeals ? meals.sublist(meals.length - Habits.maxMeals) : meals));
   }
 

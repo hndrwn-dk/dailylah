@@ -87,8 +87,12 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   From "Here" within `arrivedMetres` of the destination the trip shows "You're here".
 - History tab (`ui/history.dart`): logged trips, finished parkings (`ParkLog`, written by
   `clearParked`) and meals by day for this week/month/all (`historyEntries`, `historySummary`,
-  `historyByDay`); swipe to remove with Undo. Trips record mode and straight-line km, and trips and
-  parkings carry an optional `costCents` for the coming cost estimates (MRT/bus fare, parking).
+  `historyByDay`); filter by kind, swipe to remove with Undo, or remove all shown. Costs: an
+  entered `costCents` wins, else an estimate shown with ≈ — bus/MRT `adultCardFare` (PTC table, incl.
+  the 26 Dec 2026 change) on straight-line km × 1.3 (`tripFareEstimate`), and HDB EPS rates for
+  parkings at HDB car parks (`hdbParkingCost`, Central Area list `hdbCentralCarparks`). Tap a trip
+  or parking to enter what it cost. "Ate here" is on the hawker sheet (not the list row), with Undo;
+  taps within 30 min count as one meal (`addMeal`).
 - Habits (`Habits` in models.dart, `HabitsStore` in store.dart, `habitsProvider`): parked car, trips
   logged with I'm leaving/Arrived (`tripStats`), "Ate here" meals (`mealNudge`). On the phone only,
   behind `Favorites.learnHabits`, never in the share code. Weekly Sunday digest (`weeklyDigest`)
