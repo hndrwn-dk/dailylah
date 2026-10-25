@@ -669,6 +669,10 @@ class S {
 
   // about
   String version(String v) => 'Version $v · Tursina Labs';
+  String get versionTitle => 'Version';
+  String get copyVersion => 'Copy version';
+  String get versionCopied => 'Version copied';
+  String aboutSubWith(String v) => 'Version $v · privacy, terms and data sources';
   String get aboutIntro => 'A daily companion for life in Singapore. No account, no ads. Your places and settings stay on this phone.';
   String get privacyPolicy => 'Privacy policy';
   String get termsOfService => 'Terms of service';

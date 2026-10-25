@@ -7,10 +7,11 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 sha="$(git -C "$root" rev-parse --short=7 HEAD)"
 [ -n "$(git -C "$root" status --porcelain)" ] && sha="$sha-dirty"
 version="$(sed -n 's/^version:[[:space:]]*\([^+[:space:]]*\).*/\1/p' "$root/app/pubspec.yaml")"
+build="$(sed -n 's/^version:[[:space:]]*[^+]*+\([0-9]*\).*/\1/p' "$root/app/pubspec.yaml")"
 
 : "${ANDROID_KEYSTORE_PATH:?ANDROID_KEYSTORE_PATH is not set; the APK would not install over the old one.}"
 
 cd "$root/app"
-flutter build apk --release --dart-define=APP_VERSION="$version" --dart-define=GIT_SHA="$sha"
+flutter build apk --release --dart-define=APP_VERSION="$version" --dart-define=GIT_SHA="$sha" --dart-define=BUILD_NUMBER="$build"
 cp build/app/outputs/flutter-apk/app-release.apk "build/dailylah-$version-$sha.apk"
 echo "Built app/build/dailylah-$version-$sha.apk"

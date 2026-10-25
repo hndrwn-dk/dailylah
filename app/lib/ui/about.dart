@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -33,8 +34,14 @@ const appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '0.2.0');
 /// Empty for builds that skip it (flutter run).
 const appCommit = String.fromEnvironment('GIT_SHA');
 
-/// Version as shown on About and the licence page, e.g. "0.2.0 (a8d2bba)".
-String get appVersionLabel => appCommit.isEmpty ? appVersion : '$appVersion ($appCommit)';
+/// Build number (Android versionCode), injected by CI: --dart-define=BUILD_NUMBER=123.
+const appBuild = String.fromEnvironment('BUILD_NUMBER');
+
+/// Version as shown on About, More and the licence page, e.g. "0.2.0 (build 123 · a8d2bba)".
+String get appVersionLabel {
+  final extra = [if (appBuild.isNotEmpty) 'build $appBuild', if (appCommit.isNotEmpty) appCommit];
+  return extra.isEmpty ? appVersion : '$appVersion (${extra.join(' · ')})';
+}
 
 Future<void> openExternal(BuildContext context, Uri uri, String failText) async {
   final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -59,10 +66,28 @@ class AboutDailyLahPage extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           Text('DailyLah', style: t.displayMedium),
-          Text(s.version(appVersionLabel), style: t.bodySmall),
+          Text('Tursina Labs', style: t.bodySmall),
           const SizedBox(height: 12),
           Text(s.aboutIntro, style: t.bodyLarge),
           const SizedBox(height: 16),
+          // Version first and easy to copy, for bug reports.
+          Panel(
+            child: ListTile(
+              leading: const Icon(Icons.verified_outlined),
+              title: Text(s.versionTitle),
+              subtitle: Text(appVersionLabel, style: t.titleMedium),
+              trailing: IconButton(
+                tooltip: s.copyVersion,
+                icon: const Icon(Icons.copy, size: 20),
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: 'DailyLah $appVersionLabel'));
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.versionCopied)));
+                  }
+                },
+              ),
+            ),
+          ),
           Panel(
             child: Column(
               children: [
