@@ -181,7 +181,7 @@ void main() {
   setUpAll(_loadFonts);
 
   // Today: the trip to work with live buses.
-  testWidgets('01 today', (t) => _shoot(t, '01-today', setUp: (t, box) => _scroll(t, 330)));
+  testWidgets('01 today', (t) => _shoot(t, '01-today', setUp: (t, box) => _scroll(t, 640)));
 
   testWidgets('02 wake me', (t) => _shoot(t, '02-wake', wake: true, setUp: (t, box) async {
         box.read(shellTabProvider.notifier).state = 1;
@@ -189,7 +189,7 @@ void main() {
       }));
 
   // EWL disrupted: the trip card puts buses first with a Plan B note.
-  testWidgets('03 plan b', (t) => _shoot(t, '03-planb', disruptedLine: 'EWL', setUp: (t, box) => _scroll(t, 400)));
+  testWidgets('03 plan b', (t) => _shoot(t, '03-planb', disruptedLine: 'EWL', setUp: (t, box) => _scroll(t, 700)));
 
   testWidgets('04 parks', (t) => _shoot(t, '04-parks', at: saturdayMorning, setUp: (t, box) async {
         box.read(shellTabProvider.notifier).state = 1;
@@ -205,11 +205,11 @@ void main() {
         await t.runAsync(() => box.read(habitsProvider.notifier).restore(_week(saturdayMorning)));
         box.read(shellTabProvider.notifier).state = 3;
         await settle(t);
-        await _scroll(t, 300);
+        await _scroll(t, 420);
       }));
 
   // Saturday: no commute, so Today shows the weekend card.
-  testWidgets('07 weekend', (t) => _shoot(t, '07-weekend', at: saturdayMorning, setUp: (t, box) => _scroll(t, 420)));
+  testWidgets('07 weekend', (t) => _shoot(t, '07-weekend', at: saturdayMorning, setUp: (t, box) => _scroll(t, 820)));
 
   // More > Share with family: a QR code, no account.
   testWidgets('08 family', (t) => _shoot(t, '08-family', setUp: (t, box) async {
