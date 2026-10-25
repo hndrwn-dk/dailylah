@@ -1,0 +1,48 @@
+name: screenshots
+# Renders the Google Play screenshots from the real screens (app/test_store), adds the
+# captions (scripts/frame_screenshots.py) and commits them to docs/store/screenshots on the
+# branch it ran on. Run it by hand, or it runs when the screenshot sources change.
+on:
+  workflow_dispatch:
+  push:
+    branches-ignore: [main]
+    paths:
+      - "app/test_store/**"
+      - "scripts/frame_screenshots.py"
+      - ".github/workflows/screenshots.yml"
+permissions:
+  contents: write
+concurrency:
+  group: screenshots-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  shoot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Render screens
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter test test_store --update-goldens
+      - name: Add captions
+        run: |
+          pip install pillow
+          python3 scripts/frame_screenshots.py app/test_store/goldens docs/store/screenshots
+      - uses: actions/upload-artifact@v7
+        with:
+          name: play-screenshots
+          path: docs/store/screenshots
+      - name: Commit
+        run: |
+          git add docs/store/screenshots app/test_store/goldens
+          if git diff --cached --quiet; then echo "No changes"; exit 0; fi
+          git config user.name "dailylah-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update Play Store screenshots"
+          git push
