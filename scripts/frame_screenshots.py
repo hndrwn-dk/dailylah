@@ -23,7 +23,7 @@ CAPTIONS = {
     "04-parks": ("Parks near you", "Toilets, playgrounds and a good time to go"),
     "05-home": ("All about your HDB block", "Upgrading works, schools, clinics and prices"),
     "06-history": ("Where your transport money goes", "MRT, bus and HDB parking costs, estimated for you"),
-    "07-weekend": ("Weekend sorted", "Parks, museums and events near home"),
+    "07-weekend": ("Weekend sorted", "Parks, museums and events near your block"),
     "08-family": ("Share with family", "Your places in one QR code. No account, no server"),
 }
 
