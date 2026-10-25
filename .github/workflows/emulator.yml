@@ -1,0 +1,101 @@
+name: emulator
+# On-device regression tests (docs/QA.md): app flows, real notifications and widget,
+# permission handling, and the APK-over-APK upgrade. Free on this public repo because it
+# uses standard GitHub-hosted runners.
+on:
+  pull_request:
+    paths: ["app/**", "scripts/emulator_*.sh", ".github/workflows/emulator.yml"]
+  workflow_dispatch:
+    inputs:
+      base_ref:
+        description: "Previous version for the upgrade test (branch, tag or SHA)"
+        default: "origin/main"
+concurrency:
+  group: emulator-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  flows:
+    name: flows (API ${{ matrix.api }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Lowest supported Android. The job warns if the APK's minSdk differs.
+          - api: 24
+            target: google_apis
+            arch: x86_64 # Flutter builds no 32-bit x86 code
+            min: true
+          # Android 15, still the most common recent version.
+          - api: 35
+            target: google_apis
+            arch: x86_64
+            min: false
+          # Android 16 = the targetSdk Google Play requires from 31 Aug 2026.
+          - api: 36
+            target: google_apis
+            arch: x86_64
+            min: false
+    steps:
+      - uses: actions/checkout@v7
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+        working-directory: app
+      - name: Run flows on the emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          EXPECT_MIN_API: ${{ matrix.min }}
+        with:
+          api-level: ${{ matrix.api }}
+          target: ${{ matrix.target }}
+          arch: ${{ matrix.arch }}
+          ram-size: 3072M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          script: bash scripts/emulator_flows.sh
+
+  upgrade:
+    name: upgrade (previous version → this build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Upgrade on the emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          BASE_REF: ${{ inputs.base_ref || 'origin/main' }}
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          script: bash scripts/emulator_upgrade.sh

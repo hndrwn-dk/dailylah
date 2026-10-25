@@ -213,9 +213,16 @@ class SetupPage extends ConsumerWidget {
                               Icon(icon, size: 18),
                               const SizedBox(width: 8),
                               Expanded(child: Text(label, style: t.labelMedium, overflow: TextOverflow.ellipsis)),
-                              Text(
-                                (go ? (place.go ?? fav.leaveHome) : (place.back ?? fav.leaveWork)).format(),
-                                style: t.displaySmall?.copyWith(fontSize: 20),
+                              // Large text or a narrow phone: shrink the time rather than overflow.
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerRight,
+                                  child: Text(
+                                    (go ? (place.go ?? fav.leaveHome) : (place.back ?? fav.leaveWork)).format(),
+                                    style: t.displaySmall?.copyWith(fontSize: 20),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
