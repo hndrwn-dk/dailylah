@@ -159,6 +159,11 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - Upstream headers: data.gov.sg uses `x-api-key` (optional, higher limits); LTA uses `AccountKey`.
 - Every new endpoint gets a pytest test with `respx` mocks; no real network calls in tests.
 
+## Git workflow
+- One branch and one PR per batch, squash-merged into `main`.
+- GitHub deletes the head branch automatically after a merge ("Automatically delete head
+  branches" is on), so there is no branch cleanup step.
+
 ## Style
 - Python: ruff (line length 100), type hints, async httpx.
 - Dart: flutter_lints, Riverpod providers, no business logic in widgets.
