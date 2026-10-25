@@ -205,7 +205,7 @@ void main() {
         await t.runAsync(() => box.read(habitsProvider.notifier).restore(_week(saturdayMorning)));
         box.read(shellTabProvider.notifier).state = 3;
         await settle(t);
-        await _scroll(t, 420);
+        await _scroll(t, 300);
       }));
 
   // Saturday: no commute, so Today shows the weekend card.
