@@ -69,7 +69,7 @@ class LoadMeter extends StatelessWidget {
               ),
             ),
           const SizedBox(width: 8),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
+          Flexible(child: Text(label, style: Theme.of(context).textTheme.bodySmall)),
         ],
       ),
     );
@@ -147,7 +147,7 @@ class SectionTitle extends StatelessWidget {
       child: Row(
         children: [
           Expanded(child: Text(text, style: Theme.of(context).textTheme.titleMedium)),
-          if (trailing != null) trailing!,
+          if (trailing != null) Flexible(child: trailing!),
         ],
       ),
     );

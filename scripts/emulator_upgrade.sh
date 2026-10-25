@@ -5,6 +5,8 @@
 # 3. Install the new build over it with `adb install -r` (no uninstall, data kept).
 # 4. Run app/integration_test/upgrade_check_test.dart, which must find that data.
 set -euo pipefail
+# Name the failing command on the commit page (job logs are long).
+trap 'echo "::error file=$0,line=$LINENO::Failed: $BASH_COMMAND"' ERR
 
 PKG=com.tursinalabs.dailylah
 DEVICE=emulator-5554
@@ -58,5 +60,6 @@ flutter build apk --debug
 adb -s "$DEVICE" install -r -t build/app/outputs/flutter-apk/app-debug.apk
 echo "- Installed new build over $BASE_REF with adb install -r ✅" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
 
-flutter test integration_test/upgrade_check_test.dart -d "$DEVICE" --reporter expanded
+flutter test integration_test/upgrade_check_test.dart -d "$DEVICE" --reporter expanded --file-reporter json:it.json \
+  || { python3 ../scripts/test_failures.py it.json; exit 1; }
 echo "- Saved data survived the upgrade ✅" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"

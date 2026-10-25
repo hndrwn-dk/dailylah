@@ -4,6 +4,8 @@
 # flows in app/integration_test/app_test.dart, then checks the system really posted the
 # background MRT notification.
 set -euo pipefail
+# Name the failing command on the commit page (job logs are long).
+trap 'echo "::error file=$0,line=$LINENO::Failed: $BASH_COMMAND"' ERR
 
 PKG=com.tursinalabs.dailylah
 DEVICE=emulator-5554
@@ -26,22 +28,6 @@ if [ "${EXPECT_MIN_API:-}" = "true" ] && [ "$API" != "$MIN_SDK" ]; then
 fi
 
 adb -s "$DEVICE" install -r -t "$APK"
-# Notifications allowed (API 33+ only has this runtime permission), location refused.
-adb -s "$DEVICE" shell pm grant "$PKG" android.permission.POST_NOTIFICATIONS 2>/dev/null || true
-adb -s "$DEVICE" shell pm revoke "$PKG" android.permission.ACCESS_FINE_LOCATION 2>/dev/null || true
-adb -s "$DEVICE" shell pm revoke "$PKG" android.permission.ACCESS_COARSE_LOCATION 2>/dev/null || true
-
-flutter test integration_test/app_test.dart -d "$DEVICE" --reporter expanded
-
-# The background test posted "Disruption on …"; make sure Android actually shows it.
-adb -s "$DEVICE" shell dumpsys notification --noredact > notifications.txt
-if grep -q "Disruption on" notifications.txt; then
-  echo "- Background MRT notification: posted ✅" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
-else
-  echo "::error::The background MRT notification was not found in dumpsys notification."
-  grep -n "$PKG" notifications.txt | head -20 || true
-  exit 1
-fi
 
 # The home screen widget provider is registered with the system.
 if adb -s "$DEVICE" shell dumpsys appwidget | grep -q "$PKG"; then
@@ -50,3 +36,12 @@ else
   echo "::error::DailyLahWidgetProvider is not registered with the AppWidget service."
   exit 1
 fi
+# Notifications allowed (API 33+ only has this runtime permission), location refused.
+adb -s "$DEVICE" shell pm grant "$PKG" android.permission.POST_NOTIFICATIONS 2>/dev/null || true
+adb -s "$DEVICE" shell pm revoke "$PKG" android.permission.ACCESS_FINE_LOCATION 2>/dev/null || true
+adb -s "$DEVICE" shell pm revoke "$PKG" android.permission.ACCESS_COARSE_LOCATION 2>/dev/null || true
+
+flutter test integration_test/app_test.dart -d "$DEVICE" --reporter expanded --file-reporter json:it.json \
+  || { python3 ../scripts/test_failures.py it.json; exit 1; }
+
+echo "- On-device flows incl. real notification: passed ✅" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"

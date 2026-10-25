@@ -5,8 +5,7 @@
 // Live-data checks call the production API and bundles (dailylah.sg) on purpose: they are a
 // smoke test of the release setup. They only assert that screens render without crashing.
 //
-// The workflow revokes location and grants notifications before this runs, and afterwards
-// checks `dumpsys notification` for the alert posted by the background test.
+// The workflow revokes location and grants notifications before this runs.
 import 'dart:convert';
 
 import 'package:dailylah/background.dart';
@@ -17,6 +16,7 @@ import 'package:dailylah/ui/nearby.dart';
 import 'package:dailylah/ui/setup.dart';
 import 'package:dailylah/ui/today.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:home_widget/home_widget.dart';
@@ -101,9 +101,13 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('favorites.v1', jsonEncode(householdFavorites.toJson()));
     await runChecks(FakeApi(disruptedLine: 'EWL'), DateTime(2026, 10, 20, 7, 20));
-    // The workflow verifies the posted notification with `adb shell dumpsys notification`.
     final sent = prefs.getStringList('alerts.sent') ?? const [];
     expect(sent.any((id) => id.startsWith('mrt:')), isTrue);
+    // Ask Android which notifications are on screen right now.
+    final android = notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()!;
+    final active = await android.getActiveNotifications();
+    expect(active.map((n) => n.title ?? ''), contains(startsWith('Disruption on')),
+        reason: 'the MRT alert was not posted to the Android notification shade');
   });
 
   testWidgets('home screen widget receives the card text', (tester) async {

@@ -131,12 +131,17 @@ class BlockTile extends ConsumerWidget {
                 ),
               ),
               if (top != null)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(sgd(top.median, compact: true), style: t.displaySmall?.copyWith(fontSize: 24)),
-                    Text(top.flatType.toLowerCase(), style: t.bodySmall),
-                  ],
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(sgd(top.median, compact: true), style: t.displaySmall?.copyWith(fontSize: 24)),
+                      ),
+                      Text(top.flatType.toLowerCase(), style: t.bodySmall, textAlign: TextAlign.end),
+                    ],
+                  ),
                 ),
             ],
           ),
@@ -352,7 +357,7 @@ class _HeroChip extends StatelessWidget {
         children: [
           Icon(icon, size: 15),
           const SizedBox(width: 6),
-          Text(text, style: Theme.of(context).textTheme.labelMedium),
+          Flexible(child: Text(text, style: Theme.of(context).textTheme.labelMedium)),
         ],
       ),
     );
@@ -391,7 +396,7 @@ class _ResaleCard extends ConsumerWidget {
                     ],
                   ),
                 ),
-                Text(s.medianOf(stat.count), style: t.bodySmall),
+                Flexible(child: Text(s.medianOf(stat.count), style: t.bodySmall, textAlign: TextAlign.end)),
               ],
             ),
             if (tm != null && maxV > 0) ...[
