@@ -122,7 +122,7 @@ class MorePage extends ConsumerWidget {
                   child: _NavTile(
                     icon: Icons.info_outline,
                     title: s.about,
-                    subtitle: s.aboutSub,
+                    subtitle: s.aboutSubWith(appVersion),
                     onTap: () =>
                         Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AboutDailyLahPage())),
                   ),

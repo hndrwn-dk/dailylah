@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -29,6 +30,19 @@ Future<void> openPlayListing(BuildContext context, String failText) async {
 /// App version, injected by CI or set manually: --dart-define=APP_VERSION=0.2.0
 const appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '0.2.0');
 
+/// Short commit the APK was built from: --dart-define=GIT_SHA=$(git rev-parse --short HEAD).
+/// Empty for builds that skip it (flutter run).
+const appCommit = String.fromEnvironment('GIT_SHA');
+
+/// Build number (Android versionCode), injected by CI: --dart-define=BUILD_NUMBER=123.
+const appBuild = String.fromEnvironment('BUILD_NUMBER');
+
+/// Version as shown on About, More and the licence page, e.g. "0.2.0 (build 123 · a8d2bba)".
+String get appVersionLabel {
+  final extra = [if (appBuild.isNotEmpty) 'build $appBuild', if (appCommit.isNotEmpty) appCommit];
+  return extra.isEmpty ? appVersion : '$appVersion (${extra.join(' · ')})';
+}
+
 Future<void> openExternal(BuildContext context, Uri uri, String failText) async {
   final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
   if (!ok && context.mounted) {
@@ -52,10 +66,28 @@ class AboutDailyLahPage extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           Text('DailyLah', style: t.displayMedium),
-          Text(s.version(appVersion), style: t.bodySmall),
+          Text('Tursina Labs', style: t.bodySmall),
           const SizedBox(height: 12),
           Text(s.aboutIntro, style: t.bodyLarge),
           const SizedBox(height: 16),
+          // Version first and easy to copy, for bug reports.
+          Panel(
+            child: ListTile(
+              leading: const Icon(Icons.verified_outlined),
+              title: Text(s.versionTitle),
+              subtitle: Text(appVersionLabel, style: t.titleMedium),
+              trailing: IconButton(
+                tooltip: s.copyVersion,
+                icon: const Icon(Icons.copy, size: 20),
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: 'DailyLah $appVersionLabel'));
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.versionCopied)));
+                  }
+                },
+              ),
+            ),
+          ),
           Panel(
             child: Column(
               children: [
@@ -70,7 +102,7 @@ class AboutDailyLahPage extends ConsumerWidget {
                   leading: const Icon(Icons.ios_share),
                   title: Text(s.shareApp),
                   subtitle: Text(s.shareAppSub),
-                  onTap: () => SharePlus.instance.share(ShareParams(text: s.shareAppText, subject: 'DailyLah')),
+                  onTap: () => SharePlus.instance.share(ShareParams(text: s.shareAppText(playWebUrl), subject: 'DailyLah')),
                 ),
                 ListTile(
                   leading: const Icon(Icons.star_outline),
@@ -118,7 +150,7 @@ class AboutDailyLahPage extends ConsumerWidget {
             onPressed: () => showLicensePage(
               context: context,
               applicationName: 'DailyLah',
-              applicationVersion: appVersion,
+              applicationVersion: appVersionLabel,
             ),
             child: Text(s.openSourceLicences),
           ),

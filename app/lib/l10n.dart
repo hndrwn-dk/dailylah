@@ -653,7 +653,8 @@ class S {
   String hawkersCount(int n) => n == 1 ? '1 hawker centre' : '$n hawker centres';
   String get shareApp => 'Share DailyLah';
   String get shareAppSub => 'Tell a friend about the app';
-  String get shareAppText => 'DailyLah: buses, MRT, weather and your HDB block for every day in Singapore. Free, no account. https://dailylah.sg';
+  String shareAppText(String playUrl) => 'DailyLah: buses, MRT, weather and your HDB block for every day in Singapore. '
+      'Free, no account.\n\nGet it on Google Play: $playUrl\nMore: https://dailylah.sg';
   String get rateApp => 'Rate DailyLah';
   String get rateAppSub => 'A review on Google Play helps others find it';
   String get copyCode => 'Copy code';
@@ -669,6 +670,10 @@ class S {
 
   // about
   String version(String v) => 'Version $v · Tursina Labs';
+  String get versionTitle => 'Version';
+  String get copyVersion => 'Copy version';
+  String get versionCopied => 'Version copied';
+  String aboutSubWith(String v) => 'Version $v · privacy, terms and data sources';
   String get aboutIntro => 'A daily companion for life in Singapore. No account, no ads. Your places and settings stay on this phone.';
   String get privacyPolicy => 'Privacy policy';
   String get termsOfService => 'Terms of service';

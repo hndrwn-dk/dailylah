@@ -50,7 +50,8 @@ Start here, then read `CLAUDE.md` (the feature map is kept current there) and `d
 - Release APK:
   - Set `ANDROID_KEYSTORE_PATH` (`C:\Users\hendr\Deployment\signed\dailylah\dailylah-upload.jks`),
     `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD` as env vars. Never commit them.
-  - Run `flutter build apk --release`.
+  - Run `scripts/build-apk.ps1` (Windows) or `scripts/build-apk.sh`. They pass `APP_VERSION` and
+    `GIT_SHA` so About shows the version and commit, e.g. `0.2.0 (a8d2bba)`.
 - Backend: `cd backend && pip install -r requirements-dev.txt && pytest && ruff check .`
 - Bundles:
   - Run `cd backend && python -m app.build_static`. It needs the secrets in `.env`.

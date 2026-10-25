@@ -1060,6 +1060,15 @@ void main() {
     expect(withHawkers.places, isEmpty);
     expect(withHawkers.lines, isNull);
     expect(applyShare(me, withHawkers, take: const {}).hawkers, {'h1', 'h2', 'h9'});
+    // A sender with no starred lines does not clear the receiver's; their times still come along.
+    const noLines = Favorites(places: {PlaceKind.home: home}, leaveHome: TimeOfDayHM(8, 15));
+    final empty = readShareCode(encodeShareCode(noLines, const ShareChoice()))!;
+    expect(empty.lines, isEmpty);
+    const starred = Favorites(lines: {'NSL', 'CCL'});
+    final kept = applyShare(starred, empty, take: const {});
+    expect(kept.lines, {'NSL', 'CCL'});
+    expect(kept.leaveHome.toString(), const TimeOfDayHM(8, 15).toString());
+
     // A code with nothing in it is not a code.
     expect(readShareCode(encodeShareCode(sender, const ShareChoice(places: {}, lines: false))), isNull);
   });
