@@ -24,8 +24,8 @@ jobs:
         include:
           # Lowest supported Android. The job warns if the APK's minSdk differs.
           - api: 24
-            target: default
-            arch: x86
+            target: google_apis
+            arch: x86_64 # Flutter builds no 32-bit x86 code
             min: true
           # Newest Android with stable emulator images.
           - api: 35
