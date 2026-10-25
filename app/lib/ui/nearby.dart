@@ -428,21 +428,38 @@ class _EatSection extends ConsumerWidget {
                     h.closureOn(today) != null ? '${s.metres(d)} · ${s.closedNow}' : s.metres(d),
                     style: h.closureOn(today) != null ? t.bodySmall?.copyWith(color: const Color(0xFFB45309)) : null,
                   ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (fav.hawkers.contains(h.id)) const Icon(Icons.star, color: DL.amber),
+                  trailing: fav.hawkers.contains(h.id) ? const Icon(Icons.star, color: DL.amber) : null,
+                  // "Ate here" lives on the hawker's sheet, not on the row: a button at the
+                  // right edge of every row was easy to hit by accident while scrolling.
+                  onTap: () => showPlaceSheet(
+                    context,
+                    s: s,
+                    title: h.name,
+                    subtitle: h.address,
+                    lat: h.lat,
+                    lng: h.lng,
+                    distance: d,
+                    extra: [
                       if (fav.learnHabits)
-                        TextButton(
-                          child: Text(s.ateHere),
-                          onPressed: () {
-                            ref.read(habitsProvider.notifier).ateAt(h.id, DateTime.now());
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.ateLogged(h.name))));
-                          },
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                            icon: const Icon(Icons.ramen_dining_outlined),
+                            label: Text(s.ateHere),
+                            onPressed: () async {
+                              final notifier = ref.read(habitsProvider.notifier);
+                              final before = ref.read(habitsProvider);
+                              final messenger = ScaffoldMessenger.of(context);
+                              Navigator.of(context).pop();
+                              await notifier.ateAt(h.id, DateTime.now());
+                              showActionSnackBar(messenger, s.ateLogged(h.name),
+                                  actionLabel: s.undo, onAction: () => notifier.restore(before));
+                            },
+                          ),
                         ),
                     ],
                   ),
-                  onTap: () => _openFull(context, s.hawkers, _HawkerTab(place: place)),
                 ),
             ],
           ),
@@ -539,7 +556,13 @@ class _ParkSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _ParkedCard(name: parkName, lat: parkLat, lng: parkLng),
+        _ParkedCard(
+          name: parkName,
+          lat: parkLat,
+          lng: parkLng,
+          hdb: list.isNotEmpty,
+          central: list.isNotEmpty && hdbCentralCarparks.contains(list.first.$1.id),
+        ),
         SectionTitle(s.parkNearby,
             trailing: _seeAll(
                 s, () => _openFull(context, s.parking, _ParkingTab(lat: place.lat, lng: place.lng)))),
@@ -584,8 +607,10 @@ class _ParkSection extends ConsumerWidget {
 
 /// "I parked here": the saved spot with how long ago, or a button to save one.
 class _ParkedCard extends ConsumerWidget {
-  const _ParkedCard({required this.name, required this.lat, required this.lng});
+  const _ParkedCard({required this.name, required this.lat, required this.lng, this.hdb = false, this.central = false});
   final String name;
+  final bool hdb;
+  final bool central;
   final double lat;
   final double lng;
 
@@ -647,6 +672,8 @@ class _ParkedCard extends ConsumerWidget {
           level: level.text.trim(),
           lot: lot.text.trim(),
           remindMinutes: remind == 0 ? null : remind * 60,
+          hdb: hdb,
+          central: central,
         ));
   }
 

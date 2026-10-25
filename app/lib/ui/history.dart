@@ -11,6 +11,9 @@ import 'widgets.dart';
 /// Which period History shows. Kept while the app runs.
 final historyPeriodProvider = StateProvider<HistoryPeriod>((ref) => HistoryPeriod.week);
 
+/// Which kinds History shows (empty = all). Kept while the app runs.
+final historyKindProvider = StateProvider<HistoryKind?>((ref) => null);
+
 /// History tab: trips, parking and meals the user logged, by day, with totals for the period.
 /// Everything here lives on the phone only (Habits).
 class HistoryPage extends ConsumerWidget {
@@ -27,7 +30,9 @@ class HistoryPage extends ConsumerWidget {
     final habits = ref.watch(habitsProvider);
     final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
     final period = ref.watch(historyPeriodProvider);
-    final entries = historyEntries(habits, since: historySince(period, now));
+    final kind = ref.watch(historyKindProvider);
+    final entries =
+        historyOfKinds(historyEntries(habits, since: historySince(period, now)), {if (kind != null) kind});
     final sum = historySummary(entries);
     final hawkers = {for (final h in ref.watch(hawkersProvider).valueOrNull ?? const <Hawker>[]) h.id: h.name};
 
@@ -49,6 +54,18 @@ class HistoryPage extends ConsumerWidget {
                   ],
                   selected: period.name,
                   onTap: (k) => ref.read(historyPeriodProvider.notifier).state = HistoryPeriod.values.byName(k),
+                ),
+                const SizedBox(height: 10),
+                PillRow(
+                  items: [
+                    ('all', Icons.list, s.historyAll),
+                    ('trip', Icons.route_outlined, s.historyTrips),
+                    ('parking', Icons.local_parking, s.historyParking),
+                    ('meal', Icons.ramen_dining_outlined, s.historyMeals),
+                  ],
+                  selected: kind?.name ?? 'all',
+                  onTap: (k) =>
+                      ref.read(historyKindProvider.notifier).state = k == 'all' ? null : HistoryKind.values.byName(k),
                 ),
               ],
             ),
@@ -89,8 +106,36 @@ class HistoryPage extends ConsumerWidget {
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 10, 4, 0),
-                  child: Text(s.historyCostSoon, style: t.bodySmall),
+                  child: Text(s.historyCostNote, style: t.bodySmall),
                 ),
+                // Clean up many at once, e.g. meals logged by mistake.
+                if (entries.isNotEmpty)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      icon: const Icon(Icons.delete_sweep_outlined),
+                      label: Text(s.historyRemoveShown(entries.length)),
+                      onPressed: () async {
+                        final notifier = ref.read(habitsProvider.notifier);
+                        final before = ref.read(habitsProvider);
+                        final messenger = ScaffoldMessenger.of(context);
+                        final ok = await showDialog<bool>(
+                          context: context,
+                          builder: (d) => AlertDialog(
+                            content: Text(s.historyRemoveAsk(entries.length)),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.of(d).pop(false), child: Text(s.cancel)),
+                              FilledButton(onPressed: () => Navigator.of(d).pop(true), child: Text(s.remove)),
+                            ],
+                          ),
+                        );
+                        if (ok != true) return;
+                        await notifier.forgetAll(entries);
+                        showActionSnackBar(messenger, s.historyDeleted,
+                            actionLabel: s.undo, onAction: () => notifier.restore(before));
+                      },
+                    ),
+                  ),
                 if (on && entries.isEmpty) ...[
                   const SizedBox(height: 16),
                   Panel(child: EmptyNote(s.historyEmpty, icon: Icons.history)),
@@ -161,10 +206,22 @@ class _EntryTile extends ConsumerWidget {
         title: Text(title),
         subtitle: Text(detail),
         trailing: Text(
-          [clockLabel(e.at), if (e.costCents != null) s.money(e.costCents!)].join('\n'),
+          [
+            clockLabel(e.at),
+            if (e.costCents case final c?) e.estimated ? '≈ ${s.money(c)}' : s.money(c),
+          ].join('\n'),
           textAlign: TextAlign.end,
           style: Theme.of(context).textTheme.labelMedium,
         ),
+        // Trips and parkings: tap to set what it cost.
+        onTap: e.kind == HistoryKind.meal
+            ? null
+            : () => showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  showDragHandle: true,
+                  builder: (_) => _CostSheet(entry: e, title: title),
+                ),
       ),
     );
   }
@@ -182,5 +239,90 @@ class _EntryTile extends ConsumerWidget {
     final parts = route.split('>');
     if (parts.length != 2) return route;
     return s.routeLabel(s.placeLabel(parts[0]), s.placeLabel(parts[1]));
+  }
+}
+
+/// Set what a trip or parking cost: start from the estimate (or the saved amount), type the
+/// real one, or go back to the estimate.
+class _CostSheet extends ConsumerStatefulWidget {
+  const _CostSheet({required this.entry, required this.title});
+  final HistoryEntry entry;
+  final String title;
+
+  @override
+  ConsumerState<_CostSheet> createState() => _CostSheetState();
+}
+
+class _CostSheetState extends ConsumerState<_CostSheet> {
+  late final _ctrl = TextEditingController(
+    text: widget.entry.costCents == null ? '' : (widget.entry.costCents! / 100).toStringAsFixed(2),
+  );
+  String? _error;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final e = widget.entry;
+    final estimate = switch (e.source) {
+      final TripLog x => tripFareEstimate(x),
+      final ParkLog x => parkingEstimate(x),
+      _ => null,
+    };
+    final note = switch (e.source) {
+      TripLog() => estimate == null ? s.costNoFareEstimate : s.costFareNote,
+      ParkLog() => estimate == null ? s.costNoParkingEstimate : s.costParkingNote,
+      _ => '',
+    };
+    final notifier = ref.read(habitsProvider.notifier);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + MediaQuery.of(context).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(widget.title, style: t.titleMedium),
+          const SizedBox(height: 4),
+          if (estimate != null) Text(s.costEstimate(s.money(estimate)), style: t.bodyMedium),
+          Text(note, style: t.bodySmall),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _ctrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(prefixText: r'$ ', labelText: s.costLabel, errorText: _error),
+          ),
+          const SizedBox(height: 12),
+          FilledButton(
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            onPressed: () async {
+              final cents = parseCents(_ctrl.text);
+              if (cents == null) {
+                setState(() => _error = s.costInvalid);
+                return;
+              }
+              final nav = Navigator.of(context);
+              await notifier.setCost(e, cents);
+              nav.pop();
+            },
+            child: Text(s.save),
+          ),
+          if (!e.estimated || estimate == null)
+            TextButton(
+              onPressed: () async {
+                final nav = Navigator.of(context);
+                await notifier.setCost(e, null);
+                nav.pop();
+              },
+              child: Text(estimate == null ? s.costClear : s.costUseEstimate),
+            ),
+        ],
+      ),
+    );
   }
 }

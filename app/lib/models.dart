@@ -456,10 +456,16 @@ class ParkedCar {
     this.level = '',
     this.lot = '',
     this.remindMinutes,
+    this.hdb = false,
+    this.central = false,
   });
   final String name;
   final double lat;
   final double lng;
+
+  /// An HDB car park (known rates), and one in the Central Area. For cost estimates.
+  final bool hdb;
+  final bool central;
   final DateTime at;
   final String level;
   final String lot;
@@ -475,6 +481,8 @@ class ParkedCar {
         if (level.isNotEmpty) 'lv': level,
         if (lot.isNotEmpty) 'lt': lot,
         if (remindMinutes != null) 'r': remindMinutes,
+        if (hdb) 'hdb': true,
+        if (central) 'cen': true,
       };
 
   factory ParkedCar.fromJson(Map<String, dynamic> j) => ParkedCar(
@@ -485,6 +493,8 @@ class ParkedCar {
         level: '${j['lv'] ?? ''}',
         lot: '${j['lt'] ?? ''}',
         remindMinutes: (j['r'] as num?)?.toInt(),
+        hdb: j['hdb'] == true,
+        central: j['cen'] == true,
       );
 }
 
@@ -531,14 +541,29 @@ class TripLog {
         km: (j['km'] as num?)?.toDouble(),
         costCents: (j['c'] as num?)?.toInt(),
       );
+
+  /// Same trip with the cost the user set (null clears it, back to the estimate).
+  TripLog withCost(int? cents) =>
+      TripLog(route: route, start: start, minutes: minutes, rainy: rainy, mode: mode, km: km, costCents: cents);
 }
 
 /// One finished parking: from "I parked here" to "Picked up".
 class ParkLog {
-  const ParkLog({required this.name, required this.start, required this.minutes, this.costCents});
+  const ParkLog({
+    required this.name,
+    required this.start,
+    required this.minutes,
+    this.costCents,
+    this.hdb = false,
+    this.central = false,
+  });
   final String name;
   final DateTime start;
   final int minutes;
+
+  /// HDB car park (rate known) and in the Central Area.
+  final bool hdb;
+  final bool central;
 
   /// Cost the user entered or accepted, in cents.
   final int? costCents;
@@ -548,6 +573,8 @@ class ParkLog {
         's': start.toIso8601String(),
         'm': minutes,
         if (costCents != null) 'c': costCents,
+        if (hdb) 'hdb': true,
+        if (central) 'cen': true,
       };
 
   factory ParkLog.fromJson(Map<String, dynamic> j) => ParkLog(
@@ -555,7 +582,13 @@ class ParkLog {
         start: DateTime.parse('${j['s']}'),
         minutes: (j['m'] as num).toInt(),
         costCents: (j['c'] as num?)?.toInt(),
+        hdb: j['hdb'] == true,
+        central: j['cen'] == true,
       );
+
+  /// Same parking with the cost the user set (null clears it, back to the estimate).
+  ParkLog withCost(int? cents) =>
+      ParkLog(name: name, start: start, minutes: minutes, costCents: cents, hdb: hdb, central: central);
 }
 
 /// One "Ate here" tap at a hawker centre.
