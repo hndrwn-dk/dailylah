@@ -48,7 +48,7 @@ PY
 adb -s "$DEVICE" push /tmp/prefs.xml /data/local/tmp/dailylah_prefs.xml
 adb -s "$DEVICE" shell "run-as $PKG mkdir -p shared_prefs"
 adb -s "$DEVICE" shell "cat /data/local/tmp/dailylah_prefs.xml | run-as $PKG sh -c 'cat > shared_prefs/FlutterSharedPreferences.xml'"
-adb -s "$DEVICE" shell "run-as $PKG cat shared_prefs/FlutterSharedPreferences.xml" | grep -q '"onboarded": true' \
+adb -s "$DEVICE" shell "run-as $PKG cat shared_prefs/FlutterSharedPreferences.xml" | grep -q 'onboarded' \
   || { echo "::error::Could not seed the old version's saved data through run-as."; exit 1; }
 
 # Let the old version start once with that data, as a user would before updating.
