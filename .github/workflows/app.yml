@@ -54,7 +54,7 @@ jobs:
             cp build/app/outputs/flutter-apk/app-release.apk build/dailylah.apk
             # App Bundle for Google Play, same version code and upload key.
             flutter build appbundle --release --build-number=${GITHUB_RUN_NUMBER} \
-              --dart-define=APP_VERSION=0.2.0-${GITHUB_SHA::7}
+              --dart-define=APP_VERSION=0.2.0 --dart-define=GIT_SHA=${GITHUB_SHA::7}
             cp build/app/outputs/bundle/release/app-release.aab build/dailylah.aab
             rm -f "$RUNNER_TEMP/upload.jks"
           else
