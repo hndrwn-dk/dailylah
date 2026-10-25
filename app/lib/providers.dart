@@ -331,19 +331,32 @@ Stream<Map<String, dynamic>> _live(
     }
   }
 
-  return () async* {
-    final cached = await cache.read(name, reload: true);
-    final fresh = cached != null && DateTime.now().difference(cached.$2) <= maxAge;
-    if (fresh) yield cached.$1;
-    try {
-      final body = await attempt();
-      await cache.write(name, body);
-      yield body;
-    } on Object {
-      if (!disposed) retry = Timer(liveRetryEvery, ref.invalidateSelf);
-      if (!fresh) rethrow;
+  // Cache and server are read side by side, so a slow (or missing) cache never holds back
+  // the live answer, and the cache only shows while the server has not answered yet.
+  final out = StreamController<Map<String, dynamic>>();
+  ref.onDispose(out.close);
+  var live = false;
+  var showedCache = false;
+  final cacheRead = cache.read(name, reload: true).then((c) {
+    if (live || out.isClosed || c == null || DateTime.now().difference(c.$2) > maxAge) return;
+    showedCache = true;
+    out.add(c.$1);
+  }, onError: (Object _) {});
+  attempt().then((body) {
+    live = true;
+    if (!out.isClosed) {
+      out.add(body);
+      out.close();
     }
-  }();
+    cache.write(name, body);
+  }, onError: (Object e, StackTrace st) async {
+    if (!disposed) retry = Timer(liveRetryEvery, ref.invalidateSelf);
+    await cacheRead;
+    if (out.isClosed) return;
+    if (!showedCache) out.addError(e, st);
+    await out.close();
+  });
+  return out.stream;
 }
 
 final forecastProvider = StreamProvider.autoDispose(
