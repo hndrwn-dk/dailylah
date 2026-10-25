@@ -133,10 +133,34 @@ class HabitsNotifier extends Notifier<Habits> {
   }
 
   Future<void> park(ParkedCar p) => _set(state.copyWith(parked: p));
-  Future<void> clearParked() => _set(state.copyWith(clearParked: true));
 
-  Future<void> startTrip(String route, DateTime now, {bool rainy = false}) =>
-      _set(state.copyWith(tripRoute: route, tripStart: now, tripRainy: rainy));
+  /// Car picked up: the parking goes to History (when it lasted a few minutes or more).
+  Future<void> clearParked([DateTime? now]) {
+    final p = state.parked;
+    final end = now ?? DateTime.now();
+    final m = p == null ? null : parkMinutes(p.at, end);
+    final parkings = [
+      ...state.parkings,
+      if (p != null && m != null) ParkLog(name: p.name, start: p.at, minutes: m),
+    ];
+    return _set(state.copyWith(
+      clearParked: true,
+      parkings: parkings.length > Habits.maxParkings ? parkings.sublist(parkings.length - Habits.maxParkings) : parkings,
+    ));
+  }
+
+  Future<void> startTrip(String route, DateTime now, {bool rainy = false, String? mode, double? km}) =>
+      _set(state.copyWith(tripRoute: route, tripStart: now, tripRainy: rainy, tripMode: mode, tripKm: km));
+
+  /// Puts History back as it was (Undo after a delete).
+  Future<void> restore(Habits h) => _set(h);
+
+  /// Removes one History entry the user deleted.
+  Future<void> forget(HistoryEntry e) => _set(switch (e.kind) {
+        HistoryKind.trip => state.copyWith(trips: [...state.trips]..remove(e.source)),
+        HistoryKind.parking => state.copyWith(parkings: [...state.parkings]..remove(e.source)),
+        HistoryKind.meal => state.copyWith(meals: [...state.meals]..remove(e.source)),
+      });
 
   /// Finishes the running trip; returns its minutes, or null when it was not kept.
   Future<int?> finishTrip(DateTime now) async {
@@ -146,7 +170,8 @@ class HabitsNotifier extends Notifier<Habits> {
     final m = tripMinutes(start, now);
     final trips = [
       ...state.trips,
-      if (m != null) TripLog(route: route, start: start, minutes: m, rainy: state.tripRainy),
+      if (m != null)
+        TripLog(route: route, start: start, minutes: m, rainy: state.tripRainy, mode: state.tripMode, km: state.tripKm),
     ];
     await _set(state.copyWith(
       trips: trips.length > Habits.maxTrips ? trips.sublist(trips.length - Habits.maxTrips) : trips,
@@ -474,5 +499,5 @@ final addressSearchProvider = FutureProvider.autoDispose.family<List<AddressHit>
   return parseOneMap(await ref.watch(oneMapProvider).search(q.trim()));
 });
 
-/// Selected bottom tab: 0 Today, 1 Nearby, 2 Homes, 3 More.
+/// Selected bottom tab: 0 Today, 1 Nearby, 2 Home, 3 History, 4 More.
 final shellTabProvider = StateProvider<int>((ref) => 0);

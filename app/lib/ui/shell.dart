@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../logic.dart';
 import '../providers.dart';
+import 'history.dart';
 import 'home.dart';
 import 'more.dart';
 import 'nearby.dart';
@@ -11,7 +12,7 @@ import 'today.dart';
 import 'wake.dart';
 
 
-/// Four tabs: Today, Nearby, Home, More. Pages are kept alive between switches and keep
+/// Five tabs: Today, Nearby, Home, History, More. Pages are kept alive between switches and keep
 /// their scroll position; tapping the selected tab again scrolls it to the top.
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
@@ -24,7 +25,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   DateTime _lastRefresh = DateTime.now();
 
   /// One scroll controller per tab's main list.
-  final _scroll = List.generate(4, (_) => ScrollController());
+  final _scroll = List.generate(5, (_) => ScrollController());
 
   /// When the app last went to the background, and which card Today showed then.
   DateTime? _awaySince;
@@ -134,7 +135,8 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
           TodayPage(controller: _scroll[0]),
           NearbyPage(controller: _scroll[1]),
           HomePage(controller: _scroll[2]),
-          MorePage(controller: _scroll[3]),
+          HistoryPage(controller: _scroll[3]),
+          MorePage(controller: _scroll[4]),
         ],
       ),
       bottomNavigationBar: DecoratedBox(
@@ -165,6 +167,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
               (Icons.wb_sunny_outlined, Icons.wb_sunny, s.tabToday),
               (Icons.explore_outlined, Icons.explore, s.tabNearby),
               (Icons.home_outlined, Icons.home, s.tabHomes),
+              (Icons.history, Icons.history, s.tabHistory),
               (Icons.more_horiz, Icons.more_horiz, s.tabMore),
             ],
           ),
