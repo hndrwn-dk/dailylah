@@ -22,15 +22,20 @@ class BusPlate extends StatelessWidget {
         border: Border.all(color: DL.edge(context), width: 2),
         boxShadow: DL.hard(context, d: 2.5),
       ),
-      alignment: Alignment.center,
-      child: Text(
-        service,
-        style: TextStyle(
-          fontFamily: DL.display,
-          fontWeight: FontWeight.w700,
-          fontSize: 24,
-          height: 1.1,
-          color: scheme.onPrimary,
+      // Center with factors keeps the plate as wide as its number (at least 60): plain
+      // alignment made it fill the whole width in a ListTile and squeezed the title.
+      child: Center(
+        widthFactor: 1,
+        heightFactor: 1,
+        child: Text(
+          service,
+          style: TextStyle(
+            fontFamily: DL.display,
+            fontWeight: FontWeight.w700,
+            fontSize: 24,
+            height: 1.1,
+            color: scheme.onPrimary,
+          ),
         ),
       ),
     );

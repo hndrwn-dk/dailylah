@@ -623,7 +623,10 @@ class TripBusCard extends ConsumerWidget {
                                             ),
                                             for (final c in choices)
                                               ListTile(
-                                                leading: BusPlate(c.$1),
+                                                leading: ConstrainedBox(
+                                                  constraints: const BoxConstraints(maxWidth: 96),
+                                                  child: BusPlate(c.$1),
+                                                ),
                                                 title: Text(s.wakeMeAt(c.$2.name)),
                                                 onTap: () {
                                                   Navigator.of(sheet).pop();
