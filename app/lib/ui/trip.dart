@@ -88,7 +88,7 @@ class TripSection extends ConsumerWidget {
             },
           ),
         ),
-        if (commute) _TripTimer(from: from, to: to),
+        if (commute) _TripTimer(from: from, to: to, mode: mode),
         body,
       ],
     );
@@ -98,9 +98,10 @@ class TripSection extends ConsumerWidget {
 /// Know me: "I'm leaving" / "Arrived" logs door-to-door time on this phone, and after a
 /// few trips the card says how long this trip usually takes (and on rainy days).
 class _TripTimer extends ConsumerWidget {
-  const _TripTimer({required this.from, required this.to});
+  const _TripTimer({required this.from, required this.to, required this.mode});
   final Place from;
   final Place to;
+  final TravelMode mode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -170,7 +171,13 @@ class _TripTimer extends ConsumerWidget {
           const SizedBox(height: 8),
           OutlinedButton.icon(
             icon: const Icon(Icons.timer_outlined),
-            onPressed: () => ref.read(habitsProvider.notifier).startTrip(route, DateTime.now(), rainy: rainy),
+            onPressed: () => ref.read(habitsProvider.notifier).startTrip(
+                  route,
+                  DateTime.now(),
+                  rainy: rainy,
+                  mode: mode.name,
+                  km: distanceMeters(from.lat, from.lng, to.lat, to.lng) / 1000,
+                ),
             label: Text(s.imLeaving),
           ),
         ],
@@ -616,7 +623,10 @@ class TripBusCard extends ConsumerWidget {
                                             ),
                                             for (final c in choices)
                                               ListTile(
-                                                leading: BusPlate(c.$1),
+                                                leading: ConstrainedBox(
+                                                  constraints: const BoxConstraints(maxWidth: 96),
+                                                  child: BusPlate(c.$1),
+                                                ),
                                                 title: Text(s.wakeMeAt(c.$2.name)),
                                                 onTap: () {
                                                   Navigator.of(sheet).pop();

@@ -45,6 +45,35 @@ class S {
   String get tabNearby => 'Nearby';
   String get tabHomes => 'Home';
   String get tabMore => 'More';
+  String get tabHistory => 'History';
+
+  // ---------------------------------------------------------------- history
+  String get historyTitle => 'History';
+  String get historySubtitle => 'Your trips, parking and meals. On this phone only.';
+  String historyPeriod(String p) => switch (p) {
+        'week' => 'This week',
+        'month' => 'This month',
+        _ => 'All',
+      };
+  String get historyOff => 'Turn on "Learn my habits" to keep a history of your trips, parking and meals. '
+      'It stays on this phone and is never sent anywhere.';
+  String get historyTurnOn => 'Turn on';
+  String get historyEmpty => 'Nothing yet. Tap "I\'m leaving" on a trip, "I parked here" in Nearby, or "Ate here" at a hawker centre.';
+  String tripsCount(int n) => n == 1 ? '1 trip' : '$n trips';
+  String parkingsCount(int n) => n == 1 ? '1 parking' : '$n parkings';
+  String mealsCount(int n) => n == 1 ? '1 meal' : '$n meals';
+  String get historyTrips => 'Trips';
+  String get historyParking => 'Parking';
+  String get historyMeals => 'Meals';
+  String get historySpent => 'Spent';
+  String get historyCostSoon => 'Costs for MRT, bus and parking are coming next.';
+  String routeLabel(String from, String to) => '$from → $to';
+  String get rainyTag => 'rainy';
+  String get today => 'Today';
+  String get yesterday => 'Yesterday';
+  String get historyDeleted => 'Removed from History';
+  String get undo => 'Undo';
+  String money(int cents) => '\$${(cents / 100).toStringAsFixed(2)}';
 
   // ---------------------------------------------------------------- places
   String placeLabel(String kind) => switch (kind) {

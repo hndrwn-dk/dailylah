@@ -32,7 +32,7 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - Tabs keep their scroll position (`IndexedStack`, one `ScrollController` per tab in `ui/shell.dart`);
   tapping the selected tab scrolls it to the top, and Today goes back to the top after 30 min away
   or when the card switches while another tab is open (`todayBackToTop`).
-- UI: `ui/shell.dart` (tabs Today / Nearby / Home / More), `ui/theme.dart` (design tokens
+- UI: `ui/shell.dart` (tabs Today / Nearby / Home / History / More), `ui/theme.dart` (design tokens
   in `DL`, fonts Plus Jakarta Sans + Barlow Condensed in `assets/fonts/`), `ui/widgets.dart`
   (Panel, HeroHeader, BusPlate, PillRow, BentoTile...). Keep the sticker style: ink outlines
   and hard offset shadows (`Panel`), not soft Material cards. Signature elements (see `DL`):
@@ -85,6 +85,10 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   `wakeRadius` / `wakeEvent` incl. "may have passed"; foreground location only while it runs, never
   stored, auto-stops after 2 h). Live arrivals refetch every 30 s while shown (`busRefreshEvery`).
   From "Here" within `arrivedMetres` of the destination the trip shows "You're here".
+- History tab (`ui/history.dart`): logged trips, finished parkings (`ParkLog`, written by
+  `clearParked`) and meals by day for this week/month/all (`historyEntries`, `historySummary`,
+  `historyByDay`); swipe to remove with Undo. Trips record mode and straight-line km, and trips and
+  parkings carry an optional `costCents` for the coming cost estimates (MRT/bus fare, parking).
 - Habits (`Habits` in models.dart, `HabitsStore` in store.dart, `habitsProvider`): parked car, trips
   logged with I'm leaving/Arrived (`tripStats`), "Ate here" meals (`mealNudge`). On the phone only,
   behind `Favorites.learnHabits`, never in the share code. Weekly Sunday digest (`weeklyDigest`)

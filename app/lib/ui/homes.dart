@@ -272,16 +272,12 @@ class BlockPage extends ConsumerWidget {
                           await ref.read(favoritesProvider.notifier).toggleCompare(block.key);
                           if (comparing) return;
                           final n = ref.read(favoritesProvider).compareBlocks.length;
-                          messenger.hideCurrentSnackBar();
-                          messenger.showSnackBar(SnackBar(
-                            content: Text(s.compareAdded(n)),
-                            action: n < 2
-                                ? null
-                                : SnackBarAction(
-                                    label: s.open,
-                                    onPressed: () => nav.push(MaterialPageRoute(builder: (_) => const ComparePage())),
-                                  ),
-                          ));
+                          showActionSnackBar(
+                            messenger,
+                            s.compareAdded(n),
+                            actionLabel: n < 2 ? null : s.open,
+                            onAction: () => nav.push(MaterialPageRoute(builder: (_) => const ComparePage())),
+                          );
                         },
                       ),
                     ),

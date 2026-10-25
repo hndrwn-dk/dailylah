@@ -8,6 +8,7 @@ import 'package:dailylah/data.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/about.dart';
+import 'package:dailylah/ui/history.dart';
 import 'package:dailylah/ui/home.dart';
 import 'package:dailylah/ui/homes.dart';
 import 'package:dailylah/ui/more.dart';
@@ -22,7 +23,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'support/harness.dart';
 
 /// Tabs by index in the shell: Today, Nearby, Home, More.
-const _tabs = {'Today': 0, 'Nearby': 1, 'Home': 2, 'More': 3};
+const _tabs = {'Today': 0, 'Nearby': 1, 'Home': 2, 'History': 3, 'More': 4};
 
 const _nearbySections = ['bus', 'eat', 'green', 'park', 'taxi', 'prayer', 'help'];
 
@@ -109,6 +110,20 @@ void main() {
           expect(tester.takeException(), isNull);
         });
       }
+
+      // ---------------------------------------------------------------- History
+      testWidgets('History', (tester) async {
+        await applyCondition(tester, c);
+        await tester.pumpWidget(appUnder(c, householdFavorites, tuesdayMorning));
+        await settle(tester);
+        final box = containerOf(tester);
+        await box.read(habitsProvider.notifier).restore(sampleHabits(tuesdayMorning));
+        box.read(shellTabProvider.notifier).state = _tabs['History']!;
+        await settle(tester);
+        expect(find.byType(HistoryPage), findsOneWidget);
+        await scrollThrough(tester);
+        expect(tester.takeException(), isNull);
+      });
 
       // ---------------------------------------------------------------- More
       testWidgets('More', (tester) async {

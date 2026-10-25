@@ -1567,6 +1567,109 @@ int? tripMinutes(DateTime start, DateTime end) {
   return m < 3 || m > 180 ? null : m;
 }
 
+/// Minutes of a finished parking, or null when it is not one (under 5 min or over 3 days).
+int? parkMinutes(DateTime start, DateTime end) {
+  final m = end.difference(start).inMinutes;
+  return m < 5 || m > 3 * 24 * 60 ? null : m;
+}
+
+// ---------------------------------------------------------------- history
+
+enum HistoryKind { trip, parking, meal }
+
+/// One row on the History tab. [source] is the logged item (TripLog, ParkLog or MealLog).
+class HistoryEntry {
+  const HistoryEntry(this.kind, this.at, this.source, {this.minutes, this.costCents});
+  final HistoryKind kind;
+  final DateTime at;
+  final Object source;
+  final int? minutes;
+  final int? costCents;
+}
+
+/// Periods to look back on History.
+enum HistoryPeriod { week, month, all }
+
+/// Start of [period] counted back from [now]: this week from Monday, this month from the 1st.
+DateTime? historySince(HistoryPeriod period, DateTime now) {
+  final day = dateOnly(now);
+  return switch (period) {
+    HistoryPeriod.week => day.subtract(Duration(days: day.weekday - 1)),
+    HistoryPeriod.month => DateTime(day.year, day.month),
+    HistoryPeriod.all => null,
+  };
+}
+
+/// Every logged trip, parking and meal since [since] (all when null), newest first.
+List<HistoryEntry> historyEntries(Habits h, {DateTime? since}) {
+  final out = <HistoryEntry>[
+    for (final t in h.trips) HistoryEntry(HistoryKind.trip, t.start, t, minutes: t.minutes, costCents: t.costCents),
+    for (final p in h.parkings)
+      HistoryEntry(HistoryKind.parking, p.start, p, minutes: p.minutes, costCents: p.costCents),
+    for (final m in h.meals) HistoryEntry(HistoryKind.meal, m.at, m),
+  ];
+  return [
+    for (final e in out)
+      if (since == null || !e.at.isBefore(since)) e,
+  ]..sort((a, b) => b.at.compareTo(a.at));
+}
+
+/// Totals for the History header.
+class HistorySummary {
+  const HistorySummary({
+    this.trips = 0,
+    this.tripMinutes = 0,
+    this.parkings = 0,
+    this.parkMinutes = 0,
+    this.meals = 0,
+    this.costCents = 0,
+  });
+  final int trips;
+  final int tripMinutes;
+  final int parkings;
+  final int parkMinutes;
+  final int meals;
+
+  /// Sum of the costs entered so far.
+  final int costCents;
+}
+
+HistorySummary historySummary(List<HistoryEntry> entries) {
+  var trips = 0, tripMin = 0, parks = 0, parkMin = 0, meals = 0, cost = 0;
+  for (final e in entries) {
+    cost += e.costCents ?? 0;
+    switch (e.kind) {
+      case HistoryKind.trip:
+        trips++;
+        tripMin += e.minutes ?? 0;
+      case HistoryKind.parking:
+        parks++;
+        parkMin += e.minutes ?? 0;
+      case HistoryKind.meal:
+        meals++;
+    }
+  }
+  return HistorySummary(
+    trips: trips,
+    tripMinutes: tripMin,
+    parkings: parks,
+    parkMinutes: parkMin,
+    meals: meals,
+    costCents: cost,
+  );
+}
+
+/// [entries] (newest first) grouped by calendar day, newest day first.
+List<(DateTime, List<HistoryEntry>)> historyByDay(List<HistoryEntry> entries) {
+  final out = <(DateTime, List<HistoryEntry>)>[];
+  for (final e in entries) {
+    final d = dateOnly(e.at);
+    if (out.isEmpty || out.last.$1 != d) out.add((d, []));
+    out.last.$2.add(e);
+  }
+  return out;
+}
+
 /// Usual door-to-door minutes on a route ("home>work") from logged trips: the median once
 /// there are 3 trips, and the rainy-day median once there are 2 rainy ones.
 ({int? usual, int? rainy, int count}) tripStats(List<TripLog> logs, String route) {

@@ -490,19 +490,71 @@ class ParkedCar {
 
 /// One logged trip ("I'm leaving" to "Arrived"), e.g. route "home>work".
 class TripLog {
-  const TripLog({required this.route, required this.start, required this.minutes, this.rainy = false});
+  const TripLog({
+    required this.route,
+    required this.start,
+    required this.minutes,
+    this.rainy = false,
+    this.mode,
+    this.km,
+    this.costCents,
+  });
   final String route;
   final DateTime start;
   final int minutes;
   final bool rainy;
 
-  Map<String, dynamic> toJson() => {'r': route, 's': start.toIso8601String(), 'm': minutes, if (rainy) 'w': true};
+  /// How the trip was made ([TravelMode] name), and the straight-line distance in km.
+  /// Kept for cost estimates; null on trips logged before these were recorded.
+  final String? mode;
+  final double? km;
+
+  /// Cost the user entered or accepted, in cents. Null until there is one.
+  final int? costCents;
+
+  Map<String, dynamic> toJson() => {
+        'r': route,
+        's': start.toIso8601String(),
+        'm': minutes,
+        if (rainy) 'w': true,
+        if (mode != null) 'md': mode,
+        if (km != null) 'km': km,
+        if (costCents != null) 'c': costCents,
+      };
 
   factory TripLog.fromJson(Map<String, dynamic> j) => TripLog(
         route: '${j['r']}',
         start: DateTime.parse('${j['s']}'),
         minutes: (j['m'] as num).toInt(),
         rainy: j['w'] == true,
+        mode: j['md'] as String?,
+        km: (j['km'] as num?)?.toDouble(),
+        costCents: (j['c'] as num?)?.toInt(),
+      );
+}
+
+/// One finished parking: from "I parked here" to "Picked up".
+class ParkLog {
+  const ParkLog({required this.name, required this.start, required this.minutes, this.costCents});
+  final String name;
+  final DateTime start;
+  final int minutes;
+
+  /// Cost the user entered or accepted, in cents.
+  final int? costCents;
+
+  Map<String, dynamic> toJson() => {
+        'n': name,
+        's': start.toIso8601String(),
+        'm': minutes,
+        if (costCents != null) 'c': costCents,
+      };
+
+  factory ParkLog.fromJson(Map<String, dynamic> j) => ParkLog(
+        name: '${j['n'] ?? ''}',
+        start: DateTime.parse('${j['s']}'),
+        minutes: (j['m'] as num).toInt(),
+        costCents: (j['c'] as num?)?.toInt(),
       );
 }
 
@@ -528,10 +580,20 @@ class Habits {
     this.tripRoute,
     this.tripStart,
     this.tripRainy = false,
+    this.tripMode,
+    this.tripKm,
+    this.parkings = const [],
   });
   final ParkedCar? parked;
   final List<TripLog> trips;
   final List<MealLog> meals;
+
+  /// Finished parkings, oldest first.
+  final List<ParkLog> parkings;
+
+  /// Mode and distance of the trip in progress.
+  final String? tripMode;
+  final double? tripKm;
 
   /// A trip in progress ("I'm leaving" tapped, "Arrived" not yet).
   final String? tripRoute;
@@ -541,6 +603,7 @@ class Habits {
   static const empty = Habits();
   static const maxTrips = 120;
   static const maxMeals = 200;
+  static const maxParkings = 200;
 
   Habits copyWith({
     ParkedCar? parked,
@@ -550,7 +613,10 @@ class Habits {
     String? tripRoute,
     DateTime? tripStart,
     bool? tripRainy,
+    String? tripMode,
+    double? tripKm,
     bool clearTrip = false,
+    List<ParkLog>? parkings,
   }) =>
       Habits(
         parked: clearParked ? null : (parked ?? this.parked),
@@ -559,6 +625,9 @@ class Habits {
         tripRoute: clearTrip ? null : (tripRoute ?? this.tripRoute),
         tripStart: clearTrip ? null : (tripStart ?? this.tripStart),
         tripRainy: clearTrip ? false : (tripRainy ?? this.tripRainy),
+        tripMode: clearTrip ? null : (tripMode ?? this.tripMode),
+        tripKm: clearTrip ? null : (tripKm ?? this.tripKm),
+        parkings: parkings ?? this.parkings,
       );
 
   Map<String, dynamic> toJson() => {
@@ -568,6 +637,9 @@ class Habits {
         if (tripRoute != null) 'tr': tripRoute,
         if (tripStart != null) 'ts': tripStart!.toIso8601String(),
         if (tripRainy) 'tw': true,
+        if (tripMode != null) 'tm': tripMode,
+        if (tripKm != null) 'tk': tripKm,
+        if (parkings.isNotEmpty) 'parks': [for (final p in parkings) p.toJson()],
       };
 
   factory Habits.fromJson(Map<String, dynamic> j) => Habits(
@@ -577,5 +649,10 @@ class Habits {
         tripRoute: j['tr'] as String?,
         tripStart: j['ts'] == null ? null : DateTime.parse('${j['ts']}'),
         tripRainy: j['tw'] == true,
+        tripMode: j['tm'] as String?,
+        tripKm: (j['tk'] as num?)?.toDouble(),
+        parkings: [
+          for (final p in (j['parks'] as List? ?? const [])) ParkLog.fromJson((p as Map).cast<String, dynamic>()),
+        ],
       );
 }

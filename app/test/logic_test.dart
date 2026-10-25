@@ -1072,4 +1072,37 @@ void main() {
     // A code with nothing in it is not a code.
     expect(readShareCode(encodeShareCode(sender, const ShareChoice(places: {}, lines: false))), isNull);
   });
+
+  test('history: entries by period, day groups and totals', () {
+    final now = DateTime(2026, 10, 25, 9); // Sunday
+    final h = Habits(
+      trips: [
+        TripLog(route: 'home>work', start: DateTime(2026, 10, 20, 7, 30), minutes: 40, costCents: 200),
+        TripLog(route: 'work>home', start: DateTime(2026, 10, 20, 18), minutes: 50),
+        TripLog(route: 'home>work', start: DateTime(2026, 10, 2, 7), minutes: 45),
+      ],
+      parkings: [ParkLog(name: 'Mall', start: DateTime(2026, 10, 24, 14), minutes: 90, costCents: 300)],
+      meals: [MealLog(hawkerId: 'h1', at: DateTime(2026, 10, 25, 8))],
+    );
+    expect(historySince(HistoryPeriod.week, now), DateTime(2026, 10, 19));
+    expect(historySince(HistoryPeriod.month, now), DateTime(2026, 10, 1));
+    final week = historyEntries(h, since: historySince(HistoryPeriod.week, now));
+    expect(week.map((e) => e.kind), [HistoryKind.meal, HistoryKind.parking, HistoryKind.trip, HistoryKind.trip]);
+    final sum = historySummary(week);
+    expect((sum.trips, sum.tripMinutes, sum.parkings, sum.parkMinutes, sum.meals, sum.costCents), (2, 90, 1, 90, 1, 500));
+    expect(historyEntries(h, since: historySince(HistoryPeriod.month, now)).length, 5);
+    final days = historyByDay(week);
+    expect(days.map((d) => d.$1), [DateTime(2026, 10, 25), DateTime(2026, 10, 24), DateTime(2026, 10, 20)]);
+    expect(days.last.$2.length, 2);
+    // Parking under 5 minutes is not kept; a round trip through JSON keeps the new fields.
+    expect(parkMinutes(DateTime(2026, 10, 25, 8), DateTime(2026, 10, 25, 8, 3)), isNull);
+    final back = Habits.fromJson(Habits(
+      trips: [TripLog(route: 'home>work', start: now, minutes: 30, mode: 'transit', km: 12.5, costCents: 189)],
+      parkings: [ParkLog(name: 'Mall', start: now, minutes: 60)],
+    ).toJson());
+    expect((back.trips.single.mode, back.trips.single.km, back.trips.single.costCents), ('transit', 12.5, 189));
+    expect(back.parkings.single.minutes, 60);
+    // Old saved habits (no new keys) still load.
+    expect(Habits.fromJson({'trips': [], 'meals': []}).parkings, isEmpty);
+  });
 }

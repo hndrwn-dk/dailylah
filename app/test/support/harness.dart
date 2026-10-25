@@ -63,6 +63,19 @@ const householdFavorites = Favorites(
   watchedBlocks: {'156|TAMPINES ST 12': 0},
 );
 
+/// A few days of logged trips, parking and meals for the History tab.
+Habits sampleHabits(DateTime now) => Habits(
+      trips: [
+        TripLog(route: 'home>work', start: now.subtract(const Duration(days: 1, hours: 1)), minutes: 42, mode: 'transit', km: 18.2),
+        TripLog(route: 'work>home', start: now.subtract(const Duration(hours: 13)), minutes: 55, rainy: true, costCents: 219),
+        TripLog(route: 'home>school', start: now.subtract(const Duration(days: 9)), minutes: 18, mode: 'car'),
+      ],
+      parkings: [
+        ParkLog(name: 'Tampines Mall Car Park With A Very Long Name', start: now.subtract(const Duration(days: 2)), minutes: 130, costCents: 360),
+      ],
+      meals: [MealLog(hawkerId: 'unknown-id', at: now.subtract(const Duration(hours: 20)))],
+    );
+
 /// Tuesday 07:00, Tuesday 19:00 and Saturday 10:00 (no commute: weekend card).
 final tuesdayMorning = DateTime(2026, 10, 20, 7);
 final tuesdayEvening = DateTime(2026, 10, 20, 19);
