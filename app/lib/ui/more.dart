@@ -105,8 +105,12 @@ class MorePage extends ConsumerWidget {
                             builder: (ctx) => AlertDialog(
                               content: Text(s.deleteHistoryAsk),
                               actions: [
-                                TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(s.cancel)),
-                                FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text(s.delete)),
+                                DialogButtons(
+                                  cancelLabel: s.cancel,
+                                  confirmLabel: s.delete,
+                                  onCancel: () => Navigator.of(ctx).pop(false),
+                                  onConfirm: () => Navigator.of(ctx).pop(true),
+                                ),
                               ],
                             ),
                           );
