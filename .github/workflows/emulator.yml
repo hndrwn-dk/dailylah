@@ -27,8 +27,13 @@ jobs:
             target: google_apis
             arch: x86_64 # Flutter builds no 32-bit x86 code
             min: true
-          # Newest Android with stable emulator images.
+          # Android 15, still the most common recent version.
           - api: 35
+            target: google_apis
+            arch: x86_64
+            min: false
+          # Android 16 = the targetSdk Google Play requires from 31 Aug 2026.
+          - api: 36
             target: google_apis
             arch: x86_64
             min: false

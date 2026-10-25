@@ -52,11 +52,26 @@ jobs:
             flutter build apk --release --build-number=${GITHUB_RUN_NUMBER} \
               --dart-define=APP_VERSION=0.2.0-${GITHUB_SHA::7}
             cp build/app/outputs/flutter-apk/app-release.apk build/dailylah.apk
+            # App Bundle for Google Play, same version code and upload key.
+            flutter build appbundle --release --build-number=${GITHUB_RUN_NUMBER} \
+              --dart-define=APP_VERSION=0.2.0-${GITHUB_SHA::7}
+            cp build/app/outputs/bundle/release/app-release.aab build/dailylah.aab
             rm -f "$RUNNER_TEMP/upload.jks"
           else
             flutter build apk --debug --build-number=${GITHUB_RUN_NUMBER} \
               --dart-define=APP_VERSION=0.2.0-${GITHUB_SHA::7}
             cp build/app/outputs/flutter-apk/app-debug.apk build/dailylah.apk
+          fi
+      - name: Check Google Play target API (36 or higher)
+        run: |
+          AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt | tail -1)
+          INFO=$("$AAPT" dump badging build/dailylah.apk)
+          TARGET=$(echo "$INFO" | sed -n "s/^targetSdkVersion:'\([0-9]*\)'/\1/p")
+          CODE=$(echo "$INFO" | sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p" | head -1)
+          echo "targetSdk $TARGET, versionCode $CODE" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$TARGET" -lt 36 ]; then
+            echo "::error::targetSdk is $TARGET; Google Play needs 36 or higher for new apps and updates from 31 Aug 2026."
+            exit 1
           fi
       - name: Upload APK for testing on a phone
         uses: actions/upload-artifact@v7
@@ -64,3 +79,10 @@ jobs:
           name: dailylah-apk
           path: app/build/dailylah.apk
           retention-days: 14
+      - name: Upload App Bundle for Google Play
+        if: hashFiles('app/build/dailylah.aab') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: dailylah-aab
+          path: app/build/dailylah.aab
+          retention-days: 30
