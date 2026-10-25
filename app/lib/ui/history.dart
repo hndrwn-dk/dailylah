@@ -154,10 +154,7 @@ class _EntryTile extends ConsumerWidget {
         final before = ref.read(habitsProvider);
         final messenger = ScaffoldMessenger.of(context);
         await notifier.forget(e);
-        messenger.showSnackBar(SnackBar(
-          content: Text(s.historyDeleted),
-          action: SnackBarAction(label: s.undo, onPressed: () => notifier.restore(before)),
-        ));
+        showActionSnackBar(messenger, s.historyDeleted, actionLabel: s.undo, onAction: () => notifier.restore(before));
       },
       child: ListTile(
         leading: Icon(icon),

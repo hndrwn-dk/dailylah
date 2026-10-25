@@ -946,3 +946,17 @@ class FacilityIcons extends StatelessWidget {
         ),
       );
 }
+
+/// A short message with one action (Undo, Open...). Snack bars with an action stay on screen
+/// until dismissed in current Flutter (and follow the user to other pages), so this one goes
+/// away by itself after a few seconds and has a close button.
+void showActionSnackBar(ScaffoldMessengerState messenger, String text, {String? actionLabel, VoidCallback? onAction}) {
+  messenger.hideCurrentSnackBar();
+  messenger.showSnackBar(SnackBar(
+    content: Text(text),
+    duration: const Duration(seconds: 4),
+    persist: false,
+    showCloseIcon: true,
+    action: actionLabel == null || onAction == null ? null : SnackBarAction(label: actionLabel, onPressed: onAction),
+  ));
+}
