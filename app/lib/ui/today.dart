@@ -181,8 +181,14 @@ class _HeroWeather extends ConsumerWidget {
 
     return body.when(
       loading: () => Text(s.loading, style: dim),
-      error: (_, __) => Text(s.serverWaking, style: dim),
+      error: (_, __) => Row(
+        children: [
+          Expanded(child: Text(s.serverWaking, style: dim)),
+          TextButton(onPressed: () => ref.invalidate(forecastProvider), child: Text(s.retry)),
+        ],
+      ),
       data: (json) {
+        final stale = liveStaleSince(json, ref.watch(clockProvider).valueOrNull ?? DateTime.now());
         final here = forecastNear(json, origin.lat, origin.lng);
         final there = destPlace == null ? null : forecastNear(json, destPlace.lat, destPlace.lng);
         if (here == null) return Text(s.notAvailable, style: dim);
@@ -220,6 +226,11 @@ class _HeroWeather extends ConsumerWidget {
                     if (here.validText != null) ...[
                       const SizedBox(height: 4),
                       Text('${s.weather2h} · ${s.validUntil(here.validText!)}',
+                          style: t.bodySmall?.copyWith(color: DL.ink.withValues(alpha: 0.7))),
+                    ],
+                    if (stale != null) ...[
+                      const SizedBox(height: 2),
+                      Text(s.updatedAt(clockLabel(stale)),
                           style: t.bodySmall?.copyWith(color: DL.ink.withValues(alpha: 0.7))),
                     ],
                   ],
@@ -313,7 +324,12 @@ class _MrtCard extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(16, 14, 8, 12),
         child: alerts.when(
           loading: () => Text(s.loading),
-          error: (_, __) => Text(s.notAvailable),
+          error: (_, __) => Row(
+            children: [
+              Expanded(child: Text(s.serverWaking)),
+              TextButton(onPressed: () => ref.invalidate(trainAlertsProvider), child: Text(s.retry)),
+            ],
+          ),
           data: (json) {
             final all = lineStatuses(json, trainLines.keys.toSet());
             final down = all.where((x) => x.disrupted).toList();

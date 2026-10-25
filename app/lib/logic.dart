@@ -105,6 +105,21 @@ bool isRainyForecast(String forecast) {
 
 // ---------------------------------------------------------------- bus
 
+/// While a live endpoint keeps failing (server asleep, no signal), try again this often.
+const liveRetryEvery = Duration(seconds: 20);
+
+/// Coming back to the app after this long refreshes every live reading.
+const liveRefreshAfter = Duration(minutes: 2);
+
+/// When a live answer is older than 20 minutes (shown from the phone's cache while the
+/// server wakes up): its time, for an "Updated 07:12" note. Null when recent or unknown.
+DateTime? liveStaleSince(Map<String, dynamic>? body, DateTime now) {
+  final t = body?['fetched_at'];
+  if (t is! num || t <= 0) return null;
+  final at = DateTime.fromMillisecondsSinceEpoch((t * 1000).round());
+  return now.difference(at) > const Duration(minutes: 20) ? at : null;
+}
+
 /// How often live bus arrivals refresh while on screen (the API caches them for 20 s).
 const busRefreshEvery = Duration(seconds: 30);
 

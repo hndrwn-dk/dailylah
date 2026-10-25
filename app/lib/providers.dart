@@ -303,22 +303,87 @@ DateTime nowOf(Ref ref) => ref.watch(clockProvider).valueOrNull ?? DateTime.now(
 
 final cardKindProvider = Provider<CardKind>((ref) => cardFor(nowOf(ref), ref.watch(favoritesProvider)));
 
-final forecastProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).forecast());
+final liveCacheProvider = Provider((ref) => LiveCache());
 
-final trainAlertsProvider =
-    FutureProvider.autoDispose((ref) => ref.watch(apiProvider).trainAlerts());
+/// One live endpoint, cache first: the last good answer (if younger than [maxAge]) shows at
+/// once, then the server's answer replaces it. A failed call is tried once more (the first
+/// call wakes a sleeping Render instance), and while it keeps failing it retries every
+/// [liveRetryEvery]; with nothing cached the error shows ("server may be waking up").
+Stream<Map<String, dynamic>> _live(
+  Ref ref,
+  String name,
+  Duration maxAge,
+  Future<Map<String, dynamic>> Function(DailyLahApi api) fetch,
+) {
+  final api = ref.watch(apiProvider);
+  final cache = ref.watch(liveCacheProvider);
+  Timer? retry;
+  var disposed = false;
+  ref.onDispose(() {
+    disposed = true;
+    retry?.cancel();
+  });
+  Future<Map<String, dynamic>> attempt() async {
+    try {
+      return await fetch(api);
+    } on Object {
+      return fetch(api);
+    }
+  }
 
-final wbgtProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).weather('wbgt'));
+  return () async* {
+    final cached = await cache.read(name, reload: true);
+    final fresh = cached != null && DateTime.now().difference(cached.$2) <= maxAge;
+    if (fresh) yield cached.$1;
+    try {
+      final body = await attempt();
+      await cache.write(name, body);
+      yield body;
+    } on Object {
+      if (!disposed) retry = Timer(liveRetryEvery, ref.invalidateSelf);
+      if (!fresh) rethrow;
+    }
+  }();
+}
 
-final rainfallProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).weather('rainfall'));
+final forecastProvider = StreamProvider.autoDispose(
+    (ref) => _live(ref, 'forecast', const Duration(hours: 2), (api) => api.forecast()));
 
-final psiProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).weather('psi'));
+final trainAlertsProvider = StreamProvider.autoDispose(
+    (ref) => _live(ref, 'train-alerts', const Duration(minutes: 30), (api) => api.trainAlerts()));
 
-final pm25Provider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).weather('pm25'));
+AutoDisposeStreamProvider<Map<String, dynamic>> _weather(String kind) => StreamProvider.autoDispose(
+    (ref) => _live(ref, 'weather-$kind', const Duration(hours: 1), (api) => api.weather(kind)));
 
-final uvProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).weather('uv'));
+final wbgtProvider = _weather('wbgt');
 
-final lightningProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).weather('lightning'));
+final rainfallProvider = _weather('rainfall');
+
+final psiProvider = _weather('psi');
+
+final pm25Provider = _weather('pm25');
+
+final uvProvider = _weather('uv');
+
+final lightningProvider = _weather('lightning');
+
+/// Every live (server) provider, refreshed when the app comes back after a while.
+final liveProviders = <ProviderOrFamily>[
+  forecastProvider,
+  trainAlertsProvider,
+  wbgtProvider,
+  rainfallProvider,
+  psiProvider,
+  pm25Provider,
+  uvProvider,
+  lightningProvider,
+  busArrivalProvider,
+  crowdShareProvider,
+  carparkLiveProvider,
+  taxiProvider,
+  parkingLiveProvider,
+  incidentsProvider,
+];
 
 /// Good time for a park near a point? Null until at least one weather reading has loaded.
 final parkTimeProvider = Provider.autoDispose.family<ParkTime?, (double, double)>((ref, at) {

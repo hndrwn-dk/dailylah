@@ -23,9 +23,10 @@ class S {
   String get appName => 'DailyLah';
   String get retry => 'Try again';
   String get loading => 'Loading…';
+  String updatedAt(String time) => 'Updated $time · refreshing';
   String get notAvailable => 'Not available yet';
   String get serverWaking =>
-      'The server may be waking up. Pull down to try again.';
+      'The server may be waking up. Trying again shortly.';
   String get save => 'Save';
   String get done => 'Done';
   String get cancel => 'Cancel';

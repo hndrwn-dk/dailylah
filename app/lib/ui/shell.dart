@@ -45,7 +45,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     super.dispose();
   }
 
-  /// Back in the foreground after a while: look for new data bundles.
+  /// Back in the foreground after a while: refresh live readings, and look for new data bundles.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
@@ -58,6 +58,15 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
       final card = cardFor(DateTime.now(), ref.read(favoritesProvider));
       if (todayBackToTop(awaySince: since, now: DateTime.now(), cardBefore: _cardWhenAway ?? card, cardNow: card)) {
         _toTop(0, animate: false);
+      }
+      // Live readings kept from before (or an error from a server that was asleep) are
+      // refetched; the phone's cache shows meanwhile. The clock restarts so the morning or
+      // evening card is right at once.
+      if (DateTime.now().difference(since) >= liveRefreshAfter) {
+        ref.invalidate(clockProvider);
+        for (final p in liveProviders) {
+          ref.invalidate(p);
+        }
       }
       _awaySince = null;
       _cardWhenAway = null;

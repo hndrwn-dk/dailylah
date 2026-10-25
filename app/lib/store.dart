@@ -74,3 +74,38 @@ class AlertLog {
   int sentToday(String day) =>
       (_prefs.getStringList(_sentKey) ?? const []).where((id) => id.startsWith('$day:')).length;
 }
+
+
+/// Last good answer of each live endpoint (forecast, train alerts, weather readings), so Today
+/// opens with something right away while the server wakes up. Written by the app and by the
+/// background check, so a morning open usually finds data from the last 15 minutes.
+class LiveCache {
+  static const _prefix = 'live.v1.';
+
+  /// The cached body and when it was saved, or null. [reload] picks up writes made by the
+  /// background isolate since this isolate last read the preferences.
+  Future<(Map<String, dynamic>, DateTime)?> read(String name, {bool reload = false}) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (reload) await prefs.reload();
+      final raw = prefs.getString('$_prefix$name');
+      if (raw == null) return null;
+      final j = jsonDecode(raw) as Map<String, dynamic>;
+      return (j['b'] as Map<String, dynamic>, DateTime.fromMillisecondsSinceEpoch((j['t'] as num).toInt()));
+    } on Object {
+      return null;
+    }
+  }
+
+  Future<void> write(String name, Map<String, dynamic> body, [DateTime? at]) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        '$_prefix$name',
+        jsonEncode({'t': (at ?? DateTime.now()).millisecondsSinceEpoch, 'b': body}),
+      );
+    } on Object {
+      // A cache that cannot be written is only a slower start.
+    }
+  }
+}
