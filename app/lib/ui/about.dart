@@ -102,7 +102,7 @@ class AboutDailyLahPage extends ConsumerWidget {
                   leading: const Icon(Icons.ios_share),
                   title: Text(s.shareApp),
                   subtitle: Text(s.shareAppSub),
-                  onTap: () => SharePlus.instance.share(ShareParams(text: s.shareAppText, subject: 'DailyLah')),
+                  onTap: () => SharePlus.instance.share(ShareParams(text: s.shareAppText(playWebUrl), subject: 'DailyLah')),
                 ),
                 ListTile(
                   leading: const Icon(Icons.star_outline),
