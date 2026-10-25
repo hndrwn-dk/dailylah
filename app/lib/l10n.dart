@@ -68,7 +68,7 @@ class S {
   String get historySpent => 'Spent';
   String get historyCostSoon => 'Costs for MRT, bus and parking are coming next.';
   String routeLabel(String from, String to) => '$from → $to';
-  String get rainyTrip => 'rainy';
+  String get rainyTag => 'rainy';
   String get today => 'Today';
   String get yesterday => 'Yesterday';
   String get historyDeleted => 'Removed from History';
