@@ -12,7 +12,9 @@ Start here, then read `CLAUDE.md` (the feature map is kept current there) and `d
   - Persona harness: branch `probe/persona2` was deleted. Recreate it if needed.
 - Proxy limits in Claude sessions:
   - Use REST, not GraphQL. Merge with `gh api -X PUT repos/hndrwn-dk/dailylah/pulls/N/merge -f merge_method=squash`.
-  - Branch deletion and repo settings are blocked, so give Hendrawan the commands to run.
+  - Repo settings are blocked from Claude sessions; give Hendrawan the steps.
+  - Merged branches are deleted automatically on GitHub ("Automatically delete head branches" is on
+    since 25 Oct 2026). Do not send branch delete commands after a merge.
 
 ## Recent batches (22 to 24 Oct)
 - #36 to #39:
