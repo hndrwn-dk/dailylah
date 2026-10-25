@@ -31,9 +31,9 @@ jobs:
       - name: flutter test
         run: |
           set -o pipefail
-          flutter test --reporter=expanded 2>&1 | tee test.log || {
-            grep -E "^\s*(Expected|Actual|Which|══|Error|.*\.dart [0-9]+:[0-9]+)" test.log | head -40 \
-              | sed 's/^/::error::/' ; exit 1; }
+          flutter test --reporter=expanded --file-reporter=json:test.json 2>&1 | tee test.log || {
+            # One annotation listing every failed test with its first error line.
+            python3 ../scripts/test_failures.py test.json ; exit 1; }
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
