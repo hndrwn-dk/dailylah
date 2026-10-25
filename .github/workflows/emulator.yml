@@ -17,7 +17,7 @@ jobs:
   flows:
     name: flows (API ${{ matrix.api }})
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -25,10 +25,12 @@ jobs:
           # Lowest supported Android. The job warns if the APK's minSdk differs.
           - api: 24
             target: default
+            arch: x86
             min: true
           # Newest Android with stable emulator images.
           - api: 35
             target: google_apis
+            arch: x86_64
             min: false
     steps:
       - uses: actions/checkout@v7
@@ -54,7 +56,8 @@ jobs:
         with:
           api-level: ${{ matrix.api }}
           target: ${{ matrix.target }}
-          arch: x86_64
+          arch: ${{ matrix.arch }}
+          ram-size: 3072M
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
           script: bash scripts/emulator_flows.sh
@@ -62,7 +65,7 @@ jobs:
   upgrade:
     name: upgrade (previous version → this build)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
         with:

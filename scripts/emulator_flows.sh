@@ -30,10 +30,10 @@ fi
 adb -s "$DEVICE" install -r -t "$APK"
 
 # The home screen widget provider is registered with the system.
-if adb -s "$DEVICE" shell dumpsys appwidget | grep -q "$PKG"; then
+if adb -s "$DEVICE" shell dumpsys package "$PKG" | grep -q "DailyLahWidgetProvider"; then
   echo "- Home screen widget provider: registered ✅" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
 else
-  echo "::error::DailyLahWidgetProvider is not registered with the AppWidget service."
+  echo "::error::DailyLahWidgetProvider (APPWIDGET_UPDATE receiver) is missing from the installed package."
   exit 1
 fi
 # Notifications allowed (API 33+ only has this runtime permission), location refused.

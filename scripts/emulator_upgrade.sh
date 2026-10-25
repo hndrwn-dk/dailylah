@@ -46,8 +46,10 @@ print(f'    <string name="flutter.favorites.v1">{escape(json.dumps(fav), {chr(34
 print("</map>")
 PY
 adb -s "$DEVICE" push /tmp/prefs.xml /data/local/tmp/dailylah_prefs.xml
-adb -s "$DEVICE" shell chmod 644 /data/local/tmp/dailylah_prefs.xml
-adb -s "$DEVICE" shell run-as "$PKG" sh -c 'mkdir -p shared_prefs && cp /data/local/tmp/dailylah_prefs.xml shared_prefs/FlutterSharedPreferences.xml'
+adb -s "$DEVICE" shell "run-as $PKG mkdir -p shared_prefs"
+adb -s "$DEVICE" shell "cat /data/local/tmp/dailylah_prefs.xml | run-as $PKG sh -c 'cat > shared_prefs/FlutterSharedPreferences.xml'"
+adb -s "$DEVICE" shell "run-as $PKG cat shared_prefs/FlutterSharedPreferences.xml" | grep -q '"onboarded": true' \
+  || { echo "::error::Could not seed the old version's saved data through run-as."; exit 1; }
 
 # Let the old version start once with that data, as a user would before updating.
 adb -s "$DEVICE" shell am start -W -n "$PKG/.MainActivity"
