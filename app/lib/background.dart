@@ -103,12 +103,15 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     }
   }
 
+  final live = LiveCache();
   String weatherLine = '';
   String mrtLine = '';
 
   // MRT: one notification per distinct disruption text.
   await guard(() async {
-    final bad = lineStatuses(await api.trainAlerts(), watchedLines(fav)).where((x) => x.disrupted).toList();
+    final train = await api.trainAlerts();
+    await live.write('train-alerts', train);
+    final bad = lineStatuses(train, watchedLines(fav)).where((x) => x.disrupted).toList();
     final lines = bad.map((x) => x.line).join(', ');
     mrtLine = bad.isEmpty ? 'MRT: ${s.mrtNormal}' : s.mrtAlert(lines);
     if (!fav.mrtAlerts || bad.isEmpty || quiet) return;
@@ -122,6 +125,8 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
   final origin = fav.places[originFor(kind, fav, now)];
   await guard(() async {
     final body = await api.forecast();
+    // Warm the app's cache, so opening the app shows this right away.
+    await live.write('forecast', body);
     if (origin != null) {
       final here = forecastNear(body, origin.lat, origin.lng);
       if (here != null) weatherLine = '${here.area}: ${here.forecast}';

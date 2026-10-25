@@ -56,6 +56,12 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   and hawkers (`ShareChoice`, `encodeShareCode`); the receiver ticks what to take (`readShareCode`,
   `shareConflicts`, `applyShare`), and a saved place is only replaced when ticked. About has Share
   DailyLah and Rate (Play Store, `openPlayListing`).
+- Live readings (forecast, train alerts, weather) are cache first (`_live` in providers.dart,
+  `LiveCache` in store.dart): the last good answer shows at once (forecast up to 2 h old, train
+  alerts 30 min, weather 1 h), then the server's answer. A failed call is retried once (it wakes
+  Render) and then every `liveRetryEvery`; coming back to the app after `liveRefreshAfter`
+  refetches all `liveProviders`. The background check also writes forecast and train alerts to the
+  cache. An old reading shows "Updated HH:MM" (`liveStaleSince`).
 - Alerts run on-device: WorkManager every 15 min (`lib/background.dart`) calls the API and
   reads the cached bundles, then shows local notifications. Keep the alert rules (quiet
   hours, one per event, max 3 rain alerts a day) in `logic.dart` / `AlertLog`.
