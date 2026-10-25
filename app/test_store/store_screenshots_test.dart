@@ -134,12 +134,26 @@ Habits _week(DateTime now) {
   );
 }
 
+/// A "Wake me" ride in progress, without GPS or notifications.
+class _DemoWake extends WakeNotifier {
+  @override
+  WakeState? build() => const WakeState(service: '858', alight: fullertonSq, left: 2300, closest: 2300);
+}
+
+/// Scrolls the visible main list down by [dy] logical pixels.
+Future<void> _scroll(WidgetTester tester, double dy) async {
+  final list = find.byType(Scrollable).hitTestable().first;
+  await tester.drag(list, Offset(0, -dy), warnIfMissed: false);
+  await tester.pump(const Duration(milliseconds: 600));
+}
+
 Future<void> _shoot(
   WidgetTester tester,
   String name, {
   DateTime? at,
   String? disruptedLine,
-  Future<void> Function(ProviderContainer box)? setUp,
+  bool wake = false,
+  Future<void> Function(WidgetTester tester, ProviderContainer box)? setUp,
 }) async {
   await applyCondition(tester, const Condition('store'));
   tester.view.devicePixelRatio = _dpr;
@@ -151,12 +165,13 @@ Future<void> _shoot(
       apiProvider.overrideWithValue(StoreApi(disruptedLine: disruptedLine)),
       bundleRepoProvider.overrideWithValue(FileBundles()),
       clockProvider.overrideWith((ref) => Stream.value(now)),
+      if (wake) wakeProvider.overrideWith(_DemoWake.new),
     ],
     child: const DailyLahApp(),
   ));
   await settle(tester);
   if (setUp != null) {
-    await tester.runAsync(() => setUp(containerOf(tester)));
+    await setUp(tester, containerOf(tester));
     await settle(tester);
   }
   await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
@@ -165,34 +180,42 @@ Future<void> _shoot(
 void main() {
   setUpAll(_loadFonts);
 
-  testWidgets('01 today', (t) => _shoot(t, '01-today'));
+  // Today: the trip to work with live buses.
+  testWidgets('01 today', (t) => _shoot(t, '01-today', setUp: (t, box) => _scroll(t, 330)));
 
-  testWidgets('02 wake me', (t) => _shoot(t, '02-wake', setUp: (box) async {
+  testWidgets('02 wake me', (t) => _shoot(t, '02-wake', wake: true, setUp: (t, box) async {
         box.read(shellTabProvider.notifier).state = 1;
         box.read(nearbySectionProvider.notifier).state = 'bus';
-        await box.read(wakeProvider.notifier).start('10', fullertonSq, null);
       }));
 
-  testWidgets('03 plan b', (t) => _shoot(t, '03-planb', disruptedLine: 'EWL'));
+  // EWL disrupted: the trip card puts buses first with a Plan B note.
+  testWidgets('03 plan b', (t) => _shoot(t, '03-planb', disruptedLine: 'EWL', setUp: (t, box) => _scroll(t, 400)));
 
-  testWidgets('04 parks', (t) => _shoot(t, '04-parks', at: saturdayMorning, setUp: (box) async {
+  testWidgets('04 parks', (t) => _shoot(t, '04-parks', at: saturdayMorning, setUp: (t, box) async {
         box.read(shellTabProvider.notifier).state = 1;
         box.read(nearbySectionProvider.notifier).state = 'green';
       }));
 
-  testWidgets('05 home', (t) => _shoot(t, '05-home', setUp: (box) async {
+  testWidgets('05 home', (t) => _shoot(t, '05-home', setUp: (t, box) async {
         box.read(shellTabProvider.notifier).state = 2;
       }));
 
-  testWidgets('06 history', (t) => _shoot(t, '06-history', at: saturdayMorning, setUp: (box) async {
-        await box.read(habitsProvider.notifier).restore(_week(saturdayMorning));
+  // History: the week's trips with fare and parking estimates.
+  testWidgets('06 history', (t) => _shoot(t, '06-history', at: saturdayMorning, setUp: (t, box) async {
+        await t.runAsync(() => box.read(habitsProvider.notifier).restore(_week(saturdayMorning)));
         box.read(shellTabProvider.notifier).state = 3;
+        await settle(t);
+        await _scroll(t, 300);
       }));
 
-  testWidgets('07 weekend', (t) => _shoot(t, '07-weekend', at: saturdayMorning));
+  // Saturday: no commute, so Today shows the weekend card.
+  testWidgets('07 weekend', (t) => _shoot(t, '07-weekend', at: saturdayMorning, setUp: (t, box) => _scroll(t, 420)));
 
-  testWidgets('08 eat', (t) => _shoot(t, '08-eat', setUp: (box) async {
-        box.read(shellTabProvider.notifier).state = 1;
-        box.read(nearbySectionProvider.notifier).state = 'eat';
+  // More > Share with family: a QR code, no account.
+  testWidgets('08 family', (t) => _shoot(t, '08-family', setUp: (t, box) async {
+        box.read(shellTabProvider.notifier).state = 4;
+        await settle(t);
+        await t.tap(find.text('Share with family'));
+        await settle(t);
       }));
 }
