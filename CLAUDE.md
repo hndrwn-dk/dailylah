@@ -126,6 +126,13 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   so native changes (manifest, Kotlin widget, `dailylah/apps` channel) are compile-checked.
   Analyze and test failures are emitted as annotations on the commit.
 
+## Store assets (Google Play)
+- Icon `app/assets/store/play-icon-512.png` and feature graphic `docs/feature_design/feature-graphic-1024x500.png`
+  come from `scripts/make_feature_graphic.py`.
+- Phone screenshots (8, 1080x1920) in `docs/store/screenshots`: real screens rendered by `app/test_store`
+  (demo data, app fonts) and captioned by `scripts/frame_screenshots.py`. The `screenshots` workflow
+  runs both on a branch and commits the result; change scenes or captions there, not by hand.
+
 ## Commands
 - Backend: `cd backend && pip install -r requirements-dev.txt && pytest && ruff check . && ruff format --check .`
 - Run API locally: `cd backend && cp .env.example .env && uvicorn app.main:app --reload`
