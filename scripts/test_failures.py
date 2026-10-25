@@ -20,7 +20,11 @@ for line in open(sys.argv[1], encoding="utf-8"):
     elif kind == "print":
         # Framework errors (layout overflow…) are printed, not reported as "error" events.
         text = str(e.get("message", ""))
-        what = re.search(r"(A Render\w+ overflowed by [^\n]+|Exception: [^\n]+)", text)
+        what = re.search(
+            r"(A Render\w+ overflowed by [^\n]+|Exception: [^\n]+"
+            r"|Expected: [^\n]+\n\s*Actual: [^\n]+)",
+            text,
+        )
         where = re.findall(r"(lib/[\w/]+\.dart:\d+)", text)
         if what:
             found = what.group(1).strip() + (f" @ {where[0]}" if where else "")
