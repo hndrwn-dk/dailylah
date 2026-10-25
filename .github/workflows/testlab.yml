@@ -1,0 +1,97 @@
+name: testlab
+# Real phones in Firebase Test Lab (docs/QA.md section 6), run by hand before a release.
+# A Robo test installs the release APK and explores the app on each phone, reporting
+# crashes, ANRs and screenshots. Free Spark plan: 5 physical-device runs a day, so this
+# picks 3 phones (Samsung, Xiaomi/Redmi or Oppo, and Google) automatically.
+#
+# One-time setup (see docs/QA.md, "Firebase Test Lab"):
+#   - repository variable FIREBASE_PROJECT_ID
+#   - repository secret  FIREBASE_SA_KEY  (service-account JSON key with the
+#     "Firebase Test Lab Admin" and "Storage Object Admin" roles)
+on:
+  workflow_dispatch:
+    inputs:
+      devices:
+        description: "Optional --device list, e.g. model=a54x,version=34;model=oriole,version=33 (empty = pick 3 automatically)"
+        default: ""
+jobs:
+  robo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Build release APK (same key as the store build)
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+            export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/upload.jks"
+            flutter build apk --release --build-number=${GITHUB_RUN_NUMBER}
+            rm -f "$RUNNER_TEMP/upload.jks"
+            cp build/app/outputs/flutter-apk/app-release.apk build/dailylah.apk
+          else
+            flutter build apk --debug --build-number=${GITHUB_RUN_NUMBER}
+            cp build/app/outputs/flutter-apk/app-debug.apk build/dailylah.apk
+          fi
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SA_KEY }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Pick phones
+        id: pick
+        env:
+          DEVICES: ${{ inputs.devices }}
+        run: |
+          if [ -n "$DEVICES" ]; then
+            echo "args=$(echo "$DEVICES" | tr ';' '\n' | sed 's/^/--device /' | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          gcloud firebase test android models list --filter="form=PHYSICAL" --format=json \
+            --project "${{ vars.FIREBASE_PROJECT_ID }}" > models.json
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          models = json.load(open("models.json"))
+          picks, used = [], set()
+          for brands in (["samsung"], ["xiaomi", "redmi", "oppo", "vivo"], ["google"]):
+              best = None
+              for m in models:
+                  if m["id"] in used or m.get("brand", "").lower() not in brands:
+                      continue
+                  versions = sorted(int(v) for v in m.get("supportedVersionIds", []) if v.isdigit())
+                  if versions and (best is None or versions[-1] > best[1]):
+                      best = (m["id"], versions[-1], m.get("name", m["id"]))
+              if best:
+                  used.add(best[0])
+                  picks.append(best)
+          print("args=" + " ".join(f"--device model={i},version={v}" for i, v, _ in picks))
+          print("names=" + ", ".join(f"{n} (API {v})" for _, v, n in picks))
+          PY
+      - name: Robo test on real phones
+        run: |
+          echo "Phones: ${{ steps.pick.outputs.names }}" >> "$GITHUB_STEP_SUMMARY"
+          gcloud firebase test android run \
+            --project "${{ vars.FIREBASE_PROJECT_ID }}" \
+            --type robo \
+            --app build/dailylah.apk \
+            ${{ steps.pick.outputs.args }} \
+            --timeout 5m \
+            --results-history-name dailylah \
+            2>&1 | tee testlab.log
+          grep -Eo "https://console.firebase.google.com[^ ]*" testlab.log | head -1 \
+            | sed 's/^/Results: /' >> "$GITHUB_STEP_SUMMARY" || true
