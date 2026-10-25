@@ -331,8 +331,12 @@ class _ExtraPlaces extends ConsumerWidget {
           onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text(s.cancel)),
-          FilledButton(onPressed: () => Navigator.of(ctx).pop(ctrl.text.trim()), child: Text(s.save)),
+          DialogButtons(
+            cancelLabel: s.cancel,
+            confirmLabel: s.save,
+            onCancel: () => Navigator.of(ctx).pop(),
+            onConfirm: () => Navigator.of(ctx).pop(ctrl.text.trim()),
+          ),
         ],
       ),
     );

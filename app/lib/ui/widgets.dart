@@ -960,3 +960,40 @@ void showActionSnackBar(ScaffoldMessengerState messenger, String text, {String? 
     action: actionLabel == null || onAction == null ? null : SnackBarAction(label: actionLabel, onPressed: onAction),
   ));
 }
+
+/// Cancel and confirm side by side for an AlertDialog's actions, equal width. The theme makes
+/// filled buttons full width, which pushed Cancel onto its own line above a wide confirm button.
+class DialogButtons extends StatelessWidget {
+  const DialogButtons({
+    super.key,
+    required this.cancelLabel,
+    required this.confirmLabel,
+    required this.onCancel,
+    required this.onConfirm,
+  });
+  final String cancelLabel;
+  final String confirmLabel;
+  final VoidCallback onCancel;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+              onPressed: onCancel,
+              child: Text(cancelLabel, textAlign: TextAlign.center),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: FilledButton(
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+              onPressed: onConfirm,
+              child: Text(confirmLabel, textAlign: TextAlign.center),
+            ),
+          ),
+        ],
+      );
+}

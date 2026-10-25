@@ -124,8 +124,12 @@ class HistoryPage extends ConsumerWidget {
                           builder: (d) => AlertDialog(
                             content: Text(s.historyRemoveAsk(entries.length)),
                             actions: [
-                              TextButton(onPressed: () => Navigator.of(d).pop(false), child: Text(s.cancel)),
-                              FilledButton(onPressed: () => Navigator.of(d).pop(true), child: Text(s.remove)),
+                              DialogButtons(
+                                cancelLabel: s.cancel,
+                                confirmLabel: s.remove,
+                                onCancel: () => Navigator.of(d).pop(false),
+                                onConfirm: () => Navigator.of(d).pop(true),
+                              ),
                             ],
                           ),
                         );
