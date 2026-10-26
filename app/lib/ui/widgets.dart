@@ -997,3 +997,16 @@ class DialogButtons extends StatelessWidget {
         ],
       );
 }
+
+/// Closes the keyboard, waits until it is gone, then pops [result]. Popping while the
+/// keyboard is still up left the page below half drawn on some phones (blank where the
+/// keyboard was) until something else redrew it.
+Future<void> popAfterKeyboard<T>(BuildContext context, [T? result]) async {
+  final nav = Navigator.of(context);
+  FocusManager.instance.primaryFocus?.unfocus();
+  final view = View.of(context);
+  for (var i = 0; i < 12 && view.viewInsets.bottom > 0; i++) {
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+  }
+  if (nav.mounted) nav.pop(result);
+}

@@ -54,7 +54,7 @@ class _AddressPickerPageState extends ConsumerState<AddressPickerPage> {
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
       );
       if (!mounted) return;
-      Navigator.of(context).pop(AddressHit(
+      await popAfterKeyboard(context, AddressHit(
         label: s.myLocation,
         block: '',
         road: '',
@@ -112,7 +112,7 @@ class _AddressPickerPageState extends ConsumerState<AddressPickerPage> {
                               leading: const Icon(Icons.place_outlined),
                               title: Text(h.label),
                               subtitle: h.postal.isEmpty ? null : Text('Singapore ${h.postal}'),
-                              onTap: () => Navigator.of(context).pop(h),
+                              onTap: () => popAfterKeyboard(context, h),
                             ),
                         ],
                       ),
