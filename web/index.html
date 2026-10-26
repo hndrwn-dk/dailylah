@@ -52,7 +52,11 @@
   h1 { font: 700 clamp(52px, 9vw, 92px)/0.92 var(--display); letter-spacing: -0.01em; margin: 0 0 22px; max-width: 9ch; }
   .asks { list-style: none; padding: 0; margin: 0 0 30px; color: var(--mist); font-size: 19px; line-height: 1.5; }
   .play { display: inline-flex; align-items: center; gap: 12px; padding: 12px 18px; background: var(--amber); color: #0F1618;
-          border: 2.5px solid var(--edge); border-radius: 14px; box-shadow: 3px 4px 0 var(--shadow); font-weight: 700; }
+          border: 2.5px solid var(--edge); border-radius: 14px; box-shadow: 3px 4px 0 var(--shadow); font-weight: 700;
+          text-decoration: none; transition: transform 0.1s, box-shadow 0.1s; }
+  .play:hover { transform: translate(-1px, -1px); box-shadow: 4px 5px 0 var(--shadow); }
+  .play:active { transform: translate(2px, 3px); box-shadow: 1px 1px 0 var(--shadow); }
+  .play:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
   .play svg { flex: none; }
   .fine { margin: 14px 0 0; color: var(--mist); font-size: 15px; }
 
@@ -117,11 +121,11 @@
         <li>Haze bad or not? Makan where?</li>
         <li>Bus coming? MRT delay? Alamak...</li>
       </ul>
-      <span class="play" role="note">
+      <a class="play" href="https://play.google.com/store/apps/details?id=com.tursinalabs.dailylah" rel="noopener">
         <svg width="22" height="24" viewBox="0 0 22 24" aria-hidden="true"><path d="M2 1.5v21L20.5 12z" fill="#0F1618"/></svg>
-        Coming soon to Google Play
-      </span>
-      <p class="fine">Free for Android. No account, no ads, and your places stay on your phone.</p>
+        Early access on Google Play
+      </a>
+      <p class="fine">Free for Android. No account, no ads, and your places stay on your phone. Now in testing ahead of the public launch.</p>
     </div>
 
     <figure class="stop sticker" aria-label="Example of live bus arrivals in DailyLah">

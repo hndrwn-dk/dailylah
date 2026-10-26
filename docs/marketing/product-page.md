@@ -7,7 +7,7 @@ Describes only what the app does today (Phase 1). Update when Phase 2 ships.
 
 **Status label:** Testing
 **Package:** com.tursinalabs.dailylah
-**Google Play:** https://play.google.com/store/apps/details?id=com.tursinalabs.dailylah (live once published)
+**Google Play:** https://play.google.com/store/apps/details?id=com.tursinalabs.dailylah (closed testing since 26 Oct 2026)
 
 # DailyLah
 
