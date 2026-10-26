@@ -29,6 +29,8 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   listings) are opt-in under More > Extras. Halal screens always say "Not affiliated with MUIS.
   Always verify halal status directly" (`S.halalDisclaimer`).
 - `lib/providers.dart` holds all Riverpod providers; widgets in `lib/ui/` only render.
+- `AppFrame` (`ui/app_frame.dart`, MaterialApp.builder) keeps every route above the system navigation
+  bar (Android draws edge to edge; the 3-button bar hid Setup's Save), so pages need no bottom inset.
 - Keyboard: `KeyboardNavigatorObserver` closes it whenever a page, sheet or dialog opens or closes, and
   `KeyboardRepaint` forces a fresh frame once it is gone (some phones left a blank area where it was);
   pickers pop with `popAfterKeyboard`. Both are wired in `main.dart` (`ui/keyboard.dart`).
