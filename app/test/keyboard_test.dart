@@ -15,10 +15,10 @@ void main() {
       builder: (_) => const Scaffold(body: TextField(autofocus: true)),
     ));
     await tester.pumpAndSettle();
-    expect(FocusManager.instance.primaryFocus?.context?.widget, isA<EditableText>());
+    expect(FocusManager.instance.primaryFocus?.debugLabel, 'EditableText');
     key.currentState!.pop();
     await tester.pumpAndSettle();
-    expect(FocusManager.instance.primaryFocus?.context?.widget is EditableText, isFalse);
+    expect(FocusManager.instance.primaryFocus?.debugLabel, isNot('EditableText'));
     expect(find.text('setup'), findsOneWidget);
 
     // Keyboard closing triggers a fresh frame without errors.
