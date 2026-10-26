@@ -1,7 +1,7 @@
 name: dailylah
-description: DailyLah — your daily SG kaki.
+description: DailyLah — know before you go lah.
 publish_to: "none"
-version: 0.2.0+2
+version: 1.0.0+2
 
 environment:
   sdk: ">=3.5.0 <4.0.0"

@@ -27,8 +27,8 @@ Future<void> openPlayListing(BuildContext context, String failText) async {
   await openExternal(context, Uri.parse(playWebUrl), failText);
 }
 
-/// App version, injected by CI or set manually: --dart-define=APP_VERSION=0.2.0
-const appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '0.2.0');
+/// App version, injected by CI or set manually: --dart-define=APP_VERSION=1.0.0
+const appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '1.0.0');
 
 /// Short commit the APK was built from: --dart-define=GIT_SHA=$(git rev-parse --short HEAD).
 /// Empty for builds that skip it (flutter run).
@@ -37,7 +37,7 @@ const appCommit = String.fromEnvironment('GIT_SHA');
 /// Build number (Android versionCode), injected by CI: --dart-define=BUILD_NUMBER=123.
 const appBuild = String.fromEnvironment('BUILD_NUMBER');
 
-/// Version as shown on About, More and the licence page, e.g. "0.2.0 (build 123 · a8d2bba)".
+/// Version as shown on About, More and the licence page, e.g. "1.0.0 (build 123 · a8d2bba)".
 String get appVersionLabel {
   final extra = [if (appBuild.isNotEmpty) 'build $appBuild', if (appCommit.isNotEmpty) appCommit];
   return extra.isEmpty ? appVersion : '$appVersion (${extra.join(' · ')})';

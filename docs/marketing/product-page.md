@@ -11,7 +11,7 @@ Describes only what the app does today (Phase 1). Update when Phase 2 ships.
 
 # DailyLah
 
-Your daily SG kaki. Buses, MRT and rain, before you leave the house.
+Know before you go lah. Buses, MRT and rain, before you leave the house.
 
 [Google Play badge]
 

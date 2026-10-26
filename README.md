@@ -1,6 +1,6 @@
 # DailyLah
 
-Your daily SG kaki. A free Flutter app that turns Singapore open data (data.gov.sg and
+Know before you go lah. A free Flutter app that turns Singapore open data (data.gov.sg and
 LTA DataMall) into one morning card, one evening card, and only the alerts that matter.
 
 - Product requirements: [`docs/PRD.md`](docs/PRD.md)
