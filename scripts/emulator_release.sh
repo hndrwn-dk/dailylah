@@ -5,7 +5,8 @@
 # sign that R8 removed or renamed something a plugin needs.
 # 1. Install the debug build and seed a set-up household through run-as (debug only).
 # 2. Install the release build over it (same debug key without CI secrets; data kept).
-# 3. Start it, force-run the WorkManager job, update the widget, then read logcat.
+# 3. Start it, force-run the WorkManager job (which also updates the widget), then read logcat.
+#    (APPWIDGET_UPDATE is a protected broadcast; adb cannot send it.)
 set -euo pipefail
 trap 'echo "::error file=$0,line=$LINENO::Failed: $BASH_COMMAND"' ERR
 
@@ -64,6 +65,9 @@ JOB=$("${ADB[@]}" shell dumpsys jobscheduler \
   | sed -n "s/.*JOB #[^/]*\/\([0-9]*\): [0-9a-f]* $PKG\/androidx\.work.*/\1/p" | head -1 | tr -d '\r')
 if [ -z "$JOB" ]; then
   echo "::error::The release build registered no WorkManager job (saved data not read, or WorkManager failed)."
+  "${ADB[@]}" shell dumpsys jobscheduler | grep -i "$PKG" | head -5 \
+    | while read -r line; do echo "::notice title=jobscheduler::${line:0:300}"; done
+  JOB_MISSING=1
 else
   "${ADB[@]}" shell cmd jobscheduler run -f "$PKG" "$JOB"
   # It calls the production API, which may need a minute to wake up.
@@ -75,10 +79,6 @@ else
     || echo "::warning::The background check did not report done within 3 min (slow API?)."
 fi
 
-# Widget provider (our Kotlin + home_widget).
-"${ADB[@]}" shell am broadcast -a android.appwidget.action.APPWIDGET_UPDATE -n "$PKG/.DailyLahWidgetProvider" >/dev/null
-sleep 3
-
 # Restart once more: settings read again from disk.
 "${ADB[@]}" shell am force-stop "$PKG"
 "${ADB[@]}" shell am start -W -n "$PKG/.MainActivity"
@@ -86,10 +86,14 @@ sleep 10
 
 LOG=$("${ADB[@]}" logcat -d)
 echo "$LOG" | grep -E "flutter|AndroidRuntime" | tail -60 || true
+# Job logs cannot always be read, so surface the app's own log lines on the commit too.
+echo "$LOG" | grep -E " I flutter|AndroidRuntime" | tail -15 \
+  | while read -r line; do echo "::notice title=logcat::${line:0:300}"; done
 BAD='FATAL EXCEPTION|ClassNotFoundException|NoClassDefFoundError|NoSuchMethodError|NoSuchMethodException|NoSuchFieldError|NoSuchFieldException|AbstractMethodError|MissingPluginException|favourites not loaded|notifications not ready|background work not registered'
 if echo "$LOG" | grep -E "$BAD" >/tmp/bad.txt; then
   while read -r line; do echo "::error::release build: ${line:0:300}"; done < /tmp/bad.txt
   exit 1
 fi
 "${ADB[@]}" shell pidof "$PKG" >/dev/null || { echo "::error::Release build is not running after restart."; exit 1; }
-echo "- Release build (R8) started, ran the background check and widget without errors ✅" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+[ -z "${JOB_MISSING:-}" ] || exit 1
+echo "- Release build (R8) started, ran the background check without errors ✅" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
