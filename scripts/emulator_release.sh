@@ -61,15 +61,17 @@ sleep 20
 "${ADB[@]}" shell pidof "$PKG" >/dev/null || { echo "::error::Release build is not running 20 s after start."; }
 
 # The background check: find the WorkManager job the app registered and run it now.
-JOB=$("${ADB[@]}" shell dumpsys jobscheduler \
-  | sed -n "s/.*JOB #[^/]*\/\([0-9]*\): [0-9a-f]* $PKG\/androidx\.work.*/\1/p" | head -1 | tr -d '\r')
+# Line format: "JOB #u0a209/1: ..." or, from Android 14, "JOB <namespace>:u0a209/1: ...".
+LINE=$("${ADB[@]}" shell dumpsys jobscheduler | grep -m1 "$PKG/androidx.work" | tr -d '\r' || true)
+JOB=$(echo "$LINE" | sed -n 's/.*JOB [^ ]*u[0-9a-z]*\/\([0-9]*\):.*/\1/p')
+NS=$(echo "$LINE" | sed -n 's/.*JOB \([^# ][^ ]*\):u[0-9a-z]*\/.*/\1/p')
 if [ -z "$JOB" ]; then
   echo "::error::The release build registered no WorkManager job (saved data not read, or WorkManager failed)."
   "${ADB[@]}" shell dumpsys jobscheduler | grep -i "$PKG" | head -5 \
     | while read -r line; do echo "::notice title=jobscheduler::${line:0:300}"; done
   JOB_MISSING=1
 else
-  "${ADB[@]}" shell cmd jobscheduler run -f "$PKG" "$JOB"
+  "${ADB[@]}" shell cmd jobscheduler run -f ${NS:+-n "$NS"} "$PKG" "$JOB"
   # It calls the production API, which may need a minute to wake up.
   for _ in $(seq 1 36); do
     "${ADB[@]}" logcat -d -s flutter | grep -q "background check done" && break
