@@ -29,6 +29,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   listings) are opt-in under More > Extras. Halal screens always say "Not affiliated with MUIS.
   Always verify halal status directly" (`S.halalDisclaimer`).
 - `lib/providers.dart` holds all Riverpod providers; widgets in `lib/ui/` only render.
+- Keyboard: `KeyboardNavigatorObserver` closes it whenever a page, sheet or dialog opens or closes, and
+  `KeyboardRepaint` forces a fresh frame once it is gone (some phones left a blank area where it was);
+  pickers pop with `popAfterKeyboard`. Both are wired in `main.dart` (`ui/keyboard.dart`).
 - Tabs keep their scroll position (`IndexedStack`, one `ScrollController` per tab in `ui/shell.dart`);
   tapping the selected tab scrolls it to the top, and Today goes back to the top after 30 min away
   or when the card switches while another tab is open (`todayBackToTop`).

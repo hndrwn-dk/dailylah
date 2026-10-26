@@ -5,6 +5,7 @@ import 'background.dart';
 import 'models.dart';
 import 'providers.dart';
 import 'store.dart';
+import 'ui/keyboard.dart';
 import 'ui/setup.dart';
 import 'ui/shell.dart';
 import 'ui/theme.dart';
@@ -44,6 +45,8 @@ class DailyLahApp extends ConsumerWidget {
     final onboarded = ref.watch(favoritesProvider.select((f) => f.onboarded));
     return MaterialApp(
       title: 'DailyLah',
+      navigatorObservers: [KeyboardNavigatorObserver()],
+      builder: (context, child) => KeyboardRepaint(child: child ?? const SizedBox.shrink()),
       debugShowCheckedModeBanner: false,
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
