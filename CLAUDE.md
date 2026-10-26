@@ -127,6 +127,8 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   Analyze and test failures are emitted as annotations on the commit.
 
 ## Store assets (Google Play)
+- Version: bump `version:` in `app/pubspec.yaml` only (e.g. `1.0.0+2`). CI takes the versionName from
+  there and uses the run number as versionCode, so every CI build can be uploaded. First public release: 1.0.0.
 - Icon `app/assets/store/play-icon-512.png` and feature graphic `docs/feature_design/feature-graphic-1024x500.png`
   come from `scripts/make_feature_graphic.py`.
 - Phone screenshots (8, 1080x1920) in `docs/store/screenshots`: real screens rendered by `app/test_store`
