@@ -98,7 +98,7 @@ class _StopPickerPageState extends ConsumerState<StopPickerPage> {
                       ),
                       title: Text(s.name),
                       subtitle: Text('${s.code} · ${s.road}'),
-                      onTap: () => Navigator.of(context).pop(s),
+                      onTap: () => popAfterKeyboard(context, s),
                     );
                   },
                 ),
