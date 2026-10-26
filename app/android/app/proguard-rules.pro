@@ -20,3 +20,11 @@
 -keep class io.flutter.plugins.** { *; }
 -keep class com.github.dart_lang.jni.** { *; }
 -keep class kotlin.coroutines.Continuation { *; }
+# shared_preferences stores settings in Jetpack DataStore (protobuf lite, read by reflection).
+-keep class androidx.datastore.** { *; }
+-keepclassmembers class * extends com.google.protobuf.GeneratedMessageLite { <fields>; }
+# Other plugins with native code: geolocator (foreground location for Wake me), share_plus.
+-keep class com.baseflow.geolocator.** { *; }
+-keep class dev.fluttercommunity.plus.** { *; }
+# Flutter's deferred components refer to Play Core, which this app does not ship.
+-dontwarn com.google.android.play.core.**

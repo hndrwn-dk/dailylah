@@ -67,6 +67,8 @@ void callbackDispatcher() {
     WidgetsFlutterBinding.ensureInitialized();
     try {
       await runChecks(DailyLahApi(), DateTime.now());
+      // Marker for the release smoke test (scripts/emulator_release.sh).
+      debugPrint('background check done');
     } on Object catch (e) {
       debugPrint('background check failed: $e');
     }

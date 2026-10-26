@@ -47,11 +47,13 @@ android {
 
     buildTypes {
         release {
-            // No R8 shrinking: several plugins (shared_preferences via JNI, DataStore,
-            // notifications via Gson) reach classes by reflection and broke when renamed.
-            // The APK is a little larger; correctness matters more.
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // R8 shrinking: smaller download. Plugins that reach classes by reflection or from
+            // native code (shared_preferences via JNI, DataStore, notifications via Gson) are
+            // kept by proguard-rules.pro; resources used by name are kept by res/raw/keep.xml.
+            // CI keeps mapping.txt next to the AAB (upload it to Play for readable crashes), and
+            // the emulator "release" job starts this build to catch anything R8 removed.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = if (keystorePath.isNullOrEmpty()) {
                 signingConfigs.getByName("debug")

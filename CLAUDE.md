@@ -130,6 +130,12 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`; debug without them),
   so native changes (manifest, Kotlin widget, `dailylah/apps` channel) are compile-checked.
   Analyze and test failures are emitted as annotations on the commit.
+- Release builds use R8 (minify + resource shrinking). Plugins reached by reflection/JNI are kept in
+  `android/app/proguard-rules.pro`, resources used by name in `res/raw/keep.xml`. The AAB artifact
+  carries `dailylah-mapping.txt`: upload it with each release in Play Console (App bundle explorer >
+  Downloads > ReTrace mapping file). The emulator `release` job (`scripts/emulator_release.sh`)
+  starts the release build with saved data, runs the WorkManager job and widget, and fails on
+  missing classes or plugins. A new plugin with native code may need a keep rule.
 
 ## Store assets (Google Play)
 - Version: bump `version:` in `app/pubspec.yaml` only (e.g. `1.0.0+2`). CI takes the versionName from
