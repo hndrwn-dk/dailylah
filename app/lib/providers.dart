@@ -250,6 +250,11 @@ final busStopsProvider = FutureProvider<List<BusStop>>(
   (ref) => ref.watch(busStopRepoProvider).load(),
 );
 
+/// Bus stops by code (for placing a live bus on its route), empty until loaded.
+final busStopsByCodeProvider = Provider<Map<String, BusStop>>((ref) => {
+      for (final s in ref.watch(busStopsProvider).valueOrNull ?? const <BusStop>[]) s.code: s,
+    });
+
 final hawkersProvider = FutureProvider<List<Hawker>>((ref) => _list(ref, 'hawkers', Hawker.fromBundle));
 
 final dengueProvider = FutureProvider<List<DengueCluster>>((ref) async {

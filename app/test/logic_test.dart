@@ -1200,4 +1200,61 @@ void main() {
     expect(moved.hawkerId, 'p:1,2');
     expect(moved.at.hour, 13);
   });
+
+  test('a coming bus is placed on its route: near which stop and how many stops away', () {
+    final now = DateTime.utc(2026, 10, 27, 8, 0);
+    final body = {
+      'data': {
+        'Services': [
+          {
+            'ServiceNo': '47',
+            'NextBus': {
+              'EstimatedArrival': '2026-10-27T16:04:00+08:00',
+              'Load': 'SEA',
+              'Latitude': '1.3302',
+              'Longitude': '103.9601',
+              'Monitored': 1,
+            },
+          },
+          {
+            'ServiceNo': '20',
+            'NextBus': {'EstimatedArrival': '2026-10-27T16:07:00+08:00', 'Load': 'SEA', 'Latitude': '0.0', 'Longitude': '0.0', 'Monitored': 0},
+          },
+        ],
+      },
+    };
+    final etas = parseBusArrival(body, now);
+    final b47 = etas.firstWhere((e) => e.service == '47');
+    final b20 = etas.firstWhere((e) => e.service == '20');
+    expect(b47.lat, closeTo(1.3302, 1e-9));
+    expect(b47.monitored, isTrue);
+    expect(b20.lat, isNull);
+    expect(b20.monitored, isFalse);
+
+    // Route 47 dir 1: A -> B -> C -> MINE; the bus is next to B.
+    const a = BusStop(code: 'A', name: 'Stop A', road: '', lat: 1.3200, lng: 103.9600);
+    const b = BusStop(code: 'B', name: 'Blk 201', road: '', lat: 1.3300, lng: 103.9600);
+    const c = BusStop(code: 'C', name: 'Stop C', road: '', lat: 1.3350, lng: 103.9600);
+    const mine = BusStop(code: 'M', name: 'Opp Changi City Pt', road: '', lat: 1.3400, lng: 103.9600);
+    final stops = {for (final x in [a, b, c, mine]) x.code: x};
+    const routes = BusRoutes({
+      '47|1': [('A', 0.0), ('B', 1.1), ('C', 1.7), ('M', 2.2)],
+      '470|1': [('M', 0.0), ('B', 1.0)],
+    });
+    final w = busWhere(b47, 'M', routes, stops)!;
+    expect(w.near!.name, 'Blk 201');
+    expect(w.stopsAway, 2);
+    const s = S();
+    expect(s.busWhereLine(w), 'Now near Blk 201 · 2 stops away');
+    expect(s.busLive(b20, busWhere(b20, 'M', routes, stops)), s.busScheduled);
+
+    // Off the route (no stop within 400 m): straight-line distance instead.
+    const far = BusEta(service: '47', minutes: 9, load: 'SEA', lat: 1.3700, lng: 103.9600);
+    final w2 = busWhere(far, 'M', routes, stops)!;
+    expect(w2.stopsAway, isNull);
+    expect(s.busWhereLine(w2), 'Now 3.3 km away');
+    // At the rider's stop.
+    const atStop = BusEta(service: '47', minutes: 0, load: 'SEA', lat: 1.3400, lng: 103.9601);
+    expect(s.busWhereLine(busWhere(atStop, 'M', routes, stops)!), 'At your stop now');
+  });
 }

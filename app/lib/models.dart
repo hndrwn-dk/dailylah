@@ -417,9 +417,26 @@ class Favorites {
 
 /// One upcoming bus for a service at a stop.
 class BusEta {
-  const BusEta({required this.service, required this.minutes, required this.load, this.wheelchair = false, this.deck = ''});
+  const BusEta({
+    required this.service,
+    required this.minutes,
+    required this.load,
+    this.wheelchair = false,
+    this.deck = '',
+    this.lat,
+    this.lng,
+    this.monitored = true,
+  });
   final String service;
   final int minutes;
+
+  /// Where the bus is now (LTA GPS), null when LTA has no position for it.
+  final double? lat;
+  final double? lng;
+
+  /// LTA "Monitored": true when the time comes from the bus's GPS, false when it is only
+  /// the timetable.
+  final bool monitored;
 
   /// LTA "Feature": WAB = wheelchair-accessible bus.
   final bool wheelchair;
@@ -429,6 +446,16 @@ class BusEta {
 
   /// LTA load code: SEA (seats), SDA (standing), LSD (limited standing).
   final String load;
+}
+
+/// Where a coming bus is: the stop on its route it is nearest to, and how many stops
+/// before the rider's stop that is. [stopsAway] is null when no route stop is near the bus
+/// (route data missing, or a position off the route); [metres] is then the straight line.
+class BusWhere {
+  const BusWhere({this.near, this.stopsAway, required this.metres});
+  final BusStop? near;
+  final int? stopsAway;
+  final double metres;
 }
 
 /// MRT/LRT lines. Codes match LTA DataMall TrainLine / AffectedSegments.Line.

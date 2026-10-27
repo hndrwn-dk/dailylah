@@ -156,12 +156,19 @@ List<BusEta> parseBusArrival(Map<String, dynamic> apiBody, DateTime now, {int pe
       final eta = DateTime.tryParse('${nb['EstimatedArrival'] ?? ''}');
       if (eta == null) continue;
       final mins = eta.difference(now).inSeconds / 60;
+      // LTA sends "0.0" when it has no position for the bus.
+      final lat = double.tryParse('${nb['Latitude'] ?? ''}');
+      final lng = double.tryParse('${nb['Longitude'] ?? ''}');
+      final hasPos = lat != null && lng != null && lat != 0 && lng != 0;
       out.add(BusEta(
         service: no,
         minutes: mins < 0 ? 0 : mins.floor(),
         load: '${nb['Load']}',
         wheelchair: '${nb['Feature'] ?? ''}' == 'WAB',
         deck: '${nb['Type'] ?? ''}',
+        lat: hasPos ? lat : null,
+        lng: hasPos ? lng : null,
+        monitored: '${nb['Monitored'] ?? 1}' != '0',
       ));
       taken++;
     }
@@ -1074,6 +1081,38 @@ Map<String, DirectRide> directRides(BusRoutes routes, String origin, Set<String>
     }
   });
   return out;
+}
+
+/// Finds [e]'s bus on its route towards [stopCode]: looks at up to 40 stops before it (in
+/// every direction and loop pass that serves the stop) and takes the route stop nearest
+/// the bus, within 400 m. Null when LTA sent no position.
+BusWhere? busWhere(BusEta e, String stopCode, BusRoutes routes, Map<String, BusStop> stops) {
+  final lat = e.lat, lng = e.lng;
+  if (lat == null || lng == null) return null;
+  final here = stops[stopCode];
+  final metres = here == null ? 0.0 : distanceMeters(lat, lng, here.lat, here.lng);
+  BusStop? bestStop;
+  int? bestAway;
+  var bestD = 400.0;
+  final prefix = '${e.service}|';
+  routes.routes.forEach((key, list) {
+    if (!key.startsWith(prefix)) return;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].$1 != stopCode) continue;
+      for (var j = math.max(0, i - 40); j <= i; j++) {
+        final st = stops[list[j].$1];
+        if (st == null) continue;
+        final d = distanceMeters(lat, lng, st.lat, st.lng);
+        if (d < bestD) {
+          bestD = d;
+          bestStop = st;
+          bestAway = i - j;
+        }
+      }
+    }
+  });
+  if (bestStop == null && here == null) return null;
+  return BusWhere(near: bestStop, stopsAway: bestAway, metres: metres);
 }
 
 /// Direct rides from [stop] to [to] without long detours: a loop service that goes the
