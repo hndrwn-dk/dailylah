@@ -603,6 +603,17 @@ class S {
         _ => '',
       };
   /// Load, wheelchair access and bus type in one line, e.g. "Seats · ♿ Wheelchair · Single deck".
+  /// Live position of a coming bus, e.g. "Now near Blk 201 · 3 stops away".
+  String busWhereLine(BusWhere w) => switch (w.stopsAway) {
+        0 => 'At your stop now',
+        1 => 'Now near ${w.near!.name} · 1 stop away',
+        final int n => 'Now near ${w.near!.name} · $n stops away',
+        null => 'Now ${w.metres >= 1000 ? '${(w.metres / 1000).toStringAsFixed(1)} km' : '${(w.metres / 50).round() * 50} m'} away',
+      };
+  String get busScheduled => 'Timetable estimate, no live GPS';
+
+  /// The live line under a bus arrival: where it is, or that the time is only the timetable.
+  String? busLive(BusEta e, BusWhere? w) => !e.monitored ? busScheduled : w == null ? null : busWhereLine(w);
   String busInfo(BusEta e) =>
       [loadLabel(e.load), if (e.wheelchair) wheelchairBus, deckLabel(e.deck)].where((x) => x.isNotEmpty).join(' · ');
   String toPlaces(List<String> places) => 'to ${places.join(' and ')}';

@@ -763,11 +763,14 @@ class PaintedBlockNumber extends StatelessWidget {
 
 /// One arrival on the bus stop board.
 class BoardRow {
-  const BoardRow({required this.service, required this.minutes, this.next, this.note = ''});
+  const BoardRow({required this.service, required this.minutes, this.next, this.note = '', this.live});
   final String service;
   final int minutes;
   final int? next;
   final String note;
+
+  /// Where the bus is now ("Now near Blk 201 · 3 stops away"), shown in LED colour.
+  final String? live;
 }
 
 /// Live arrivals on a dark LED board, like the panels at bus stops.
@@ -815,6 +818,23 @@ class BusBoard extends StatelessWidget {
                             Text(thenLabel(r.next!), style: led.copyWith(fontSize: 18, color: DL.ledDim)),
                         ],
                       ),
+                      if (r.live != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2, bottom: 2),
+                          child: Text.rich(
+                            TextSpan(children: [
+                              const WidgetSpan(
+                                alignment: PlaceholderAlignment.middle,
+                                child: Padding(
+                                  padding: EdgeInsets.only(right: 4),
+                                  child: Icon(Icons.my_location, size: 14, color: DL.led),
+                                ),
+                              ),
+                              TextSpan(text: r.live),
+                            ]),
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: DL.led),
+                          ),
+                        ),
                       if (r.note.isNotEmpty)
                         Text(r.note, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: DL.ledDim)),
                     ],

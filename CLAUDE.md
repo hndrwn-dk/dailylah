@@ -89,6 +89,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   `wakeProvider` so it survives leaving the page, `WakeBanner` above the tabs, rider picks the bus,
   `wakeRadius` / `wakeEvent` incl. "may have passed"; foreground location only while it runs, never
   stored, auto-stops after 2 h). Live arrivals refetch every 30 s while shown (`busRefreshEvery`).
+  Each arrival shows where the bus is now (`busWhere`: nearest route stop within 400 m of LTA's bus GPS,
+  up to 40 stops back, else straight-line distance; `S.busLive`), or "Timetable estimate" when LTA's
+  `Monitored` is 0. No map SDK.
   From "Here" within `arrivedMetres` of the destination the trip shows "You're here".
 - History tab (`ui/history.dart`): logged trips, finished parkings (`ParkLog`, written by
   `clearParked`) and meals by day for this week/month/all (`historyEntries`, `historySummary`,

@@ -418,6 +418,8 @@ class BusStopCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final etas = ref.watch(busArrivalProvider(stop.code));
+    final routes = ref.watch(busRoutesProvider).valueOrNull ?? BusRoutes.empty;
+    final byCode = ref.watch(busStopsByCodeProvider);
     final t = Theme.of(context).textTheme;
     return Panel(
       child: Padding(
@@ -435,7 +437,12 @@ class BusStopCard extends ConsumerWidget {
                   ? EmptyNote(transitResting(ref.watch(clockProvider).valueOrNull ?? DateTime.now()) ? s.busesResting : s.noBusesNow)
                   : Column(children: [
                       for (final (i, (e, next)) in groupEtas(list).take(8).indexed)
-                        BusRow(eta: e, next: next, pulse: i == 0 && e.minutes == 0),
+                        BusRow(
+                          eta: e,
+                          next: next,
+                          pulse: i == 0 && e.minutes == 0,
+                          live: s.busLive(e, busWhere(e, stop.code, routes, byCode)),
+                        ),
                     ]),
             ),
           ],
@@ -446,8 +453,11 @@ class BusStopCard extends ConsumerWidget {
 }
 
 class BusRow extends ConsumerWidget {
-  const BusRow({super.key, required this.eta, this.pulse = true, this.note, this.next});
+  const BusRow({super.key, required this.eta, this.pulse = true, this.note, this.next, this.live});
   final BusEta eta;
+
+  /// Where the bus is now, or that its time is only the timetable.
+  final String? live;
 
   /// Minutes until the following bus of the same service, if known.
   final int? next;
@@ -500,6 +510,20 @@ class BusRow extends ConsumerWidget {
                 if (next != null) Text(s.thenIn(next!), style: t.bodyMedium),
                 LoadMeter(eta.load, label: s.loadLabel(eta.load)),
                 if (eta.wheelchair) Text(s.wheelchairBus, style: t.bodySmall),
+                if (live != null)
+                  SizedBox(
+                    width: double.infinity,
+                    child: Text.rich(
+                      TextSpan(children: [
+                        const WidgetSpan(
+                          alignment: PlaceholderAlignment.middle,
+                          child: Padding(padding: EdgeInsets.only(right: 4), child: Icon(Icons.my_location, size: 14)),
+                        ),
+                        TextSpan(text: live),
+                      ]),
+                      style: t.bodySmall,
+                    ),
+                  ),
                 if (note != null) SizedBox(width: double.infinity, child: Text(note!, style: t.bodySmall)),
               ],
             ),

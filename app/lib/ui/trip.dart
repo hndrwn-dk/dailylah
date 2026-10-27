@@ -482,6 +482,8 @@ class TripBusCard extends ConsumerWidget {
     final routes = ref.watch(busRoutesProvider).valueOrNull ?? BusRoutes.empty;
     final all = ref.watch(busStopsProvider).valueOrNull ?? const <BusStop>[];
     final names = {for (final x in all) x.code: x.name};
+    final byCode = ref.watch(busStopsByCodeProvider);
+    String? live(BusEta e) => s.busLive(e, busWhere(e, stop.code, routes, byCode));
     final rides = routes.routes.isEmpty ? null : tripRides(routes, stop, to, destinationStops(to, all));
     final fromName = fromKey == null ? s.hereNow : s.placeLabel(fromKey!);
 
@@ -529,7 +531,7 @@ class TripBusCard extends ConsumerWidget {
                         ? EmptyNote(s.noBusesNow)
                         : Column(children: [
                             for (final (i, (e, next)) in groupEtas(list).take(8).indexed)
-                              BusRow(eta: e, next: next, pulse: i == 0 && e.minutes == 0),
+                              BusRow(eta: e, next: next, pulse: i == 0 && e.minutes == 0, live: live(e)),
                           ]);
                   }
                   final grouped = groupEtas(list);
@@ -577,6 +579,7 @@ class TripBusCard extends ConsumerWidget {
                                 service: e.service,
                                 minutes: e.minutes,
                                 next: next,
+                                live: live(e),
                                 note: [
                                   s.rideInfo(
                                     rides[e.service]!.stops,
@@ -646,7 +649,7 @@ class TripBusCard extends ConsumerWidget {
                           child: ExpansionTile(
                             tilePadding: EdgeInsets.zero,
                             title: Text('${s.otherBuses} (${others.length})', style: t.labelLarge),
-                            children: [for (final (e, next) in others.take(10)) BusRow(eta: e, next: next, pulse: false)],
+                            children: [for (final (e, next) in others.take(10)) BusRow(eta: e, next: next, pulse: false, live: live(e))],
                           ),
                         ),
                     ],
