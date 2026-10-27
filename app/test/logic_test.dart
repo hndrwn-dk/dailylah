@@ -1188,4 +1188,16 @@ void main() {
     expect(n.usual.id, 'a');
     expect(n.times, 3);
   });
+
+  test('a meal logged late can be moved to when it was eaten, never into the future', () {
+    final logged = DateTime(2026, 10, 27, 20, 15);
+    final now = DateTime(2026, 10, 27, 20, 16);
+    expect(mealTimeOn(logged, 13, 5, now), DateTime(2026, 10, 27, 13, 5));
+    expect(mealTimeOn(logged, 21, 0, now), isNull);
+    final m = MealLog(hawkerId: 'p:1,2', at: logged, name: 'R');
+    final moved = m.withTime(DateTime(2026, 10, 27, 13, 5));
+    expect(moved.name, 'R');
+    expect(moved.hawkerId, 'p:1,2');
+    expect(moved.at.hour, 13);
+  });
 }

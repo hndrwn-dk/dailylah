@@ -163,6 +163,10 @@ class HabitsNotifier extends Notifier<Habits> {
         _ => state,
       });
 
+  /// Sets when a logged meal was eaten (History, for a meal logged late).
+  Future<void> setMealTime(MealLog m, DateTime at) =>
+      _set(state.copyWith(meals: [for (final x in state.meals) identical(x, m) ? m.withTime(at) : x]));
+
   /// Removes several History entries at once (e.g. all meals shown).
   Future<void> forgetAll(Iterable<HistoryEntry> entries) {
     final drop = {for (final e in entries) e.source};

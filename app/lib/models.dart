@@ -603,6 +603,9 @@ class MealLog {
   /// without the bundle.
   final String? name;
 
+  /// The same meal at another time (set from History when it was logged late).
+  MealLog withTime(DateTime t) => MealLog(hawkerId: hawkerId, at: t, name: name);
+
   Map<String, dynamic> toJson() => {'h': hawkerId, 'at': at.toIso8601String(), if (name != null) 'n': name};
 
   factory MealLog.fromJson(Map<String, dynamic> j) =>

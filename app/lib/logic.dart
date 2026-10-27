@@ -1571,6 +1571,13 @@ int? tripMinutes(DateTime start, DateTime end) {
 /// which stays the same across bundle rebuilds while list order does not.
 String mealPlaceId(double lat, double lng) => 'p:${lat.toStringAsFixed(5)},${lng.toStringAsFixed(5)}';
 
+/// A meal's corrected time: [hour]:[minute] on the day it was logged. Null when that is
+/// later than [now] (a meal cannot be in the future).
+DateTime? mealTimeOn(DateTime logged, int hour, int minute, DateTime now) {
+  final t = DateTime(logged.year, logged.month, logged.day, hour, minute);
+  return t.isAfter(now) ? null : t;
+}
+
 /// "Ate here" twice within 30 minutes is one meal: the newer tap replaces the older one.
 List<MealLog> addMeal(List<MealLog> meals, MealLog m) => [
       for (final x in meals)

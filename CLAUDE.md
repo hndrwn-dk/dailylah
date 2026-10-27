@@ -99,6 +99,7 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   or parking to enter what it cost. "Ate here" is on the hawker and halal place sheets (not the list
   row), with Undo; taps within 30 min count as one meal (`addMeal`). Halal places have no id, so their
   meals use `mealPlaceId` (position) and keep the name in `MealLog.name`; `mealNudge` counts hawkers only.
+  Tap a meal in History to set when it was eaten (`mealTimeOn`, same day, not in the future).
 - Habits (`Habits` in models.dart, `HabitsStore` in store.dart, `habitsProvider`): parked car, trips
   logged with I'm leaving/Arrived (`tripStats`), "Ate here" meals (`mealNudge`). On the phone only,
   behind `Favorites.learnHabits`, never in the share code. Weekly Sunday digest (`weeklyDigest`)
