@@ -429,8 +429,6 @@ class _EatSection extends ConsumerWidget {
                     style: h.closureOn(today) != null ? t.bodySmall?.copyWith(color: const Color(0xFFB45309)) : null,
                   ),
                   trailing: fav.hawkers.contains(h.id) ? const Icon(Icons.star, color: DL.amber) : null,
-                  // "Ate here" lives on the hawker's sheet, not on the row: a button at the
-                  // right edge of every row was easy to hit by accident while scrolling.
                   onTap: () => showPlaceSheet(
                     context,
                     s: s,
@@ -439,26 +437,9 @@ class _EatSection extends ConsumerWidget {
                     lat: h.lat,
                     lng: h.lng,
                     distance: d,
-                    extra: [
-                      if (fav.learnHabits)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                            icon: const Icon(Icons.ramen_dining_outlined),
-                            label: Text(s.ateHere),
-                            onPressed: () async {
-                              final notifier = ref.read(habitsProvider.notifier);
-                              final before = ref.read(habitsProvider);
-                              final messenger = ScaffoldMessenger.of(context);
-                              Navigator.of(context).pop();
-                              await notifier.ateAt(h.id, DateTime.now());
-                              showActionSnackBar(messenger, s.ateLogged(h.name),
-                                  actionLabel: s.undo, onAction: () => notifier.restore(before));
-                            },
-                          ),
-                        ),
-                    ],
+                    // "Ate here" lives on the sheet, not on the row: a button at the right
+                    // edge of every row was easy to hit by accident while scrolling.
+                    extra: [_AteHereButton(id: h.id, name: h.name)],
                   ),
                 ),
             ],
@@ -478,7 +459,13 @@ class _EatSection extends ConsumerWidget {
                     title: Text(p.name),
                     subtitle: Text('${s.metres(d)} · ${p.address}', maxLines: 2, overflow: TextOverflow.ellipsis),
                     onTap: () => showPlaceSheet(context,
-                        s: s, title: p.name, subtitle: '${p.address}\n${s.halalDisclaimer}', lat: p.lat, lng: p.lng, distance: d),
+                        s: s,
+                        title: p.name,
+                        subtitle: '${p.address}\n${s.halalDisclaimer}',
+                        lat: p.lat,
+                        lng: p.lng,
+                        distance: d,
+                        extra: [_AteHereButton(id: mealPlaceId(p.lat, p.lng), name: p.name, place: true)]),
                   ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -489,6 +476,37 @@ class _EatSection extends ConsumerWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// "Ate here" on a food place's sheet (hawker centre, or with [place] another food place such
+/// as a halal restaurant). Hidden when "Learn my habits" is off. Logs the meal with Undo.
+class _AteHereButton extends ConsumerWidget {
+  const _AteHereButton({required this.id, required this.name, this.place = false});
+  final String id;
+  final String name;
+  final bool place;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!ref.watch(favoritesProvider.select((f) => f.learnHabits))) return const SizedBox.shrink();
+    final s = ref.watch(stringsProvider);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+        icon: const Icon(Icons.ramen_dining_outlined),
+        label: Text(s.ateHere),
+        onPressed: () async {
+          final notifier = ref.read(habitsProvider.notifier);
+          final before = ref.read(habitsProvider);
+          final messenger = ScaffoldMessenger.of(context);
+          Navigator.of(context).pop();
+          await notifier.ateAt(id, DateTime.now(), name: place ? name : null);
+          showActionSnackBar(messenger, s.ateLogged(name), actionLabel: s.undo, onAction: () => notifier.restore(before));
+        },
+      ),
     );
   }
 }
@@ -969,7 +987,13 @@ class _HalalTabState extends ConsumerState<_HalalTab> {
                       title: Text(p.name),
                       subtitle: Text('${s.metres(d)} · ${p.address}', maxLines: 3, overflow: TextOverflow.ellipsis),
                       onTap: () => showPlaceSheet(context,
-                          s: s, title: p.name, subtitle: '${p.address}\n${s.halalDisclaimer}', lat: p.lat, lng: p.lng, distance: d),
+                          s: s,
+                          title: p.name,
+                          subtitle: '${p.address}\n${s.halalDisclaimer}',
+                          lat: p.lat,
+                          lng: p.lng,
+                          distance: d,
+                          extra: [_AteHereButton(id: mealPlaceId(p.lat, p.lng), name: p.name, place: true)]),
                     ),
                 ],
               ),
@@ -1032,6 +1056,8 @@ class _HawkerTab extends ConsumerWidget {
                             ? s.noUpcomingClosure
                             : s.closedRange(shortDate(next.from), shortDate(next.to), s.closureReason(next.reason)),
                   ),
+                  const SizedBox(height: 12),
+                  _AteHereButton(id: h.id, name: h.name),
                 ],
               ),
               child: Padding(

@@ -198,8 +198,9 @@ class HabitsNotifier extends Notifier<Habits> {
     return m;
   }
 
-  Future<void> ateAt(String hawkerId, DateTime now) {
-    final meals = addMeal(state.meals, MealLog(hawkerId: hawkerId, at: now));
+  /// Logs a meal at a hawker centre ([hawkerId]) or, with [name], at another food place.
+  Future<void> ateAt(String hawkerId, DateTime now, {String? name}) {
+    final meals = addMeal(state.meals, MealLog(hawkerId: hawkerId, at: now, name: name));
     return _set(state.copyWith(meals: meals.length > Habits.maxMeals ? meals.sublist(meals.length - Habits.maxMeals) : meals));
   }
 

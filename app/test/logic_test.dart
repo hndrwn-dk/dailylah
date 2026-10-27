@@ -1160,4 +1160,32 @@ void main() {
     meals = addMeal(meals, MealLog(hawkerId: 'd', at: t.add(const Duration(hours: 6))));
     expect(meals.map((m) => m.hawkerId), ['c', 'd']);
   });
+
+  test('meals at halal restaurants are logged by place with their name', () {
+    final id = mealPlaceId(1.342271, 103.953094);
+    expect(id, 'p:1.34227,103.95309');
+    final m = MealLog(hawkerId: id, at: DateTime(2026, 10, 27, 13), name: 'Some Halal Kitchen');
+    final back = MealLog.fromJson(m.toJson());
+    expect(back.hawkerId, id);
+    expect(back.name, 'Some Halal Kitchen');
+    // Hawker meals keep the old format (no name).
+    expect(MealLog(hawkerId: 'a', at: DateTime(2026, 10, 27)).toJson().containsKey('n'), isFalse);
+    expect(MealLog.fromJson({'h': 'a', 'at': '2026-10-27T12:00:00.000'}).name, isNull);
+    final h = Habits(meals: [m]);
+    expect(historyEntries(h).single.source, isA<MealLog>());
+    expect(historySummary(historyEntries(h)).meals, 1);
+  });
+
+  test('restaurant meals do not hide the hawker nudge', () {
+    Hawker hk(String id, double lo) => Hawker.fromBundle({'id': id, 'n': 'H$id', 'a': '', 'la': 1.30, 'lo': lo});
+    final all = [hk('a', 103.860), hk('b', 103.865)];
+    final now = DateTime(2026, 10, 27, 12);
+    final meals = [
+      for (var i = 0; i < 5; i++) MealLog(hawkerId: mealPlaceId(1.3, 103.9), at: now.subtract(Duration(days: i)), name: 'R'),
+      for (var i = 0; i < 3; i++) MealLog(hawkerId: 'a', at: now.subtract(Duration(days: i, hours: 6))),
+    ];
+    final n = mealNudge(meals, all, now, 1.30, 103.860)!;
+    expect(n.usual.id, 'a');
+    expect(n.times, 3);
+  });
 }

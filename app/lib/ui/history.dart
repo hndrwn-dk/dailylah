@@ -187,7 +187,7 @@ class _EntryTile extends ConsumerWidget {
           [s.durationShort(t.minutes), if (t.rainy) s.rainyTag].join(' · '),
         ),
       final ParkLog p => (Icons.local_parking, p.name.isEmpty ? s.historyParking : p.name, s.durationShort(p.minutes)),
-      final MealLog m => (Icons.ramen_dining_outlined, hawkers[m.hawkerId] ?? s.historyMeals, s.historyMeals),
+      final MealLog m => (Icons.ramen_dining_outlined, hawkers[m.hawkerId] ?? m.name ?? s.historyMeals, s.historyMeals),
       _ => (Icons.history, '', ''),
     };
     return Dismissible(
