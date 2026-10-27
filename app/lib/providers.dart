@@ -163,6 +163,10 @@ class HabitsNotifier extends Notifier<Habits> {
         _ => state,
       });
 
+  /// Sets when a logged meal was eaten (History, for a meal logged late).
+  Future<void> setMealTime(MealLog m, DateTime at) =>
+      _set(state.copyWith(meals: [for (final x in state.meals) identical(x, m) ? m.withTime(at) : x]));
+
   /// Removes several History entries at once (e.g. all meals shown).
   Future<void> forgetAll(Iterable<HistoryEntry> entries) {
     final drop = {for (final e in entries) e.source};
@@ -198,8 +202,9 @@ class HabitsNotifier extends Notifier<Habits> {
     return m;
   }
 
-  Future<void> ateAt(String hawkerId, DateTime now) {
-    final meals = addMeal(state.meals, MealLog(hawkerId: hawkerId, at: now));
+  /// Logs a meal at a hawker centre ([hawkerId]) or, with [name], at another food place.
+  Future<void> ateAt(String hawkerId, DateTime now, {String? name}) {
+    final meals = addMeal(state.meals, MealLog(hawkerId: hawkerId, at: now, name: name));
     return _set(state.copyWith(meals: meals.length > Habits.maxMeals ? meals.sublist(meals.length - Habits.maxMeals) : meals));
   }
 

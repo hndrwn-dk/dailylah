@@ -1567,6 +1567,17 @@ int? tripMinutes(DateTime start, DateTime end) {
   return m < 3 || m > 180 ? null : m;
 }
 
+/// Meal id for a food place that is not a hawker centre (halal restaurants): its position,
+/// which stays the same across bundle rebuilds while list order does not.
+String mealPlaceId(double lat, double lng) => 'p:${lat.toStringAsFixed(5)},${lng.toStringAsFixed(5)}';
+
+/// A meal's corrected time: [hour]:[minute] on the day it was logged. Null when that is
+/// later than [now] (a meal cannot be in the future).
+DateTime? mealTimeOn(DateTime logged, int hour, int minute, DateTime now) {
+  final t = DateTime(logged.year, logged.month, logged.day, hour, minute);
+  return t.isAfter(now) ? null : t;
+}
+
 /// "Ate here" twice within 30 minutes is one meal: the newer tap replaces the older one.
 List<MealLog> addMeal(List<MealLog> meals, MealLog m) => [
       for (final x in meals)
@@ -1789,9 +1800,11 @@ class MealNudge {
 /// other one (within 2 km of the place) that is open today and not tried in that time.
 MealNudge? mealNudge(List<MealLog> meals, List<Hawker> all, DateTime now, double lat, double lng) {
   final since = now.subtract(const Duration(days: 30));
+  final ids = {for (final h in all) h.id};
   final counts = <String, int>{};
+  // Hawker centres only: meals at other places (halal restaurants) do not count here.
   for (final m in meals) {
-    if (m.at.isAfter(since)) counts[m.hawkerId] = (counts[m.hawkerId] ?? 0) + 1;
+    if (m.at.isAfter(since) && ids.contains(m.hawkerId)) counts[m.hawkerId] = (counts[m.hawkerId] ?? 0) + 1;
   }
   if (counts.isEmpty) return null;
   final top = counts.entries.reduce((a, b) => b.value > a.value ? b : a);

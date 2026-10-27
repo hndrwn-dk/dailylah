@@ -66,7 +66,7 @@ class S {
   String get historyParking => 'Parking';
   String get historyMeals => 'Meals';
   String get historySpent => 'Spent';
-  String get historyCostNote => '≈ is an estimate (adult card fare, HDB parking rates). Tap a trip or parking to enter what you paid.';
+  String get historyCostNote => '≈ is an estimate (adult card fare, HDB parking rates). Tap a trip or parking to enter what you paid, or a meal to change its time.';
   String get historyAll => 'All';
   String historyRemoveShown(int n) => n == 1 ? 'Remove this entry' : 'Remove these $n entries';
   String historyRemoveAsk(int n) => n == 1 ? 'Remove this entry from History?' : 'Remove these $n entries from History?';
@@ -84,6 +84,8 @@ class S {
   String get today => 'Today';
   String get yesterday => 'Yesterday';
   String get historyDeleted => 'Removed from History';
+  String get mealTimeHelp => 'When did you eat?';
+  String get mealTimeFuture => 'That time has not come yet today.';
   String get undo => 'Undo';
   String money(int cents) => '\$${(cents / 100).toStringAsFixed(2)}';
 

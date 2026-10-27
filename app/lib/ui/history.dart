@@ -187,7 +187,7 @@ class _EntryTile extends ConsumerWidget {
           [s.durationShort(t.minutes), if (t.rainy) s.rainyTag].join(' · '),
         ),
       final ParkLog p => (Icons.local_parking, p.name.isEmpty ? s.historyParking : p.name, s.durationShort(p.minutes)),
-      final MealLog m => (Icons.ramen_dining_outlined, hawkers[m.hawkerId] ?? s.historyMeals, s.historyMeals),
+      final MealLog m => (Icons.ramen_dining_outlined, hawkers[m.hawkerId] ?? m.name ?? s.historyMeals, s.historyMeals),
       _ => (Icons.history, '', ''),
     };
     return Dismissible(
@@ -217,17 +217,36 @@ class _EntryTile extends ConsumerWidget {
           textAlign: TextAlign.end,
           style: Theme.of(context).textTheme.labelMedium,
         ),
-        // Trips and parkings: tap to set what it cost.
-        onTap: e.kind == HistoryKind.meal
-            ? null
-            : () => showModalBottomSheet<void>(
-                  context: context,
-                  isScrollControlled: true,
-                  showDragHandle: true,
-                  builder: (_) => _CostSheet(entry: e, title: title),
-                ),
+        // Trips and parkings: tap to set what it cost. Meals: tap to set when you ate
+        // (for a meal logged later than it was eaten).
+        onTap: switch (e.source) {
+          final MealLog m => () => _pickMealTime(context, ref, s, m),
+          _ => () => showModalBottomSheet<void>(
+                context: context,
+                isScrollControlled: true,
+                showDragHandle: true,
+                builder: (_) => _CostSheet(entry: e, title: title),
+              ),
+        },
       ),
     );
+  }
+
+  static Future<void> _pickMealTime(BuildContext context, WidgetRef ref, S s, MealLog m) async {
+    final notifier = ref.read(habitsProvider.notifier);
+    final messenger = ScaffoldMessenger.of(context);
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(m.at),
+      helpText: s.mealTimeHelp,
+    );
+    if (picked == null) return;
+    final at = mealTimeOn(m.at, picked.hour, picked.minute, DateTime.now());
+    if (at == null) {
+      showActionSnackBar(messenger, s.mealTimeFuture);
+      return;
+    }
+    await notifier.setMealTime(m, at);
   }
 
   static IconData _modeIcon(String? mode) => switch (mode) {

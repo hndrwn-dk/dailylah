@@ -593,14 +593,23 @@ class ParkLog {
 
 /// One "Ate here" tap at a hawker centre.
 class MealLog {
-  const MealLog({required this.hawkerId, required this.at});
+  const MealLog({required this.hawkerId, required this.at, this.name});
+
+  /// A hawker centre id, or `mealPlaceId` for other food places (e.g. halal restaurants).
   final String hawkerId;
   final DateTime at;
 
-  Map<String, dynamic> toJson() => {'h': hawkerId, 'at': at.toIso8601String()};
+  /// The place's name for places that are not hawker centres, so History can show it
+  /// without the bundle.
+  final String? name;
+
+  /// The same meal at another time (set from History when it was logged late).
+  MealLog withTime(DateTime t) => MealLog(hawkerId: hawkerId, at: t, name: name);
+
+  Map<String, dynamic> toJson() => {'h': hawkerId, 'at': at.toIso8601String(), if (name != null) 'n': name};
 
   factory MealLog.fromJson(Map<String, dynamic> j) =>
-      MealLog(hawkerId: '${j['h']}', at: DateTime.parse('${j['at']}'));
+      MealLog(hawkerId: '${j['h']}', at: DateTime.parse('${j['at']}'), name: j['n'] as String?);
 }
 
 /// What the user chose to log, kept on the phone for "know me" insights.
