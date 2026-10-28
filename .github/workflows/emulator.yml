@@ -31,8 +31,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # API 24 (Android 7, the APK's minSdk) was dropped: its emulator image kept hanging
-          # until the 90-minute timeout and blocked releases. Android 7 is not tested on device.
+          # Lowest supported Android (minSdk 31 = Android 12). The job warns if the APK's minSdk differs.
+          - api: 31
+            target: google_apis
+            arch: x86_64
+            min: true
           # Android 15, still the most common recent version.
           - api: 35
             target: google_apis
