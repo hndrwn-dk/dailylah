@@ -141,7 +141,7 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   the release notes in `docs/store/whatsnew/whatsnew-en-US` (max 500 characters, one file per store
   language, plain text) and bump `version:`, then merge to `main`. Every push to `main` that touches
   `app/` runs the `app` workflow: build (`analyze`), then the whole `emulator` workflow on that commit
-  (`e2e`, a reusable call; upgrade test against the previous `main`), and only if all of it passes the
+  (`e2e`, a reusable call: flows on API 35/36; upgrade test against the previous `main`), and only if all of it passes the
   `play` job uploads to `internal`. Check it on a phone, then use Promote release in Play Console for
   closed testing or production. A manual run of `app` on `main` can pick another `play_track`
   (alpha = closed testing, beta, production as draft); it runs the same tests first. A flaky emulator

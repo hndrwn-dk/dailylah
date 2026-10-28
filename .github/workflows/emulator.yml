@@ -31,11 +31,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Lowest supported Android. The job warns if the APK's minSdk differs.
-          - api: 24
-            target: google_apis
-            arch: x86_64 # Flutter builds no 32-bit x86 code
-            min: true
+          # API 24 (Android 7, the APK's minSdk) was dropped: its emulator image kept hanging
+          # until the 90-minute timeout and blocked releases. Android 7 is not tested on device.
           # Android 15, still the most common recent version.
           - api: 35
             target: google_apis

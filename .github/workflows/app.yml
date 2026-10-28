@@ -111,7 +111,7 @@ jobs:
             app/build/dailylah-mapping.txt
           retention-days: 30
 
-  # The same commit must pass the on-device tests (app flows on API 24/35/36, upgrade over
+  # The same commit must pass the on-device tests (app flows on API 35/36, upgrade over
   # the previous main, the R8 release build) before anything goes to Google Play.
   e2e:
     name: on-device tests
