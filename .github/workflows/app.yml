@@ -5,9 +5,19 @@ on:
   pull_request:
     paths: ["app/**"]
   workflow_dispatch:
+    inputs:
+      play_track:
+        description: "Upload the signed AAB to this Google Play track (none = build only)"
+        type: choice
+        default: alpha
+        options: [none, internal, alpha, beta, production]
 jobs:
   analyze:
     runs-on: ubuntu-latest
+    env:
+      # Every push to main goes to closed testing (alpha) automatically; a manual run can pick
+      # another track. Pull requests and other branches only build.
+      PLAY_TRACK: ${{ github.event_name == 'workflow_dispatch' && inputs.play_track || (github.event_name == 'push' && github.ref == 'refs/heads/main' && 'alpha') || 'none' }}
     defaults:
       run:
         working-directory: app
@@ -95,3 +105,38 @@ jobs:
             app/build/dailylah.aab
             app/build/dailylah-mapping.txt
           retention-days: 30
+      - name: Check before uploading to Google Play
+        # Fail loudly instead of skipping: a picked track must end in an upload.
+        if: env.PLAY_TRACK != 'none'
+        working-directory: .
+        env:
+          PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          [ "$GITHUB_REF" = "refs/heads/main" ] \
+            || { echo "::error::Upload to Google Play only from main (this run is on $GITHUB_REF)."; exit 1; }
+          [ -f app/build/dailylah.aab ] \
+            || { echo "::error::No signed AAB: the ANDROID_KEYSTORE_* secrets are missing."; exit 1; }
+          [ -n "$PLAY_JSON" ] \
+            || { echo "::error::Secret PLAY_SERVICE_ACCOUNT_JSON is not set."; exit 1; }
+          # Release notes: one whatsnew-<locale> file per store language, max 500 characters.
+          ls docs/store/whatsnew/whatsnew-* >/dev/null \
+            || { echo "::error::No release notes in docs/store/whatsnew/."; exit 1; }
+          for f in docs/store/whatsnew/whatsnew-*; do
+            n=$(python3 -c "import sys; print(len(open(sys.argv[1], encoding='utf-8').read().strip()))" "$f")
+            [ "$n" -le 500 ] || { echo "::error file=$f::Release notes are $n characters; Google Play allows 500."; exit 1; }
+            echo "::notice title=Release notes ($(basename "$f"))::$(tr '\n' ' ' < "$f")"
+          done
+      - name: Upload to Google Play
+        # Automatic on push to main (alpha = closed testing); manual runs can pick another track.
+        # Production goes up as a draft to review and roll out in Play Console.
+        if: env.PLAY_TRACK != 'none'
+        # Pinned to v1.1.5 by commit: this step holds the Play service account key.
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.tursinalabs.dailylah
+          releaseFiles: app/build/dailylah.aab
+          mappingFile: app/build/dailylah-mapping.txt
+          whatsNewDirectory: docs/store/whatsnew
+          tracks: ${{ env.PLAY_TRACK }}
+          status: ${{ env.PLAY_TRACK == 'production' && 'draft' || 'completed' }}
