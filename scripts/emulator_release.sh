@@ -22,17 +22,21 @@ RELEASE_APK=build/app/outputs/flutter-apk/app-release.apk
 test -f build/app/outputs/mapping/release/mapping.txt \
   || { echo "::error::No mapping.txt: R8 did not run on the release build."; exit 1; }
 # The App Bundle must carry native debug symbols for Play (ndk.debugSymbolLevel).
-flutter build appbundle --release -v > /tmp/aab.log 2>&1 || { tail -40 /tmp/aab.log; exit 1; }
+flutter build appbundle --release
 AAB=build/app/outputs/bundle/release/app-release.aab
-# Diagnostics (shown on the commit): NDKs on the runner, what Gradle said about stripping and
-# symbols, and the native files in the bundle.
-echo "::notice title=NDKs on runner::$(ls "$ANDROID_HOME/ndk" 2>/dev/null | tr '\n' ' ')"
-grep -iE "ndk|strip|debug ?symbol|debugsymbols" /tmp/aab.log | grep -viE "^\s*$" | sort -u | head -15 \
-  | while read -r line; do echo "::notice title=gradle::${line:0:250}"; done
-unzip -l "$AAB" | grep -E "\.so|BUNDLE-METADATA" | awk '{print $1, $4}' | head -20 \
-  | while read -r line; do echo "::notice title=aab::$line"; done
-unzip -l "$AAB" | grep -q "BUNDLE-METADATA/com.android.tools.build.debugsymbols/" \
-  || { echo "::error::The release App Bundle has no native debug symbols."; exit 1; }
+SYMS=$(python3 - "$AAB" <<'PY2'
+import sys, zipfile
+names = zipfile.ZipFile(sys.argv[1]).namelist()
+print(" ".join(sorted(n.split("/")[-1] for n in names
+                      if n.startswith("BUNDLE-METADATA/com.android.tools.build.debugsymbols/") and n.endswith(".dbg"))))
+PY2
+)
+if [[ " $SYMS " == *" libflutter.so.dbg "* && " $SYMS " == *" libapp.so.dbg "* ]]; then
+  echo "- Release App Bundle carries native debug symbols ✅" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+else
+  echo "::error::The release App Bundle has no native debug symbols for libflutter.so and libapp.so (found: ${SYMS:-none})."
+  exit 1
+fi
 
 "${ADB[@]}" uninstall "$PKG" >/dev/null 2>&1 || true
 "${ADB[@]}" install -t "$DEBUG_APK"
