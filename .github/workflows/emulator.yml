@@ -31,8 +31,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Lowest supported Android (minSdk 31 = Android 12). The job warns if the APK's minSdk differs.
-          - api: 31
+          # Lowest supported Android (minSdk 29 = Android 10). The job warns if the APK's minSdk differs.
+          - api: 29
             target: google_apis
             arch: x86_64
             min: true

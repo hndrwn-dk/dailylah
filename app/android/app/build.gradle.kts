@@ -21,9 +21,9 @@ android {
         applicationId = "com.tursinalabs.dailylah"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        // Android 12 and newer (about 94% of Android use in Singapore, StatCounter Sep 2026).
-        // The emulator workflow tests this version (job "flows (API 31)").
-        minSdk = 31
+        // Android 10 and newer (Android 12+ alone is about 94% of Android use in Singapore,
+        // StatCounter Sep 2026). The emulator workflow tests this version (job "flows (API 29)").
+        minSdk = 29
         targetSdk = flutter.targetSdkVersion
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
         // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)
