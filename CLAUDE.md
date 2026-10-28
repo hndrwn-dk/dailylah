@@ -140,10 +140,13 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   Analyze and test failures are emitted as annotations on the commit.
 - Release builds use R8 (minify + resource shrinking). Plugins reached by reflection/JNI are kept in
   `android/app/proguard-rules.pro`, resources used by name in `res/raw/keep.xml`. The AAB artifact
-  carries `dailylah-mapping.txt`, which the Play upload below sends with each release. To publish, update
-  the release notes in `docs/store/whatsnew/whatsnew-en-US` (max 500 characters, one file per store
-  language, plain text) and bump `version:`, then merge to `main`. Every push to `main` that touches
-  `app/` runs the `app` workflow: build (`analyze`), then the whole `emulator` workflow on that commit
+  carries `dailylah-mapping.txt`, which the Play upload below sends with each release. A release is a
+  PR with a new feature or bug fix: it bumps `version:` (patch for fixes, minor for features) and
+  replaces `docs/store/whatsnew/whatsnew-en-US` with what is new in that version only (never the
+  notes of earlier releases; max 500 characters, plain text, one file per store language). Other PRs
+  (docs, tests, CI, data) leave both alone. On a push to `main` the `app` workflow builds the AAB and
+  uploads only when `version:` changed (otherwise it builds and tests the APK only), and fails if it
+  changed without new release notes. A release runs: build (`analyze`), then the whole `emulator` workflow on that commit
   (`e2e`, a reusable call: flows on API 29/35/36; upgrade test against the previous `main`), and only if all of it passes the
   `play` job uploads to `alpha` (closed testing, the testers for the 14-day production requirement).
   Promote a tested release to production in Play Console. A manual run of `app` on `main` can pick
