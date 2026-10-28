@@ -9,7 +9,7 @@ on:
       play_track:
         description: "Upload the signed AAB to this Google Play track (none = build only)"
         type: choice
-        default: internal
+        default: alpha
         options: [none, internal, alpha, beta, production]
 jobs:
   analyze:
@@ -17,9 +17,9 @@ jobs:
     outputs:
       track: ${{ steps.track.outputs.track }}
     env:
-      # Every push to main goes to internal testing once the on-device tests pass (jobs e2e and
-      # play below); a manual run can pick another track. Pull requests and other branches only build.
-      PLAY_TRACK: ${{ github.event_name == 'workflow_dispatch' && inputs.play_track || (github.event_name == 'push' && github.ref == 'refs/heads/main' && 'internal') || 'none' }}
+      # Every push to main goes to closed testing (alpha, the paid testers) once the on-device
+      # tests pass (jobs e2e and play below); a manual run can pick another track. Pull requests and other branches only build.
+      PLAY_TRACK: ${{ github.event_name == 'workflow_dispatch' && inputs.play_track || (github.event_name == 'push' && github.ref == 'refs/heads/main' && 'alpha') || 'none' }}
     defaults:
       run:
         working-directory: app
@@ -157,7 +157,7 @@ jobs:
             echo "::notice title=Release notes ($(basename "$f"))::$(tr '\n' ' ' < "$f")"
           done
       - name: Upload to Google Play
-        # Internal on push to main; manual runs can pick another track (alpha = closed testing).
+        # Closed testing (alpha) on push to main; manual runs can pick another track.
         # Production goes up as a draft to review and roll out in Play Console.
         # Pinned to v1.1.5 by commit: this step holds the Play service account key.
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
