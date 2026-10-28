@@ -83,6 +83,9 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           TRACK: ${{ steps.track.outputs.track }}
         run: |
+          # On failure, put the end of the build output on the commit page (job logs are long).
+          exec > >(tee "$RUNNER_TEMP/build.log") 2>&1
+          trap 'sleep 2; echo "::error title=Build failed::$(grep -v "^\s*$" "$RUNNER_TEMP/build.log" | tail -25 | sed "s/%/%25/g" | sed ":a;N;\$!ba;s/\n/%0A/g")"' ERR
           # versionName from pubspec.yaml (one place to bump); versionCode is the run number.
           APP_VERSION=$(sed -n 's/^version:[[:space:]]*\([^+[:space:]]*\).*/\1/p' pubspec.yaml)
           # Same key every build, so a new APK installs over the old one.
