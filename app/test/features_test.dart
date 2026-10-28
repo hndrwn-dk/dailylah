@@ -6,6 +6,7 @@ import 'dart:io';
 
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
+import 'package:dailylah/ui/bus_sheet.dart';
 import 'package:dailylah/ui/history.dart';
 import 'package:dailylah/ui/theme.dart';
 import 'package:dailylah/ui/today.dart';
@@ -140,5 +141,47 @@ void main() {
     expect(find.textContaining('Now near ${stop['n']} · 3 stops away', findRichText: true), findsOneWidget);
     expect(find.textContaining('Timetable estimate, no live GPS', findRichText: true), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets("Tapping a bus opens Where's my bus with the bus on its route", (tester) async {
+    final route = ((_bundle('bus_routes') as Map)['10|2'] as List);
+    final i = route.indexWhere((r) => (r as List).first == tampinesInt.code);
+    final code = (route[i - 3] as List).first as String;
+    final stop = (_bundle('bus_stops') as List).cast<Map>().firstWhere((s) => s['c'] == code);
+
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        initialFavoritesProvider.overrideWithValue(householdFavorites),
+        apiProvider.overrideWithValue(GpsApi((stop['la'] as num).toDouble(), (stop['lo'] as num).toDouble())),
+        bundleRepoProvider.overrideWithValue(FileBundles()),
+        clockProvider.overrideWith((ref) => Stream.value(tuesdayMorning)),
+      ],
+      child: MaterialApp(theme: buildTheme(Brightness.light), home: const StopArrivalsPage(stop: tampinesInt)),
+    ));
+    await settle(tester);
+
+    Finder row(String service) => find.byWidgetPredicate((w) => w is BusRow && w.eta.service == service);
+    await tester.tap(row('10'));
+    await settle(tester);
+    final sheet = find.byType(WhereBusSheet);
+    expect(sheet, findsOneWidget);
+    expect(find.descendant(of: sheet, matching: find.text("Where's my bus?")), findsOneWidget);
+    // The bus is drawn at its stop, three stops before the rider's stop (Tampines Int).
+    expect(find.descendant(of: sheet, matching: find.text(stop['n'] as String)), findsOneWidget);
+    expect(find.descendant(of: sheet, matching: find.text('bus here')), findsOneWidget);
+    expect(find.descendant(of: sheet, matching: find.text(tampinesInt.name)), findsOneWidget);
+    expect(find.descendant(of: sheet, matching: find.textContaining('YOU ·')), findsOneWidget);
+    expect(find.descendant(of: sheet, matching: find.text('Open in Maps')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    // A bus without live GPS: no bus on the route and no map button.
+    Navigator.of(tester.element(sheet)).pop();
+    await settle(tester);
+    await tester.tap(row('858A'));
+    await settle(tester);
+    expect(find.textContaining('not shown on the route'), findsOneWidget);
+    expect(find.text('Open in Maps'), findsNothing);
+    expect(find.text('bus here'), findsNothing);
   });
 }

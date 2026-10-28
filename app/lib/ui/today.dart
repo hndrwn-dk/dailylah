@@ -9,6 +9,7 @@ import '../l10n.dart';
 import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
+import 'bus_sheet.dart';
 import 'place_sheet.dart';
 import 'stop_picker.dart';
 import 'theme.dart';
@@ -442,6 +443,7 @@ class BusStopCard extends ConsumerWidget {
                           next: next,
                           pulse: i == 0 && e.minutes == 0,
                           live: s.busLive(e, busWhere(e, stop.code, routes, byCode)),
+                          onTap: () => showWhereBus(context, stop: stop, service: e.service),
                         ),
                     ]),
             ),
@@ -453,8 +455,11 @@ class BusStopCard extends ConsumerWidget {
 }
 
 class BusRow extends ConsumerWidget {
-  const BusRow({super.key, required this.eta, this.pulse = true, this.note, this.next, this.live});
+  const BusRow({super.key, required this.eta, this.pulse = true, this.note, this.next, this.live, this.onTap});
   final BusEta eta;
+
+  /// Opens "Where's my bus?"; the row shows a chevron when set.
+  final VoidCallback? onTap;
 
   /// Where the bus is now, or that its time is only the timetable.
   final String? live;
@@ -492,7 +497,10 @@ class BusRow extends ConsumerWidget {
               TextSpan(text: ' ${s.min}', style: t.bodyMedium),
             ]),
           );
-    return Padding(
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -528,7 +536,9 @@ class BusRow extends ConsumerWidget {
               ],
             ),
           ),
+          if (onTap != null) const Icon(Icons.chevron_right),
         ],
+      ),
       ),
     );
   }
