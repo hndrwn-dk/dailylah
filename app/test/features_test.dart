@@ -95,7 +95,13 @@ void main() {
     box.read(shellTabProvider.notifier).state = _tabs['History']!;
     await settle(tester);
 
-    await tester.tap(find.text('Test Kitchen'));
+    // Bring the row above the floating tab bar, then tap it.
+    final row = find.text('Test Kitchen');
+    await tester.ensureVisible(row);
+    await tester.drag(find.descendant(of: find.byType(HistoryPage), matching: find.byType(Scrollable)).first,
+        const Offset(0, -300), warnIfMissed: false);
+    await tester.pump();
+    await tester.tap(row);
     await settle(tester);
     expect(find.byType(TimePickerDialog), findsOneWidget);
     // Type the time instead of using the dial.
