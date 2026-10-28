@@ -1115,6 +1115,59 @@ BusWhere? busWhere(BusEta e, String stopCode, BusRoutes routes, Map<String, BusS
   return BusWhere(near: bestStop, stopsAway: bestAway, metres: metres);
 }
 
+/// The stops a coming bus still has to pass to reach the rider's stop, for "Where's my bus?".
+/// [stops] ends with the rider's stop; [busAt] is the index of the stop the bus is at (found as in
+/// [busWhere], one stop already passed is kept above it), null when the position is unknown:
+/// then the last 5 stops before the rider's stop are shown without a bus.
+class BusStrip {
+  const BusStrip(this.stops, {this.busAt});
+  final List<BusStop> stops;
+  final int? busAt;
+}
+
+BusStrip? busStrip(BusEta e, String stopCode, BusRoutes routes, Map<String, BusStop> stops) {
+  final prefix = '${e.service}|';
+  final lat = e.lat, lng = e.lng;
+  List<(String, double)>? best, any;
+  var bestI = 0, bestJ = 0, anyI = 0;
+  var bestD = 400.0;
+  for (final entry in routes.routes.entries) {
+    if (!entry.key.startsWith(prefix)) continue;
+    final list = entry.value;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].$1 != stopCode) continue;
+      if (any == null) {
+        any = list;
+        anyI = i;
+      }
+      if (lat == null || lng == null) continue;
+      for (var j = math.max(0, i - 40); j <= i; j++) {
+        final st = stops[list[j].$1];
+        if (st == null) continue;
+        final d = distanceMeters(lat, lng, st.lat, st.lng);
+        if (d < bestD) {
+          bestD = d;
+          best = list;
+          bestI = i;
+          bestJ = j;
+        }
+      }
+    }
+  }
+  List<BusStop> take(List<(String, double)> list, int from, int to) => [
+        for (var k = from; k <= to; k++)
+          if (stops[list[k].$1] case final s?) s,
+      ];
+  if (best != null) {
+    final from = math.max(0, bestJ - 1);
+    final strip = take(best, from, bestI);
+    final at = strip.indexWhere((s) => s.code == best![bestJ].$1);
+    return BusStrip(strip, busAt: at < 0 ? null : at);
+  }
+  if (any != null) return BusStrip(take(any, math.max(0, anyI - 5), anyI));
+  return null;
+}
+
 /// Direct rides from [stop] to [to] without long detours: a loop service that goes the
 /// long way round (more than 3x the straight distance + 2 km) is left out.
 Map<String, DirectRide> tripRides(BusRoutes routes, BusStop stop, Place to, Set<String> destStops) {

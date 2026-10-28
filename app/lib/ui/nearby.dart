@@ -9,6 +9,7 @@ import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
 import 'address_picker.dart';
+import 'bus_sheet.dart';
 import 'home.dart' show NearGroup, NearItem;
 import 'place_sheet.dart';
 import 'today.dart' show TaxiSheet, foodApps, openApp;
@@ -278,6 +279,7 @@ class _StopBoardState extends ConsumerState<_StopBoard> {
     final fav = ref.watch(favoritesProvider);
     final routes = ref.watch(busRoutesProvider).valueOrNull ?? BusRoutes.empty;
     final stops = ref.watch(busStopsProvider).valueOrNull ?? const <BusStop>[];
+    final byCode = ref.watch(busStopsByCodeProvider);
     // Which services here go straight to Home, Work or School: "to Home" on the board.
     final goesTo = servicesToPlaces(routes, stop, {
       for (final k in const [PlaceKind.home, PlaceKind.work, PlaceKind.school])
@@ -309,16 +311,18 @@ class _StopBoardState extends ConsumerState<_StopBoard> {
                       arrLabel: s.minutesAway(0),
                       minLabel: s.min,
                       thenLabel: s.thenIn,
+                      hint: s.tapBusHint,
                       rows: [
                         for (final (e, next) in _all ? grouped : grouped.take(5))
                           BoardRow(
                             service: e.service,
                             minutes: e.minutes,
                             next: next,
-                            note: [
-                              if (goesTo[e.service] case final to?) s.toPlaces(to),
-                              s.busInfo(e),
-                            ].where((x) => x.isNotEmpty).join(' · '),
+                            live: s.busLive(e, busWhere(e, stop.code, routes, byCode)),
+                            load: e.load,
+                            info: [s.loadLabel(e.load), s.busExtras(e)].where((x) => x.isNotEmpty).join(' · '),
+                            note: [if (goesTo[e.service] case final to?) s.toPlaces(to)].join(),
+                            onTap: () => showWhereBus(context, stop: stop, service: e.service),
                           ),
                       ],
                     ),

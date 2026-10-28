@@ -142,9 +142,9 @@ class S {
   String get crowdMid => 'Busy';
   String get crowdHigh => 'Packed';
   String loadLabel(String code) => switch (code) {
-        'SEA' => 'Seats',
+        'SEA' => 'Seats free',
         'SDA' => 'Standing',
-        'LSD' => 'Full',
+        'LSD' => 'Packed',
         _ => '',
       };
   String get taxisNearby => 'Taxis nearby';
@@ -614,6 +614,19 @@ class S {
 
   /// The live line under a bus arrival: where it is, or that the time is only the timetable.
   String? busLive(BusEta e, BusWhere? w) => !e.monitored ? busScheduled : w == null ? null : busWhereLine(w);
+  /// Wheelchair access and bus type, e.g. "♿ Wheelchair · Double deck" (load is shown as a meter).
+  String busExtras(BusEta e) => [if (e.wheelchair) wheelchairBus, deckLabel(e.deck)].where((x) => x.isNotEmpty).join(' · ');
+  String get tapBusHint => 'Tap a bus to see where it is';
+  String get whereBusTitle => "Where's my bus?";
+  String whereBusTo(String place, String time) => place.isEmpty ? 'Updated $time' : 'To $place · updated $time';
+  String nextBusChip(int min) => min == 0 ? 'Next · Arr' : 'Next · $min min';
+  String thenBusChip(int min) => 'Then · $min min';
+  String get passedTag => 'passed';
+  String get busHereTag => 'bus here';
+  String stopsTag(int n) => n == 1 ? '1 stop' : '$n stops';
+  String youTag(int min) => min == 0 ? 'YOU · Arr' : 'YOU · $min min';
+  String get noBusPosition => 'Timetable estimate, no live GPS. The bus is not shown on the route.';
+  String get busGone => 'This bus is no longer listed at your stop.';
   String busInfo(BusEta e) =>
       [loadLabel(e.load), if (e.wheelchair) wheelchairBus, deckLabel(e.deck)].where((x) => x.isNotEmpty).join(' · ');
   String toPlaces(List<String> places) => 'to ${places.join(' and ')}';

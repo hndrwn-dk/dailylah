@@ -8,6 +8,7 @@ import 'package:dailylah/data.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/about.dart';
+import 'package:dailylah/ui/bus_sheet.dart';
 import 'package:dailylah/ui/history.dart';
 import 'package:dailylah/ui/home.dart';
 import 'package:dailylah/ui/homes.dart';
@@ -52,6 +53,7 @@ final Map<String, Widget Function()> _pages = {
   'Agent check': () => const AgentCheckPage(),
   'Family share': () => const FamilySharePage(),
   'About': () => const AboutDailyLahPage(),
+  "Where's my bus": () => const Scaffold(body: WhereBusSheet(stop: tampinesInt, service: '10')),
 };
 
 void main() {

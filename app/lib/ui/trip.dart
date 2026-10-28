@@ -13,6 +13,7 @@ import 'stop_picker.dart';
 import 'theme.dart';
 import 'today.dart';
 import 'wake.dart';
+import 'bus_sheet.dart';
 import 'widgets.dart';
 
 IconData modeIcon(TravelMode m) => switch (m) {
@@ -531,7 +532,13 @@ class TripBusCard extends ConsumerWidget {
                         ? EmptyNote(s.noBusesNow)
                         : Column(children: [
                             for (final (i, (e, next)) in groupEtas(list).take(8).indexed)
-                              BusRow(eta: e, next: next, pulse: i == 0 && e.minutes == 0, live: live(e)),
+                              BusRow(
+                                eta: e,
+                                next: next,
+                                pulse: i == 0 && e.minutes == 0,
+                                live: live(e),
+                                onTap: () => showWhereBus(context, stop: stop, service: e.service),
+                              ),
                           ]);
                   }
                   final grouped = groupEtas(list);
@@ -573,6 +580,7 @@ class TripBusCard extends ConsumerWidget {
                           arrLabel: s.minutesAway(0),
                           minLabel: s.min,
                           thenLabel: s.thenIn,
+                          hint: s.tapBusHint,
                           rows: [
                             for (final (e, next) in direct.take(6))
                               BoardRow(
@@ -580,14 +588,17 @@ class TripBusCard extends ConsumerWidget {
                                 minutes: e.minutes,
                                 next: next,
                                 live: live(e),
-                                note: [
-                                  s.rideInfo(
-                                    rides[e.service]!.stops,
-                                    rides[e.service]!.km,
-                                    names[rides[e.service]!.alightAt] ?? rides[e.service]!.alightAt,
-                                  ),
-                                  s.busInfo(e),
-                                ].join(' · '),
+                                load: e.load,
+                                info: [s.loadLabel(e.load), s.busExtras(e)].where((x) => x.isNotEmpty).join(' · '),
+                                note: s.rideInfo(
+                                  rides[e.service]!.stops,
+                                  rides[e.service]!.km,
+                                  names[rides[e.service]!.alightAt] ?? rides[e.service]!.alightAt,
+                                ),
+                                onTap: () => showWhereBus(context,
+                                    stop: stop,
+                                    service: e.service,
+                                    toName: names[rides[e.service]!.alightAt] ?? ''),
                               ),
                           ],
                         ),
@@ -649,7 +660,15 @@ class TripBusCard extends ConsumerWidget {
                           child: ExpansionTile(
                             tilePadding: EdgeInsets.zero,
                             title: Text('${s.otherBuses} (${others.length})', style: t.labelLarge),
-                            children: [for (final (e, next) in others.take(10)) BusRow(eta: e, next: next, pulse: false, live: live(e))],
+                            children: [for (final (e, next) in others.take(10))
+                                BusRow(
+                                  eta: e,
+                                  next: next,
+                                  pulse: false,
+                                  live: live(e),
+                                  onTap: () => showWhereBus(context, stop: stop, service: e.service),
+                                ),
+                            ],
                           ),
                         ),
                     ],

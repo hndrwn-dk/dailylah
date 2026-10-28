@@ -763,7 +763,16 @@ class PaintedBlockNumber extends StatelessWidget {
 
 /// One arrival on the bus stop board.
 class BoardRow {
-  const BoardRow({required this.service, required this.minutes, this.next, this.note = '', this.live});
+  const BoardRow({
+    required this.service,
+    required this.minutes,
+    this.next,
+    this.note = '',
+    this.live,
+    this.load = '',
+    this.info = '',
+    this.onTap,
+  });
   final String service;
   final int minutes;
   final int? next;
@@ -771,79 +780,171 @@ class BoardRow {
 
   /// Where the bus is now ("Now near Blk 201 · 3 stops away"), shown in LED colour.
   final String? live;
+
+  /// LTA load code (SEA/SDA/LSD), drawn as a meter before [info] ("Seats free · ♿ Wheelchair").
+  final String load;
+  final String info;
+
+  /// Opens "Where's my bus?"; the row shows a chevron when set.
+  final VoidCallback? onTap;
 }
 
-/// Live arrivals on a dark LED board, like the panels at bus stops.
+/// Bus load as 1–3 bars: teal for seats or standing, amber when packed. [onDark] for the LED board.
+class LoadBars extends StatelessWidget {
+  const LoadBars(this.load, {super.key, this.onDark = false});
+  final String load;
+  final bool onDark;
+
+  static int level(String load) => switch (load) {
+        'SEA' => 1,
+        'SDA' => 2,
+        'LSD' => 3,
+        _ => 0,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final lv = level(load);
+    final on = lv == 3 ? DL.amber : (onDark ? DL.tealLight : Theme.of(context).colorScheme.primary);
+    final off = onDark ? const Color(0xFF3A4A4E) : Theme.of(context).colorScheme.outlineVariant;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (var i = 1; i <= 3; i++)
+          Container(
+            width: 6,
+            height: 5 + i * 3.0,
+            margin: const EdgeInsets.only(right: 3),
+            decoration: BoxDecoration(color: i <= lv ? on : off, borderRadius: BorderRadius.circular(2)),
+          ),
+      ],
+    );
+  }
+}
+
+/// Live arrivals on a dark LED board, like the panels at bus stops. Rows with [BoardRow.onTap]
+/// can be tapped; [hint] then explains it under the rows.
 class BusBoard extends StatelessWidget {
-  const BusBoard({super.key, required this.rows, required this.arrLabel, required this.minLabel, required this.thenLabel});
+  const BusBoard({
+    super.key,
+    required this.rows,
+    required this.arrLabel,
+    required this.minLabel,
+    required this.thenLabel,
+    this.hint,
+  });
   final List<BoardRow> rows;
   final String arrLabel;
   final String minLabel;
   final String Function(int) thenLabel;
+  final String? hint;
 
   @override
   Widget build(BuildContext context) {
     const led = TextStyle(fontFamily: DL.display, fontWeight: FontWeight.w700, color: DL.led, height: 1.05);
+    final small = Theme.of(context).textTheme.bodySmall?.copyWith(color: DL.ledDim);
+    final tappable = rows.any((r) => r.onTap != null);
     return Container(
       margin: const EdgeInsets.only(top: 4, bottom: 8),
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+      padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
       decoration: BoxDecoration(
         color: DL.board,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: DL.edge(context), width: DL.stroke),
         boxShadow: DL.hard(context, d: 3),
       ),
-      child: Column(
-        children: [
-          for (final (i, r) in rows.indexed) ...[
-            if (i > 0) Container(height: 1, margin: const EdgeInsets.symmetric(vertical: 8), color: const Color(0x33FFB627)),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 62),
-                  child: Text(r.service, style: led.copyWith(fontSize: 30)),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final (i, r) in rows.indexed) ...[
+              if (i > 0) Container(height: 1, margin: const EdgeInsets.symmetric(horizontal: 8), color: const Color(0x33FFB627)),
+              InkWell(
+                onTap: r.onTap,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Wrap(
-                        spacing: 10,
-                        crossAxisAlignment: WrapCrossAlignment.end,
-                        children: [
-                          Text(r.minutes == 0 ? arrLabel : '${r.minutes} $minLabel', style: led.copyWith(fontSize: 30)),
-                          if (r.next != null)
-                            Text(thenLabel(r.next!), style: led.copyWith(fontSize: 18, color: DL.ledDim)),
-                        ],
+                      // Bounded so large system text cannot push the row past the edge.
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(minWidth: 62, maxWidth: 96),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.topLeft,
+                          child: Text(r.service, style: led.copyWith(fontSize: 30)),
+                        ),
                       ),
-                      if (r.live != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2, bottom: 2),
-                          child: Text.rich(
-                            TextSpan(children: [
-                              const WidgetSpan(
-                                alignment: PlaceholderAlignment.middle,
-                                child: Padding(
-                                  padding: EdgeInsets.only(right: 4),
-                                  child: Icon(Icons.my_location, size: 14, color: DL.led),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Wrap(
+                              spacing: 10,
+                              crossAxisAlignment: WrapCrossAlignment.end,
+                              children: [
+                                Text(r.minutes == 0 ? arrLabel : '${r.minutes} $minLabel', style: led.copyWith(fontSize: 30)),
+                                if (r.next != null)
+                                  Text(thenLabel(r.next!), style: led.copyWith(fontSize: 18, color: DL.ledDim)),
+                              ],
+                            ),
+                            if (r.live != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2, bottom: 2),
+                                child: Text.rich(
+                                  TextSpan(children: [
+                                    const WidgetSpan(
+                                      alignment: PlaceholderAlignment.middle,
+                                      child: Padding(
+                                        padding: EdgeInsets.only(right: 4),
+                                        child: Icon(Icons.my_location, size: 14, color: DL.led),
+                                      ),
+                                    ),
+                                    TextSpan(text: r.live),
+                                  ]),
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: DL.led),
                                 ),
                               ),
-                              TextSpan(text: r.live),
-                            ]),
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: DL.led),
-                          ),
+                            if (r.info.isNotEmpty)
+                              Text.rich(
+                                TextSpan(children: [
+                                  if (LoadBars.level(r.load) > 0)
+                                    WidgetSpan(
+                                      alignment: PlaceholderAlignment.middle,
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(right: 5),
+                                        child: LoadBars(r.load, onDark: true),
+                                      ),
+                                    ),
+                                  TextSpan(text: r.info),
+                                ]),
+                                style: small,
+                              ),
+                            if (r.note.isNotEmpty) Text(r.note, style: small),
+                          ],
                         ),
-                      if (r.note.isNotEmpty)
-                        Text(r.note, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: DL.ledDim)),
+                      ),
+                      if (r.onTap != null)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 4),
+                          child: Icon(Icons.chevron_right, size: 20, color: DL.ledDim),
+                        ),
                     ],
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
+            if (tappable && hint != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 2, 8, 4),
+                child: Text(hint!, textAlign: TextAlign.end, style: small),
+              ),
           ],
-        ],
+        ),
       ),
     );
   }

@@ -66,7 +66,7 @@ void main() {
     };
     final etas = parseBusArrival(body, now);
     expect(etas.map((e) => '${e.service}:${e.minutes}'), ['39:0', '15:7', '15:15']);
-    expect(const S().loadLabel(etas.first.load), 'Full');
+    expect(const S().loadLabel(etas.first.load), 'Packed');
   });
 
   test('lineStatuses flags only affected chosen lines', () {
@@ -845,7 +845,7 @@ void main() {
     final e = parseBusArrival(body, now).single;
     expect(e.wheelchair, isTrue);
     expect(e.deck, 'SD');
-    expect(const S().busInfo(e), 'Seats · ♿ Wheelchair · Single deck');
+    expect(const S().busInfo(e), 'Seats free · ♿ Wheelchair · Single deck');
   });
 
   test('MOE school holidays', () {
@@ -1256,5 +1256,34 @@ void main() {
     // At the rider's stop.
     const atStop = BusEta(service: '47', minutes: 0, load: 'SEA', lat: 1.3400, lng: 103.9601);
     expect(s.busWhereLine(busWhere(atStop, 'M', routes, stops)!), 'At your stop now');
+  });
+
+  test("Where's my bus: the stops left to the rider's stop, with the bus on them", () {
+    const a = BusStop(code: 'A', name: 'Stop A', road: '', lat: 1.3200, lng: 103.9600);
+    const b = BusStop(code: 'B', name: 'Blk 201', road: '', lat: 1.3300, lng: 103.9600);
+    const c = BusStop(code: 'C', name: 'Stop C', road: '', lat: 1.3350, lng: 103.9600);
+    const mine = BusStop(code: 'M', name: 'Mine', road: '', lat: 1.3400, lng: 103.9600);
+    const z = BusStop(code: 'Z', name: 'Before A', road: '', lat: 1.3100, lng: 103.9600);
+    final stops = {for (final x in [z, a, b, c, mine]) x.code: x};
+    const routes = BusRoutes({
+      '47|1': [('Z', 0.0), ('A', 0.5), ('B', 1.1), ('C', 1.7), ('M', 2.2)],
+    });
+    // Bus next to B: one passed stop (A) above it, then B (bus), C, Mine.
+    const gps = BusEta(service: '47', minutes: 4, load: 'SEA', lat: 1.3301, lng: 103.9600);
+    final st = busStrip(gps, 'M', routes, stops)!;
+    expect(st.stops.map((x) => x.code), ['A', 'B', 'C', 'M']);
+    expect(st.busAt, 1);
+    // No position: the last stops before the rider's stop, no bus.
+    const blind = BusEta(service: '47', minutes: 4, load: 'SEA', monitored: false);
+    final st2 = busStrip(blind, 'M', routes, stops)!;
+    expect(st2.stops.map((x) => x.code), ['Z', 'A', 'B', 'C', 'M']);
+    expect(st2.busAt, isNull);
+    // Other services and unknown stops give nothing.
+    expect(busStrip(const BusEta(service: '470', minutes: 1, load: ''), 'M', routes, stops), isNull);
+    const s = S();
+    expect(s.loadLabel('SEA'), 'Seats free');
+    expect(s.loadLabel('LSD'), 'Packed');
+    expect(s.youTag(0), 'YOU · Arr');
+    expect(s.stopsTag(1), '1 stop');
   });
 }
