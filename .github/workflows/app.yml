@@ -5,6 +5,12 @@ on:
   pull_request:
     paths: ["app/**"]
   workflow_dispatch:
+    inputs:
+      play_track:
+        description: "Upload the signed AAB to this Google Play track (none = build only)"
+        type: choice
+        default: none
+        options: [none, internal, alpha, beta, production]
 jobs:
   analyze:
     runs-on: ubuntu-latest
@@ -95,3 +101,15 @@ jobs:
             app/build/dailylah.aab
             app/build/dailylah-mapping.txt
           retention-days: 30
+      - name: Upload to Google Play
+        # Manual runs only (Actions > app > Run workflow > pick a track), never on push or PR.
+        # alpha = closed testing. Production goes up as a draft to review and roll out in Play Console.
+        if: github.event_name == 'workflow_dispatch' && inputs.play_track != 'none' && hashFiles('app/build/dailylah.aab') != ''
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.tursinalabs.dailylah
+          releaseFiles: app/build/dailylah.aab
+          mappingFile: app/build/dailylah-mapping.txt
+          track: ${{ inputs.play_track }}
+          status: ${{ inputs.play_track == 'production' && 'draft' || 'completed' }}
