@@ -137,12 +137,17 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   Analyze and test failures are emitted as annotations on the commit.
 - Release builds use R8 (minify + resource shrinking). Plugins reached by reflection/JNI are kept in
   `android/app/proguard-rules.pro`, resources used by name in `res/raw/keep.xml`. The AAB artifact
-  carries `dailylah-mapping.txt`, which the Play upload below sends with each release. To publish, update the release notes in
-  `docs/store/whatsnew/whatsnew-en-US` (max 500 characters, one file per store language), then merge to
-  `main`: every push to `main` that touches `app/` uploads to `alpha` (closed testing). For another track,
-  run the `app` workflow manually on `main` and pick a `play_track` (internal, beta, production as
-  draft). The upload sends the AAB, mapping file and release notes with the service account in
-  secret `PLAY_SERVICE_ACCOUNT_JSON` (upload action pinned by commit). The emulator `release` job (`scripts/emulator_release.sh`)
+  carries `dailylah-mapping.txt`, which the Play upload below sends with each release. To publish, update
+  the release notes in `docs/store/whatsnew/whatsnew-en-US` (max 500 characters, one file per store
+  language, plain text) and bump `version:`, then merge to `main`. Every push to `main` that touches
+  `app/` runs the `app` workflow: build (`analyze`), then the whole `emulator` workflow on that commit
+  (`e2e`, a reusable call; upgrade test against the previous `main`), and only if all of it passes the
+  `play` job uploads to `internal`. Check it on a phone, then use Promote release in Play Console for
+  closed testing or production. A manual run of `app` on `main` can pick another `play_track`
+  (alpha = closed testing, beta, production as draft); it runs the same tests first. A flaky emulator
+  job blocks the upload: re-run failed jobs and `play` follows. The upload sends the AAB, mapping file
+  and release notes with the service account in secret `PLAY_SERVICE_ACCOUNT_JSON` (upload action pinned
+  by commit). The emulator `release` job (`scripts/emulator_release.sh`)
   starts the release build with saved data, runs the WorkManager job and widget, and fails on
   missing classes or plugins. A new plugin with native code may need a keep rule.
 
@@ -154,6 +159,15 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - Phone screenshots (8, 1080x1920) in `docs/store/screenshots`: real screens rendered by `app/test_store`
   (demo data, app fonts) and captioned by `scripts/frame_screenshots.py`. The `screenshots` workflow
   runs both on a branch and commits the result; change scenes or captions there, not by hand.
+
+## Testing a feature
+- Every feature or bug fix PR adds tests for what it changes: the rules in `test/logic_test.dart`, and
+  the user's path through the real widgets in `test/features_test.dart` (tap, sheet, button, what ends up
+  stored or shown), with the fakes in `test/support/harness.dart` (`FakeApi`, `FileBundles` reading
+  `web/data`, `FakeGeolocator`). Anything that needs a real plugin (notifications, widget, location,
+  storage across restarts) goes in `integration_test/app_test.dart`, run on emulators.
+- `test/screens_matrix_test.dart` renders every screen under every condition in docs/QA.md (offline,
+  denied location, 200% text, dark, small screen); a new screen or tab section is added there.
 
 ## Commands
 - Backend: `cd backend && pip install -r requirements-dev.txt && pytest && ruff check . && ruff format --check .`

@@ -10,8 +10,17 @@ on:
       base_ref:
         description: "Previous version for the upgrade test (branch, tag or SHA)"
         default: "origin/main"
+  # Called by the app workflow before uploading to Google Play.
+  workflow_call:
+    inputs:
+      base_ref:
+        description: "Previous version for the upgrade test (branch, tag or SHA)"
+        type: string
+        default: "origin/main"
 concurrency:
-  group: emulator-${{ github.ref }}
+  # github.workflow is "app" when called from the app workflow, so a release check on main
+  # never cancels (or is cancelled by) a pull request run.
+  group: emulator-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   flows:
