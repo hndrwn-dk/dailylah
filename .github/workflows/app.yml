@@ -9,7 +9,7 @@ on:
       play_track:
         description: "Upload the signed AAB to this Google Play track (none = build only)"
         type: choice
-        default: internal
+        default: alpha
         options: [none, internal, alpha, beta, production]
 jobs:
   analyze:
@@ -17,17 +17,39 @@ jobs:
     outputs:
       track: ${{ steps.track.outputs.track }}
     env:
-      # Every push to main goes to internal testing once the on-device tests pass (jobs e2e and
-      # play below); a manual run can pick another track. Pull requests and other branches only build.
-      PLAY_TRACK: ${{ github.event_name == 'workflow_dispatch' && inputs.play_track || (github.event_name == 'push' && github.ref == 'refs/heads/main' && 'internal') || 'none' }}
+      # A push to main is a release only when it bumps `version:` in pubspec.yaml (new feature or
+      # bug fix); it then goes to closed testing (alpha) once the on-device tests pass (jobs e2e
+      # and play). A manual run picks its track. Pull requests and other branches only build.
+      PLAY_TRACK: ${{ github.event_name == 'workflow_dispatch' && inputs.play_track || (github.event_name == 'push' && github.ref == 'refs/heads/main' && 'alpha') || 'none' }}
     defaults:
       run:
         working-directory: app
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - id: track
+        name: Release or build only?
         working-directory: .
-        run: echo "track=$PLAY_TRACK" >> "$GITHUB_OUTPUT"
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          track="$PLAY_TRACK"
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$track" != none ]; then
+            ver() { sed -n 's/^version:[[:space:]]*\([^[:space:]]*\).*/\1/p'; }
+            new=$(ver < app/pubspec.yaml)
+            old=$(git show "$BEFORE:app/pubspec.yaml" 2>/dev/null | ver || true)
+            if [ "$new" = "$old" ]; then
+              echo "::notice title=No release::version $new unchanged; built and tested only, nothing sent to Google Play."
+              track=none
+            elif [ -z "$(git diff --name-only "$BEFORE" HEAD -- docs/store/whatsnew)" ]; then
+              echo "::error file=docs/store/whatsnew/whatsnew-en-US::version $old -> $new but the release notes were not changed. Write what is new in $new only."
+              exit 1
+            else
+              echo "::notice title=Release::$old -> $new goes to $track after the on-device tests."
+            fi
+          fi
+          echo "track=$track" >> "$GITHUB_OUTPUT"
       - name: Check app id is com.tursinalabs.dailylah
         working-directory: .
         run: ./scripts/check-app-id.sh
@@ -59,6 +81,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          TRACK: ${{ steps.track.outputs.track }}
         run: |
           # versionName from pubspec.yaml (one place to bump); versionCode is the run number.
           APP_VERSION=$(sed -n 's/^version:[[:space:]]*\([^+[:space:]]*\).*/\1/p' pubspec.yaml)
@@ -69,13 +92,14 @@ jobs:
             flutter build apk --release --build-number=${GITHUB_RUN_NUMBER} \
               --dart-define=APP_VERSION=$APP_VERSION --dart-define=GIT_SHA=${GITHUB_SHA::7} --dart-define=BUILD_NUMBER=${GITHUB_RUN_NUMBER}
             cp build/app/outputs/flutter-apk/app-release.apk build/dailylah.apk
-            # App Bundle for Google Play, same version code and upload key.
-            flutter build appbundle --release --build-number=${GITHUB_RUN_NUMBER} \
-              --dart-define=APP_VERSION=$APP_VERSION --dart-define=GIT_SHA=${GITHUB_SHA::7} --dart-define=BUILD_NUMBER=${GITHUB_RUN_NUMBER}
-            cp build/app/outputs/bundle/release/app-release.aab build/dailylah.aab
-            # R8 map for this AAB: upload it in Play Console (App bundle explorer > Downloads >
-            # ReTrace mapping file) so crash reports show real class names.
-            cp build/app/outputs/mapping/release/mapping.txt build/dailylah-mapping.txt
+            # App Bundle for Google Play (same version code and upload key), only for a release.
+            if [ "$TRACK" != none ]; then
+              flutter build appbundle --release --build-number=${GITHUB_RUN_NUMBER} \
+                --dart-define=APP_VERSION=$APP_VERSION --dart-define=GIT_SHA=${GITHUB_SHA::7} --dart-define=BUILD_NUMBER=${GITHUB_RUN_NUMBER}
+              cp build/app/outputs/bundle/release/app-release.aab build/dailylah.aab
+              # R8 map for this AAB, sent to Play with it so crash reports show real class names.
+              cp build/app/outputs/mapping/release/mapping.txt build/dailylah-mapping.txt
+            fi
             rm -f "$RUNNER_TEMP/upload.jks"
           else
             flutter build apk --debug --build-number=${GITHUB_RUN_NUMBER} \
@@ -157,7 +181,7 @@ jobs:
             echo "::notice title=Release notes ($(basename "$f"))::$(tr '\n' ' ' < "$f")"
           done
       - name: Upload to Google Play
-        # Internal on push to main; manual runs can pick another track (alpha = closed testing).
+        # Closed testing (alpha) on push to main; manual runs can pick another track.
         # Production goes up as a draft to review and roll out in Play Console.
         # Pinned to v1.1.5 by commit: this step holds the Play service account key.
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
