@@ -869,9 +869,14 @@ class BusBoard extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Bounded so large system text cannot push the row past the edge.
                       ConstrainedBox(
-                        constraints: const BoxConstraints(minWidth: 62),
-                        child: Text(r.service, style: led.copyWith(fontSize: 30)),
+                        constraints: const BoxConstraints(minWidth: 62, maxWidth: 96),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.topLeft,
+                          child: Text(r.service, style: led.copyWith(fontSize: 30)),
+                        ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -926,7 +931,7 @@ class BusBoard extends StatelessWidget {
                       if (r.onTap != null)
                         const Padding(
                           padding: EdgeInsets.only(top: 4),
-                          child: Icon(Icons.chevron_right, color: DL.ledDim),
+                          child: Icon(Icons.chevron_right, size: 20, color: DL.ledDim),
                         ),
                     ],
                   ),
