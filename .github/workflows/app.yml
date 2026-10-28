@@ -9,11 +9,15 @@ on:
       play_track:
         description: "Upload the signed AAB to this Google Play track (none = build only)"
         type: choice
-        default: none
+        default: alpha
         options: [none, internal, alpha, beta, production]
 jobs:
   analyze:
     runs-on: ubuntu-latest
+    env:
+      # Every push to main goes to closed testing (alpha) automatically; a manual run can pick
+      # another track. Pull requests and other branches only build.
+      PLAY_TRACK: ${{ github.event_name == 'workflow_dispatch' && inputs.play_track || (github.event_name == 'push' && github.ref == 'refs/heads/main' && 'alpha') || 'none' }}
     defaults:
       run:
         working-directory: app
@@ -103,7 +107,7 @@ jobs:
           retention-days: 30
       - name: Check before uploading to Google Play
         # Fail loudly instead of skipping: a picked track must end in an upload.
-        if: github.event_name == 'workflow_dispatch' && inputs.play_track != 'none'
+        if: env.PLAY_TRACK != 'none'
         working-directory: .
         env:
           PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
@@ -123,9 +127,9 @@ jobs:
             echo "::notice title=Release notes ($(basename "$f"))::$(tr '\n' ' ' < "$f")"
           done
       - name: Upload to Google Play
-        # Manual runs only (Actions > app > Run workflow on main > pick a track), never on push or PR.
-        # alpha = closed testing. Production goes up as a draft to review and roll out in Play Console.
-        if: github.event_name == 'workflow_dispatch' && inputs.play_track != 'none'
+        # Automatic on push to main (alpha = closed testing); manual runs can pick another track.
+        # Production goes up as a draft to review and roll out in Play Console.
+        if: env.PLAY_TRACK != 'none'
         # Pinned to v1.1.5 by commit: this step holds the Play service account key.
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
@@ -134,5 +138,5 @@ jobs:
           releaseFiles: app/build/dailylah.aab
           mappingFile: app/build/dailylah-mapping.txt
           whatsNewDirectory: docs/store/whatsnew
-          tracks: ${{ inputs.play_track }}
-          status: ${{ inputs.play_track == 'production' && 'draft' || 'completed' }}
+          tracks: ${{ env.PLAY_TRACK }}
+          status: ${{ env.PLAY_TRACK == 'production' && 'draft' || 'completed' }}
