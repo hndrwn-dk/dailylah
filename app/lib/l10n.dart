@@ -625,7 +625,6 @@ class S {
   String get busHereTag => 'bus here';
   String stopsTag(int n) => n == 1 ? '1 stop' : '$n stops';
   String youTag(int min) => min == 0 ? 'YOU · Arr' : 'YOU · $min min';
-  String get openInMaps => 'Open in Maps';
   String get noBusPosition => 'Timetable estimate, no live GPS. The bus is not shown on the route.';
   String get busGone => 'This bus is no longer listed at your stop.';
   String busInfo(BusEta e) =>

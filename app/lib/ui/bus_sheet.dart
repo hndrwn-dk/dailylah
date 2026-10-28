@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../l10n.dart';
 import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
