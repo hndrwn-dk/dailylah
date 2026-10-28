@@ -49,6 +49,11 @@ android {
 
     buildTypes {
         release {
+            // Native debug symbols (libflutter.so, libapp.so) go inside the AAB, so Play can
+            // read native crashes and ANRs. They are not part of what users download.
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
             // R8 shrinking: smaller download. Plugins that reach classes by reflection or from
             // native code (shared_preferences via JNI, DataStore, notifications via Gson) are
             // kept by proguard-rules.pro; resources used by name are kept by res/raw/keep.xml.

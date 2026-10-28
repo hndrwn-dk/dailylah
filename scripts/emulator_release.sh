@@ -21,6 +21,22 @@ DEBUG_APK=build/app/outputs/flutter-apk/app-debug.apk
 RELEASE_APK=build/app/outputs/flutter-apk/app-release.apk
 test -f build/app/outputs/mapping/release/mapping.txt \
   || { echo "::error::No mapping.txt: R8 did not run on the release build."; exit 1; }
+# The App Bundle must carry native debug symbols for Play (ndk.debugSymbolLevel).
+flutter build appbundle --release
+AAB=build/app/outputs/bundle/release/app-release.aab
+SYMS=$(python3 - "$AAB" <<'PY2'
+import sys, zipfile
+names = zipfile.ZipFile(sys.argv[1]).namelist()
+print(" ".join(sorted(n.split("/")[-1] for n in names
+                      if n.startswith("BUNDLE-METADATA/com.android.tools.build.debugsymbols/") and n.endswith(".dbg"))))
+PY2
+)
+if [[ " $SYMS " == *" libflutter.so.dbg "* && " $SYMS " == *" libapp.so.dbg "* ]]; then
+  echo "- Release App Bundle carries native debug symbols ✅" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+else
+  echo "::error::The release App Bundle has no native debug symbols for libflutter.so and libapp.so (found: ${SYMS:-none})."
+  exit 1
+fi
 
 "${ADB[@]}" uninstall "$PKG" >/dev/null 2>&1 || true
 "${ADB[@]}" install -t "$DEBUG_APK"
