@@ -138,9 +138,11 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - Release builds use R8 (minify + resource shrinking). Plugins reached by reflection/JNI are kept in
   `android/app/proguard-rules.pro`, resources used by name in `res/raw/keep.xml`. The AAB artifact
   carries `dailylah-mapping.txt`: upload it with each release in Play Console (App bundle explorer >
-  Downloads > ReTrace mapping file). To publish, run the `app` workflow manually and pick a
-  `play_track` (internal, alpha = closed testing, beta, production as draft): it uploads the AAB and
-  mapping file with the service account in secret `PLAY_SERVICE_ACCOUNT_JSON`. The emulator `release` job (`scripts/emulator_release.sh`)
+  Downloads > ReTrace mapping file). To publish, update the release notes in
+  `docs/store/whatsnew/whatsnew-en-US` (max 500 characters, one file per store language), then run the
+  `app` workflow manually on `main` and pick a `play_track` (internal, alpha = closed testing, beta,
+  production as draft): it uploads the AAB, mapping file and release notes with the service account in
+  secret `PLAY_SERVICE_ACCOUNT_JSON` (upload action pinned by commit). The emulator `release` job (`scripts/emulator_release.sh`)
   starts the release build with saved data, runs the WorkManager job and widget, and fails on
   missing classes or plugins. A new plugin with native code may need a keep rule.
 
