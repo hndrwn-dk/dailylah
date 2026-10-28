@@ -9,20 +9,25 @@ on:
       play_track:
         description: "Upload the signed AAB to this Google Play track (none = build only)"
         type: choice
-        default: alpha
+        default: internal
         options: [none, internal, alpha, beta, production]
 jobs:
   analyze:
     runs-on: ubuntu-latest
+    outputs:
+      track: ${{ steps.track.outputs.track }}
     env:
-      # Every push to main goes to closed testing (alpha) automatically; a manual run can pick
-      # another track. Pull requests and other branches only build.
-      PLAY_TRACK: ${{ github.event_name == 'workflow_dispatch' && inputs.play_track || (github.event_name == 'push' && github.ref == 'refs/heads/main' && 'alpha') || 'none' }}
+      # Every push to main goes to internal testing once the on-device tests pass (jobs e2e and
+      # play below); a manual run can pick another track. Pull requests and other branches only build.
+      PLAY_TRACK: ${{ github.event_name == 'workflow_dispatch' && inputs.play_track || (github.event_name == 'push' && github.ref == 'refs/heads/main' && 'internal') || 'none' }}
     defaults:
       run:
         working-directory: app
     steps:
       - uses: actions/checkout@v7
+      - id: track
+        working-directory: .
+        run: echo "track=$PLAY_TRACK" >> "$GITHUB_OUTPUT"
       - name: Check app id is com.tursinalabs.dailylah
         working-directory: .
         run: ./scripts/check-app-id.sh
@@ -105,9 +110,34 @@ jobs:
             app/build/dailylah.aab
             app/build/dailylah-mapping.txt
           retention-days: 30
+
+  # The same commit must pass the on-device tests (app flows on API 29/35/36, upgrade over
+  # the previous main, the R8 release build) before anything goes to Google Play.
+  e2e:
+    name: on-device tests
+    needs: analyze
+    if: needs.analyze.outputs.track != 'none'
+    uses: ./.github/workflows/emulator.yml
+    with:
+      base_ref: ${{ github.event_name == 'push' && github.event.before || 'HEAD~1' }}
+
+  play:
+    name: upload to Google Play (${{ needs.analyze.outputs.track }})
+    needs: [analyze, e2e]
+    if: needs.analyze.outputs.track != 'none'
+    runs-on: ubuntu-latest
+    env:
+      PLAY_TRACK: ${{ needs.analyze.outputs.track }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        # Missing when the keystore secrets are not set; the next step then says so.
+        continue-on-error: true
+        with:
+          name: dailylah-aab
+          path: app/build
       - name: Check before uploading to Google Play
         # Fail loudly instead of skipping: a picked track must end in an upload.
-        if: env.PLAY_TRACK != 'none'
         working-directory: .
         env:
           PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
@@ -127,9 +157,8 @@ jobs:
             echo "::notice title=Release notes ($(basename "$f"))::$(tr '\n' ' ' < "$f")"
           done
       - name: Upload to Google Play
-        # Automatic on push to main (alpha = closed testing); manual runs can pick another track.
+        # Internal on push to main; manual runs can pick another track (alpha = closed testing).
         # Production goes up as a draft to review and roll out in Play Console.
-        if: env.PLAY_TRACK != 'none'
         # Pinned to v1.1.5 by commit: this step holds the Play service account key.
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:

@@ -1,2 +1,5 @@
 - New: see where your bus is now, e.g. "Now near Blk 201 · 3 stops away"
 - New: buses without live GPS are marked "Timetable estimate"
+- New: mark "Ate here" at halal places, and set when you ate in History
+- Fixed: buttons hidden behind the 3-button navigation bar
+- Smaller download. DailyLah now needs Android 10 or newer

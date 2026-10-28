@@ -10,8 +10,17 @@ on:
       base_ref:
         description: "Previous version for the upgrade test (branch, tag or SHA)"
         default: "origin/main"
+  # Called by the app workflow before uploading to Google Play.
+  workflow_call:
+    inputs:
+      base_ref:
+        description: "Previous version for the upgrade test (branch, tag or SHA)"
+        type: string
+        default: "origin/main"
 concurrency:
-  group: emulator-${{ github.ref }}
+  # github.workflow is "app" when called from the app workflow, so a release check on main
+  # never cancels (or is cancelled by) a pull request run.
+  group: emulator-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   flows:
@@ -22,10 +31,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Lowest supported Android. The job warns if the APK's minSdk differs.
-          - api: 24
+          # Lowest supported Android (minSdk 29 = Android 10). The job warns if the APK's minSdk differs.
+          - api: 29
             target: google_apis
-            arch: x86_64 # Flutter builds no 32-bit x86 code
+            arch: x86_64
             min: true
           # Android 15, still the most common recent version.
           - api: 35
