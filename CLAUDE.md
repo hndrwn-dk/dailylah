@@ -140,7 +140,8 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   Analyze and test failures are emitted as annotations on the commit.
 - Release builds use R8 (minify + resource shrinking). Plugins reached by reflection/JNI are kept in
   `android/app/proguard-rules.pro`, resources used by name in `res/raw/keep.xml`. The AAB artifact
-  carries `dailylah-mapping.txt`, which the Play upload below sends with each release. A release is a
+  carries `dailylah-mapping.txt`, which the Play upload below sends with each release, and native debug
+  symbols inside the bundle (`ndk.debugSymbolLevel = "FULL"`, checked by `scripts/emulator_release.sh`). A release is a
   PR with a new feature or bug fix: it bumps `version:` (patch for fixes, minor for features) and
   replaces `docs/store/whatsnew/whatsnew-en-US` with what is new in that version only (never the
   notes of earlier releases; max 500 characters, plain text, one file per store language). Other PRs

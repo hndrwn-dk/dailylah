@@ -21,6 +21,10 @@ DEBUG_APK=build/app/outputs/flutter-apk/app-debug.apk
 RELEASE_APK=build/app/outputs/flutter-apk/app-release.apk
 test -f build/app/outputs/mapping/release/mapping.txt \
   || { echo "::error::No mapping.txt: R8 did not run on the release build."; exit 1; }
+# The App Bundle must carry native debug symbols for Play (ndk.debugSymbolLevel).
+flutter build appbundle --release
+unzip -l build/app/outputs/bundle/release/app-release.aab | grep -q "BUNDLE-METADATA/com.android.tools.build.debugsymbols/" \
+  || { echo "::error::The release App Bundle has no native debug symbols."; exit 1; }
 
 "${ADB[@]}" uninstall "$PKG" >/dev/null 2>&1 || true
 "${ADB[@]}" install -t "$DEBUG_APK"
