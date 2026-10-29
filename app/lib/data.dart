@@ -468,7 +468,12 @@ String cleanPlaceName(String s) {
     n = n
         .toLowerCase()
         .split(' ')
-        .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+        // Words with a digit keep their capitals: "65A", "#01-04", "L3".
+        .map((w) => w.isEmpty
+            ? w
+            : RegExp(r'\d').hasMatch(w)
+                ? w.toUpperCase()
+                : '${w[0].toUpperCase()}${w.substring(1)}')
         .join(' ');
   }
   return n;

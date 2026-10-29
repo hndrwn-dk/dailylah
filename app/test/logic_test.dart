@@ -800,6 +800,7 @@ void main() {
 
   test('persona fixes: names, details, closed places, duplicates, since label', () {
     expect(cleanPlaceName('1 MEDICAL TECK GHEE'), '1 Medical Teck Ghee');
+    expect(cleanPlaceName('BLK 65A MARINE DRIVE #01-04'), 'Blk 65A Marine Drive #01-04');
     expect(cleanPlaceName('NEA Producer Responsibility Scheme - ALBA E-waste Recycling Programme'),
         'ALBA E-waste Recycling Programme');
     expect(cleanPlaceName('McDonald\'s'), "McDonald's");
@@ -1307,7 +1308,7 @@ void main() {
     final type2 = {'t': 'Type 2', 'c': 'AC', 'kw': 7.4, 'p': 0.698, 'pu': 'kWh', 'n': 2};
     final ccs = {'t': 'CCS2', 'c': 'DC', 'kw': 50, 'p': 0.8, 'pu': 'kWh', 'n': 1};
     final sites = [site('A', 1.302, [type2]), site('B', 1.303, [ccs]), site('C', 1.40, [type2])];
-    expect(sites.first.name, 'Blk 65A Marine Drive Multi Storey Car Park');
+    expect(sites.first.name, 'Blk 65A Marine Drive Multi Storey Car Park'); // 65A keeps its capital
     expect(evNear(sites, 1.302, 103.91, 'Type 2').map((e) => e.$1.id), ['A']); // C is too far
     expect(evNear(sites, 1.302, 103.91, 'any').map((e) => e.$1.id), ['A', 'B']);
 
