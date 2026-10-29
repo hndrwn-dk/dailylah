@@ -260,13 +260,20 @@ void main() {
     await tester.tap(toggle);
     await settle(tester);
     expect(box.read(favoritesProvider).evPlug, 'any');
-    expect(find.text('My plug'), findsOneWidget);
-    expect(find.widgetWithText(ChoiceChip, 'Any'), findsOneWidget);
-    final ccs = find.widgetWithText(ChoiceChip, 'CCS2');
-    await tester.ensureVisible(ccs);
+    // One row for the plug, the choices in a sheet (room for more plugs later).
+    final plugRow = find.widgetWithText(ListTile, 'My plug');
+    await tester.ensureVisible(plugRow);
     await tester.pump();
-    await tester.tap(ccs);
+    expect(find.descendant(of: plugRow, matching: find.text('Any plug')), findsOneWidget);
+    expect(find.byType(ChoiceChip), findsNothing);
+    await tester.tap(plugRow);
     await settle(tester);
+    expect(find.text('Which plug does your car use?'), findsOneWidget);
+    expect(find.text('DC fast charging, on most newer cars'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ListTile, 'CCS2'));
+    await settle(tester);
+    expect(find.text('Which plug does your car use?'), findsNothing);
+    expect(find.descendant(of: plugRow, matching: find.text('CCS2')), findsOneWidget);
     expect(box.read(favoritesProvider).evPlug, 'CCS2');
   });
 }

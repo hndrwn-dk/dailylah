@@ -99,7 +99,15 @@ class S {
   String get evToggle => 'My car is electric';
   String get evToggleSub => 'EV chargers with live free spots (LTA) in Nearby, Home and car trips.';
   String get evPlugTitle => 'My plug';
-  String evPlugName(String plug) => plug == 'any' ? 'Any' : plug;
+  String get evPlugAsk => 'Which plug does your car use?';
+  String evPlugHint(String plug) => switch (plug) {
+        'any' => 'Show every charger',
+        'Type 2' => 'AC charging, on most cars sold in Singapore',
+        'CCS2' => 'DC fast charging, on most newer cars',
+        'CHAdeMO' => 'DC fast charging, on older Nissan and Mitsubishi',
+        _ => '',
+      };
+  String evPlugName(String plug) => plug == 'any' ? 'Any plug' : plug;
   String evKw(double kw) => '${kw == kw.roundToDouble() ? kw.toStringAsFixed(0) : kw.toStringAsFixed(1)} kW';
   String evPrice(double? price, String unit) =>
       price == null ? '' : '\$${price.toStringAsFixed(2)}${unit.isEmpty ? '' : '/$unit'}';
