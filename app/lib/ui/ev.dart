@@ -63,17 +63,9 @@ class _EvRow extends ConsumerWidget {
       leading: const Icon(Icons.ev_station_outlined),
       title: Text(site.name, maxLines: 2, overflow: TextOverflow.ellipsis),
       subtitle: Text([s.metres(distance), if (plugs.isNotEmpty) s.evPlugLine(plugs.first)].join(' · ')),
-      trailing: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(
-            counts == null ? '–' : s.evFreeOf(counts.$1, counts.$2),
-            style: t.titleLarge?.copyWith(fontFamily: DL.display, color: counts != null && counts.$1 == 0 ? DL.attention : null),
-          ),
-          if (counts != null) Text(s.evFreeLabel, style: t.labelSmall),
-        ],
-      ),
+      trailing: counts == null
+          ? Text('–', style: t.titleLarge?.copyWith(fontFamily: DL.display))
+          : BigNumber(value: '${counts.$1}', label: s.evOfFree(counts.$2), warn: counts.$1 == 0),
       onTap: () => showPlaceSheet(
         context,
         s: s,

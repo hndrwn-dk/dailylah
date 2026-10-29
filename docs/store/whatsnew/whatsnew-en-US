@@ -1,1 +1,1 @@
-- Fixed: EV chargers now show up, with the right free count at car parks that have more than one charging location
+- Fixed: EV chargers now read "3 of 5 free" like car park lots, and the plug choice in More > Extras is tidier

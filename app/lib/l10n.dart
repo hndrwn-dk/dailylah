@@ -93,14 +93,13 @@ class S {
   // ---------------------------------------------------------------- EV charging
   String get evChargers => 'EV chargers nearby';
   String evChargersNear(String place) => 'EV chargers near $place';
-  String get evFreeLabel => 'free';
   String get evNone => 'No EV chargers for your plug within 2 km.';
   String get evNoData => 'The EV charger list is not downloaded yet.';
   String get evAsk => 'Electric car? Show EV chargers';
   String get evToggle => 'My car is electric';
   String get evToggleSub => 'EV chargers with live free spots (LTA) in Nearby, Home and car trips.';
-  String get evPlugTitle => 'Plug';
-  String evPlugName(String plug) => plug == 'any' ? 'Any plug' : plug;
+  String get evPlugTitle => 'My plug';
+  String evPlugName(String plug) => plug == 'any' ? 'Any' : plug;
   String evKw(double kw) => '${kw == kw.roundToDouble() ? kw.toStringAsFixed(0) : kw.toStringAsFixed(1)} kW';
   String evPrice(double? price, String unit) =>
       price == null ? '' : '\$${price.toStringAsFixed(2)}${unit.isEmpty ? '' : '/$unit'}';
@@ -108,7 +107,7 @@ class S {
         [p.type, p.current, evKw(p.kw)].where((x) => x.isNotEmpty).join(' '),
         evPrice(p.price, p.priceUnit),
       ].where((x) => x.isNotEmpty).join(' · ');
-  String evFreeOf(int free, int total) => '$free/$total';
+  String evOfFree(int total) => 'of $total free';
   String evPlugFree(EvPlug p) => p.free == null ? '${p.total} chargers' : '${p.free} of ${p.total} free';
   String get evLiveNote => 'Live from LTA. Not affiliated with the operators.';
   String evOperator(List<String> ops) => ops.isEmpty ? '' : 'Operator: ${ops.join(', ')}';
