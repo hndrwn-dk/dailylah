@@ -14,6 +14,7 @@ import 'theme.dart';
 import 'today.dart';
 import 'wake.dart';
 import 'bus_sheet.dart';
+import 'ev.dart';
 import 'widgets.dart';
 
 IconData modeIcon(TravelMode m) => switch (m) {
@@ -746,6 +747,8 @@ class _DriveBlock extends ConsumerWidget {
             },
           ),
         ),
+        if (lotType == 'C' && ref.watch(favoritesProvider.select((f) => f.drivesEv)))
+          EvChargers(lat: to.lat, lng: to.lng, title: s.evChargersNear(toLabel)),
         SectionTitle(s.trafficOnWay, padding: const EdgeInsets.fromLTRB(4, 0, 4, 10)),
         if (incidents.isEmpty)
           Panel(child: EmptyNote(s.noIncidents, icon: Icons.check_circle_outline))

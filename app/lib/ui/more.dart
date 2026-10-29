@@ -94,6 +94,25 @@ class MorePage extends ConsumerWidget {
                     children: [
                       toggle(s.showPrayer, fav.showPrayer, (f, v) => f.copyWith(showPrayer: v), sub: s.showPrayerSub),
                       toggle(s.showHalal, fav.showHalal, (f, v) => f.copyWith(showHalal: v), sub: s.showHalalSub),
+                      toggle(s.evToggle, fav.drivesEv, (f, v) => f.copyWith(evPlug: v ? 'any' : ''), sub: s.evToggleSub),
+                      if (fav.drivesEv)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(s.evPlugTitle, style: t.labelLarge),
+                              for (final plug in evPlugChoices)
+                                ChoiceChip(
+                                  label: Text(s.evPlugName(plug)),
+                                  selected: fav.evPlug == plug,
+                                  onSelected: (_) => notifier.update((f) => f.copyWith(evPlug: plug)),
+                                ),
+                            ],
+                          ),
+                        ),
                       toggle(s.learnHabits, fav.learnHabits, (f, v) => f.copyWith(learnHabits: v), sub: s.learnHabitsSub),
                       ListTile(
                         leading: const Icon(Icons.delete_outline),

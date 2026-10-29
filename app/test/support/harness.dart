@@ -59,6 +59,7 @@ const householdFavorites = Favorites(
   onboarded: true,
   showPrayer: true,
   showHalal: true,
+  evPlug: 'Type 2',
   compareBlocks: ['156|TAMPINES ST 12', '508|TAMPINES CTRL 1'],
   watchedBlocks: {'156|TAMPINES ST 12': 0},
 );
@@ -184,6 +185,21 @@ class FakeApi extends DailyLahApi {
 
   @override
   Future<Map<String, dynamic>> agent(String regNo) async => {'data': {}};
+
+  /// One EV location (id "EV1") at every postal code: Type 2, 1 of 2 chargers free.
+  @override
+  Future<Map<String, dynamic>> ev(String postal) async => {
+        'fetched_at': 0,
+        'data': [
+          {
+            'id': 'EV1',
+            'n': 'Test car park',
+            'pl': [
+              {'t': 'Type 2', 'c': 'AC', 'kw': 7.4, 'p': 0.698, 'pu': 'kWh', 'n': 2, 'a': 1},
+            ],
+          },
+        ],
+      };
 }
 
 /// No network at all: every call fails the way dio fails without a connection.
@@ -214,6 +230,8 @@ class OfflineApi extends FakeApi {
   Future<Map<String, dynamic>> crowd(String line, {String kind = 'realtime'}) async => _down('/v1/crowd');
   @override
   Future<Map<String, dynamic>> agent(String regNo) async => _down('/v1/agent');
+  @override
+  Future<Map<String, dynamic>> ev(String postal) async => _down('/v1/ev');
 }
 
 /// Bundles from the committed web/data folder, parsed once per test run.

@@ -16,6 +16,7 @@ Writes (all compact JSON, keys documented in app/lib/data.dart):
     holidays.json    MOM public holidays from a month ago onwards
     events.json      public events in the next 30 days (Eventfinda)
     taxi_stands.json LTA taxi stands and stops
+    ev.json          LTA EV charging locations with plugs, speed and price (live status via API)
     bus_routes.json  stop order per bus service and direction (for "buses that go home")
     bicycle_racks.json LTA bicycle racks
     mrt_stations.json MRT/LRT stations with line codes (for the MRT part of a trip)
@@ -39,7 +40,7 @@ from . import bundles as b
 from .config import get_settings
 from .events import build_events
 from .onemap import OneMap
-from .sources import Sources, compact_bus_stops, compact_taxi_stands
+from .sources import Sources, compact_bus_stops, compact_ev_sites, compact_taxi_stands
 from .ura import build_private
 
 log = logging.getLogger(__name__)
@@ -53,6 +54,7 @@ MIN_COUNTS = {
     "halal": 1000,
     "around": 50,
     "taxi_stands": 100,
+    "ev": 200,
     "bus_routes": 300,
     "bicycle_racks": 50,
     "hawkers": 80,
@@ -123,6 +125,11 @@ async def build(
                 return compact_taxi_stands(await Sources(settings, client).taxi_stands())
 
             await attempt("taxi_stands", taxi_stands())
+
+            async def ev() -> list[dict]:
+                return compact_ev_sites(await Sources(settings, client).ev_batch())
+
+            await attempt("ev", ev())
 
             async def bus_routes() -> dict:
                 return await Sources(settings, client).bus_routes()

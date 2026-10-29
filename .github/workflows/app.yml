@@ -40,7 +40,7 @@ jobs:
             new=$(ver < app/pubspec.yaml)
             old=$(git show "$BEFORE:app/pubspec.yaml" 2>/dev/null | ver || true)
             if [ "$new" = "$old" ]; then
-              echo "::notice title=No release::version $new unchanged; built and tested only, nothing sent to Google Play."
+              echo "::notice title=No release::version $new unchanged; analyze and tests only, nothing built or sent to Google Play."
               track=none
             elif [ -z "$(git diff --name-only "$BEFORE" HEAD -- docs/store/whatsnew)" ]; then
               echo "::error file=docs/store/whatsnew/whatsnew-en-US::version $old -> $new but the release notes were not changed. Write what is new in $new only."

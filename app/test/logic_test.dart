@@ -800,6 +800,7 @@ void main() {
 
   test('persona fixes: names, details, closed places, duplicates, since label', () {
     expect(cleanPlaceName('1 MEDICAL TECK GHEE'), '1 Medical Teck Ghee');
+    expect(cleanPlaceName('BLK 65A MARINE DRIVE #01-04'), 'Blk 65A Marine Drive #01-04');
     expect(cleanPlaceName('NEA Producer Responsibility Scheme - ALBA E-waste Recycling Programme'),
         'ALBA E-waste Recycling Programme');
     expect(cleanPlaceName('McDonald\'s'), "McDonald's");
@@ -1285,5 +1286,55 @@ void main() {
     expect(s.loadLabel('LSD'), 'Packed');
     expect(s.youTag(0), 'YOU · Arr');
     expect(s.stopsTag(1), '1 stop');
+  });
+
+  test('EV chargers: plug matching, nearest sites with the plug, and live free counts', () {
+    expect(evPlugMatches('Type 2', 'Type 2'), isTrue);
+    expect(evPlugMatches('CCS 2', 'CCS2'), isTrue);
+    expect(evPlugMatches('CCS2', 'CCS2'), isTrue);
+    expect(evPlugMatches('CHAdeMO', 'Type 2'), isFalse);
+    expect(evPlugMatches('CHAdeMO', 'any'), isTrue);
+
+    EvSite site(String id, double lat, List<Map<String, dynamic>> pl) => EvSite.fromBundle({
+          'id': id,
+          'n': 'BLK 65A MARINE DRIVE MULTI STOREY CAR PARK',
+          'a': '65A MARINE DRIVE SINGAPORE 441065',
+          'pc': '441065',
+          'la': lat,
+          'lo': 103.91,
+          'op': ['STRIDES YTL PTE. LTD.'],
+          'pl': pl,
+        });
+    final type2 = {'t': 'Type 2', 'c': 'AC', 'kw': 7.4, 'p': 0.698, 'pu': 'kWh', 'n': 2};
+    final ccs = {'t': 'CCS2', 'c': 'DC', 'kw': 50, 'p': 0.8, 'pu': 'kWh', 'n': 1};
+    final sites = [site('A', 1.302, [type2]), site('B', 1.303, [ccs]), site('C', 1.40, [type2])];
+    expect(sites.first.name, 'Blk 65A Marine Drive Multi Storey Car Park'); // 65A keeps its capital
+    expect(evNear(sites, 1.302, 103.91, 'Type 2').map((e) => e.$1.id), ['A']); // C is too far
+    expect(evNear(sites, 1.302, 103.91, 'any').map((e) => e.$1.id), ['A', 'B']);
+
+    final live = EvLive.fromApi({
+      'data': [
+        {
+          'id': 'A',
+          'pl': [type2..['a'] = 1, ccs..['a'] = 0],
+        },
+        {
+          'id': 'Z',
+          'pl': [
+            {'t': 'Type 2', 'kw': 22, 'n': 4, 'a': 4},
+          ],
+        },
+      ],
+    });
+    expect(evFree(sites[0], live, 'Type 2'), (1, 2));
+    expect(evFree(sites[0], live, 'any'), (1, 3));
+    expect(evFree(sites[1], live, 'CCS2'), isNull); // B is not in this answer
+    const s = S();
+    expect(s.evKw(7.4), '7.4 kW');
+    expect(s.evKw(50), '50 kW');
+    expect(s.evPlugLine(EvPlug.fromJson(type2)), 'Type 2 AC 7.4 kW · \$0.70/kWh');
+    expect(s.evPlugFree(EvPlug.fromJson(type2)), '1 of 2 free');
+    expect(const Favorites().drivesEv, isFalse);
+    expect(Favorites.fromJson(const Favorites(evPlug: 'CCS2').toJson()).evPlug, 'CCS2');
   });
 }

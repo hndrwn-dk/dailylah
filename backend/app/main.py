@@ -16,10 +16,18 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from .cache import Cache
 from .config import Settings, get_settings
 from .onemap import OneMap
-from .sources import CEA_REG_RE, LTA_DATASETS, NEA_DATASETS, TRAIN_LINES, Sources
+from .sources import (
+    CEA_REG_RE,
+    LTA_DATASETS,
+    NEA_DATASETS,
+    TRAIN_LINES,
+    Sources,
+    compact_ev_live,
+)
 
 log = logging.getLogger("dailylah")
 STOP_RE = re.compile(r"^\d{5}$")
+POSTAL_RE = re.compile(r"^\d{6}$")
 WEATHER_KEYS = {
     "forecast": "nea:two-hr-forecast",
     "rainfall": "nea:rainfall",
@@ -98,6 +106,30 @@ async def bus_arrival(
         raise HTTPException(502, "upstream LTA error") from e
     data = {"fetched_at": int(time.time()), "data": data}
     c.set_memory_only(key, data, s.bus_arrival_ttl)  # memory only: saves Redis commands
+    return data
+
+
+@app.get("/v1/ev/{postal}")
+async def ev_chargers(
+    postal: str,
+    c: Cache = Depends(cache),
+    src: Sources = Depends(sources),
+    s: Settings = Depends(get_settings),
+) -> dict:
+    """Live EV charger status at one car park's postal code. On demand, memory-cached for
+    a couple of minutes; the list of locations comes from the daily ev.json bundle."""
+    if not POSTAL_RE.match(postal):
+        raise HTTPException(422, "postal must be 6 digits")
+    key = f"lta:ev:{postal}"
+    hit = await c.get(key)
+    if hit is not None:
+        return hit
+    try:
+        data = compact_ev_live(await src.ev_points(postal))
+    except httpx.HTTPError as e:
+        raise HTTPException(502, "upstream LTA error") from e
+    data = {"fetched_at": int(time.time()), "data": data}
+    c.set_memory_only(key, data, s.ev_ttl)  # memory only: saves Redis commands
     return data
 
 

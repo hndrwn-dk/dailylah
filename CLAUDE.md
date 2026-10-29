@@ -59,6 +59,12 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   station at each end from the `mrt_stations.json` bundle (`mrtPlan`). "Go somewhere" picks a
   start (home/work/school/here) and a destination (saved places or a searched address); driving uses `/v1/parking`
   (lot type C/Y) and `/v1/traffic-incidents`.
+- EV charging (opt-in, `Favorites.evPlug`: '' none, 'any', 'Type 2', 'CCS2', 'CHAdeMO'; More > Extras
+  "My car is electric" with plug chips, or "Electric car? Show EV chargers" in Nearby > Park): `EvChargers`
+  (`ui/ev.dart`) in Nearby > Park, Home > Parking and car trips (`_DriveBlock`). Locations, plugs, kW and
+  price come from the daily `ev.json` bundle (LTA `EVCBatch`, `compact_ev_sites`; `evSitesProvider`,
+  `evNear`, `evPlugMatches`); free chargers live from `/v1/ev/{postal}` (LTA `EVChargingPoints`,
+  `compact_ev_live`, memory-cached `ev_ttl`; `evLiveProvider`, `evFree`), asked only for rows on screen.
 - Favourites, custom places, watched/compared blocks and extras are stored with SharedPreferences
   (`lib/store.dart`). Family share is a `DL1:` code built on-device: the sender picks home/school/work, lines+times
   and hawkers (`ShareChoice`, `encodeShareCode`); the receiver ticks what to take (`readShareCode`,
@@ -152,7 +158,7 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   replaces `docs/store/whatsnew/whatsnew-en-US` with what is new in that version only (never the
   notes of earlier releases; max 500 characters, plain text, one file per store language). Other PRs
   (docs, tests, CI, data) leave both alone. On a push to `main` the `app` workflow builds the AAB and
-  uploads only when `version:` changed (otherwise it builds and tests the APK only), and fails if it
+  uploads only when `version:` changed (otherwise it runs analyze and tests only), and fails if it
   changed without new release notes. A release runs: build (`analyze`), then the whole `emulator` workflow on that commit
   (`e2e`, a reusable call: flows on API 29/35/36; upgrade test against the previous `main`), and only if all of it passes the
   `play` job uploads to `alpha` (closed testing, the testers for the 14-day production requirement).
