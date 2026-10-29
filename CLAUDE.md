@@ -65,6 +65,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   price come from the daily `ev.json` bundle (LTA `EVCBatch`, `compact_ev_sites`; `evSitesProvider`,
   `evNear`, `evPlugMatches`); free chargers live from `/v1/ev/{postal}` (LTA `EVChargingPoints`,
   `compact_ev_live`, memory-cached `ev_ttl`; `evLiveProvider`, `evFree`), asked only for rows on screen.
+  The two LTA feeds differ (batch: `longtitude`, `postalCode`, no `locationId`, `current`/`powerRating`=kW;
+  live: `powerRating`=AC/DC, `chargingSpeed`; numbers as strings; empty connector status falls back to the
+  charger's), so live rows are matched to a site by id, else name, else the only one (`evLiveFor`).
 - Favourites, custom places, watched/compared blocks and extras are stored with SharedPreferences
   (`lib/store.dart`). Family share is a `DL1:` code built on-device: the sender picks home/school/work, lines+times
   and hawkers (`ShareChoice`, `encodeShareCode`); the receiver ticks what to take (`readShareCode`,

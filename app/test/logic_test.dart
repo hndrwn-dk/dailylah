@@ -1337,4 +1337,37 @@ void main() {
     expect(const Favorites().drivesEv, isFalse);
     expect(Favorites.fromJson(const Favorites(evPlug: 'CCS2').toJson()).evPlug, 'CCS2');
   });
+
+  test('EV live status is matched by name when the daily list has no location ids', () {
+    final site = EvSite.fromBundle({
+      'id': '',
+      'n': 'BLK 65A MARINE DRIVE MULTI STOREY CAR PARK',
+      'pc': '441065',
+      'la': 1.30297,
+      'lo': 103.90991,
+      'pl': [
+        {'t': 'Type 2', 'c': 'AC', 'kw': 7.4, 'n': 2},
+      ],
+    });
+    final live = EvLive.fromApi({
+      'data': [
+        {
+          'id': '909914441065',
+          'n': 'BLK 65A MARINE DRIVE MULTI STOREY CAR PARK',
+          'pl': [
+            {'t': 'Type 2', 'c': 'AC', 'kw': 7.4, 'n': 2, 'a': 1},
+          ],
+        },
+        {
+          'id': '909914441066',
+          'n': 'SOMETHING ELSE AT THE SAME POSTAL CODE',
+          'pl': [
+            {'t': 'Type 2', 'c': 'AC', 'kw': 22, 'n': 4, 'a': 4},
+          ],
+        },
+      ],
+    });
+    expect(evLiveFor(site, live).single.id, '909914441065');
+    expect(evFree(site, live, 'Type 2'), (1, 2));
+  });
 }

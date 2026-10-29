@@ -2150,11 +2150,23 @@ List<(EvSite, double)> evNear(List<EvSite> sites, double lat, double lng, String
         if (site.plugs.any((p) => evPlugMatches(p.type, plug))) (site, d),
     ].take(limit).toList();
 
-/// Free and total chargers for [plug] at [site] from the live answer for its postal code (which
-/// can list several locations); null when the answer does not cover it.
+/// The locations in a live answer (one postal code can have several) that are [site]: same
+/// LTA location id, else the same name (the daily batch file has no ids), else the only one.
+List<EvLive> evLiveFor(EvSite site, List<EvLive> live) {
+  if (site.id.isNotEmpty) {
+    final byId = [for (final l in live) if (l.id == site.id) l];
+    if (byId.isNotEmpty) return byId;
+  }
+  String norm(String x) => x.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+  final byName = [for (final l in live) if (l.name.isNotEmpty && norm(l.name) == norm(site.name)) l];
+  if (byName.isNotEmpty) return byName;
+  return live.length == 1 ? live : const <EvLive>[];
+}
+
+/// Free and total chargers for [plug] at [site] from the live answer for its postal code;
+/// null when the answer does not cover it.
 (int, int)? evFree(EvSite site, List<EvLive> live, String plug) {
-  final same = [for (final l in live) if (l.id == site.id) l];
-  final rows = same.isNotEmpty ? same : (live.length == 1 ? live : const <EvLive>[]);
+  final rows = evLiveFor(site, live);
   var free = 0, total = 0;
   for (final l in rows) {
     for (final p in l.plugs) {
