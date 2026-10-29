@@ -1135,7 +1135,7 @@ Future<void> popAfterKeyboard<T>(BuildContext context, [T? result]) async {
 /// A big count with a small label under it, right-aligned (car park lots, EV chargers);
 /// [warn] draws it in an amber box (nothing free).
 class BigNumber extends StatelessWidget {
-  const BigNumber({required this.value, required this.label, this.warn = false});
+  const BigNumber({super.key, required this.value, required this.label, this.warn = false});
   final String value;
   final String label;
   final bool warn;
