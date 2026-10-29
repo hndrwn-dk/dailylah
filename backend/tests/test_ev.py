@@ -130,3 +130,103 @@ async def test_ev_batch_follows_the_download_link():
     async with httpx.AsyncClient() as http:
         body = await Sources(Settings(lta_account_key="k"), http).ev_batch()
     assert compact_ev_sites(body)[0]["n"].startswith("BLK 65A")
+
+
+# Shapes seen from LTA on 29 Oct 2026 (they differ from the API guide and from each other).
+REAL_BATCH = {
+    "LastUpdatedTime": "2026-10-29 13:10:00",
+    "evLocationsData": [
+        {
+            "address": "142A PASIR RIS STREET 11 SINGAPORE 511142",
+            "name": "BLK 142A PASIR RIS STREET 11 MULTI STOREY CAR PARK",
+            "longtitude": 103.959758,
+            "latitude": 1.362839,
+            "postalCode": "511142",
+            "chargingPoints": [
+                {
+                    "status": "1",
+                    "operatingHours": "",
+                    "operator": "STRIDES YTL PTE. LTD.",
+                    "position": "L3A 128",
+                    "name": "BLK 142A PASIR RIS STREET 11 MULTI STOREY CAR PARK",
+                    "plugTypes": [
+                        {
+                            "plugType": "Type 2",
+                            "price": "0.6980",
+                            "current": "AC",
+                            "powerRating": "7.4",
+                            "priceType": "kWh",
+                            "evIds": [{"evCpId": "R122901R-001", "status": "1"}],
+                        }
+                    ],
+                }
+            ],
+        }
+    ],
+}
+
+REAL_LIVE = {
+    "value": {
+        "evLocationsData": [
+            {
+                "address": "65A MARINE DRIVE SINGAPORE 441065",
+                "name": "BLK 65A MARINE DRIVE MULTI STOREY CAR PARK",
+                "longitude": 103.909914,
+                "latitude": 1.302967,
+                "locationId": "909914441065",
+                "status": "",
+                "chargingPoints": [
+                    {
+                        "status": "1",
+                        "operatingHours": "",
+                        "operator": "STRIDES YTL PTE. LTD.",
+                        "position": "L3 336",
+                        "name": "BLK 65A MARINE DRIVE MULTI STOREY CAR PARK",
+                        "id": "",
+                        "plugTypes": [
+                            {
+                                "plugType": "Type 2",
+                                "powerRating": "AC",
+                                "chargingSpeed": "7.4",
+                                "price": "0.6980",
+                                "priceType": "kWh",
+                                "evIds": [{"id": "", "evCpId": "R122996H-001", "status": ""}],
+                            }
+                        ],
+                    },
+                    {
+                        "status": "100",
+                        "operator": "STRIDES YTL PTE. LTD.",
+                        "plugTypes": [
+                            {
+                                "plugType": "Type 2",
+                                "powerRating": "AC",
+                                "chargingSpeed": "7.4",
+                                "price": "0.6980",
+                                "priceType": "kWh",
+                                "evIds": [{"evCpId": "R122996H-002", "status": ""}],
+                            }
+                        ],
+                    },
+                ],
+            }
+        ]
+    }
+}
+
+
+def test_real_batch_file_is_read():
+    [site] = compact_ev_sites(REAL_BATCH)
+    assert site["pc"] == "511142"
+    assert site["lo"] == 103.95976  # "longtitude" in the batch file
+    assert site["id"] == ""  # the batch file has no locationId
+    assert site["pl"] == [{"t": "Type 2", "c": "AC", "kw": 7.4, "p": 0.698, "pu": "kWh", "n": 1}]
+
+
+def test_real_live_answer_uses_charger_status_when_connector_status_is_empty():
+    [loc] = compact_ev_live(REAL_LIVE)
+    assert loc["id"] == "909914441065"
+    assert loc["n"] == "BLK 65A MARINE DRIVE MULTI STOREY CAR PARK"
+    assert loc["pl"] == [
+        {"t": "Type 2", "c": "AC", "kw": 7.4, "p": 0.698, "pu": "kWh", "n": 2, "a": 1}
+    ]

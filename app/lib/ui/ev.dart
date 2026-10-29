@@ -98,7 +98,7 @@ class _EvDetail extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
     final live = ref.watch(evLiveProvider(site.postal)).valueOrNull;
-    final here = live == null ? const <EvLive>[] : [for (final l in live) if (l.id == site.id) l];
+    final here = live == null ? const <EvLive>[] : evLiveFor(site, live);
     final plugs = here.isNotEmpty ? here.expand((l) => l.plugs).toList() : site.plugs;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),

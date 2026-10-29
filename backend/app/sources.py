@@ -295,45 +295,66 @@ def _ev_locations(body: object) -> list[dict]:
     return []
 
 
+def _num(v: object) -> float | None:
+    """LTA sends numbers as numbers or strings ("7.4", "0.6980")."""
+    try:
+        return float(v)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+
+
 def _ev_plugs(loc: dict, live: bool) -> list[dict]:
     """Chargers at one location grouped by plug, current and speed, fastest first:
-    {"t": "Type 2", "c": "AC", "kw": 7.4, "p": 0.7, "pu": "kWh", "n": total, "a": free (live)}."""
+    {"t": "Type 2", "c": "AC", "kw": 7.4, "p": 0.698, "pu": "kWh", "n": total, "a": free (live)}.
+
+    The two LTA feeds differ: EVChargingPoints has powerRating "AC" and chargingSpeed "7.4";
+    the EVCBatch file has current "AC" and powerRating "7.4". A charger's own status is used
+    when its connector status is empty ("1" available, "0" occupied, "100" not available)."""
     groups: dict[tuple, dict] = {}
     for cp in loc.get("chargingPoints") or []:
+        cp_status = str(cp.get("status") or "")
         for pt in cp.get("plugTypes") or []:
-            try:
-                kw = round(float(pt.get("chargingSpeed") or 0), 1)
-            except (TypeError, ValueError):
-                kw = 0.0
+            rating = pt.get("powerRating")
+            kw = _num(pt.get("chargingSpeed"))
+            if kw is None:
+                kw = _num(rating)
+            current = str(pt.get("current") or "").strip()
+            if not current and _num(rating) is None:
+                current = str(rating or "").strip()
+            kw = round(kw or 0.0, 1)
             plug = str(pt.get("plugType") or "").strip()
-            current = str(pt.get("powerRating") or "").strip()
             g = groups.setdefault(
                 (plug, current, kw),
                 {"t": plug, "c": current, "kw": kw, "p": None, "pu": "", "n": 0},
             )
-            price = pt.get("price")
-            if isinstance(price, (int, float)) and (g["p"] is None or price < g["p"]):
-                g["p"], g["pu"] = round(float(price), 3), str(pt.get("priceType") or "")
+            price = _num(pt.get("price"))
+            if price is not None and (g["p"] is None or price < g["p"]):
+                g["p"], g["pu"] = round(price, 3), str(pt.get("priceType") or "")
             ids = pt.get("evIds") or [{}]
             g["n"] += len(ids)
             if live:
-                g["a"] = g.get("a", 0) + sum(1 for e in ids if str(e.get("status")) == "1")
+                free = sum(1 for e in ids if (str(e.get("status") or "") or cp_status) == "1")
+                g["a"] = g.get("a", 0) + free
     return sorted(groups.values(), key=lambda g: (-g["kw"], g["t"]))
 
 
 def compact_ev_sites(body: object) -> list[dict]:
     """EVCBatch file -> [{"id", "n", "a", "pc", "la", "lo", "op": [operators], "pl": plugs}]
-    for the daily ev.json bundle (no live status; the app asks /v1/ev/{postal} for that)."""
+    for the daily ev.json bundle (no live status; the app asks /v1/ev/{postal} for that).
+    The batch file spells longitude "longtitude", has "postalCode" and no locationId."""
     out = []
     for loc in _ev_locations(body):
-        try:
-            lat, lng = round(float(loc["latitude"]), 5), round(float(loc["longitude"]), 5)
-        except (KeyError, TypeError, ValueError):
+        lat = _num(loc.get("latitude"))
+        lng = _num(loc.get("longitude", loc.get("longtitude")))
+        if lat is None or lng is None or not (1.1 < lat < 1.5 and 103.5 < lng < 104.1):
             continue
         addr = str(loc.get("address") or "").strip()
-        m = EV_POSTAL_RE.search(addr)
-        if not m or not (1.1 < lat < 1.5 and 103.5 < lng < 104.1):
-            continue
+        postal = str(loc.get("postalCode") or "").strip()
+        if not re.fullmatch(r"\d{6}", postal):
+            m = EV_POSTAL_RE.search(addr)
+            if not m:
+                continue
+            postal = m.group(1)
         ops = sorted(
             {str(cp.get("operator") or "").strip() for cp in loc.get("chargingPoints") or []} - {""}
         )
@@ -342,9 +363,9 @@ def compact_ev_sites(body: object) -> list[dict]:
                 "id": str(loc.get("locationId") or ""),
                 "n": str(loc.get("name") or "").strip(),
                 "a": addr,
-                "pc": m.group(1),
-                "la": lat,
-                "lo": lng,
+                "pc": postal,
+                "la": round(lat, 5),
+                "lo": round(lng, 5),
                 "op": ops,
                 "pl": _ev_plugs(loc, live=False),
             }

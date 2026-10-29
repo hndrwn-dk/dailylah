@@ -443,15 +443,19 @@ class EvSite {
 
 /// Live chargers at one location from /v1/ev/{postal}: {"id","n","pl":[EvPlug with "a"]}.
 class EvLive {
-  const EvLive({required this.id, required this.plugs});
+  const EvLive({required this.id, required this.plugs, this.name = ''});
   final String id;
   final List<EvPlug> plugs;
+
+  /// LTA's name as sent ("BLK 65A MARINE DRIVE MULTI STOREY CAR PARK"), for matching a site.
+  final String name;
 
   static List<EvLive> fromApi(Map<String, dynamic> body) => [
         for (final r in (body['data'] as List? ?? const []))
           if (r is Map<String, dynamic>)
             EvLive(
               id: '${r['id'] ?? ''}',
+              name: '${r['n'] ?? ''}',
               plugs: [for (final p in (r['pl'] as List? ?? const [])) EvPlug.fromJson(p as Map<String, dynamic>)],
             ),
       ];
