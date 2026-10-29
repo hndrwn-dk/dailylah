@@ -98,18 +98,23 @@ class MorePage extends ConsumerWidget {
                       if (fav.drivesEv)
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                          child: Wrap(
-                            spacing: 8,
-                            runSpacing: 6,
-                            crossAxisAlignment: WrapCrossAlignment.center,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(s.evPlugTitle, style: t.labelLarge),
-                              for (final plug in evPlugChoices)
-                                ChoiceChip(
-                                  label: Text(s.evPlugName(plug)),
-                                  selected: fav.evPlug == plug,
-                                  onSelected: (_) => notifier.update((f) => f.copyWith(evPlug: plug)),
-                                ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  for (final plug in evPlugChoices)
+                                    ChoiceChip(
+                                      label: Text(s.evPlugName(plug)),
+                                      selected: fav.evPlug == plug,
+                                      onSelected: (_) => notifier.update((f) => f.copyWith(evPlug: plug)),
+                                    ),
+                                ],
+                              ),
                             ],
                           ),
                         ),

@@ -423,7 +423,7 @@ class _NearGroupState extends ConsumerState<NearGroup> {
                     ],
                   ),
                   trailing: it.big != null
-                      ? _BigNumber(value: it.big!, label: it.bigLabel, warn: it.bigWarn)
+                      ? BigNumber(value: it.big!, label: it.bigLabel, warn: it.bigWarn)
                       : it.tel.isEmpty
                       ? null
                       : IconButton(
@@ -478,36 +478,6 @@ class _NearGroupState extends ConsumerState<NearGroup> {
 }
 
 /// Large figure at the end of a row, amber when it needs a look (e.g. 0 lots free).
-class _BigNumber extends StatelessWidget {
-  const _BigNumber({required this.value, required this.label, this.warn = false});
-  final String value;
-  final String label;
-  final bool warn;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: warn
-          ? BoxDecoration(
-              color: DL.attention,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: DL.edge(context), width: 2),
-            )
-          : null,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(value, style: t.displaySmall?.copyWith(fontSize: 26, height: 1, color: warn ? DL.ink : null)),
-          Text(label, style: t.labelSmall?.copyWith(color: warn ? DL.ink : null)),
-        ],
-      ),
-    );
-  }
-}
-
 /// Section heading for the Home page.
 class _Heading extends StatelessWidget {
   const _Heading(this.text, this.icon);

@@ -228,12 +228,15 @@ void main() {
     box.read(nearbySectionProvider.notifier).state = 'park';
     await settle(tester);
 
-    final row = find.widgetWithText(ListTile, 'Blk 520 Tampines Central Multi Storey Car Park');
+    final row = find.widgetWithText(InkWell, 'Blk 520 Tampines Central Multi Storey Car Park');
     await tester.ensureVisible(row);
     await tester.pump();
     expect(row, findsOneWidget);
     expect(find.text('Chademo Only'), findsNothing); // not the user's plug
-    expect(find.descendant(of: row, matching: find.text('1/2')), findsOneWidget);
+    // Same look as car park lots: the free count big, "of N free" under it.
+    expect(find.descendant(of: row, matching: find.text('1')), findsOneWidget);
+    expect(find.descendant(of: row, matching: find.text('of 2 free')), findsOneWidget);
+    expect(find.descendant(of: row, matching: find.text('1/2')), findsNothing);
     expect(find.descendant(of: row, matching: find.textContaining('Type 2 AC 7.4 kW')), findsOneWidget);
 
     await tester.tap(row);
@@ -257,6 +260,8 @@ void main() {
     await tester.tap(toggle);
     await settle(tester);
     expect(box.read(favoritesProvider).evPlug, 'any');
+    expect(find.text('My plug'), findsOneWidget);
+    expect(find.widgetWithText(ChoiceChip, 'Any'), findsOneWidget);
     final ccs = find.widgetWithText(ChoiceChip, 'CCS2');
     await tester.ensureVisible(ccs);
     await tester.pump();

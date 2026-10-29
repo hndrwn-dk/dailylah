@@ -1131,3 +1131,35 @@ Future<void> popAfterKeyboard<T>(BuildContext context, [T? result]) async {
   }
   if (nav.mounted) nav.pop(result);
 }
+
+/// A big count with a small label under it, right-aligned (car park lots, EV chargers);
+/// [warn] draws it in an amber box (nothing free).
+class BigNumber extends StatelessWidget {
+  const BigNumber({super.key, required this.value, required this.label, this.warn = false});
+  final String value;
+  final String label;
+  final bool warn;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: warn
+          ? BoxDecoration(
+              color: DL.attention,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: DL.edge(context), width: 2),
+            )
+          : null,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(value, style: t.displaySmall?.copyWith(fontSize: 26, height: 1, color: warn ? DL.ink : null)),
+          Text(label, style: t.labelSmall?.copyWith(color: warn ? DL.ink : null)),
+        ],
+      ),
+    );
+  }
+}
