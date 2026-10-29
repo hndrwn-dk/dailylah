@@ -21,6 +21,14 @@ DEBUG_APK=build/app/outputs/flutter-apk/app-debug.apk
 RELEASE_APK=build/app/outputs/flutter-apk/app-release.apk
 test -f build/app/outputs/mapping/release/mapping.txt \
   || { echo "::error::No mapping.txt: R8 did not run on the release build."; exit 1; }
+# Google Play needs targetSdk 36 or higher (new apps and updates from 31 Aug 2026).
+AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt | tail -1)
+TARGET=$("$AAPT" dump badging "$RELEASE_APK" | sed -n "s/^targetSdkVersion:'\([0-9]*\)'/\1/p")
+echo "- Release build targetSdk: $TARGET" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+if [ "${TARGET:-0}" -lt 36 ]; then
+  echo "::error::targetSdk is $TARGET; Google Play needs 36 or higher."
+  exit 1
+fi
 # The App Bundle must carry native debug symbols for Play (ndk.debugSymbolLevel).
 flutter build appbundle --release
 AAB=build/app/outputs/bundle/release/app-release.aab
