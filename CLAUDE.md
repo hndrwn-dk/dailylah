@@ -137,10 +137,13 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - OneMap needs a token: the backend (`app/onemap.py`) logs in with `ONEMAP_EMAIL` /
   `ONEMAP_PASSWORD` (Render env and GitHub secrets) and renews it; the app searches via
   `/v1/search`. Never put OneMap credentials or tokens in the app.
-- CI builds an APK (release, signed with the upload key from secrets `ANDROID_KEYSTORE_BASE64`,
-  `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`; debug without them),
-  so native changes (manifest, Kotlin widget, `dailylah/apps` channel) are compile-checked.
-  Analyze and test failures are emitted as annotations on the commit.
+- The `app` workflow runs analyze and tests on every push and pull request; failures are emitted as
+  annotations on the commit. It builds no APK: only a release builds the signed App Bundle (upload key
+  from secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
+  `ANDROID_KEY_PASSWORD`). Native changes (manifest, Kotlin widget, `dailylah/apps` channel) are
+  compile-checked by the `emulator` workflow, which builds and runs the debug and release APKs on every
+  pull request; its `release` job also checks targetSdk 36+ for Google Play. Testers get builds from
+  Play (closed testing), not from CI artifacts.
 - Release builds use R8 (minify + resource shrinking). Plugins reached by reflection/JNI are kept in
   `android/app/proguard-rules.pro`, resources used by name in `res/raw/keep.xml`. The AAB artifact
   carries `dailylah-mapping.txt`, which the Play upload below sends with each release, and native debug
