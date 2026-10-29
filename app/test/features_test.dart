@@ -228,7 +228,7 @@ void main() {
     box.read(nearbySectionProvider.notifier).state = 'park';
     await settle(tester);
 
-    final row = find.widgetWithText(ListTile, 'Blk 520 Tampines Central Multi Storey Car Park');
+    final row = find.widgetWithText(InkWell, 'Blk 520 Tampines Central Multi Storey Car Park');
     await tester.ensureVisible(row);
     await tester.pump();
     expect(row, findsOneWidget);

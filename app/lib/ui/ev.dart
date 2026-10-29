@@ -59,13 +59,9 @@ class _EvRow extends ConsumerWidget {
     final live = ref.watch(evLiveProvider(site.postal));
     final counts = live.valueOrNull == null ? null : evFree(site, live.valueOrNull!, plug);
     final plugs = [for (final p in site.plugs) if (evPlugMatches(p.type, plug)) p];
-    return ListTile(
-      leading: const Icon(Icons.ev_station_outlined),
-      title: Text(site.name, maxLines: 2, overflow: TextOverflow.ellipsis),
-      subtitle: Text([s.metres(distance), if (plugs.isNotEmpty) s.evPlugLine(plugs.first)].join(' · ')),
-      trailing: counts == null
-          ? Text('–', style: t.titleLarge?.copyWith(fontFamily: DL.display))
-          : BigNumber(value: '${counts.$1}', label: s.evOfFree(counts.$2), warn: counts.$1 == 0),
+    // A plain row, not a ListTile: ListTile caps the trailing height, and the big number
+    // with its label does not fit there at 200% text.
+    return InkWell(
       onTap: () => showPlaceSheet(
         context,
         s: s,
@@ -75,6 +71,29 @@ class _EvRow extends ConsumerWidget {
         lng: site.lng,
         distance: distance,
         extra: [_EvDetail(site: site)],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            const Icon(Icons.ev_station_outlined),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(site.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: t.titleMedium),
+                  Text([s.metres(distance), if (plugs.isNotEmpty) s.evPlugLine(plugs.first)].join(' · '),
+                      style: t.bodyMedium?.copyWith(color: DL.mist)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            counts == null
+                ? Text('–', style: t.titleLarge?.copyWith(fontFamily: DL.display))
+                : BigNumber(value: '${counts.$1}', label: s.evOfFree(counts.$2), warn: counts.$1 == 0),
+          ],
+        ),
       ),
     );
   }
