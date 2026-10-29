@@ -1,6 +1,6 @@
 # DailyLah Privacy Policy
 
-**Last updated: 27 October 2026**
+**Last updated: 29 October 2026**
 App: DailyLah (Android, package `com.tursinalabs.dailylah`)
 Published at: https://www.tursinalabs.com/dailylah/privacy
 
@@ -20,9 +20,10 @@ DailyLah is a free daily companion for people in Singapore. It shows bus arrival
 - Your saved places (Home, Work, School): the address you chose (label, postal code and coordinates) and the bus stops you picked for it
 - The MRT/LRT lines you selected, your usual departure times, your alert settings, the days and times you go to work or school, starred MRT lines, and how you usually travel to each place (bus/MRT, car, motorbike, bicycle or taxi), and optional extras
 - Favourite hawker centres, saved car parks, and HDB blocks you watch or compare
+- Whether your car is electric and its plug type, if you turned on **My car is electric**
 - A short log of alerts already shown, so the same alert is not sent twice
 - What you choose to log with **Learn my habits**: trips you start and end with "I'm leaving" and "Arrived" (route, start time, minutes, whether it was raining, travel mode and straight-line distance), hawker centres and halal places (name and position) you mark with "Ate here", and the car park, level and lot you save with "I parked here" (and, once you pick the car up, how long you parked there and whether it was an HDB car park, for a cost estimate), and any costs you enter for trips or parking. These are shown on the History tab, where you can remove single entries. You can turn this off and delete it all any time in More > Extras. It is not part of the family share code.
-- Copies of public data bundles (bus stops, hawker centres, dengue clusters, schools, parks and their facilities, supermarkets, car parks, HDB blocks, resale and rent statistics, prayer times, public and MOE school holidays, and public events listed on Eventfinda), and the text shown on the home screen widget
+- Copies of public data bundles (bus stops, hawker centres, dengue clusters, schools, parks and their facilities, supermarkets, car parks, HDB blocks, resale and rent statistics, prayer times, public and MOE school holidays, public events listed on Eventfinda, and EV charging locations), and the text shown on the home screen widget
 
 This data never leaves your phone. It is not backed up to Tursina Labs.
 
@@ -37,6 +38,7 @@ When you set an address or search a postal code, the text you type is sent to ou
 ### 5. What our server receives
 To show live information, the app sends requests to the DailyLah API operated by Tursina Labs:
 - The 5-digit **bus stop code** you are viewing, to get bus arrival times
+- If you turned on **My car is electric**, the 6-digit **postal code of an EV charging location** shown in a list, to get how many chargers are free there. This is the car park's postal code from the public LTA list, not yours; which locations are near you is worked out on your phone
 - The **MRT/LRT line code** (for example `NSL`), to get platform crowd levels
 - A **CEA registration number** you type into "Check a property agent", to look it up in the public CEA register. This number identifies the agent, not you
 - Requests for the weather forecast, haze (PSI and PM2.5), heat stress, lightning, train service alerts, HDB car park availability, car park availability for LTA, URA and HDB car parks, traffic incidents and taxi availability, which contain no personal data
@@ -97,6 +99,7 @@ DailyLah adalah teman harian gratis untuk warga Singapura. Aplikasi ini menampil
 - Tempat yang Anda simpan (Rumah, Kantor, Sekolah): alamat yang Anda pilih (label, kode pos, dan koordinat) serta halte bus yang Anda pilih
 - Jalur MRT/LRT pilihan, jam berangkat biasa, pengaturan notifikasi, hari dan jam ke kantor atau sekolah, jalur MRT berbintang, dan cara Anda biasanya bepergian ke setiap tempat (bus/MRT, mobil, motor, sepeda, atau taksi), serta fitur tambahan opsional
 - Hawker favorit, parkir yang disimpan, serta blok HDB yang Anda pantau atau bandingkan
+- Apakah mobil Anda listrik dan jenis colokannya, jika Anda menyalakan **My car is electric**
 - Catatan singkat notifikasi yang sudah tampil, supaya notifikasi yang sama tidak dikirim dua kali
 - Yang Anda catat sendiri lewat **Learn my habits**: perjalanan yang Anda mulai dan akhiri dengan "I'm leaving" dan "Arrived" (rute, jam mulai, durasi, apakah sedang hujan, moda perjalanan, dan jarak garis lurus), hawker dan tempat makan halal (nama dan lokasi) yang Anda tandai dengan "Ate here", serta lokasi parkir, level, dan nomor lot yang Anda simpan dengan "I parked here" (dan, setelah mobil diambil, berapa lama parkirnya serta apakah itu tempat parkir HDB, untuk perkiraan biaya), serta biaya perjalanan atau parkir yang Anda isi sendiri. Semua ini tampil di tab History, tempat Anda bisa menghapus entri satu per satu. Fitur ini bisa dimatikan dan seluruh datanya dihapus kapan saja di More > Extras. Data ini tidak ikut dalam kode berbagi keluarga.
 - Salinan bundel data publik (halte bus, hawker, cluster dengue, sekolah, taman beserta fasilitasnya, supermarket, parkir, blok HDB, statistik harga resale dan sewa, jadwal sholat, hari libur nasional dan libur sekolah MOE, serta event publik dari Eventfinda), dan teks yang tampil di widget layar utama
@@ -114,6 +117,7 @@ Saat Anda mengatur alamat atau mencari kode pos, teks yang Anda ketik dikirim ke
 ### 5. Data yang diterima server kami
 Untuk menampilkan informasi real-time, aplikasi mengirim permintaan ke API DailyLah yang dioperasikan Tursina Labs:
 - **Kode halte bus** 5 digit yang sedang Anda lihat, untuk mendapatkan jadwal kedatangan bus
+- Jika Anda menyalakan **My car is electric**, **kode pos 6 digit lokasi pengisian EV** yang tampil di daftar, untuk mengetahui berapa charger yang kosong di sana. Ini kode pos tempat parkir dari daftar publik LTA, bukan kode pos Anda; lokasi mana yang dekat dengan Anda dihitung di HP
 - **Kode jalur MRT/LRT** (misalnya `NSL`), untuk mendapatkan tingkat kepadatan peron
 - **Nomor registrasi CEA** yang Anda ketik di "Cek agen properti", untuk dicocokkan dengan register CEA publik. Nomor ini mengidentifikasi agen, bukan Anda
 - Permintaan prakiraan cuaca, kabut asap (PSI dan PM2.5), tingkat panas, petir, status layanan kereta, ketersediaan parkir HDB, ketersediaan parkir LTA, URA, dan HDB, insiden lalu lintas, dan ketersediaan taksi, yang tidak berisi data pribadi

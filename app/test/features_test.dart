@@ -4,6 +4,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dailylah/data.dart';
+import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/bus_sheet.dart';
@@ -183,5 +185,83 @@ void main() {
     expect(find.textContaining('not shown on the route'), findsOneWidget);
     expect(find.text('Open in Maps'), findsNothing);
     expect(find.text('bus here'), findsNothing);
+  });
+
+  testWidgets('EV drivers see chargers with their plug and live free spots in Nearby', (tester) async {
+    await applyCondition(tester, _normal);
+    // One Type 2 site 120 m from Tampines Int (where Nearby starts) and one CHAdeMO-only site.
+    final sites = [
+      EvSite.fromBundle({
+        'id': 'EV1',
+        'n': 'BLK 520 TAMPINES CENTRAL MULTI STOREY CAR PARK',
+        'a': '520 TAMPINES CENTRAL SINGAPORE 520520',
+        'pc': '520520',
+        'la': tampinesInt.lat + 0.001,
+        'lo': tampinesInt.lng,
+        'op': ['SP MOBILITY'],
+        'pl': [
+          {'t': 'Type 2', 'c': 'AC', 'kw': 7.4, 'p': 0.698, 'pu': 'kWh', 'n': 2},
+        ],
+      }),
+      EvSite.fromBundle({
+        'id': 'EV2',
+        'n': 'CHADEMO ONLY',
+        'a': '1 TAMPINES SINGAPORE 520001',
+        'pc': '520001',
+        'la': tampinesInt.lat,
+        'lo': tampinesInt.lng + 0.001,
+        'pl': [
+          {'t': 'CHAdeMO', 'c': 'DC', 'kw': 50, 'n': 1},
+        ],
+      }),
+    ];
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        ...overridesFor(_normal, householdFavorites, tuesdayMorning),
+        evSitesProvider.overrideWith((ref) async => sites),
+      ],
+      child: const DailyLahApp(),
+    ));
+    await settle(tester);
+    final box = containerOf(tester);
+    box.read(shellTabProvider.notifier).state = _tabs['Nearby']!;
+    box.read(nearbySectionProvider.notifier).state = 'park';
+    await settle(tester);
+
+    final row = find.widgetWithText(ListTile, 'Blk 520 Tampines Central Multi Storey Car Park');
+    await tester.ensureVisible(row);
+    await tester.pump();
+    expect(row, findsOneWidget);
+    expect(find.text('Chademo Only'), findsNothing); // not the user's plug
+    expect(find.descendant(of: row, matching: find.text('1/2')), findsOneWidget);
+    expect(find.descendant(of: row, matching: find.textContaining('Type 2 AC 7.4 kW')), findsOneWidget);
+
+    await tester.tap(row);
+    await settle(tester);
+    expect(find.text('1 of 2 free'), findsOneWidget);
+    expect(find.text('Operator: SP MOBILITY'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Turning on "My car is electric" in More picks a plug', (tester) async {
+    await applyCondition(tester, _normal);
+    const fav = Favorites(places: {PlaceKind.home: Place(kind: PlaceKind.home, addrLat: 1.35, addrLng: 103.94)}, onboarded: true);
+    await tester.pumpWidget(appUnder(_normal, fav, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    box.read(shellTabProvider.notifier).state = _tabs['More']!;
+    await settle(tester);
+    final toggle = find.widgetWithText(SwitchListTile, 'My car is electric');
+    await tester.ensureVisible(toggle);
+    await tester.pump();
+    await tester.tap(toggle);
+    await settle(tester);
+    expect(box.read(favoritesProvider).evPlug, 'any');
+    final ccs = find.widgetWithText(ChoiceChip, 'CCS2');
+    await tester.ensureVisible(ccs);
+    await tester.pump();
+    await tester.tap(ccs);
+    await settle(tester);
+    expect(box.read(favoritesProvider).evPlug, 'CCS2');
   });
 }

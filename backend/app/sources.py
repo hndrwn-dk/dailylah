@@ -73,6 +73,20 @@ class Sources:
     async def bus_arrival(self, stop_code: str) -> dict:
         return await self.lta("v3/BusArrival", {"BusStopCode": stop_code})
 
+    async def ev_points(self, postal: str) -> dict:
+        """EV charging points at one postal code, with live charger status."""
+        return await self.lta("EVChargingPoints", {"PostalCode": postal})
+
+    async def ev_batch(self) -> dict:
+        """All EV charging points in Singapore: EVCBatch returns a link to one JSON file."""
+        links = (await self.lta("EVCBatch")).get("value") or []
+        link = links[0].get("Link") if isinstance(links, list) and links else None
+        if not link:
+            raise RuntimeError("EVCBatch returned no download link")
+        r = await self.http.get(link)
+        r.raise_for_status()
+        return r.json()
+
     async def crowd(self, line: str, kind: str) -> dict:
         """Platform crowd density for one train line. kind: "realtime" or "forecast"."""
         path = "PCDRealTime" if kind == "realtime" else "PCDForecast"
@@ -261,6 +275,93 @@ def compact_bus_routes(rows: list[dict]) -> dict:
             continue
         routes.setdefault(key, []).append((seq, str(r.get("BusStopCode", "")), dist))
     return {k: [[code, dist] for _, code, dist in sorted(v)] for k, v in sorted(routes.items())}
+
+
+EV_POSTAL_RE = re.compile(r"\b(\d{6})\b")
+
+
+def _ev_locations(body: object) -> list[dict]:
+    """evLocationsData from an EVChargingPoints or EVCBatch body, wrapped in "value" or not."""
+    for cand in (body, body.get("value") if isinstance(body, dict) else None):
+        if isinstance(cand, dict) and isinstance(cand.get("evLocationsData"), list):
+            return cand["evLocationsData"]
+        if isinstance(cand, list):
+            rows: list[dict] = []
+            for item in cand:
+                if isinstance(item, dict) and isinstance(item.get("evLocationsData"), list):
+                    rows.extend(item["evLocationsData"])
+            if rows:
+                return rows
+    return []
+
+
+def _ev_plugs(loc: dict, live: bool) -> list[dict]:
+    """Chargers at one location grouped by plug, current and speed, fastest first:
+    {"t": "Type 2", "c": "AC", "kw": 7.4, "p": 0.7, "pu": "kWh", "n": total, "a": free (live)}."""
+    groups: dict[tuple, dict] = {}
+    for cp in loc.get("chargingPoints") or []:
+        for pt in cp.get("plugTypes") or []:
+            try:
+                kw = round(float(pt.get("chargingSpeed") or 0), 1)
+            except (TypeError, ValueError):
+                kw = 0.0
+            plug = str(pt.get("plugType") or "").strip()
+            current = str(pt.get("powerRating") or "").strip()
+            g = groups.setdefault(
+                (plug, current, kw),
+                {"t": plug, "c": current, "kw": kw, "p": None, "pu": "", "n": 0},
+            )
+            price = pt.get("price")
+            if isinstance(price, (int, float)) and (g["p"] is None or price < g["p"]):
+                g["p"], g["pu"] = round(float(price), 3), str(pt.get("priceType") or "")
+            ids = pt.get("evIds") or [{}]
+            g["n"] += len(ids)
+            if live:
+                g["a"] = g.get("a", 0) + sum(1 for e in ids if str(e.get("status")) == "1")
+    return sorted(groups.values(), key=lambda g: (-g["kw"], g["t"]))
+
+
+def compact_ev_sites(body: object) -> list[dict]:
+    """EVCBatch file -> [{"id", "n", "a", "pc", "la", "lo", "op": [operators], "pl": plugs}]
+    for the daily ev.json bundle (no live status; the app asks /v1/ev/{postal} for that)."""
+    out = []
+    for loc in _ev_locations(body):
+        try:
+            lat, lng = round(float(loc["latitude"]), 5), round(float(loc["longitude"]), 5)
+        except (KeyError, TypeError, ValueError):
+            continue
+        addr = str(loc.get("address") or "").strip()
+        m = EV_POSTAL_RE.search(addr)
+        if not m or not (1.1 < lat < 1.5 and 103.5 < lng < 104.1):
+            continue
+        ops = sorted(
+            {str(cp.get("operator") or "").strip() for cp in loc.get("chargingPoints") or []} - {""}
+        )
+        out.append(
+            {
+                "id": str(loc.get("locationId") or ""),
+                "n": str(loc.get("name") or "").strip(),
+                "a": addr,
+                "pc": m.group(1),
+                "la": lat,
+                "lo": lng,
+                "op": ops,
+                "pl": _ev_plugs(loc, live=False),
+            }
+        )
+    return out
+
+
+def compact_ev_live(body: object) -> list[dict]:
+    """EVChargingPoints for one postal code -> [{"id", "n", "pl": plugs with "a" free}]."""
+    return [
+        {
+            "id": str(loc.get("locationId") or ""),
+            "n": str(loc.get("name") or "").strip(),
+            "pl": _ev_plugs(loc, live=True),
+        }
+        for loc in _ev_locations(body)
+    ]
 
 
 def compact_taxi_stands(rows: list[dict]) -> list[dict]:

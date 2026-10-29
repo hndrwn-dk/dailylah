@@ -47,6 +47,7 @@ class Settings(BaseSettings):
 
     # Cache TTLs (seconds)
     bus_arrival_ttl: int = 20
+    ev_ttl: int = 120  # live EV charger status per postal code, memory only
     agent_ttl: int = 86400
     http_timeout: float = 10.0
 

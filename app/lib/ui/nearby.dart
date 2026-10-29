@@ -10,6 +10,7 @@ import '../models.dart';
 import '../providers.dart';
 import 'address_picker.dart';
 import 'bus_sheet.dart';
+import 'ev.dart';
 import 'home.dart' show NearGroup, NearItem;
 import 'place_sheet.dart';
 import 'today.dart' show TaxiSheet, foodApps, openApp;
@@ -622,6 +623,17 @@ class _ParkSection extends ConsumerWidget {
             ],
           ),
         ),
+        if (ref.watch(favoritesProvider.select((f) => f.drivesEv)))
+          EvChargers(lat: place.lat, lng: place.lng, title: s.evChargers)
+        else
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              icon: const Icon(Icons.ev_station_outlined),
+              label: Text(s.evAsk),
+              onPressed: () => ref.read(favoritesProvider.notifier).update((f) => f.copyWith(evPlug: 'any')),
+            ),
+          ),
       ],
     );
   }

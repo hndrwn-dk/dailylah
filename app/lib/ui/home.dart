@@ -6,6 +6,7 @@ import '../data.dart';
 import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
+import 'ev.dart';
 import 'homes.dart';
 import 'place_sheet.dart';
 import 'setup.dart';
@@ -1007,6 +1008,8 @@ class _Parking extends ConsumerWidget {
               ),
           ],
         ),
+        if (ref.watch(favoritesProvider.select((f) => f.drivesEv)))
+          EvChargers(lat: home.lat, lng: home.lng, title: s.evChargersNear(s.placeLabel('home'))),
       ],
     );
   }

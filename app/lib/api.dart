@@ -49,6 +49,9 @@ class DailyLahApi {
 
   Future<Map<String, dynamic>> busArrival(String stopCode) => _get('/v1/bus-arrival/$stopCode');
 
+  /// Live EV charger status at one car park's postal code (6 digits).
+  Future<Map<String, dynamic>> ev(String postal) => _get('/v1/ev/$postal');
+
   Future<Map<String, dynamic>> crowd(String line, {String kind = 'realtime'}) =>
       _get('/v1/crowd/$line', {'kind': kind});
 

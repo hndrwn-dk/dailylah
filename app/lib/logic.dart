@@ -2127,3 +2127,41 @@ List<(PublicEvent, double)> eventsNear(List<PublicEvent> all, double lat, double
 
 /// Days from [now] to the end of this weekend (Sunday), at least 1.
 int daysToWeekendEnd(DateTime now) => math.max(1, DateTime.sunday - now.weekday + 1);
+
+// ---------------------------------------------------------------- EV charging
+
+/// Plug choices for an electric car ('' in Favorites.evPlug = no electric car).
+const evPlugChoices = ['any', 'Type 2', 'CCS2', 'CHAdeMO'];
+
+/// True when an LTA plug type ("Type 2", "CCS 2", "CHAdeMO") fits the user's [wanted] plug.
+bool evPlugMatches(String type, String wanted) {
+  if (wanted.isEmpty || wanted == 'any') return true;
+  String norm(String x) => x.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+  final t = norm(type), w = norm(wanted);
+  if (w == 'ccs2') return t.startsWith('ccs');
+  return t.contains(w);
+}
+
+/// EV charging locations within [radius] m that have the user's plug, nearest first.
+List<(EvSite, double)> evNear(List<EvSite> sites, double lat, double lng, String plug,
+        {double radius = 2000, int limit = 4}) =>
+    [
+      for (final (site, d) in within(sites, lat, lng, radius, latOf: (x) => x.lat, lngOf: (x) => x.lng))
+        if (site.plugs.any((p) => evPlugMatches(p.type, plug))) (site, d),
+    ].take(limit).toList();
+
+/// Free and total chargers for [plug] at [site] from the live answer for its postal code (which
+/// can list several locations); null when the answer does not cover it.
+(int, int)? evFree(EvSite site, List<EvLive> live, String plug) {
+  final same = [for (final l in live) if (l.id == site.id) l];
+  final rows = same.isNotEmpty ? same : (live.length == 1 ? live : const <EvLive>[]);
+  var free = 0, total = 0;
+  for (final l in rows) {
+    for (final p in l.plugs) {
+      if (!evPlugMatches(p.type, plug)) continue;
+      free += p.free ?? 0;
+      total += p.total;
+    }
+  }
+  return total == 0 ? null : (free, total);
+}

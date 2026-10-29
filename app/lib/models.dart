@@ -243,6 +243,7 @@ class Favorites {
     this.onboarded = false,
     this.showPrayer = false,
     this.showHalal = false,
+    this.evPlug = '',
     this.hawkers = const {},
     this.carparks = const {},
     this.watchedBlocks = const {},
@@ -279,6 +280,10 @@ class Favorites {
 
   /// Show halal places (Muslim.sg listings) in Nearby and Home (opt-in).
   final bool showHalal;
+
+  /// Electric car plug for EV chargers ('' = no electric car, 'any', 'Type 2', 'CCS2', 'CHAdeMO').
+  final String evPlug;
+  bool get drivesEv => evPlug.isNotEmpty;
 
   /// Favourite hawker centre ids (hawkers.json "id").
   final Set<String> hawkers;
@@ -318,6 +323,7 @@ class Favorites {
     bool? onboarded,
     bool? showPrayer,
     bool? showHalal,
+    String? evPlug,
     Set<String>? hawkers,
     Set<String>? carparks,
     Map<String, int>? watchedBlocks,
@@ -342,6 +348,7 @@ class Favorites {
         onboarded: onboarded ?? this.onboarded,
         showPrayer: showPrayer ?? this.showPrayer,
         showHalal: showHalal ?? this.showHalal,
+        evPlug: evPlug ?? this.evPlug,
         hawkers: hawkers ?? this.hawkers,
         carparks: carparks ?? this.carparks,
         watchedBlocks: watchedBlocks ?? this.watchedBlocks,
@@ -367,6 +374,7 @@ class Favorites {
         'onboarded': onboarded,
         'showPrayer': showPrayer,
         'showHalal': showHalal,
+        if (evPlug.isNotEmpty) 'evPlug': evPlug,
         'hawkers': hawkers.toList()..sort(),
         'carparks': carparks.toList()..sort(),
         'watchedBlocks': watchedBlocks,
@@ -399,6 +407,7 @@ class Favorites {
       onboarded: (j['onboarded'] ?? false) as bool,
       showPrayer: (j['showPrayer'] ?? false) as bool,
       showHalal: (j['showHalal'] ?? false) as bool,
+      evPlug: '${j['evPlug'] ?? ''}',
       hawkers: strings('hawkers'),
       carparks: strings('carparks'),
       watchedBlocks: {

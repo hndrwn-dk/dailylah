@@ -374,6 +374,89 @@ class EPoint {
       );
 }
 
+/// One group of EV chargers at a location: same plug, current and speed.
+/// {"t": "Type 2", "c": "AC", "kw": 7.4, "p": 0.7, "pu": "kWh", "n": 2, "a": 1 (live only)}
+class EvPlug {
+  const EvPlug({
+    required this.type,
+    required this.current,
+    required this.kw,
+    required this.total,
+    this.price,
+    this.priceUnit = '',
+    this.free,
+  });
+  final String type;
+  final String current;
+  final double kw;
+  final int total;
+  final double? price;
+  final String priceUnit;
+
+  /// Free chargers right now (live answer only).
+  final int? free;
+
+  factory EvPlug.fromJson(Map<String, dynamic> j) => EvPlug(
+        type: '${j['t'] ?? ''}',
+        current: '${j['c'] ?? ''}',
+        kw: j['kw'] is num ? (j['kw'] as num).toDouble() : 0,
+        total: j['n'] is num ? (j['n'] as num).toInt() : 0,
+        price: j['p'] is num ? (j['p'] as num).toDouble() : null,
+        priceUnit: '${j['pu'] ?? ''}',
+        free: j['a'] is num ? (j['a'] as num).toInt() : null,
+      );
+}
+
+/// An EV charging location from the ev.json bundle (LTA EVCBatch, daily). Live status comes
+/// from /v1/ev/{postal}. {"id","n","a","pc","la","lo","op":[...],"pl":[EvPlug]}
+class EvSite {
+  const EvSite({
+    required this.id,
+    required this.name,
+    required this.address,
+    required this.postal,
+    required this.lat,
+    required this.lng,
+    this.operators = const [],
+    this.plugs = const [],
+  });
+  final String id;
+  final String name;
+  final String address;
+  final String postal;
+  final double lat;
+  final double lng;
+  final List<String> operators;
+  final List<EvPlug> plugs;
+
+  factory EvSite.fromBundle(Map<String, dynamic> j) => EvSite(
+        id: '${j['id'] ?? ''}',
+        name: cleanPlaceName('${j['n'] ?? ''}'),
+        address: cleanPlaceName('${j['a'] ?? ''}'),
+        postal: '${j['pc'] ?? ''}',
+        lat: _d(j['la']),
+        lng: _d(j['lo']),
+        operators: [for (final o in (j['op'] as List? ?? const [])) '$o'],
+        plugs: [for (final p in (j['pl'] as List? ?? const [])) EvPlug.fromJson(p as Map<String, dynamic>)],
+      );
+}
+
+/// Live chargers at one location from /v1/ev/{postal}: {"id","n","pl":[EvPlug with "a"]}.
+class EvLive {
+  const EvLive({required this.id, required this.plugs});
+  final String id;
+  final List<EvPlug> plugs;
+
+  static List<EvLive> fromApi(Map<String, dynamic> body) => [
+        for (final r in (body['data'] as List? ?? const []))
+          if (r is Map<String, dynamic>)
+            EvLive(
+              id: '${r['id'] ?? ''}',
+              plugs: [for (final p in (r['pl'] as List? ?? const [])) EvPlug.fromJson(p as Map<String, dynamic>)],
+            ),
+      ];
+}
+
 /// Readable place names: ALL-CAPS names (CHAS clinics) in title case, and the long
 /// "NEA Producer Responsibility Scheme - " prefix on e-waste points dropped.
 String cleanPlaceName(String s) {

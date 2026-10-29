@@ -301,6 +301,14 @@ final nearbySectionProvider = StateProvider<String>((ref) => 'bus');
 /// Halal places listed on Muslim.sg (opt-in feature).
 final halalProvider = FutureProvider<List<EPoint>>((ref) => _list(ref, 'halal', EPoint.fromBundle));
 
+/// EV charging locations (ev.json, daily from LTA).
+final evSitesProvider = FutureProvider<List<EvSite>>((ref) => _list(ref, 'ev', EvSite.fromBundle));
+
+/// Live EV chargers at one postal code, asked only while a list showing it is on screen.
+final evLiveProvider = FutureProvider.autoDispose.family<List<EvLive>, String>(
+  (ref, postal) async => EvLive.fromApi(await ref.watch(apiProvider).ev(postal)),
+);
+
 final aroundProvider = FutureProvider<AroundSet>((ref) async {
   final raw = await _map(ref, 'around');
   return raw == null ? AroundSet.empty : AroundSet.fromBundle(raw);
