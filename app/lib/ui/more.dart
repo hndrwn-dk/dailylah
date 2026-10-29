@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../l10n.dart';
 import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
@@ -96,27 +97,15 @@ class MorePage extends ConsumerWidget {
                       toggle(s.showHalal, fav.showHalal, (f, v) => f.copyWith(showHalal: v), sub: s.showHalalSub),
                       toggle(s.evToggle, fav.drivesEv, (f, v) => f.copyWith(evPlug: v ? 'any' : ''), sub: s.evToggleSub),
                       if (fav.drivesEv)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(s.evPlugTitle, style: t.labelLarge),
-                              const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: [
-                                  for (final plug in evPlugChoices)
-                                    ChoiceChip(
-                                      label: Text(s.evPlugName(plug)),
-                                      selected: fav.evPlug == plug,
-                                      onSelected: (_) => notifier.update((f) => f.copyWith(evPlug: plug)),
-                                    ),
-                                ],
-                              ),
-                            ],
-                          ),
+                        ListTile(
+                          leading: const Icon(Icons.power_outlined),
+                          title: Text(s.evPlugTitle),
+                          subtitle: Text(s.evPlugName(fav.evPlug)),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () async {
+                            final plug = await showEvPlugPicker(context, s, fav.evPlug);
+                            if (plug != null) notifier.update((f) => f.copyWith(evPlug: plug));
+                          },
                         ),
                       toggle(s.learnHabits, fav.learnHabits, (f, v) => f.copyWith(learnHabits: v), sub: s.learnHabitsSub),
                       ListTile(
@@ -415,3 +404,34 @@ class _ImportSheetState extends ConsumerState<_ImportSheet> {
     );
   }
 }
+
+/// Lists every plug in [evPlugChoices], one row each with a short hint and a tick on the
+/// current one, so more plugs can be added without the Extras panel growing.
+Future<String?> showEvPlugPicker(BuildContext context, S s, String current) => showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Text(s.evPlugAsk, style: Theme.of(context).textTheme.titleMedium),
+              ),
+              for (final plug in evPlugChoices)
+                ListTile(
+                  title: Text(s.evPlugName(plug)),
+                  subtitle: Text(s.evPlugHint(plug)),
+                  trailing: plug == current ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary) : null,
+                  selected: plug == current,
+                  onTap: () => Navigator.of(context).pop(plug),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
