@@ -245,6 +245,31 @@ class S {
   String get taxiStands => 'Nearest taxi stands';
   String get taxiLive => 'Free taxis right now, from LTA. Updated every few minutes.';
   String get taxiMapLegend => 'Dots are free taxis, squares are taxi stands. Rings at 250 m, 500 m and 1 km.';
+  String taxiEaseTitle(int level) => switch (level) {
+        0 => 'No free taxis nearby',
+        1 => 'Hard to get one now',
+        2 => 'Might take a while',
+        3 => 'Easy to get one now',
+        _ => 'Very easy right now',
+      };
+  String taxiEaseSub(int n) => n == 1 ? '1 free taxi within 1 km' : '$n free taxis within 1 km';
+  String get easeHard => 'Hard';
+  String get easeEasy => 'Easy';
+  String get fastestWay => 'Fastest way';
+  String taxiStandAt(String name) => 'Taxi stand · $name';
+  String standLine(double m, int taxis) =>
+      '${metres(m)} · ${walkMinutes(m)} · ${taxis == 1 ? '1 free taxi' : '$taxis free taxis'} around it';
+  String get walkThere => 'Walk there';
+  String get taxisWhereNow => 'Where they are now';
+  String underWalk(double m) => 'under ${(m / 80).ceil()} min walk';
+  String ringMin(double m) => '${(m / 80).ceil()} min';
+  String get legendTaxi => 'Free taxi';
+  String get legendStand => 'Taxi stand';
+  String get legendYou => 'You';
+  String get taxiTapHint => 'Tap a taxi or a stand for details.';
+  List<String> get compassNames =>
+      const ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+  String freeTaxiAt(double m, int dir) => 'Free taxi · ${metres(m)} ${compassNames[dir]} · ${walkMinutes(m)}';
   String get bookTaxi => 'Book a ride';
   String get bookTaxiNote => 'Opens the app if installed, otherwise its Play Store page.';
   String get callCdg => 'Call ComfortDelGro 6552 1111';

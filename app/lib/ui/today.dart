@@ -886,19 +886,11 @@ class TaxiSheet extends ConsumerWidget {
     final t = Theme.of(context).textTheme;
     final body = ref.watch(taxiProvider).valueOrNull;
     final pts = body == null ? const <(double, double)>[] : taxiPoints(body);
-    final (n200, n500, n1k) = taxiBands(pts, origin.lat, origin.lng);
+    final (_, n500, n1k) = taxiBands(pts, origin.lat, origin.lng);
     final stands = ref.watch(taxiStandsProvider).valueOrNull ?? const <EPoint>[];
     final nearStands = nearestPoints(stands, origin.lat, origin.lng, limit: 3, radius: 1500);
     final where = origin.address ?? placeTitle(s.placeLabel, origin);
-
-    Widget count(int n, String label) => Expanded(
-          child: Column(
-            children: [
-              Text('$n', style: t.displaySmall),
-              Text(label, style: t.bodySmall, textAlign: TextAlign.center),
-            ],
-          ),
-        );
+    final best = nearStands.isEmpty ? null : nearStands.first;
 
     return DraggableScrollableSheet(
       expand: false,
@@ -911,13 +903,56 @@ class TaxiSheet extends ConsumerWidget {
           Text(s.taxisNear(placeTitle(s.placeLabel, origin)), style: t.titleLarge),
           Text(where, style: t.bodySmall),
           const SizedBox(height: 14),
-          Panel(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              child: Row(children: [count(n200, s.within200), count(n500, s.within500), count(n1k, s.taxiWithin1km)]),
+          // 1. The answer: is it easy to get a taxi here now?
+          if (body == null)
+            const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: LinearProgressIndicator())
+          else
+            TaxiEaseCard(level: taxiEase(n500, n1k), count: n1k),
+          // 2. The fastest way: the nearest stand and the taxis around it.
+          if (best != null) ...[
+            _Tag(s.fastestWay),
+            Panel(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        const _StandBadge(size: 40),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(s.taxiStandAt(best.$1.name), style: t.titleMedium),
+                              Text(s.standLine(best.$2, taxisAround(pts, best.$1.lat, best.$1.lng)),
+                                  style: t.bodyMedium?.copyWith(color: DL.mist)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      icon: const Icon(Icons.directions_walk),
+                      label: Text(s.walkThere),
+                      onPressed: () => openDirections(best.$1.lat, best.$1.lng, distance: best.$2, mode: 'walking'),
+                    ),
+                  ],
+                ),
+              ),
             ),
+          ],
+          // 3. Where the taxis are: a live radar, stands and taxis tappable.
+          _Tag(s.taxisWhereNow),
+          TaxiRadar(
+            origin: origin,
+            taxis: pts,
+            stands: [for (final (p, _) in nearestPoints(stands, origin.lat, origin.lng, limit: 30, radius: 1000)) p],
           ),
-          SectionTitle(s.bookTaxi, padding: const EdgeInsets.fromLTRB(4, 0, 4, 10)),
+          // 4. Or book one.
+          _Tag(s.bookTaxi),
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
@@ -933,13 +968,16 @@ class TaxiSheet extends ConsumerWidget {
                   child: InkWell(
                     onTap: () => openApp(id),
                     child: Center(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.open_in_new, size: 18, color: DL.ink),
-                          const SizedBox(width: 8),
-                          Text(name, style: t.titleMedium?.copyWith(color: DL.ink)),
-                        ],
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.open_in_new, size: 18, color: DL.ink),
+                            const SizedBox(width: 8),
+                            Text(name, style: t.titleMedium?.copyWith(color: DL.ink)),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -951,50 +989,27 @@ class TaxiSheet extends ConsumerWidget {
             label: Text(s.callCdg),
             onPressed: () => launchUrl(Uri(scheme: 'tel', path: '65521111')),
           ),
-          const SizedBox(height: 18),
-          Panel(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
+          if (nearStands.length > 1) ...[
+            _Tag(s.taxiStands),
+            Panel(
               child: Column(
                 children: [
-                  AspectRatio(
-                    aspectRatio: 1,
-                    child: CustomPaint(
-                      painter: _TaxiRadar(
-                        origin: origin,
-                        taxis: pts,
-                        stands: [for (final (p, _) in nearestPoints(stands, origin.lat, origin.lng, limit: 30, radius: 1000)) p],
-                        edge: DL.edge(context),
-                        ring: Theme.of(context).colorScheme.outlineVariant,
+                  for (final (p, d) in nearStands)
+                    ListTile(
+                      leading: const _StandBadge(size: 32),
+                      title: Text(p.name),
+                      subtitle: Text('${s.metres(d)} · ${s.walkMinutes(d)}'),
+                      trailing: IconButton(
+                        tooltip: s.directions,
+                        icon: const Icon(Icons.directions_walk),
+                        onPressed: () => openDirections(p.lat, p.lng, distance: d, mode: 'walking'),
                       ),
+                      onTap: () => _openStand(context, s, p, d, pts),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(s.taxiMapLegend, style: t.bodySmall, textAlign: TextAlign.center),
                 ],
               ),
             ),
-          ),
-          SectionTitle(s.taxiStands, padding: const EdgeInsets.fromLTRB(4, 4, 4, 10)),
-          Panel(
-            child: Column(
-              children: [
-                if (nearStands.isEmpty) EmptyNote(stands.isEmpty ? s.bundlesLoading : s.notAvailable),
-                for (final (p, d) in nearStands)
-                  ListTile(
-                    leading: const Icon(Icons.local_taxi_outlined),
-                    title: Text(p.name),
-                    subtitle: Text('${s.metres(d)} · ${p.detail}'),
-                    trailing: IconButton(
-                      tooltip: s.directions,
-                      icon: const Icon(Icons.directions_walk),
-                      onPressed: () => openDirections(p.lat, p.lng, distance: d),
-                    ),
-                    onTap: () => showPlaceSheet(context, s: s, title: p.name, subtitle: p.detail, lat: p.lat, lng: p.lng, distance: d),
-                  ),
-              ],
-            ),
-          ),
+          ],
           const SizedBox(height: 10),
           Text('${s.taxiLive} ${s.bookTaxiNote}', style: t.bodySmall),
         ],
@@ -1003,66 +1018,375 @@ class TaxiSheet extends ConsumerWidget {
   }
 }
 
-/// 1 km radar around a place: rings, free taxis as dots, taxi stands as squares.
-class _TaxiRadar extends CustomPainter {
-  _TaxiRadar({required this.origin, required this.taxis, required this.stands, required this.edge, required this.ring});
+void _openStand(BuildContext context, S s, EPoint p, double d, List<(double, double)> taxis) => showPlaceSheet(
+      context,
+      s: s,
+      title: p.name,
+      subtitle: [p.detail, s.standLine(d, taxisAround(taxis, p.lat, p.lng))].where((x) => x.isNotEmpty).join('\n'),
+      lat: p.lat,
+      lng: p.lng,
+      distance: d,
+    );
+
+/// Small caps section label inside the taxi sheet.
+class _Tag extends StatelessWidget {
+  const _Tag(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
+        child: Text(text.toUpperCase(),
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(color: DL.mist, letterSpacing: 0.8, fontWeight: FontWeight.w800)),
+      );
+}
+
+/// Teal "T" square for a taxi stand.
+class _StandBadge extends StatelessWidget {
+  const _StandBadge({required this.size});
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: DL.teal,
+          borderRadius: BorderRadius.circular(size / 4),
+          border: Border.all(color: DL.ink, width: 2),
+        ),
+        child: Text('T', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: size * 0.45)),
+      );
+}
+
+/// "Easy to get one now": teal when easy (go), amber when hard or none (look now), with a
+/// four-step Hard–Easy gauge and the count within 1 km.
+class TaxiEaseCard extends ConsumerWidget {
+  const TaxiEaseCard({super.key, required this.level, required this.count});
+  final int level;
+  final int count;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final easy = level >= 3;
+    final fg = easy ? Colors.white : DL.ink;
+    return Panel(
+      color: easy ? DL.teal : DL.amber,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: DL.card,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: DL.ink, width: 2.5),
+                  ),
+                  child: const Icon(Icons.local_taxi, color: DL.ink, size: 30),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(s.taxiEaseTitle(level),
+                          style: t.headlineSmall
+                              ?.copyWith(fontFamily: DL.display, fontWeight: FontWeight.w700, color: fg, height: 1.05)),
+                      Text(s.taxiEaseSub(count), style: t.bodyMedium?.copyWith(color: fg)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                for (var i = 1; i <= 4; i++) ...[
+                  if (i > 1) const SizedBox(width: 5),
+                  Expanded(
+                    child: Container(
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: i <= level ? fg : fg.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Text(s.easeHard, style: t.labelSmall?.copyWith(color: fg)),
+                const Spacer(),
+                Text(s.easeEasy, style: t.labelSmall?.copyWith(color: fg)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 1 km radar on the dark board: rings labelled in walking minutes, free taxis as small cabs
+/// with a glow, stands as tappable "T" pins (open the stand), and a tap near a taxi says how
+/// far and which way it is. Counts per ring under it.
+class TaxiRadar extends ConsumerStatefulWidget {
+  const TaxiRadar({super.key, required this.origin, required this.taxis, required this.stands});
   final Place origin;
   final List<(double, double)> taxis;
   final List<EPoint> stands;
-  final Color edge;
-  final Color ring;
 
-  static const _range = 1000.0;
+  static const range = 1000.0;
+  static const rings = [200.0, 500.0, 1000.0];
+
+  @override
+  ConsumerState<TaxiRadar> createState() => _TaxiRadarState();
+}
+
+class _TaxiRadarState extends ConsumerState<TaxiRadar> {
+  int? _picked;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final o = widget.origin;
+    final (n200, n500, n1k) = taxiBands(widget.taxis, o.lat, o.lng);
+    final picked = _picked != null && _picked! < widget.taxis.length ? widget.taxis[_picked!] : null;
+    String pickedText() {
+      if (picked == null) return s.taxiTapHint;
+      final (e, n) = offsetMetres(o.lat, o.lng, picked.$1, picked.$2);
+      return s.freeTaxiAt(distanceMeters(o.lat, o.lng, picked.$1, picked.$2), compass8(e, n));
+    }
+
+    final light = t.bodySmall?.copyWith(color: DL.ledDim);
+
+    Widget count(int n, double m) => Expanded(
+          child: Column(
+            children: [
+              Text('$n', style: t.headlineSmall?.copyWith(fontFamily: DL.display, color: DL.led, fontWeight: FontWeight.w700)),
+              Text(s.underWalk(m), style: light, textAlign: TextAlign.center),
+            ],
+          ),
+        );
+
+    return Panel(
+      color: DL.board,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 12, 10, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AspectRatio(
+              aspectRatio: 1,
+              child: LayoutBuilder(builder: (context, box) {
+                final c = box.biggest.center(Offset.zero);
+                final r = box.biggest.shortestSide / 2 - 20;
+                Offset at(double lat, double lng) {
+                  final (e, n) = offsetMetres(o.lat, o.lng, lat, lng);
+                  return c + Offset(e / TaxiRadar.range * r, -n / TaxiRadar.range * r);
+                }
+
+                final cabs = <(int, Offset)>[
+                  for (final (i, (la, lo)) in widget.taxis.indexed)
+                    if ((at(la, lo) - c).distance <= r) (i, at(la, lo)),
+                ];
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapUp: (d) {
+                    (int, double)? hit;
+                    for (final (i, p) in cabs) {
+                      final dist = (p - d.localPosition).distance;
+                      if (dist <= 28 && (hit == null || dist < hit.$2)) hit = (i, dist);
+                    }
+                    setState(() => _picked = hit?.$1);
+                  },
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: _TaxiRadarPainter(
+                            center: c,
+                            radius: r,
+                            cabs: [for (final (_, p) in cabs) p],
+                            picked: picked == null ? null : at(picked.$1, picked.$2),
+                            labels: [for (final m in TaxiRadar.rings) s.ringMin(m)],
+                          ),
+                        ),
+                      ),
+                      for (final p in widget.stands)
+                        if ((at(p.lat, p.lng) - c).distance <= r)
+                          Positioned(
+                            left: at(p.lat, p.lng).dx - 16,
+                            top: at(p.lat, p.lng).dy - 16,
+                            child: TaxiStandPin(
+                              stand: p,
+                              onTap: () => _openStand(context, s, p, distanceMeters(o.lat, o.lng, p.lat, p.lng), widget.taxis),
+                            ),
+                          ),
+                    ],
+                  ),
+                );
+              }),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+              child: Text(pickedText(),
+                  style: picked == null ? light : t.bodyMedium?.copyWith(color: DL.led, fontWeight: FontWeight.w700),
+                  textAlign: TextAlign.center),
+            ),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [count(n200, 200), count(n500, 500), count(n1k, 1000)]),
+            const Divider(color: DL.nightEdge, height: 22),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 16,
+              runSpacing: 6,
+              children: [
+                for (final (color, label) in [(DL.led, s.legendTaxi), (DL.tealLight, s.legendStand), (DL.tealLight, s.legendYou)])
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(width: 12, height: 8, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
+                      const SizedBox(width: 6),
+                      Text(label, style: t.bodySmall?.copyWith(color: DL.card)),
+                    ],
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A taxi stand on the radar: a 32 px tap target around the "T" square.
+class TaxiStandPin extends StatelessWidget {
+  const TaxiStandPin({super.key, required this.stand, required this.onTap});
+  final EPoint stand;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        label: stand.name,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            child: Container(
+              width: 18,
+              height: 18,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: DL.teal,
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(color: DL.card, width: 2),
+              ),
+              child: const Text('T',
+                  textScaler: TextScaler.noScaling,
+                  style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800, height: 1)),
+            ),
+          ),
+        ),
+      );
+}
+
+class _TaxiRadarPainter extends CustomPainter {
+  _TaxiRadarPainter({required this.center, required this.radius, required this.cabs, required this.picked, required this.labels});
+  final Offset center;
+  final double radius;
+  final List<Offset> cabs;
+  final Offset? picked;
+  final List<String> labels;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final c = size.center(Offset.zero);
-    final r = size.shortestSide / 2 - 6;
-    final ringPaint = Paint()
+    final c = center, r = radius;
+    final ring = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5
-      ..color = ring;
-    for (final m in const [250.0, 500.0, 1000.0]) {
-      canvas.drawCircle(c, r * m / _range, ringPaint);
+      ..color = const Color(0xFF2B3B40);
+    for (final m in TaxiRadar.rings) {
+      canvas.drawCircle(c, r * m / TaxiRadar.range, ring);
     }
-    Offset at(double lat, double lng) {
-      final (e, n) = offsetMetres(origin.lat, origin.lng, lat, lng);
-      return c + Offset(e / _range * r, -n / _range * r);
+    // Soft glow under each taxi so busy areas read at a glance.
+    final glow = Paint()
+      ..color = DL.led.withValues(alpha: 0.16)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+    for (final p in cabs) {
+      canvas.drawCircle(p, 13, glow);
     }
-
-    final stand = Paint()..color = DL.teal;
-    final standEdge = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..color = edge;
-    for (final p in stands) {
-      final o = at(p.lat, p.lng);
-      if ((o - c).distance > r) continue;
-      final rect = Rect.fromCenter(center: o, width: 12, height: 12);
-      canvas.drawRect(rect, stand);
-      canvas.drawRect(rect, standEdge);
+    // Ring labels in walking minutes, at the bottom right of each ring.
+    for (final (i, m) in TaxiRadar.rings.indexed) {
+      final k = r * m / TaxiRadar.range * 0.707;
+      final tp = TextPainter(
+        text: TextSpan(text: labels[i], style: const TextStyle(color: DL.ledDim, fontSize: 10, fontWeight: FontWeight.w600)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final box = Rect.fromCenter(center: c + Offset(k, k), width: tp.width + 12, height: tp.height + 4);
+      final rr = RRect.fromRectAndRadius(box, const Radius.circular(8));
+      canvas.drawRRect(rr, Paint()..color = DL.board);
+      canvas.drawRRect(rr, ring);
+      tp.paint(canvas, box.topLeft + const Offset(6, 2));
     }
-    final dot = Paint()..color = DL.amber;
-    final dotEdge = Paint()
+    final body = Paint()..color = DL.led;
+    final edge = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5
-      ..color = edge;
-    for (final (la, lo) in taxis) {
-      final o = at(la, lo);
-      if ((o - c).distance > r) continue;
-      canvas.drawCircle(o, 5, dot);
-      canvas.drawCircle(o, 5, dotEdge);
+      ..color = DL.ink;
+    final roof = Paint()..color = DL.ink;
+    for (final p in cabs) {
+      final car = RRect.fromRectAndRadius(Rect.fromCenter(center: p, width: 14, height: 9), const Radius.circular(3));
+      canvas.drawRRect(car, body);
+      canvas.drawRRect(car, edge);
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(Rect.fromCenter(center: p + const Offset(0, -5.5), width: 6, height: 3), const Radius.circular(1)),
+          roof);
+    }
+    if (picked != null) {
+      canvas.drawCircle(
+          picked!,
+          13,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.5
+            ..color = DL.card);
     }
     // You are here.
-    canvas.drawCircle(c, 9, Paint()..color = edge);
-    canvas.drawCircle(c, 5, Paint()..color = DL.card);
-    final tp = TextPainter(
-      text: TextSpan(text: 'N', style: TextStyle(color: edge, fontSize: 12, fontWeight: FontWeight.w800)),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, Offset(c.dx - tp.width / 2, 0));
+    canvas.drawCircle(c, 15, Paint()..color = DL.teal.withValues(alpha: 0.3));
+    canvas.drawCircle(c, 8, Paint()..color = DL.card);
+    canvas.drawCircle(
+        c,
+        8,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 4
+          ..color = DL.teal);
+    for (final (label, off) in [('N', Offset(0, -r - 11)), ('E', Offset(r + 11, 0)), ('S', Offset(0, r + 11)), ('W', Offset(-r - 11, 0))]) {
+      final tp = TextPainter(
+        text: TextSpan(text: label, style: const TextStyle(color: DL.card, fontSize: 12, fontWeight: FontWeight.w800)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, c + off - Offset(tp.width / 2, tp.height / 2));
+    }
   }
 
   @override
-  bool shouldRepaint(_TaxiRadar old) => old.taxis != taxis || old.stands != stands || old.edge != edge;
+  bool shouldRepaint(_TaxiRadarPainter old) =>
+      old.cabs != cabs || old.picked != picked || old.center != center || old.radius != radius;
 }

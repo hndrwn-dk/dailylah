@@ -1029,6 +1029,26 @@ List<(double, double)> taxiPoints(Map<String, dynamic> apiBody) {
   return (a, b, c);
 }
 
+/// How easy a free taxi is right now, from the counts within 500 m and 1 km: 0 (none
+/// within 1 km), 1 hard, 2 might take a while, 3 easy, 4 very easy.
+int taxiEase(int within500, int within1k) {
+  if (within1k == 0) return 0;
+  if (within500 >= 5 || within1k >= 15) return 4;
+  if (within500 >= 2 || within1k >= 8) return 3;
+  if (within1k >= 3) return 2;
+  return 1;
+}
+
+/// Free taxis within [radius] metres of a point (e.g. around a taxi stand).
+int taxisAround(List<(double, double)> pts, double lat, double lng, {double radius = 200}) =>
+    pts.where((p) => distanceMeters(lat, lng, p.$1, p.$2) <= radius).length;
+
+/// 8-point compass direction of an offset in metres: 0 north, 1 north-east ... 7 north-west.
+int compass8(double east, double north) {
+  final deg = (math.atan2(east, north) * 180 / math.pi + 360) % 360;
+  return ((deg + 22.5) ~/ 45) % 8;
+}
+
 /// Offset in metres (east, north) of a point from an origin; good enough within a few km.
 (double, double) offsetMetres(double lat0, double lng0, double lat, double lng) =>
     ((lng - lng0) * 111320 * math.cos(lat0 * math.pi / 180), (lat - lat0) * 110540);

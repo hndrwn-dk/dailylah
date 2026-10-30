@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dailylah/data.dart';
+import 'package:dailylah/logic.dart' show offsetMetres;
 import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
@@ -353,5 +354,45 @@ void main() {
     expect((first.title! as Text).data, name);
     expect(find.descendant(of: find.widgetWithIcon(ListTile, Icons.restaurant_outlined).first, matching: find.byIcon(Icons.star)),
         findsOneWidget);
+  });
+
+  testWidgets('Taxi sheet answers first, and stands and taxis on the radar can be tapped', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    box.read(shellTabProvider.notifier).state = _tabs['Nearby']!;
+    box.read(nearbySectionProvider.notifier).state = 'taxi';
+    await settle(tester);
+    await tester.tap(find.textContaining('Taxis nearby').first);
+    await settle(tester);
+
+    // 1. The answer.
+    expect(find.byType(TaxiEaseCard), findsOneWidget);
+    expect(find.textContaining('within 1 km'), findsWidgets);
+
+    // 2. A taxi on the radar: tap it and it says how far and which way.
+    final radar = tester.widget<TaxiRadar>(find.byType(TaxiRadar));
+    await tester.ensureVisible(find.byType(TaxiRadar));
+    await tester.pump();
+    final area = tester.getRect(find.descendant(of: find.byType(TaxiRadar), matching: find.byType(AspectRatio)));
+    final r = area.shortestSide / 2 - 20;
+    final (la, lo) = radar.taxis.first;
+    final (e, n) = offsetMetres(radar.origin.lat, radar.origin.lng, la, lo);
+    await tester.tapAt(area.center + Offset(e / TaxiRadar.range * r, -n / TaxiRadar.range * r));
+    await tester.pump();
+    expect(find.textContaining('Free taxi ·'), findsOneWidget);
+    expect(find.text('Tap a taxi or a stand for details.'), findsNothing);
+
+    // 3. A stand on the radar opens its sheet.
+    final pins = find.byType(TaxiStandPin);
+    if (pins.evaluate().isNotEmpty) {
+      final name = tester.widget<TaxiStandPin>(pins.first).stand.name;
+      final before = find.text(name).evaluate().length;
+      await tester.tap(pins.first);
+      await settle(tester);
+      expect(find.text(name).evaluate().length, greaterThan(before));
+    }
+    expect(tester.takeException(), isNull);
   });
 }
