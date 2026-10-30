@@ -12,6 +12,8 @@ import 'package:dailylah/ui/bus_sheet.dart';
 import 'package:dailylah/ui/history.dart';
 import 'package:dailylah/ui/theme.dart';
 import 'package:dailylah/ui/today.dart';
+import 'package:dailylah/ui/trip.dart';
+import 'package:dailylah/ui/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -275,5 +277,81 @@ void main() {
     expect(find.text('Which plug does your car use?'), findsNothing);
     expect(find.descendant(of: plugRow, matching: find.text('CCS2')), findsOneWidget);
     expect(box.read(favoritesProvider).evPlug, 'CCS2');
+  });
+
+  testWidgets('A trip from the planner is timed with the banner and lands in History with its cost', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    box.read(goKeyProvider.notifier).state = 'work';
+    await settle(tester);
+
+    final leave = find.text("I'm leaving");
+    await tester.ensureVisible(leave);
+    await tester.pump();
+    await tester.tap(leave);
+    await settle(tester);
+    final route = box.read(habitsProvider).tripRoute!;
+    expect(route, endsWith('>work'));
+    // The tabs are hidden behind the planner, so the running trip shows on the page.
+    expect(find.byType(TripBanner), findsOneWidget);
+    expect(find.text("I'm leaving"), findsNothing);
+
+    // Pretend it started 25 minutes ago, then arrive.
+    final h = box.read(habitsProvider);
+    await box.read(habitsProvider.notifier).startTrip(route, DateTime.now().subtract(const Duration(minutes: 25)),
+        mode: h.tripMode, km: h.tripKm);
+    await settle(tester);
+    final arrived = find.descendant(of: find.byType(TripBanner), matching: find.text('Arrived'));
+    await tester.ensureVisible(arrived);
+    await tester.pump();
+    await tester.tap(arrived);
+    await settle(tester);
+    final trip = box.read(habitsProvider).trips.single;
+    expect(trip.route, route);
+    expect(trip.minutes, 25);
+    expect(trip.km, isNotNull); // straight-line km, for the fare estimate in History
+    expect(find.byType(TripBanner), findsNothing);
+
+    Navigator.of(tester.element(find.byType(TripPlannerPage))).pop();
+    await settle(tester);
+    box.read(shellTabProvider.notifier).state = _tabs['History']!;
+    await settle(tester);
+    final label = route.startsWith('home') ? 'Home → Work' : '${route.split('>').first} → Work';
+    expect(find.descendant(of: find.byType(HistoryPage), matching: find.text(label)), findsOneWidget);
+  });
+
+  testWidgets('A halal place can be starred and stays first in the list', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    box.read(shellTabProvider.notifier).state = _tabs['Nearby']!;
+    box.read(nearbySectionProvider.notifier).state = 'eat';
+    await settle(tester);
+    final seeAll = find.descendant(of: find.widgetWithText(SectionTitle, 'Halal food nearby'), matching: find.text('See all'));
+    await tester.ensureVisible(seeAll);
+    await tester.pump();
+    await tester.tap(seeAll);
+    await settle(tester);
+
+    // Star the third place: it moves to the top and is saved.
+    final rows = find.widgetWithIcon(ListTile, Icons.restaurant_outlined);
+    final third = tester.widget<ListTile>(rows.at(2));
+    final name = (third.title! as Text).data!;
+    final star = find.descendant(of: rows.at(2), matching: find.byIcon(Icons.star_border));
+    await tester.ensureVisible(star);
+    await tester.pump();
+    await tester.tap(star);
+    await settle(tester);
+    expect(box.read(favoritesProvider).halalPlaces, hasLength(1));
+    expect(box.read(favoritesProvider).halalPlaces.single, startsWith('p:'));
+    final first = tester.widget<ListTile>(find.widgetWithIcon(ListTile, Icons.restaurant_outlined).first);
+    expect((first.title! as Text).data, name);
+    expect(find.descendant(of: find.widgetWithIcon(ListTile, Icons.restaurant_outlined).first, matching: find.byIcon(Icons.star)),
+        findsOneWidget);
   });
 }

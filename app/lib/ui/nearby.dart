@@ -368,7 +368,7 @@ class _EatSection extends ConsumerWidget {
       nearestHawkerClosed: list.isNotEmpty && list.first.$1.closureOn(today) != null,
     );
     final halal = fav.showHalal ? ref.watch(halalProvider).valueOrNull ?? const <EPoint>[] : const <EPoint>[];
-    final halalList = fav.showHalal ? halalNear(halal, place.lat, place.lng, limit: 3) : const <(EPoint, double)>[];
+    final halalList = fav.showHalal ? halalNear(halal, place.lat, place.lng, limit: 3, favs: fav.halalPlaces) : const <(EPoint, double)>[];
 
     Widget orderButtons() => Row(
           children: [
@@ -463,6 +463,7 @@ class _EatSection extends ConsumerWidget {
                     leading: const Icon(Icons.restaurant_outlined),
                     title: Text(p.name),
                     subtitle: Text('${s.metres(d)} · ${p.address}', maxLines: 2, overflow: TextOverflow.ellipsis),
+                    trailing: fav.halalPlaces.contains(mealPlaceId(p.lat, p.lng)) ? const Icon(Icons.star, color: DL.amber) : null,
                     onTap: () => showPlaceSheet(context,
                         s: s,
                         title: p.name,
@@ -980,7 +981,8 @@ class _HalalTabState extends ConsumerState<_HalalTab> {
     final t = Theme.of(context).textTheme;
     final place = widget.place;
     return _loadingOr(ref.watch(halalProvider), s, (all) {
-      final list = halalNear(all, place.lat, place.lng, query: _query);
+      final favs = ref.watch(favoritesProvider.select((f) => f.halalPlaces));
+      final list = halalNear(all, place.lat, place.lng, query: _query, favs: favs);
       return ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24 + kNavClearance),
         children: [
@@ -1002,6 +1004,7 @@ class _HalalTabState extends ConsumerState<_HalalTab> {
                       leading: const Icon(Icons.restaurant_outlined),
                       title: Text(p.name),
                       subtitle: Text('${s.metres(d)} · ${p.address}', maxLines: 3, overflow: TextOverflow.ellipsis),
+                      trailing: _HalalStar(id: mealPlaceId(p.lat, p.lng), on: favs.contains(mealPlaceId(p.lat, p.lng))),
                       onTap: () => showPlaceSheet(context,
                           s: s,
                           title: p.name,
@@ -1020,6 +1023,20 @@ class _HalalTabState extends ConsumerState<_HalalTab> {
       );
     });
   }
+}
+
+/// Star to keep a halal place as a favourite (listed first, like favourite hawkers).
+class _HalalStar extends ConsumerWidget {
+  const _HalalStar({required this.id, required this.on});
+  final String id;
+  final bool on;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => IconButton(
+        tooltip: ref.watch(stringsProvider).favourite,
+        icon: Icon(on ? Icons.star : Icons.star_border, color: on ? DL.amber : null),
+        onPressed: () => ref.read(favoritesProvider.notifier).toggleHalal(id),
+      );
 }
 
 // ---------------------------------------------------------------- hawkers

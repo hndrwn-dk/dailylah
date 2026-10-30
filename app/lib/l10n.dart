@@ -395,6 +395,9 @@ class S {
   String get arrived => 'Arrived';
   String onTheWay(String since, String elapsed) => 'On the way since $since · $elapsed';
   String tripLogged(int minutes) => 'Logged: $minutes min door to door.';
+  String get tripCancel => 'Stop timing';
+  /// History and the trip banner: home/work/school by name, anything else as saved.
+  String routeEnd(String key) => const {'home', 'work', 'school'}.contains(key) ? placeLabel(key) : key;
   String get tripTooShort => 'Not logged: that trip looked too short or too long.';
   String usualTrip(int minutes, int count) => 'Usually $minutes min door to door ($count trips).';
   String rainyTrip(int minutes) => 'On rainy days $minutes min.';

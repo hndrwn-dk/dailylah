@@ -9,6 +9,7 @@ import 'more.dart';
 import 'nearby.dart';
 import 'widgets.dart';
 import 'today.dart';
+import 'trip.dart';
 import 'wake.dart';
 
 
@@ -160,6 +161,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const WakeBanner(),
+                const TripBanner(),
                 PillNav(
             index: index,
             onTap: _onTab,

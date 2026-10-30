@@ -624,6 +624,12 @@ void main() {
     expect(near.map((x) => x.$1.name), ['Prata Cafe', 'Wingstop']);
     expect(halalNear(places, 1.3620, 103.8538, query: 'nasi padang').single.$1.name, 'Nasi Padang Sabar Menanti');
     expect(halalNear(places, 1.3620, 103.8538, query: 'ang mo kio cafe').single.$1.name, 'Prata Cafe');
+    // A starred place comes first even when it is far away.
+    final far = places.reduce((a, b) =>
+        distanceMeters(1.3620, 103.8538, a.lat, a.lng) > distanceMeters(1.3620, 103.8538, b.lat, b.lng) ? a : b);
+    final starred = halalNear(places, 1.3620, 103.8538, favs: {mealPlaceId(far.lat, far.lng)});
+    expect(starred.first.$1.name, far.name);
+    expect(starred.where((e) => e.$1.name == far.name), hasLength(1));
   });
 
   test('private project at a home and its bundle', () {
@@ -1369,5 +1375,14 @@ void main() {
     });
     expect(evLiveFor(site, live).single.id, '909914441065');
     expect(evFree(site, live, 'Type 2'), (1, 2));
+  });
+
+  test('Trip keys keep home/work/school and use names for other places', () {
+    expect(tripRouteKey('home', 'work'), 'home>work');
+    expect(tripRouteKey('Here', 'ION > Orchard'), 'Here>ION › Orchard');
+    expect(tripRouteEnds('Here>ION › Orchard'), ('Here', 'ION › Orchard'));
+    expect(tripRouteEnds('nonsense'), isNull);
+    expect(const S().routeEnd('work'), 'Work');
+    expect(const S().routeEnd('ION Orchard'), 'ION Orchard');
   });
 }

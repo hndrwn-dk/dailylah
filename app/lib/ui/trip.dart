@@ -38,7 +38,8 @@ class TripSection extends ConsumerWidget {
     this.commute = false,
   });
 
-  /// The daily trip to work or school: shows I'm leaving / Arrived and the usual time.
+  /// The daily trip to work or school (its History key is "home>work"). Every trip has
+  /// I'm leaving; the running trip and Arrived live in [TripBanner] above the tabs.
   final bool commute;
 
   /// Key of the start place for editing its stops ("home", "work", "extra:0"), or null for "here".
@@ -90,17 +91,28 @@ class TripSection extends ConsumerWidget {
             },
           ),
         ),
-        if (commute) _TripTimer(from: from, to: to, mode: mode),
+        _TripTimer(
+          route: commute
+              ? tripRouteKey(from.kind.name, to.kind.name)
+              : tripRouteKey(
+                  fromLabel ?? (from.kind == PlaceKind.other ? placeTitle(s.placeLabel, from) : from.kind.name),
+                  to.kind == PlaceKind.other ? toLabel : to.kind.name),
+          from: from,
+          to: to,
+          mode: mode,
+        ),
         body,
       ],
     );
   }
 }
 
-/// Know me: "I'm leaving" / "Arrived" logs door-to-door time on this phone, and after a
-/// few trips the card says how long this trip usually takes (and on rainy days).
+/// Know me: "I'm leaving" starts timing this trip (bus/MRT, car, taxi... with its distance
+/// for the fare estimate); [TripBanner] shows it on every tab until Arrived, and it lands
+/// in History. After a few trips the card says how long this trip usually takes.
 class _TripTimer extends ConsumerWidget {
-  const _TripTimer({required this.from, required this.to, required this.mode});
+  const _TripTimer({required this.route, required this.from, required this.to, required this.mode});
+  final String route;
   final Place from;
   final Place to;
   final TravelMode mode;
@@ -112,46 +124,15 @@ class _TripTimer extends ConsumerWidget {
     final t = Theme.of(context).textTheme;
     final h = ref.watch(habitsProvider);
     final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
-    final route = '${from.kind.name}>${to.kind.name}';
+    // One trip at a time. The running one is in the banner above the tabs; on a page pushed
+    // over the tabs (the trip planner) the tabs are hidden, so it shows here instead.
+    if (h.tripStart != null) {
+      return (ModalRoute.of(context)?.isFirst ?? true) ? const SizedBox.shrink() : const TripBanner();
+    }
     final rain = ref.watch(rainfallProvider).valueOrNull;
     final forecast = ref.watch(forecastProvider).valueOrNull;
     final rainy = (rain != null && (rainfallNear(rain, from.lat, from.lng)?.$2 ?? 0) > 0) ||
         (forecast != null && (forecastNear(forecast, from.lat, from.lng)?.isRainy ?? false));
-
-    if (h.tripRoute == route && h.tripStart != null) {
-      final start = h.tripStart!;
-      return Panel(
-        color: DL.mint,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-          // A column, not a row: the app's buttons are full width, which squeezed the text.
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.timer_outlined, color: DL.ink),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(s.onTheWay(clockLabel(start), s.durationShort(now.difference(start).inMinutes)),
-                        style: t.titleSmall?.copyWith(color: DL.ink)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              FilledButton(
-                onPressed: () async {
-                  final messenger = ScaffoldMessenger.of(context);
-                  final m = await ref.read(habitsProvider.notifier).finishTrip(DateTime.now());
-                  messenger.showSnackBar(SnackBar(content: Text(m == null ? s.tripTooShort : s.tripLogged(m))));
-                },
-                child: Text(s.arrived),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
 
     final stats = tripStats(h.trips, route);
     final usual = rainy ? (stats.rainy ?? stats.usual) : stats.usual;
@@ -1071,4 +1052,60 @@ class _Label extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
         child: Text(text, style: Theme.of(context).textTheme.labelLarge),
       );
+}
+
+/// The trip being timed, above the tabs on every screen (like [WakeBanner]): where to, since
+/// when, Arrived (logs it to History) and Stop timing.
+class TripBanner extends ConsumerWidget {
+  const TripBanner({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final h = ref.watch(habitsProvider);
+    final start = h.tripStart;
+    final ends = h.tripRoute == null ? null : tripRouteEnds(h.tripRoute!);
+    if (start == null || ends == null) return const SizedBox.shrink();
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
+    final notifier = ref.read(habitsProvider.notifier);
+    return Panel(
+      margin: const EdgeInsets.only(bottom: 10),
+      color: DL.mint,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 8, 6, 8),
+        child: Row(
+          children: [
+            const Icon(Icons.timer_outlined, color: DL.ink),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(s.routeLabel(s.routeEnd(ends.$1), s.routeEnd(ends.$2)),
+                      style: t.titleSmall?.copyWith(color: DL.ink), maxLines: 2, overflow: TextOverflow.ellipsis),
+                  Text(s.onTheWay(clockLabel(start), s.durationShort(now.difference(start).inMinutes)),
+                      style: t.bodySmall?.copyWith(color: DL.ink)),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: s.tripCancel,
+              icon: const Icon(Icons.close, color: DL.ink),
+              onPressed: notifier.cancelTrip,
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                final m = await notifier.finishTrip(DateTime.now());
+                messenger.showSnackBar(SnackBar(content: Text(m == null ? s.tripTooShort : s.tripLogged(m))));
+              },
+              child: Text(s.arrived),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
