@@ -305,7 +305,10 @@ void main() {
     await box.read(habitsProvider.notifier).startTrip(route, DateTime.now().subtract(const Duration(minutes: 25)),
         mode: h.tripMode, km: h.tripKm);
     await settle(tester);
-    await tester.tap(find.descendant(of: find.byType(TripBanner), matching: find.text('Arrived')));
+    final arrived = find.descendant(of: find.byType(TripBanner), matching: find.text('Arrived'));
+    await tester.ensureVisible(arrived);
+    await tester.pump();
+    await tester.tap(arrived);
     await settle(tester);
     final trip = box.read(habitsProvider).trips.single;
     expect(trip.route, route);
