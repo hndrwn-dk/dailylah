@@ -7,12 +7,11 @@
   "carparks": 2273,
   "dengue": 11,
   "emergency": 11452,
-  "ev": 2807,
-  "halal": 3762,
+  "ev": 2812,
+  "events": 27,
+  "halal": 3764,
   "hawkers": 108,
   "hdb_blocks": 10684,
-  "hdb_rent": 26,
-  "hdb_resale": 9246,
   "holidays": 15,
   "mrt_stations": 180,
   "poi": 5709,
@@ -22,7 +21,8 @@
  },
  "datagov_key_rejected": false,
  "errors": {
-  "events": "HTTPStatusError(\"Client error '403 Forbidden' for url 'https://api.eventfinda.sg/v2/events.json?rows=20&offset=0&point=1.3521%2C103.8198&radius=40&order=date&fields=event%3A%28id%2Curl%2Cname%2Cdatetime_start%2Cdatetime_end%2Cdatetime_summary%2Clocation_summary%2Cpoint%2Cis_free%2Cis_cancelled%2Ccat"
+  "hdb_rent": "ReadError('')",
+  "hdb_resale": "ReadError('')"
  },
  "geocode_cache": 1958,
  "geocoded_new": 0,
