@@ -1018,7 +1018,8 @@ class _Food extends ConsumerWidget {
             title: s.halalFood,
             icon: Icons.restaurant_outlined,
             items: [
-              for (final (p, d) in halalNear(ref.watch(halalProvider).valueOrNull ?? const <EPoint>[], home.lat, home.lng, limit: 15))
+              for (final (p, d) in halalNear(ref.watch(halalProvider).valueOrNull ?? const <EPoint>[], home.lat, home.lng,
+                  limit: 15, favs: ref.watch(favoritesProvider.select((f) => f.halalPlaces))))
                 NearItem(name: p.name, detail: p.address, lat: p.lat, lng: p.lng, distance: d),
             ],
           ),

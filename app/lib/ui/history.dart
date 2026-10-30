@@ -257,11 +257,10 @@ class _EntryTile extends ConsumerWidget {
         _ => Icons.directions_bus_outlined,
       };
 
-  /// "home>work" → "Home → Work".
+  /// "home>work" → "Home → Work"; a planned trip keeps its names ("Here → ION Orchard").
   static String _route(S s, String route) {
-    final parts = route.split('>');
-    if (parts.length != 2) return route;
-    return s.routeLabel(s.placeLabel(parts[0]), s.placeLabel(parts[1]));
+    final ends = tripRouteEnds(route);
+    return ends == null ? route : s.routeLabel(s.routeEnd(ends.$1), s.routeEnd(ends.$2));
   }
 }
 

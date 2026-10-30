@@ -29,7 +29,8 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   The app is English only; every user-facing string still goes through `S`.
 - Religion-neutral by default: no onboarding question about religion. Faith-specific
   features (MUIS prayer times, halal food from the `halal.json` bundle built from Muslim.sg
-  listings) are opt-in under More > Extras. Halal screens always say "Not affiliated with MUIS.
+  listings) are opt-in under More > Extras. Halal places can be starred (`Favorites.halalPlaces`, by `mealPlaceId`) and
+  come first in `halalNear`, like favourite hawkers. Halal screens always say "Not affiliated with MUIS.
   Always verify halal status directly" (`S.halalDisclaimer`).
 - `lib/providers.dart` holds all Riverpod providers; widgets in `lib/ui/` only render.
 - `AppFrame` (`ui/app_frame.dart`, MaterialApp.builder) keeps every route above the system navigation
@@ -118,6 +119,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   row), with Undo; taps within 30 min count as one meal (`addMeal`). Halal places have no id, so their
   meals use `mealPlaceId` (position) and keep the name in `MealLog.name`; `mealNudge` counts hawkers only.
   Tap a meal in History to set when it was eaten (`mealTimeOn`, same day, not in the future).
+  Every trip card (commute and "Go somewhere") has I'm leaving; the running trip shows in `TripBanner`
+  above the tabs (inline on the planner page, which hides the tabs) with Arrived / Stop timing. Commute
+  keys stay "home>work"; planned trips keep the names shown (`tripRouteKey`, `S.routeEnd`).
 - Habits (`Habits` in models.dart, `HabitsStore` in store.dart, `habitsProvider`): parked car, trips
   logged with I'm leaving/Arrived (`tripStats`), "Ate here" meals (`mealNudge`). On the phone only,
   behind `Favorites.learnHabits`, never in the share code. Weekly Sunday digest (`weeklyDigest`)

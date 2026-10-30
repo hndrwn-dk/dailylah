@@ -45,6 +45,12 @@ class FavoritesNotifier extends Notifier<Favorites> {
         return f.copyWith(hawkers: s);
       });
 
+  Future<void> toggleHalal(String id) => update((f) {
+        final s = {...f.halalPlaces};
+        if (!s.remove(id)) s.add(id);
+        return f.copyWith(halalPlaces: s);
+      });
+
   Future<void> toggleCarpark(String id) => update((f) {
         final s = {...f.carparks};
         if (!s.remove(id)) s.add(id);
@@ -151,6 +157,9 @@ class HabitsNotifier extends Notifier<Habits> {
 
   Future<void> startTrip(String route, DateTime now, {bool rainy = false, String? mode, double? km}) =>
       _set(state.copyWith(tripRoute: route, tripStart: now, tripRainy: rainy, tripMode: mode, tripKm: km));
+
+  /// Stops timing the running trip without logging it.
+  Future<void> cancelTrip() => _set(state.copyWith(clearTrip: true));
 
   /// Puts History back as it was (Undo after a delete).
   Future<void> restore(Habits h) => _set(h);

@@ -245,6 +245,7 @@ class Favorites {
     this.showHalal = false,
     this.evPlug = '',
     this.hawkers = const {},
+    this.halalPlaces = const {},
     this.carparks = const {},
     this.watchedBlocks = const {},
     this.compareBlocks = const [],
@@ -288,6 +289,9 @@ class Favorites {
   /// Favourite hawker centre ids (hawkers.json "id").
   final Set<String> hawkers;
 
+  /// Favourite halal places, by position (`mealPlaceId`): the halal bundle has no ids.
+  final Set<String> halalPlaces;
+
   /// Saved HDB car park numbers (carparks.json "id").
   final Set<String> carparks;
 
@@ -325,6 +329,7 @@ class Favorites {
     bool? showHalal,
     String? evPlug,
     Set<String>? hawkers,
+    Set<String>? halalPlaces,
     Set<String>? carparks,
     Map<String, int>? watchedBlocks,
     List<String>? compareBlocks,
@@ -350,6 +355,7 @@ class Favorites {
         showHalal: showHalal ?? this.showHalal,
         evPlug: evPlug ?? this.evPlug,
         hawkers: hawkers ?? this.hawkers,
+        halalPlaces: halalPlaces ?? this.halalPlaces,
         carparks: carparks ?? this.carparks,
         watchedBlocks: watchedBlocks ?? this.watchedBlocks,
         compareBlocks: compareBlocks ?? this.compareBlocks,
@@ -376,6 +382,7 @@ class Favorites {
         'showHalal': showHalal,
         if (evPlug.isNotEmpty) 'evPlug': evPlug,
         'hawkers': hawkers.toList()..sort(),
+        if (halalPlaces.isNotEmpty) 'halalPlaces': halalPlaces.toList()..sort(),
         'carparks': carparks.toList()..sort(),
         'watchedBlocks': watchedBlocks,
         'compareBlocks': compareBlocks,
@@ -409,6 +416,7 @@ class Favorites {
       showHalal: (j['showHalal'] ?? false) as bool,
       evPlug: '${j['evPlug'] ?? ''}',
       hawkers: strings('hawkers'),
+      halalPlaces: strings('halalPlaces'),
       carparks: strings('carparks'),
       watchedBlocks: {
         for (final e in ((j['watchedBlocks'] as Map?) ?? const {}).entries) '${e.key}': (e.value as num).toInt(),

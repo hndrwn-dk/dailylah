@@ -1508,7 +1508,10 @@ List<(Hawker, Closure, double)> upcomingClosures(List<Hawker> all, double lat, d
 
 /// Halal places near a point, optionally matching every word of [query] in the name or
 /// address ("nasi padang", "cafe tampines"). Wider radius when searching.
-List<(EPoint, double)> halalNear(List<EPoint> all, double lat, double lng, {String query = '', int limit = 60}) {
+/// Halal places matching [query] near a point, nearest first. Favourites ([favs], by
+/// `mealPlaceId`) come first wherever they are, so a far favourite still shows.
+List<(EPoint, double)> halalNear(List<EPoint> all, double lat, double lng,
+    {String query = '', int limit = 60, Set<String> favs = const {}}) {
   final words = query.toLowerCase().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
   final match = words.isEmpty
       ? all
@@ -1516,7 +1519,14 @@ List<(EPoint, double)> halalNear(List<EPoint> all, double lat, double lng, {Stri
           for (final p in all)
             if (words.every('${p.name} ${p.address}'.toLowerCase().contains)) p,
         ];
-  return within(match, lat, lng, words.isEmpty ? 3000 : 15000, latOf: (p) => p.lat, lngOf: (p) => p.lng, limit: limit);
+  final near = within(match, lat, lng, words.isEmpty ? 3000 : 15000, latOf: (p) => p.lat, lngOf: (p) => p.lng, limit: limit);
+  if (favs.isEmpty) return near;
+  bool isFav(EPoint p) => favs.contains(mealPlaceId(p.lat, p.lng));
+  final starred = [
+    for (final p in match)
+      if (isFav(p)) (p, distanceMeters(lat, lng, p.lat, p.lng)),
+  ]..sort((a, b) => a.$2.compareTo(b.$2));
+  return [...starred, ...near.where((e) => !isFav(e.$1))].take(limit).toList();
 }
 
 /// "MARINE DR" -> "Marine Dr", "BT BATOK ST 11" -> "Bt Batok St 11".
@@ -1654,6 +1664,17 @@ int _median(List<int> xs) {
 }
 
 /// Minutes of a finished trip, or null when it does not look like one (under 3 min or over 3 h).
+/// Key of a logged trip: "home>work" between saved home/work/school, else the names shown
+/// ("Here>ION Orchard") so History can say where a planned trip went.
+String tripRouteKey(String from, String to) => '${_routeEnd(from)}>${_routeEnd(to)}';
+String _routeEnd(String s) => s.replaceAll('>', '›').trim();
+
+/// The two ends of a trip key; home/work/school stay keys for [S.placeLabel].
+(String, String)? tripRouteEnds(String route) {
+  final parts = route.split('>');
+  return parts.length == 2 ? (parts[0], parts[1]) : null;
+}
+
 int? tripMinutes(DateTime start, DateTime end) {
   final m = end.difference(start).inMinutes;
   return m < 3 || m > 180 ? null : m;
