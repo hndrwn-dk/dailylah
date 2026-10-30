@@ -22,7 +22,8 @@ for line in open(sys.argv[1], encoding="utf-8"):
         text = str(e.get("message", ""))
         what = re.search(
             r"(A Render\w+ overflowed by [^\n]+|Exception: [^\n]+"
-            r"|Expected: [^\n]+\n\s*Actual: [^\n]+)",
+            r"|Expected: [^\n]+\n\s*Actual: [^\n]+"
+            r"|The following [^\n]+ was thrown[^\n]*\n[^\n]+)",
             text,
         )
         where = re.findall(r"(lib/[\w/]+\.dart:\d+)", text)
