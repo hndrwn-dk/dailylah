@@ -347,6 +347,35 @@ class S {
   }
 
   String changeAt(String station) => 'Change trains at $station';
+  // "I'm on the train"
+  String get rideTitle => 'On the train';
+  String rideRunning(String station) => 'Riding to $station';
+  String rideNextStop(String station) => 'Next stop: $station. Get ready to alight.';
+  String rideDisrupted(String line) => 'Delay on the $line. Open DailyLah for Plan B.';
+  String get imOnTrain => "I'm on the train";
+  String get imOnTrainSub => 'Watches the line and tells you before your stop';
+  String lineRunningNormally(String line) => '$line running normally';
+  String lineCheckedAt(String time) => 'LTA train alerts · checked $time';
+  String rideTo(String station) => 'To $station';
+  String rideSub(String line, int left, String eta) =>
+      '$line · ${left == 1 ? '1 stop' : '$left stops'} left · arrive about $eta';
+  String get rideOk => 'Running normally';
+  String get rideChecking => 'Checking the line…';
+  String get rideCheckNote => 'Checked every 2 min while you ride';
+  String rideDelayOn(String line) => 'Delay on the $line';
+  String get ridePassed => 'passed';
+  String get rideAboutHere => 'about here';
+  String get rideAlertHere => 'alert here';
+  String get rideChangeHere => 'change here';
+  String rideYourStop(String time) => 'your stop · $time';
+  String get rideEstimateNote =>
+      'Your position is estimated from the time (about 2 min a stop): GPS does not work in tunnels.';
+  String get rideAlertTitle => 'Alert me one stop before';
+  String rideAlertSub(String station) => 'At $station, with sound and vibration';
+  String get rideStop => 'Stop';
+  String get rideArrived => "I've arrived";
+  String rideBannerSub(int left, String eta, String? delay) =>
+      '${left == 1 ? '1 stop' : '$left stops'} left · about $eta · ${delay ?? 'running normally'}';
   String walkIsQuicker(String minutes, String dist) => '$minutes · $dist';
   String get walkingRoute => 'Walking route';
   String suggestedStop(String dist, String place) => 'Has a direct bus · $dist from $place';

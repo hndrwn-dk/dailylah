@@ -5,12 +5,14 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dailylah/data.dart';
-import 'package:dailylah/logic.dart' show offsetMetres;
+import 'package:dailylah/logic.dart' show offsetMetres, rideMinutesTo;
 import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
+import 'package:dailylah/mrt_ride.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/bus_sheet.dart';
 import 'package:dailylah/ui/history.dart';
+import 'package:dailylah/ui/mrt_ride.dart';
 import 'package:dailylah/ui/theme.dart';
 import 'package:dailylah/ui/today.dart';
 import 'package:dailylah/ui/trip.dart';
@@ -394,5 +396,46 @@ void main() {
       expect(find.text(name).evaluate().length, greaterThan(before));
     }
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets("I'm on the train starts a ride with its stations, banner and Arrived", (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    box.read(goFromKeyProvider.notifier).state = 'home';
+    box.read(goKeyProvider.notifier).state = 'work';
+    box.read(modeOverrideProvider.notifier).state = {'work': TravelMode.transit};
+    await settle(tester);
+
+    final onTrain = find.text("I'm on the train");
+    await tester.ensureVisible(onTrain);
+    await tester.pump();
+    await tester.tap(onTrain);
+    await settle(tester);
+
+    final ride = box.read(rideProvider)!;
+    expect(ride.ride.board.name, 'Tampines');
+    expect(ride.ride.alight.name, 'Raffles Place');
+    expect(find.byType(MrtRidePage), findsOneWidget);
+    expect(find.text('To Raffles Place'), findsOneWidget);
+    expect(find.text('Bedok'), findsOneWidget); // a station on the way
+    expect(find.text('Running normally'), findsOneWidget); // line checked at the start
+    expect(box.read(habitsProvider).tripStart, isNotNull); // timed for History
+
+    // One stop before the end the alert goes out once.
+    await box.read(rideProvider.notifier).tickAt(ride.start.add(Duration(minutes: rideMinutesTo(ride.ride, ride.ride.stops - 1))));
+    expect(box.read(rideProvider)!.alerted, isTrue);
+
+    final arrived = find.text("I've arrived");
+    await tester.ensureVisible(arrived);
+    await tester.pump();
+    await tester.tap(arrived);
+    await settle(tester);
+    expect(box.read(rideProvider), isNull);
+    expect(box.read(habitsProvider).tripStart, isNull);
+    expect(find.byType(MrtRidePage), findsNothing);
   });
 }

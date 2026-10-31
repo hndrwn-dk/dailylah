@@ -1404,4 +1404,50 @@ void main() {
     expect(compass8(-100, 100), 7);
     expect(const S().freeTaxiAt(180, 7), 'Free taxi · 180 m north-west · 3 min walk');
   });
+
+  test('MRT ride: stations in order, estimated position, alert and change of line', () {
+    const st = [
+      MrtStation(name: 'Tampines', codes: ['EW2', 'DT32'], lat: 1.3533, lng: 103.9452),
+      MrtStation(name: 'Simei', codes: ['EW3'], lat: 1.3432, lng: 103.9533),
+      MrtStation(name: 'Tanah Merah', codes: ['EW4'], lat: 1.3272, lng: 103.9465),
+      MrtStation(name: 'Bedok', codes: ['EW5'], lat: 1.324, lng: 103.93),
+      MrtStation(name: 'Expo', codes: ['CG1', 'DT35'], lat: 1.3346, lng: 103.9617),
+      MrtStation(name: 'Upper Changi', codes: ['DT34'], lat: 1.3417, lng: 103.9613),
+      MrtStation(name: 'Tampines East', codes: ['DT33'], lat: 1.3562, lng: 103.9551),
+    ];
+    final leg = mrtLeg(st, st[3], st[0])!;
+    expect(leg.map((x) => x.name), ['Bedok', 'Tanah Merah', 'Simei', 'Tampines']);
+    expect(mrtLeg(st, st[1], st[5]), isNull); // no shared line
+
+    const plan = MrtPlan(board: MrtStation(name: 'Tampines', codes: ['EW2', 'DT32'], lat: 1.3533, lng: 103.9452),
+        walkToBoard: 300, alight: MrtStation(name: 'Bedok', codes: ['EW5'], lat: 1.324, lng: 103.93), walkFromAlight: 200,
+        line: 'EWL', stops: 3);
+    final ride = mrtRide(st, plan)!;
+    expect(ride.stops, 3);
+    expect(ride.lines, {'EWL', 'DTL'});
+    expect(rideLineAt(ride, 0), 'EWL');
+    final t0 = DateTime(2026, 10, 31, 8);
+    expect(rideIndexAt(ride, t0, t0), 0);
+    expect(rideIndexAt(ride, t0, t0.add(const Duration(minutes: 3))), 1);
+    expect(rideIndexAt(ride, t0, t0.add(const Duration(minutes: 30))), 3);
+    expect(rideEta(ride, t0, t0), t0.add(const Duration(minutes: 6)));
+    expect(rideAlertDue(ride, 1), isFalse);
+    expect(rideAlertDue(ride, 2), isTrue);
+    // A GPS fix at Simei (index 2) after 1 minute moves the estimate on.
+    final fixAt = t0.add(const Duration(minutes: 1));
+    expect(rideFixIndex(ride, 1.3432, 103.9533), 2);
+    expect(rideIndexAt(ride, t0, fixAt, fixIndex: 2, fixAt: fixAt), 2);
+    expect(rideEta(ride, t0, fixAt, fixIndex: 2, fixAt: fixAt), fixAt.add(const Duration(minutes: 2)));
+
+    // With a change of line, the change adds its minutes after the change station.
+    const via = MrtPlan(board: MrtStation(name: 'Bedok', codes: ['EW5'], lat: 1.324, lng: 103.93), walkToBoard: 100,
+        alight: MrtStation(name: 'Upper Changi', codes: ['DT34'], lat: 1.3417, lng: 103.9613), walkFromAlight: 100,
+        via: MrtStation(name: 'Tampines', codes: ['EW2', 'DT32'], lat: 1.3533, lng: 103.9452));
+    final r2 = mrtRide(st, via)!;
+    expect(r2.stations.map((x) => x.name), ['Bedok', 'Tanah Merah', 'Simei', 'Tampines', 'Tampines East', 'Upper Changi']);
+    expect(r2.viaIndex, 3);
+    expect(rideMinutesTo(r2, 3), 6);
+    expect(rideMinutesTo(r2, 4), 13);
+    expect(rideLineAt(r2, 3), 'DTL');
+  });
 }
