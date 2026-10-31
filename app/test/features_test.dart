@@ -411,6 +411,13 @@ void main() {
     await settle(tester);
 
     final onTrain = find.text("I'm on the train");
+    if (onTrain.evaluate().isEmpty) {
+      final texts = [
+        for (final w in find.byType(Text).evaluate().map((e) => e.widget as Text))
+          if (w.data != null) w.data!,
+      ];
+      fail('No "I\'m on the train". Shown: ${texts.join(' | ')}');
+    }
     await tester.ensureVisible(onTrain);
     await tester.pump();
     await tester.tap(onTrain);
