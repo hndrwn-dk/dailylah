@@ -1440,6 +1440,123 @@ MrtPlan? mrtPlan(List<MrtStation> stations, Place from, Place to, {double maxWal
 }
 
 
+// ---------------------------------------------------------------- MRT ride ("I'm on the train")
+
+/// Minutes a train takes per stop and to change lines, for the ride estimate (GPS does not
+/// work in tunnels, so the position on the train is worked out from the time).
+const rideMinutesPerStop = 2;
+const rideTransferMinutes = 5;
+
+/// The stations on one line from [a] to [b], both included, in travel order. Null when they
+/// share no numbered line code (e.g. different branches).
+List<MrtStation>? mrtLeg(List<MrtStation> all, MrtStation a, MrtStation b) {
+  (String, int, int)? best;
+  for (final ca in a.codes) {
+    final pa = RegExp(r'^([A-Z]+)(\d+)').firstMatch(ca);
+    if (pa == null) continue;
+    for (final cb in b.codes) {
+      final pb = RegExp(r'^([A-Z]+)(\d+)').firstMatch(cb);
+      if (pb == null || pa.group(1) != pb.group(1)) continue;
+      final na = int.parse(pa.group(2)!), nb = int.parse(pb.group(2)!);
+      if (best == null || (na - nb).abs() < (best.$2 - best.$3).abs()) best = (pa.group(1)!, na, nb);
+    }
+  }
+  if (best == null || best.$2 == best.$3) return null;
+  final (prefix, from, to) = best;
+  final lo = from < to ? from : to, hi = from < to ? to : from;
+  final byNum = <int, MrtStation>{};
+  for (final st in all) {
+    for (final c in st.codes) {
+      final m = RegExp(r'^([A-Z]+)(\d+)$').firstMatch(c);
+      if (m == null || m.group(1) != prefix) continue;
+      final n = int.parse(m.group(2)!);
+      if (n >= lo && n <= hi) byNum.putIfAbsent(n, () => st);
+    }
+  }
+  byNum[from] = a;
+  byNum[to] = b;
+  final nums = byNum.keys.toList()..sort();
+  final list = [for (final n in nums) byNum[n]!];
+  return from < to ? list : list.reversed.toList();
+}
+
+/// One MRT ride: every station from boarding to alighting, the change station if any, and
+/// the lines it uses (for the status checks).
+class MrtRide {
+  const MrtRide({required this.stations, required this.lines, this.viaIndex});
+  final List<MrtStation> stations;
+  final Set<String> lines;
+  final int? viaIndex;
+
+  MrtStation get board => stations.first;
+  MrtStation get alight => stations.last;
+  int get stops => stations.length - 1;
+}
+
+/// The ride for a plan, or null when the stations in between are not known.
+MrtRide? mrtRide(List<MrtStation> all, MrtPlan plan) {
+  final lines = mrtPlanLines(plan);
+  if (plan.via == null) {
+    final leg = mrtLeg(all, plan.board, plan.alight);
+    return leg == null ? null : MrtRide(stations: leg, lines: lines);
+  }
+  final a = mrtLeg(all, plan.board, plan.via!), b = mrtLeg(all, plan.via!, plan.alight);
+  if (a == null || b == null) return null;
+  return MrtRide(stations: [...a, ...b.skip(1)], lines: lines, viaIndex: a.length - 1);
+}
+
+/// Minutes from boarding to station [i] of the ride.
+int rideMinutesTo(MrtRide r, int i) =>
+    i * rideMinutesPerStop + (r.viaIndex != null && i > r.viaIndex! ? rideTransferMinutes : 0);
+
+/// The station the rider is about at: from the time since boarding, or since the last GPS fix
+/// near a station on the ride ([fixIndex] at [fixAt]) when there is one.
+int rideIndexAt(MrtRide r, DateTime start, DateTime now, {int? fixIndex, DateTime? fixAt}) {
+  final base = fixIndex != null && fixAt != null ? fixIndex : 0;
+  final since = now.difference(fixIndex != null && fixAt != null ? fixAt : start).inSeconds / 60;
+  final offset = rideMinutesTo(r, base);
+  var i = base;
+  while (i < r.stops && rideMinutesTo(r, i + 1) - offset <= since) {
+    i++;
+  }
+  return i;
+}
+
+/// When the ride should reach its last station.
+DateTime rideEta(MrtRide r, DateTime start, DateTime now, {int? fixIndex, DateTime? fixAt}) {
+  if (fixIndex != null && fixAt != null) {
+    return fixAt.add(Duration(minutes: rideMinutesTo(r, r.stops) - rideMinutesTo(r, fixIndex)));
+  }
+  return start.add(Duration(minutes: rideMinutesTo(r, r.stops)));
+}
+
+/// The station on the ride within [radius] metres of a GPS fix, if any (above-ground stretches).
+int? rideFixIndex(MrtRide r, double lat, double lng, {double radius = 300}) {
+  int? best;
+  double? bestD;
+  for (final (i, st) in r.stations.indexed) {
+    final d = distanceMeters(lat, lng, st.lat, st.lng);
+    if (d <= radius && (bestD == null || d < bestD)) (best, bestD) = (i, d);
+  }
+  return best;
+}
+
+/// The line (e.g. "EWL") between station [i] and the next (the previous for the last).
+String? rideLineAt(MrtRide r, int i) {
+  if (r.stations.length < 2) return null;
+  final a = r.stations[i == r.stops ? i - 1 : i], b = r.stations[i == r.stops ? i : i + 1];
+  String? prefix(String c) => RegExp(r'^[A-Z]+').firstMatch(c)?.group(0);
+  for (final ca in a.codes) {
+    for (final cb in b.codes) {
+      if (prefix(ca) != null && prefix(ca) == prefix(cb)) return lineOfCode(ca);
+    }
+  }
+  return null;
+}
+
+/// "Next stop is yours": the rider is about one stop before the end.
+bool rideAlertDue(MrtRide r, int index) => r.stops >= 1 && index >= r.stops - 1;
+
 // ---------------------------------------------------------------- home
 
 /// The HDB block of a saved home: same postal code, else the nearest block within 40 m.

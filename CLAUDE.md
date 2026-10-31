@@ -112,6 +112,12 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   (`busStrip`), Next/Then bus, load as `LoadBars` (Seats free / Standing / Packed) and "Open in Maps"
   (a Google Maps link with the bus position, no SDK).
   From "Here" within `arrivedMetres` of the destination the trip shows "You're here".
+  MRT: the MRT card shows the line status and "I'm on the train" (`mrtRide`/`mrtLeg`: every station from
+  board to alight, change station included). The ride (`lib/mrt_ride.dart`, `rideProvider`, like the wake
+  session) estimates the position from the time (`rideMinutesPerStop`, `rideTransferMinutes`,
+  `rideIndexAt`; GPS fixes near a station correct it, `rideFixIndex`), checks LTA train alerts every
+  `rideCheckEvery` and notifies once on a disruption, and alerts one stop before (`rideAlertDue`).
+  `MrtRidePage` / `RideBanner` in `ui/mrt_ride.dart`; Arrived ends the ride and the timed trip.
 - History tab (`ui/history.dart`): logged trips, finished parkings (`ParkLog`, written by
   `clearParked`) and meals by day for this week/month/all (`historyEntries`, `historySummary`,
   `historyByDay`); filter by kind, swipe to remove with Undo, or remove all shown. Costs: an

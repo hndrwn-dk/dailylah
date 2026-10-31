@@ -15,6 +15,8 @@ import 'today.dart';
 import 'wake.dart';
 import 'bus_sheet.dart';
 import 'ev.dart';
+import 'mrt_ride.dart';
+import '../mrt_ride.dart';
 import 'widgets.dart';
 
 IconData modeIcon(TravelMode m) => switch (m) {
@@ -127,7 +129,8 @@ class _TripTimer extends ConsumerWidget {
     // One trip at a time. The running one is in the banner above the tabs; on a page pushed
     // over the tabs (the trip planner) the tabs are hidden, so it shows here instead.
     if (h.tripStart != null) {
-      return (ModalRoute.of(context)?.isFirst ?? true) ? const SizedBox.shrink() : const TripBanner();
+      if (ModalRoute.of(context)?.isFirst ?? true) return const SizedBox.shrink();
+      return ref.watch(rideProvider) != null ? const RideBanner() : const TripBanner();
     }
     final rain = ref.watch(rainfallProvider).valueOrNull;
     final forecast = ref.watch(forecastProvider).valueOrNull;
@@ -349,6 +352,8 @@ class _MrtOption extends ConsumerWidget {
         ? const <String>[]
         : [for (final l in lineStatuses(alerts, lines)) if (l.disrupted) l.line];
     final resting = transitResting(ref.watch(clockProvider).valueOrNull ?? DateTime.now());
+    final ride = mrtRide(stations, plan);
+    final riding = ref.watch(rideProvider);
 
     Widget stationRow(IconData icon, String text, MrtStation st) => Padding(
           padding: const EdgeInsets.only(bottom: 8),
@@ -383,6 +388,22 @@ class _MrtOption extends ConsumerWidget {
           ),
           const SizedBox(height: 10),
           if (resting) AlertBanner(icon: Icons.bedtime_outlined, text: s.trainsResting, tone: AlertTone.info),
+          if (alerts != null && disrupted.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: DL.tealText, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      [for (final l in lines) s.lineRunningNormally(s.lineName(l))].join(' · '),
+                      style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ...[
             stationRow(Icons.directions_walk, s.walkTo(plan.board.name, s.metres(plan.walkToBoard)), plan.board),
             Padding(
@@ -409,6 +430,43 @@ class _MrtOption extends ConsumerWidget {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(s.mrtLineDisrupted(s.lineName(l)), style: t.bodySmall?.copyWith(color: DL.stop)),
               ),
+          ],
+          if (ride != null) ...[
+            const SizedBox(height: 4),
+            if (riding == null)
+              FilledButton.icon(
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                icon: const Icon(Icons.subway),
+                label: Text(s.imOnTrain),
+                onPressed: () async {
+                  final nav = Navigator.of(context);
+                  final fav = ref.read(favoritesProvider);
+                  if (fav.learnHabits && ref.read(habitsProvider).tripStart == null) {
+                    await ref.read(habitsProvider.notifier).startTrip(
+                          tripRouteKey(
+                            from.kind == PlaceKind.other ? placeTitle(s.placeLabel, from) : from.kind.name,
+                            to.kind == PlaceKind.other ? placeTitle(s.placeLabel, to) : to.kind.name,
+                          ),
+                          DateTime.now(),
+                          mode: TravelMode.transit.name,
+                          km: distanceMeters(from.lat, from.lng, to.lat, to.lng) / 1000,
+                        );
+                  }
+                  await ref.read(rideProvider.notifier).start(ride);
+                  await nav.push(MaterialPageRoute<void>(builder: (_) => const MrtRidePage()));
+                },
+              )
+            else
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                icon: const Icon(Icons.subway),
+                label: Text(s.rideTo(riding.ride.alight.name)),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const MrtRidePage())),
+              ),
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(s.imOnTrainSub, style: t.bodySmall, textAlign: TextAlign.center),
+            ),
           ],
           Align(
             alignment: Alignment.centerLeft,
@@ -1064,7 +1122,7 @@ class TripBanner extends ConsumerWidget {
     final h = ref.watch(habitsProvider);
     final start = h.tripStart;
     final ends = h.tripRoute == null ? null : tripRouteEnds(h.tripRoute!);
-    if (start == null || ends == null) return const SizedBox.shrink();
+    if (start == null || ends == null || ref.watch(rideProvider) != null) return const SizedBox.shrink();
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
     final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
