@@ -426,7 +426,10 @@ void main() {
     expect(box.read(habitsProvider).tripStart, isNotNull); // timed for History
 
     // One stop before the end the alert goes out once.
-    await box.read(rideProvider.notifier).tickAt(ride.start.add(Duration(minutes: rideMinutesTo(ride.ride, ride.ride.stops - 1))));
+    // Real async: the alert goes through platform channels (haptics, notifications).
+    await tester.runAsync(() => box
+        .read(rideProvider.notifier)
+        .tickAt(ride.start.add(Duration(minutes: rideMinutesTo(ride.ride, ride.ride.stops - 1)))));
     expect(box.read(rideProvider)!.alerted, isTrue);
 
     final arrived = find.text("I've arrived");

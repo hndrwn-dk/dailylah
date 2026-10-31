@@ -1433,11 +1433,11 @@ void main() {
     expect(rideEta(ride, t0, t0), t0.add(const Duration(minutes: 6)));
     expect(rideAlertDue(ride, 1), isFalse);
     expect(rideAlertDue(ride, 2), isTrue);
-    // A GPS fix at Simei (index 2) after 1 minute moves the estimate on.
-    final fixAt = t0.add(const Duration(minutes: 1));
-    expect(rideFixIndex(ride, 1.3432, 103.9533), 2);
-    expect(rideIndexAt(ride, t0, fixAt, fixIndex: 2, fixAt: fixAt), 2);
-    expect(rideEta(ride, t0, fixAt, fixIndex: 2, fixAt: fixAt), fixAt.add(const Duration(minutes: 2)));
+    // A GPS fix at Simei (index 1) right after boarding moves the estimate on.
+    final fixAt = t0.add(const Duration(seconds: 30));
+    expect(rideFixIndex(ride, 1.3432, 103.9533), 1);
+    expect(rideIndexAt(ride, t0, fixAt, fixIndex: 1, fixAt: fixAt), 1);
+    expect(rideEta(ride, t0, fixAt, fixIndex: 1, fixAt: fixAt), fixAt.add(const Duration(minutes: 4)));
 
     // With a change of line, the change adds its minutes after the change station.
     const via = MrtPlan(board: MrtStation(name: 'Bedok', codes: ['EW5'], lat: 1.324, lng: 103.93), walkToBoard: 100,
