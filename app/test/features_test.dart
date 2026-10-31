@@ -411,13 +411,6 @@ void main() {
     await settle(tester);
 
     final onTrain = find.text("I'm on the train");
-    if (onTrain.evaluate().isEmpty) {
-      final texts = [
-        for (final w in find.byType(Text).evaluate().map((e) => e.widget as Text))
-          if (w.data != null) w.data!,
-      ];
-      fail('No "I\'m on the train". Shown: ${texts.join(' | ')}');
-    }
     await tester.ensureVisible(onTrain);
     await tester.pump();
     await tester.tap(onTrain);
@@ -440,14 +433,10 @@ void main() {
         .tickAt(ride.start.add(Duration(minutes: rideMinutesTo(ride.ride, ride.ride.stops - 1)))));
     expect(box.read(rideProvider)!.alerted, isTrue);
 
+    // The ride page is a lazy list: scroll down to the buttons.
     final arrived = find.text("I've arrived");
-    if (arrived.evaluate().length != 1) {
-      final texts = [
-        for (final w in find.byType(Text).evaluate().map((e) => e.widget as Text))
-          if (w.data != null) w.data!,
-      ];
-      fail('Arrived x${arrived.evaluate().length}. Shown: ${texts.join(' | ')}');
-    }
+    await tester.scrollUntilVisible(arrived, 300,
+        scrollable: find.descendant(of: find.byType(MrtRidePage), matching: find.byType(Scrollable)).first);
     await tester.ensureVisible(arrived);
     await tester.pump();
     await tester.tap(arrived);
