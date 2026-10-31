@@ -1385,4 +1385,23 @@ void main() {
     expect(const S().routeEnd('work'), 'Work');
     expect(const S().routeEnd('ION Orchard'), 'ION Orchard');
   });
+
+  test('Taxi ease, taxis around a stand and compass direction', () {
+    expect(taxiEase(0, 0), 0);
+    expect(taxiEase(0, 1), 1);
+    expect(taxiEase(1, 4), 2);
+    expect(taxiEase(2, 5), 3);
+    expect(taxiEase(1, 9), 3);
+    expect(taxiEase(5, 6), 4);
+    expect(taxiEase(0, 20), 4);
+    final pts = [(1.3000, 103.8000), (1.3010, 103.8000), (1.3100, 103.8000)];
+    expect(taxisAround(pts, 1.3, 103.8), 2); // 0 m and about 110 m, not 1.1 km
+    expect(compass8(0, 100), 0);
+    expect(compass8(100, 100), 1);
+    expect(compass8(100, 0), 2);
+    expect(compass8(0, -100), 4);
+    expect(compass8(-100, 0), 6);
+    expect(compass8(-100, 100), 7);
+    expect(const S().freeTaxiAt(180, 7), 'Free taxi · 180 m north-west · 3 min walk');
+  });
 }

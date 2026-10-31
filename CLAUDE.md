@@ -94,7 +94,10 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   OneMap geocodes are cached in `backend/data/geocode.json` (committed by the workflow).
   Optional bundles are best effort: a failing upstream keeps yesterday's file.
 - Nearby (`ui/nearby.dart`) is "I am here now": starts on Here, chips for one section at a time
-  (`nearbySectionProvider`: bus, eat, green = parks, park = car parking, taxi, prayer, help). Eat offers GrabFood/foodpanda only
+  (`nearbySectionProvider`: bus, eat, green = parks, park = car parking, taxi, prayer, help). The taxi sheet
+  (`TaxiSheet` in `ui/today.dart`) answers first (`TaxiEaseCard`, `taxiEase`), then the nearest stand with
+  Walk there (`taxisAround`), then `TaxiRadar` on the dark board (tap a taxi: distance and `compass8`
+  direction; stands are `TaxiStandPin`s that open the stand), then booking apps. Eat offers GrabFood/foodpanda only
   when it rains, the air is unhealthy or the nearest hawker is closed (`orderInReason`).
 - Trip extras (`ui/trip.dart`, rules in logic.dart): Plan B when the trip's MRT line is disrupted
   (`planDisruption`), "Leave in N min" (`leaveBy`, plus one background reminder), weather tips per
