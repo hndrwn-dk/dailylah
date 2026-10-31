@@ -423,7 +423,8 @@ void main() {
     await tester.tap(onTrain);
     await settle(tester);
 
-    final ride = box.read(rideProvider)!;
+    final ride = box.read(rideProvider);
+    if (ride == null) fail('No ride after tapping');
     expect(ride.ride.board.name, 'Tampines');
     expect(ride.ride.alight.name, 'Raffles Place');
     expect(find.byType(MrtRidePage), findsOneWidget);
@@ -440,6 +441,13 @@ void main() {
     expect(box.read(rideProvider)!.alerted, isTrue);
 
     final arrived = find.text("I've arrived");
+    if (arrived.evaluate().length != 1) {
+      final texts = [
+        for (final w in find.byType(Text).evaluate().map((e) => e.widget as Text))
+          if (w.data != null) w.data!,
+      ];
+      fail('Arrived x${arrived.evaluate().length}. Shown: ${texts.join(' | ')}');
+    }
     await tester.ensureVisible(arrived);
     await tester.pump();
     await tester.tap(arrived);
