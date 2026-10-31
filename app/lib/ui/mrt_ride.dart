@@ -125,13 +125,14 @@ Future<void> finishRide(BuildContext context, WidgetRef ref) async {
   final s = ref.read(stringsProvider);
   final messenger = ScaffoldMessenger.maybeOf(context);
   final nav = Navigator.of(context);
+  final onPage = ModalRoute.of(context)?.isFirst == false;
   ref.read(rideProvider.notifier).stop();
   final habits = ref.read(habitsProvider);
   if (habits.tripStart != null) {
     final m = await ref.read(habitsProvider.notifier).finishTrip(DateTime.now());
     messenger?.showSnackBar(SnackBar(content: Text(m == null ? s.tripTooShort : s.tripLogged(m))));
   }
-  if (nav.canPop() && ModalRoute.of(context)?.isFirst == false) nav.maybePop();
+  if (onPage && nav.canPop()) nav.maybePop();
 }
 
 /// Green "Running normally" or amber "Delay on the X Line" with LTA's detail.
