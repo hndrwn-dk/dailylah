@@ -87,6 +87,9 @@ void main() {
           child: const DailyLahApp(),
         ));
         await settle(tester);
+        // At 200% text the hero pushes the card below the first screen, so scroll to it.
+        await tester.scrollUntilVisible(find.byType(WhatsNewCard), 200,
+            scrollable: find.byType(Scrollable).hitTestable().first);
         expect(find.byType(WhatsNewCard), findsOneWidget);
         await scrollThrough(tester);
         expect(tester.takeException(), isNull);
