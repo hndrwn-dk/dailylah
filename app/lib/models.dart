@@ -244,6 +244,8 @@ class Favorites {
     this.showPrayer = false,
     this.showHalal = false,
     this.evPlug = '',
+    this.theme = '',
+    this.seenVersion = '',
     this.hawkers = const {},
     this.halalPlaces = const {},
     this.carparks = const {},
@@ -285,6 +287,12 @@ class Favorites {
   /// Electric car plug for EV chargers ('' = no electric car, 'any', 'Type 2', 'CCS2', 'CHAdeMO').
   final String evPlug;
   bool get drivesEv => evPlug.isNotEmpty;
+
+  /// Appearance: '' follows the phone, 'light' or 'dark' (see [appearanceChoices]).
+  final String theme;
+
+  /// App version whose "What's new" card the user has seen or closed ('' = never).
+  final String seenVersion;
 
   /// Favourite hawker centre ids (hawkers.json "id").
   final Set<String> hawkers;
@@ -328,6 +336,8 @@ class Favorites {
     bool? showPrayer,
     bool? showHalal,
     String? evPlug,
+    String? theme,
+    String? seenVersion,
     Set<String>? hawkers,
     Set<String>? halalPlaces,
     Set<String>? carparks,
@@ -354,6 +364,8 @@ class Favorites {
         showPrayer: showPrayer ?? this.showPrayer,
         showHalal: showHalal ?? this.showHalal,
         evPlug: evPlug ?? this.evPlug,
+        theme: theme ?? this.theme,
+        seenVersion: seenVersion ?? this.seenVersion,
         hawkers: hawkers ?? this.hawkers,
         halalPlaces: halalPlaces ?? this.halalPlaces,
         carparks: carparks ?? this.carparks,
@@ -381,6 +393,8 @@ class Favorites {
         'showPrayer': showPrayer,
         'showHalal': showHalal,
         if (evPlug.isNotEmpty) 'evPlug': evPlug,
+        if (theme.isNotEmpty) 'theme': theme,
+        if (seenVersion.isNotEmpty) 'seenVersion': seenVersion,
         'hawkers': hawkers.toList()..sort(),
         if (halalPlaces.isNotEmpty) 'halalPlaces': halalPlaces.toList()..sort(),
         'carparks': carparks.toList()..sort(),
@@ -415,6 +429,8 @@ class Favorites {
       showPrayer: (j['showPrayer'] ?? false) as bool,
       showHalal: (j['showHalal'] ?? false) as bool,
       evPlug: '${j['evPlug'] ?? ''}',
+      theme: '${j['theme'] ?? ''}',
+      seenVersion: '${j['seenVersion'] ?? ''}',
       hawkers: strings('hawkers'),
       halalPlaces: strings('halalPlaces'),
       carparks: strings('carparks'),

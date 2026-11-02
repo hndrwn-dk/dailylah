@@ -824,6 +824,28 @@ class S {
   String get about => 'About DailyLah';
   String get aboutSub => 'Privacy, terms and data sources';
 
+  // appearance
+  String get appearance => 'Appearance';
+  String get appearanceAsk => 'How should DailyLah look?';
+  String appearanceName(String theme) => switch (theme) {
+        'light' => 'Light',
+        'dark' => 'Dark',
+        _ => 'Follow my phone',
+      };
+  String appearanceHint(String theme) => switch (theme) {
+        'light' => 'Always light',
+        'dark' => 'Always dark, easier on the eyes at night',
+        _ => 'Light or dark, the same as your phone',
+      };
+
+  // what's new (keep in sync with docs/store/whatsnew/whatsnew-en-US, checked by a test)
+  String whatsNewTitle(String v) => "What's new in $v";
+  String get whatsNewClose => 'Close';
+  List<String> get whatsNewNotes => const [
+        'New: Appearance in More. Pick Light, Dark or follow your phone.',
+        "New: a What's new card on Today after each update, so you see what changed.",
+      ];
+
   // about
   String version(String v) => 'Version $v · Tursina Labs';
   String get versionTitle => 'Version';

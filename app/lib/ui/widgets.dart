@@ -353,16 +353,18 @@ class HeroHeader extends StatelessWidget {
 
 /// Small square sticker button (search, back) used in headers.
 class StickerIconButton extends StatelessWidget {
-  const StickerIconButton({super.key, required this.icon, required this.onPressed, this.tooltip});
+  const StickerIconButton({super.key, required this.icon, required this.onPressed, required this.tooltip});
   final IconData icon;
   final VoidCallback onPressed;
-  final String? tooltip;
+
+  /// Also the TalkBack label: an icon-only button must say what it does.
+  final String tooltip;
 
   @override
   Widget build(BuildContext context) {
     final r = BorderRadius.circular(12);
     return Tooltip(
-      message: tooltip ?? '',
+      message: tooltip,
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerLowest,

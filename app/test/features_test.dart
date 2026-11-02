@@ -5,11 +5,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dailylah/data.dart';
+import 'package:dailylah/l10n.dart';
 import 'package:dailylah/logic.dart' show offsetMetres, rideMinutesTo;
 import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/mrt_ride.dart';
 import 'package:dailylah/providers.dart';
+import 'package:dailylah/store.dart';
 import 'package:dailylah/ui/bus_sheet.dart';
 import 'package:dailylah/ui/history.dart';
 import 'package:dailylah/ui/mrt_ride.dart';
@@ -444,5 +446,74 @@ void main() {
     expect(box.read(rideProvider), isNull);
     expect(box.read(habitsProvider).tripStart, isNull);
     expect(find.byType(MrtRidePage), findsNothing);
+  });
+
+  testWidgets('Appearance in More switches the app to dark and back to the phone setting', (tester) async {
+    await applyCondition(tester, _normal);
+    const fav = Favorites(places: {PlaceKind.home: Place(kind: PlaceKind.home, addrLat: 1.35, addrLng: 103.94)}, onboarded: true);
+    await tester.pumpWidget(appUnder(_normal, fav, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    expect(tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode, ThemeMode.system);
+    box.read(shellTabProvider.notifier).state = _tabs['More']!;
+    await settle(tester);
+    final row = find.widgetWithText(ListTile, 'Appearance');
+    await tester.ensureVisible(row);
+    await tester.pump();
+    expect(find.descendant(of: row, matching: find.text('Follow my phone')), findsOneWidget);
+    await tester.tap(row);
+    await settle(tester);
+    expect(find.text('How should DailyLah look?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ListTile, 'Dark'));
+    await settle(tester);
+    expect(box.read(favoritesProvider).theme, 'dark');
+    expect(tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode, ThemeMode.dark);
+    expect(Theme.of(tester.element(row)).brightness, Brightness.dark);
+    expect(find.descendant(of: row, matching: find.text('Dark')), findsOneWidget);
+    // Back to following the phone (light in this test).
+    await tester.tap(row);
+    await settle(tester);
+    await tester.tap(find.widgetWithText(ListTile, 'Follow my phone'));
+    await settle(tester);
+    expect(box.read(favoritesProvider).theme, '');
+    expect(Theme.of(tester.element(row)).brightness, Brightness.light);
+  });
+
+  testWidgets("What's new shows once after an update and stays closed", (tester) async {
+    await applyCondition(tester, _normal);
+    const fav = Favorites(
+      places: {PlaceKind.home: Place(kind: PlaceKind.home, addrLat: 1.35, addrLng: 103.94)},
+      onboarded: true,
+      seenVersion: '1.5.0',
+    );
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        ...overridesFor(_normal, fav, tuesdayMorning),
+        releaseVersionProvider.overrideWithValue('1.6.0'),
+      ],
+      child: const DailyLahApp(),
+    ));
+    await settle(tester);
+    final box = containerOf(tester);
+    expect(find.byType(WhatsNewCard), findsOneWidget);
+    expect(find.text("What's new in 1.6.0"), findsOneWidget);
+    expect(find.text(const S().whatsNewNotes.first), findsOneWidget);
+    await tester.tap(find.descendant(of: find.byType(WhatsNewCard), matching: find.byTooltip('Close')));
+    await settle(tester);
+    expect(find.byType(WhatsNewCard), findsNothing);
+    expect(box.read(favoritesProvider).seenVersion, '1.6.0');
+    // Saved, so a restart with the same version does not bring it back.
+    final saved = await tester.runAsync(() => FavoritesStore().load());
+    expect(saved?.seenVersion, '1.6.0');
+  });
+
+  test("The What's new card says the same as the Play release notes", () {
+    final notes = File('../docs/store/whatsnew/whatsnew-en-US')
+        .readAsLinesSync()
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .map((l) => l.startsWith('- ') ? l.substring(2) : l)
+        .toList();
+    expect(const S().whatsNewNotes, notes);
   });
 }

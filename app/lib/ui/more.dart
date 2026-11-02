@@ -136,12 +136,25 @@ class MorePage extends ConsumerWidget {
                   ),
                 ),
                 Panel(
-                  child: _NavTile(
-                    icon: Icons.info_outline,
-                    title: s.about,
-                    subtitle: s.aboutSubWith(appVersion),
-                    onTap: () =>
-                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AboutDailyLahPage())),
+                  child: Column(
+                    children: [
+                      _NavTile(
+                        icon: Icons.contrast,
+                        title: s.appearance,
+                        subtitle: s.appearanceName(fav.theme),
+                        onTap: () async {
+                          final theme = await showAppearancePicker(context, s, fav.theme);
+                          if (theme != null) notifier.update((f) => f.copyWith(theme: theme));
+                        },
+                      ),
+                      _NavTile(
+                        icon: Icons.info_outline,
+                        title: s.about,
+                        subtitle: s.aboutSubWith(appVersion),
+                        onTap: () =>
+                            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AboutDailyLahPage())),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -429,6 +442,36 @@ Future<String?> showEvPlugPicker(BuildContext context, S s, String current) => s
                   trailing: plug == current ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary) : null,
                   selected: plug == current,
                   onTap: () => Navigator.of(context).pop(plug),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+/// Light, dark or follow the phone. Returns the picked Favorites.theme, or null.
+Future<String?> showAppearancePicker(BuildContext context, S s, String current) => showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Text(s.appearanceAsk, style: Theme.of(context).textTheme.titleMedium),
+              ),
+              for (final theme in appearanceChoices)
+                ListTile(
+                  title: Text(s.appearanceName(theme)),
+                  subtitle: Text(s.appearanceHint(theme)),
+                  trailing: theme == current ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary) : null,
+                  selected: theme == current,
+                  onTap: () => Navigator.of(context).pop(theme),
                 ),
             ],
           ),

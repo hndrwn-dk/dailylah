@@ -2286,6 +2286,16 @@ List<(PublicEvent, double)> eventsNear(List<PublicEvent> all, double lat, double
 /// Days from [now] to the end of this weekend (Sunday), at least 1.
 int daysToWeekendEnd(DateTime now) => math.max(1, DateTime.sunday - now.weekday + 1);
 
+// ---------------------------------------------------------------- appearance and what's new
+
+/// Appearance choices for Favorites.theme: '' follows the phone, then light and dark.
+const appearanceChoices = ['', 'light', 'dark'];
+
+/// True when Today should show the "What's new" card: the user finished setup on an
+/// earlier version and has not closed the card for [version] yet. A fresh install marks
+/// its version as seen at setup, so new users never get it.
+bool whatsNewDue(Favorites f, String version) => f.onboarded && version.isNotEmpty && f.seenVersion != version;
+
 // ---------------------------------------------------------------- EV charging
 
 /// Plug choices for an electric car ('' in Favorites.evPlug = no electric car).
