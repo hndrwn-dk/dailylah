@@ -548,7 +548,11 @@ class _Pill extends StatelessWidget {
     final bg = selected
         ? (danger ? DL.stop : DL.amber)
         : (onDark ? DL.card : Theme.of(context).colorScheme.surfaceContainerLowest);
-    final fg = danger ? (selected ? Colors.white : DL.stop) : DL.ink;
+    // Selected pills are amber (ink text); unselected ones sit on the card surface, which is
+    // dark in dark mode, so their text follows the theme.
+    final fg = danger
+        ? (selected ? Colors.white : DL.stop)
+        : (selected || onDark ? DL.ink : Theme.of(context).colorScheme.onSurface);
     final r = BorderRadius.circular(12);
     return DecoratedBox(
       decoration: BoxDecoration(
