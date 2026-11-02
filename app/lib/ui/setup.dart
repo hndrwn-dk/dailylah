@@ -77,7 +77,11 @@ class SetupPage extends ConsumerWidget {
   Future<void> _finish(BuildContext context, WidgetRef ref) async {
     await requestNotificationPermission();
     await registerBackgroundWork();
-    await ref.read(favoritesProvider.notifier).update((f) => f.copyWith(onboarded: true));
+    await ref.read(favoritesProvider.notifier).update((f) => f.copyWith(
+          onboarded: true,
+          // A new install has nothing "new" to show; an edit later keeps the card's state.
+          seenVersion: firstRun ? ref.read(releaseVersionProvider) : null,
+        ));
     if (context.mounted && !firstRun) Navigator.of(context).maybePop();
   }
 

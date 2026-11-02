@@ -242,6 +242,11 @@ final schoolHolidaysProvider = FutureProvider<List<SchoolHoliday>>((ref) async =
 
 final stringsProvider = Provider<S>((ref) => const S());
 
+/// Version of a release build (--dart-define=APP_VERSION, set by CI and the build scripts), or ''
+/// for `flutter run` and tests, which therefore never show the "What's new" card unless a test
+/// overrides this.
+final releaseVersionProvider = Provider<String>((ref) => const String.fromEnvironment('APP_VERSION'));
+
 // ---------------------------------------------------------------- static bundles
 
 Future<List<T>> _list<T>(Ref ref, String name, T Function(Map<String, dynamic>) parse) async {

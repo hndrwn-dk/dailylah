@@ -150,6 +150,28 @@ void main() {
     expect(Favorites.fromJson(const {}).isSetUp, isFalse);
   });
 
+  test('Appearance and the seen version survive a round trip; old saves follow the phone', () {
+    const fav = Favorites(theme: 'dark', seenVersion: '1.6.0');
+    final back = Favorites.fromJson(fav.toJson());
+    expect(back.theme, 'dark');
+    expect(back.seenVersion, '1.6.0');
+    final old = Favorites.fromJson(const {'onboarded': true});
+    expect(old.theme, '');
+    expect(old.seenVersion, '');
+    expect(appearanceChoices, ['', 'light', 'dark']);
+  });
+
+  test("What's new is due once per version, only after setup, never without a release version", () {
+    const upgraded = Favorites(onboarded: true, seenVersion: '1.5.0');
+    expect(whatsNewDue(upgraded, '1.6.0'), isTrue);
+    expect(whatsNewDue(upgraded.copyWith(seenVersion: '1.6.0'), '1.6.0'), isFalse);
+    // Saved before this feature existed: nothing recorded yet, so it shows.
+    expect(whatsNewDue(const Favorites(onboarded: true), '1.6.0'), isTrue);
+    // Still in setup, or a debug/test build without APP_VERSION.
+    expect(whatsNewDue(const Favorites(), '1.6.0'), isFalse);
+    expect(whatsNewDue(upgraded, ''), isFalse);
+  });
+
   test('share code round trip and rejection', () {
     const fav = Favorites(
       places: {PlaceKind.home: Place(kind: PlaceKind.home, stops: [tampines])},

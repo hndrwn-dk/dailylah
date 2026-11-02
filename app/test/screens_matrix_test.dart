@@ -5,6 +5,7 @@
 // Flutter reports layout overflow as a test failure on its own, so most checks here are
 // "render it, scroll through it, expect no exception".
 import 'package:dailylah/data.dart';
+import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/about.dart';
@@ -19,6 +20,7 @@ import 'package:dailylah/ui/today.dart';
 import 'package:dailylah/ui/trip.dart';
 import 'package:dailylah/ui/wake.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/harness.dart';
@@ -74,6 +76,24 @@ void main() {
           expect(tester.takeException(), isNull);
         });
       }
+
+      testWidgets("Today: What's new after an update", (tester) async {
+        await applyCondition(tester, c);
+        await tester.pumpWidget(ProviderScope(
+          overrides: [
+            ...overridesFor(c, householdFavorites, tuesdayMorning),
+            releaseVersionProvider.overrideWithValue('1.6.0'),
+          ],
+          child: const DailyLahApp(),
+        ));
+        await settle(tester);
+        // At 200% text the hero pushes the card below the first screen, so scroll to it.
+        await tester.scrollUntilVisible(find.byType(WhatsNewCard), 200,
+            scrollable: find.byType(Scrollable).hitTestable().first);
+        expect(find.byType(WhatsNewCard), findsOneWidget);
+        await scrollThrough(tester);
+        expect(tester.takeException(), isNull);
+      });
 
       testWidgets('Today: MRT disruption with Plan B', (tester) async {
         await applyCondition(tester, c);

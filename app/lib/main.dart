@@ -44,6 +44,7 @@ class DailyLahApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final onboarded = ref.watch(favoritesProvider.select((f) => f.onboarded));
+    final theme = ref.watch(favoritesProvider.select((f) => f.theme));
     return MaterialApp(
       title: 'DailyLah',
       navigatorObservers: [KeyboardNavigatorObserver()],
@@ -51,6 +52,7 @@ class DailyLahApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
+      themeMode: themeModeFor(theme),
       home: onboarded ? const AppShell() : const SetupPage(firstRun: true),
     );
   }

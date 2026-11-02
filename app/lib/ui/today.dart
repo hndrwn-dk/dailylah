@@ -73,6 +73,7 @@ class TodayPage extends ConsumerWidget {
     final tripMode = modeEnd == null ? null : ref.watch(modeOverrideProvider)[modeEnd.kind.name] ?? modeEnd.mode;
 
     final dests = <Widget>[
+      if (whatsNewDue(fav, ref.watch(releaseVersionProvider))) const WhatsNewCard(),
       for (final a in alerts) AlertBanner(icon: _alertIcon(a.kind), text: a.text),
       if (schoolOff) AlertBanner(icon: Icons.beach_access_outlined, tone: AlertTone.info, text: s.schoolHolidayToday(holiday.name)),
       if (origin != null) _WeatherTiles(origin: origin),
@@ -1389,4 +1390,57 @@ class _TaxiRadarPainter extends CustomPainter {
   @override
   bool shouldRepaint(_TaxiRadarPainter old) =>
       old.cabs != cabs || old.picked != picked || old.center != center || old.radius != radius;
+}
+
+/// Shown once after an update: the release notes of this version, until the user closes it.
+class WhatsNewCard extends ConsumerWidget {
+  const WhatsNewCard({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final version = ref.watch(releaseVersionProvider);
+    final t = Theme.of(context).textTheme;
+    return Panel(
+      color: DL.mint,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 4, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.auto_awesome_outlined, color: DL.ink),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Semantics(
+                    header: true,
+                    child: Text(s.whatsNewTitle(version), style: t.titleMedium?.copyWith(color: DL.ink)),
+                  ),
+                ),
+                IconButton(
+                  tooltip: s.whatsNewClose,
+                  color: DL.ink,
+                  icon: const Icon(Icons.close),
+                  onPressed: () =>
+                      ref.read(favoritesProvider.notifier).update((f) => f.copyWith(seenVersion: version)),
+                ),
+              ],
+            ),
+            for (final line in s.whatsNewNotes)
+              Padding(
+                padding: const EdgeInsets.only(top: 4, right: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('•  ', style: t.bodyMedium?.copyWith(color: DL.ink)),
+                    Expanded(child: Text(line, style: t.bodyMedium?.copyWith(color: DL.ink))),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }

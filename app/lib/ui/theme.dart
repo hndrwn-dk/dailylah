@@ -95,6 +95,13 @@ TextTheme _textTheme(Color ink, Color muted) => TextTheme(
       labelSmall: _jakarta(11.5, 600, muted),
     );
 
+/// Favorites.theme ('' = follow the phone, 'light', 'dark') as a Material theme mode.
+ThemeMode themeModeFor(String theme) => switch (theme) {
+      'light' => ThemeMode.light,
+      'dark' => ThemeMode.dark,
+      _ => ThemeMode.system,
+    };
+
 ThemeData buildTheme(Brightness brightness) {
   final dark = brightness == Brightness.dark;
   final ink = dark ? const Color(0xFFE6F1F4) : DL.ink;

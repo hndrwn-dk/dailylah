@@ -74,6 +74,12 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   and hawkers (`ShareChoice`, `encodeShareCode`); the receiver ticks what to take (`readShareCode`,
   `shareConflicts`, `applyShare`), and a saved place is only replaced when ticked. About has Share
   DailyLah and Rate (Play Store, `openPlayListing`).
+- Appearance: More > Appearance picks follow the phone / light / dark (`Favorites.theme`: '', 'light',
+  'dark'; `themeModeFor` in theme.dart). Dark mode keeps sticker surfaces (mint, sky, amber) with ink text.
+- What's new: after an update, Today shows `WhatsNewCard` with `S.whatsNewNotes` until closed
+  (`whatsNewDue`, `Favorites.seenVersion`). The version comes from `releaseVersionProvider` (the
+  APP_VERSION dart-define, '' in tests and `flutter run`, so the card only shows in release builds);
+  first-run setup marks the current version as seen, so new installs never get it.
 - Live readings (forecast, train alerts, weather) are cache first (`_live` in providers.dart,
   `LiveCache` in store.dart): the last good answer shows at once (forecast up to 2 h old, train
   alerts 30 min, weather 1 h), then the server's answer. A failed call is retried once (it wakes
@@ -172,7 +178,8 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   symbols inside the bundle (`ndk.debugSymbolLevel = "FULL"`, checked by `scripts/emulator_release.sh`). A release is a
   PR with a new feature or bug fix: it bumps `version:` (patch for fixes, minor for features) and
   replaces `docs/store/whatsnew/whatsnew-en-US` with what is new in that version only (never the
-  notes of earlier releases; max 500 characters, plain text, one file per store language). Other PRs
+  notes of earlier releases; max 500 characters, plain text, one file per store language), and puts the
+  same lines in `S.whatsNewNotes` for the What's new card (a test checks they match). Other PRs
   (docs, tests, CI, data) leave both alone. On a push to `main` the `app` workflow builds the AAB and
   uploads only when `version:` changed (otherwise it runs analyze and tests only), and fails if it
   changed without new release notes. A release runs: build (`analyze`), then the whole `emulator` workflow on that commit
