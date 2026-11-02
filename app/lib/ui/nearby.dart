@@ -229,10 +229,12 @@ void _openFull(BuildContext context, String title, Widget body) => Navigator.of(
       MaterialPageRoute(builder: (_) => Scaffold(appBar: AppBar(title: Text(title)), body: body)),
     );
 
-Widget _seeAll(S s, VoidCallback onTap) => TextButton(
-      style: TextButton.styleFrom(foregroundColor: DL.goText(context)),
-      onPressed: onTap,
-      child: Text(s.seeAll),
+Widget _seeAll(S s, VoidCallback onTap) => Builder(
+      builder: (context) => TextButton(
+        style: TextButton.styleFrom(foregroundColor: DL.goText(context)),
+        onPressed: onTap,
+        child: Text(s.seeAll),
+      ),
     );
 
 // ---------------------------------------------------------------- buses

@@ -1,2 +1,1 @@
-- New: Appearance in More. Pick Light, Dark or follow your phone.
-- New: a What's new card on Today after each update, so you see what changed.
+- Fixed: in dark mode, menu chips, red labels and teal text were hard to read. They are clear now.

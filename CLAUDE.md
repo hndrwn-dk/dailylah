@@ -208,6 +208,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   stored or shown), with the fakes in `test/support/harness.dart` (`FakeApi`, `FileBundles` reading
   `web/data`, `FakeGeolocator`). Anything that needs a real plugin (notifications, widget, location,
   storage across restarts) goes in `integration_test/app_test.dart`, run on emulators.
+- `test/contrast_test.dart` runs Flutter's text contrast check (4.5:1, large text 3:1) on every tab
+  and section in light and dark. Text on the page or a card uses `DL.goText`, `DL.muted`, `DL.stopText`
+  (theme-aware), never the light-only `DL.tealText`/`DL.mist`/`DL.stop`; those stay for sticker surfaces.
 - `test/screens_matrix_test.dart` renders every screen under every condition in docs/QA.md (offline,
   denied location, 200% text, dark, small screen); a new screen or tab section is added there.
 

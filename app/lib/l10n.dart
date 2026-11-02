@@ -842,8 +842,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        'New: Appearance in More. Pick Light, Dark or follow your phone.',
-        "New: a What's new card on Today after each update, so you see what changed.",
+        'Fixed: in dark mode, menu chips, red labels and teal text were hard to read. They are clear now.',
       ];
 
   // about
