@@ -118,6 +118,7 @@ class BundleRepository {
   final Future<Directory> Function() _storageDir;
   Future<(String, Map<String, dynamic>)?>? _manifestFuture;
   final _memory = <String, Object?>{};
+  final _loading = <String, Future<Object?>>{};
 
   Future<File> _file(String name) async => File('${(await _storageDir()).path}/$name');
 
@@ -146,8 +147,17 @@ class BundleRepository {
   }
 
   /// Decoded JSON of `/data/<name>.json`, or null when never downloaded and offline.
-  Future<Object?> load(String name) async {
-    if (_memory.containsKey(name)) return _memory[name];
+  ///
+  /// Several parts of the app ask for the same bundle at start, so one load per name runs
+  /// at a time and the others wait for it. A download is saved only when it is valid JSON,
+  /// through a temp file and a rename, so a cut-off download never replaces a good copy.
+  /// A saved copy that does not decode is deleted and downloaded again.
+  Future<Object?> load(String name) {
+    if (_memory.containsKey(name)) return Future.value(_memory[name]);
+    return _loading[name] ??= _load(name).whenComplete(() => _loading.remove(name));
+  }
+
+  Future<Object?> _load(String name, {bool retried = false}) async {
     final cached = await _file('$name.json');
     final versionFile = await _file('$name.version');
     String? localVersion;
@@ -163,18 +173,52 @@ class BundleRepository {
             '$base/data/$name.json',
             options: Options(responseType: ResponseType.plain),
           );
-          await cached.writeAsString(res.data!);
-          await versionFile.writeAsString(remoteVersion);
+          final body = res.data;
+          final value = body == null ? null : _decode(body);
+          if (value != null) {
+            // Unique name: the background task may save the same bundle at the same time.
+            final tmp = await _file('$name.json.${DateTime.now().microsecondsSinceEpoch}.tmp');
+            await tmp.writeAsString(body!, flush: true);
+            await tmp.rename(cached.path);
+            await versionFile.writeAsString(remoteVersion, flush: true);
+            _memory[name] = value;
+            return value;
+          }
+          // Cut off or not JSON: keep the copy we have and try again next time.
         }
       }
     } on DioException {
-      // Offline or both hosts down: fall back to the cached copy below.
+      // Offline or every host down: fall back to the cached copy below.
+    } on FileSystemException {
+      // Could not save: fall back to the cached copy below.
     }
 
     if (!await cached.exists()) return null;
-    final value = jsonDecode(await cached.readAsString());
+    final value = _decode(await cached.readAsString());
+    if (value == null) {
+      // A broken copy from an older version or an interrupted write: drop it.
+      await _delete(cached);
+      await _delete(versionFile);
+      return retried ? null : _load(name, retried: true);
+    }
     _memory[name] = value;
     return value;
+  }
+
+  static Object? _decode(String body) {
+    try {
+      return jsonDecode(body);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  static Future<void> _delete(File f) async {
+    try {
+      if (await f.exists()) await f.delete();
+    } on FileSystemException {
+      // Already gone.
+    }
   }
 
   /// Forget the manifest and in-memory copies so the next load checks for new data

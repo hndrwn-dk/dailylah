@@ -843,6 +843,7 @@ class S {
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
         'Fixed: in dark mode, menu chips, red labels and teal text were hard to read. They are clear now.',
+        'Fixed: a download cut off halfway could stop bus routes and other data from loading.',
       ];
 
   // about
