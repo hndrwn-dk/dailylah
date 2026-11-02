@@ -230,9 +230,8 @@ ThemeData buildTheme(Brightness brightness) {
     ),
     chipTheme: ChipThemeData(
       // Selected chips are amber, so their label and icon stay ink in dark mode too.
-      labelStyle: WidgetStateTextStyle.resolveWith((states) =>
-          text.labelMedium!.copyWith(color: states.contains(WidgetState.selected) ? DL.ink : ink)),
-      iconTheme: IconThemeData(color: ink, size: 18),
+      labelStyle: text.labelMedium!.copyWith(
+          color: WidgetStateColor.resolveWith((states) => states.contains(WidgetState.selected) ? DL.ink : ink)),
       backgroundColor: card,
       selectedColor: DL.amber,
       checkmarkColor: DL.ink,
