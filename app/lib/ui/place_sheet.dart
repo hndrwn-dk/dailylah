@@ -268,7 +268,7 @@ class _PlaceViewState extends ConsumerState<_PlaceView> {
             ),
           ],
           const SizedBox(height: 10),
-          Text(s.mapNote, style: t.bodySmall?.copyWith(color: DL.mist)),
+          Text(s.mapNote, style: t.bodySmall?.copyWith(color: DL.muted(context))),
         ],
       ),
     );

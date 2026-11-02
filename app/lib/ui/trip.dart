@@ -393,7 +393,7 @@ class _MrtOption extends ConsumerWidget {
               padding: const EdgeInsets.only(bottom: 10),
               child: Row(
                 children: [
-                  const Icon(Icons.check_circle, color: DL.tealText, size: 20),
+                  Icon(Icons.check_circle, color: DL.goText(context), size: 20),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -428,7 +428,7 @@ class _MrtOption extends ConsumerWidget {
             for (final l in disrupted)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Text(s.mrtLineDisrupted(s.lineName(l)), style: t.bodySmall?.copyWith(color: DL.stop)),
+                child: Text(s.mrtLineDisrupted(s.lineName(l)), style: t.bodySmall?.copyWith(color: DL.stopText(context))),
               ),
           ],
           if (ride != null) ...[
@@ -603,14 +603,14 @@ class TripBusCard extends ConsumerWidget {
                             padding: const EdgeInsets.only(bottom: 6),
                             child: Row(
                               children: [
-                                const Icon(Icons.directions_walk, size: 20, color: DL.tealText),
+                                Icon(Icons.directions_walk, size: 20, color: DL.goText(context)),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                       direct.first.$1.service != lb.service && direct.first.$1.minutes < lb.walk
                                           ? s.tooSoonThen(direct.first.$1.service, s.leaveIn(lb.service, lb.leaveIn, lb.walk))
                                           : s.leaveIn(lb.service, lb.leaveIn, lb.walk),
-                                      style: t.titleSmall?.copyWith(color: DL.tealText)),
+                                      style: t.titleSmall?.copyWith(color: DL.goText(context))),
                                 ),
                               ],
                             ),
@@ -774,7 +774,7 @@ class _DriveBlock extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text('${p.available}',
-                              style: t.displaySmall?.copyWith(fontSize: 24, color: p.available == 0 ? DL.stop : null)),
+                              style: t.displaySmall?.copyWith(fontSize: 24, color: p.available == 0 ? DL.stopText(context) : null)),
                           Text(lotType == 'Y' ? s.bikeLots : s.carLots, style: t.labelSmall),
                         ],
                       ),

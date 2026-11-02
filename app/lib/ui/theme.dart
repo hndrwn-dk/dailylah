@@ -22,6 +22,8 @@ class DL {
   static const sky = Color(0xFFBFE4F1); // weather panel when dry
   static const mist = Color(0xFF50646A); // secondary text (5:1 or more on light surfaces)
   static const tealText = Color(0xFF0A7068); // teal for text links (4.5:1 or more)
+  static const stopDeep = Color(0xFFC0392B); // red fill under white text (5.4:1)
+  static const mistNight = Color(0xFF8FA6AD); // secondary text on dark surfaces
   static const shield = Color(0xFFA4B9C0);
 
   /// Signature colour meanings (see the class comment).
@@ -44,6 +46,30 @@ class DL {
 
   static const stroke = 2.5;
   static const radius = 16.0;
+
+  static bool _dark(BuildContext context) => Theme.of(context).brightness == Brightness.dark;
+
+  /// Teal for text and icons on the page or a card ("go", links), readable in both modes.
+  static Color goText(BuildContext context) => _dark(context) ? tealLight : tealText;
+
+  /// Secondary text on the page or a card.
+  static Color muted(BuildContext context) => _dark(context) ? mistNight : mist;
+
+  /// Red for text on the page or a card (disruptions, emergency).
+  static Color stopText(BuildContext context) => _dark(context) ? const Color(0xFFFF8A78) : stopDeep;
+
+  /// Orange for "the bus is here" on stop lists.
+  static Color nearText(BuildContext context) => _dark(context) ? led : const Color(0xFFB45309);
+
+  /// Ink or white, whichever reads better on [bg] (MRT line colours).
+  static Color onColor(Color bg) {
+    double ratio(Color a, Color b) {
+      final (x, y) = (a.computeLuminance(), b.computeLuminance());
+      return (x > y ? x + 0.05 : y + 0.05) / (x > y ? y + 0.05 : x + 0.05);
+    }
+
+    return ratio(bg, ink) >= ratio(bg, Colors.white) ? ink : Colors.white;
+  }
 
   /// Outline colour for the current brightness.
   static Color edge(BuildContext context) =>
@@ -105,7 +131,7 @@ ThemeMode themeModeFor(String theme) => switch (theme) {
 ThemeData buildTheme(Brightness brightness) {
   final dark = brightness == Brightness.dark;
   final ink = dark ? const Color(0xFFE6F1F4) : DL.ink;
-  final muted = dark ? const Color(0xFF8FA6AD) : DL.mist;
+  final muted = dark ? DL.mistNight : DL.mist;
   final edge = dark ? DL.nightEdge : DL.ink;
   final card = dark ? DL.nightSurface : DL.card;
   final scheme = ColorScheme.fromSeed(
@@ -203,7 +229,10 @@ ThemeData buildTheme(Brightness brightness) {
       height: 74,
     ),
     chipTheme: ChipThemeData(
-      labelStyle: text.labelMedium,
+      // Selected chips are amber, so their label and icon stay ink in dark mode too.
+      labelStyle: WidgetStateTextStyle.resolveWith((states) =>
+          text.labelMedium!.copyWith(color: states.contains(WidgetState.selected) ? DL.ink : ink)),
+      iconTheme: IconThemeData(color: ink, size: 18),
       backgroundColor: card,
       selectedColor: DL.amber,
       checkmarkColor: DL.ink,
