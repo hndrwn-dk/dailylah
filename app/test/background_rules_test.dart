@@ -58,8 +58,6 @@ void main() {
     });
   });
 
-  });
-
   // Commute: leave home 08:00 on weekdays (household fixture).
   final rainyBeforeWork = DateTime(2026, 10, 20, 7, 20); // Tuesday, 40 min before leaving
   final lateNight = DateTime(2026, 10, 20, 23, 0);
@@ -84,6 +82,7 @@ void main() {
       await runChecks(FakeApi(), rainyBeforeWork, bundles: FileBundles());
       expect(widgetSaved, isEmpty);
     });
+  });
 
   group('MRT disruption', () {
     test('sends one alert for a disruption on a starred line', () async {
