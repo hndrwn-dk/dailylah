@@ -304,7 +304,7 @@ class _MrtCard extends ConsumerWidget {
                           : resting
                               ? s.mrtResting
                               : s.mrtNormal,
-                      style: st.disrupted ? t.bodySmall?.copyWith(color: DL.stop) : t.bodySmall,
+                      style: st.disrupted ? t.bodySmall?.copyWith(color: DL.stopText(context)) : t.bodySmall,
                     ),
                   ],
                 ),
@@ -347,7 +347,7 @@ class _MrtCard extends ConsumerWidget {
                         : resting
                             ? s.trainsResting
                             : s.allLinesNormal,
-                    style: t.bodySmall?.copyWith(color: down.isEmpty ? null : DL.stop)),
+                    style: t.bodySmall?.copyWith(color: down.isEmpty ? null : DL.stopText(context))),
                 const SizedBox(height: 6),
                 for (final st in down) row(st),
                 for (final st in pinned) row(st),
@@ -928,7 +928,7 @@ class TaxiSheet extends ConsumerWidget {
                             children: [
                               Text(s.taxiStandAt(best.$1.name), style: t.titleMedium),
                               Text(s.standLine(best.$2, taxisAround(pts, best.$1.lat, best.$1.lng)),
-                                  style: t.bodyMedium?.copyWith(color: DL.mist)),
+                                  style: t.bodyMedium?.copyWith(color: DL.muted(context))),
                             ],
                           ),
                         ),
@@ -1038,7 +1038,7 @@ class _Tag extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
         child: Text(text.toUpperCase(),
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(color: DL.mist, letterSpacing: 0.8, fontWeight: FontWeight.w800)),
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(color: DL.muted(context), letterSpacing: 0.8, fontWeight: FontWeight.w800)),
       );
 }
 

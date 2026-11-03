@@ -99,6 +99,8 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   its last step ("Check data.gov.sg key") so the expiry is visible. Renew it in both GitHub and Render.
   OneMap geocodes are cached in `backend/data/geocode.json` (committed by the workflow).
   Optional bundles are best effort: a failing upstream keeps yesterday's file.
+  On the phone `BundleRepository.load` runs one load per bundle at a time, saves a download only when
+  it is valid JSON (temp file + rename) and re-downloads a saved copy that does not decode.
 - Nearby (`ui/nearby.dart`) is "I am here now": starts on Here, chips for one section at a time
   (`nearbySectionProvider`: bus, eat, green = parks, park = car parking, taxi, prayer, help). The taxi sheet
   (`TaxiSheet` in `ui/today.dart`) answers first (`TaxiEaseCard`, `taxiEase`), then the nearest stand with
@@ -208,6 +210,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   stored or shown), with the fakes in `test/support/harness.dart` (`FakeApi`, `FileBundles` reading
   `web/data`, `FakeGeolocator`). Anything that needs a real plugin (notifications, widget, location,
   storage across restarts) goes in `integration_test/app_test.dart`, run on emulators.
+- `test/contrast_test.dart` runs Flutter's text contrast check (4.5:1, large text 3:1) on every tab
+  and section in light and dark. Text on the page or a card uses `DL.goText`, `DL.muted`, `DL.stopText`
+  (theme-aware), never the light-only `DL.tealText`/`DL.mist`/`DL.stop`; those stay for sticker surfaces.
 - `test/screens_matrix_test.dart` renders every screen under every condition in docs/QA.md (offline,
   denied location, 200% text, dark, small screen); a new screen or tab section is added there.
 

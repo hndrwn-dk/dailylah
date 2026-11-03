@@ -84,7 +84,7 @@ class _EvRow extends ConsumerWidget {
                 children: [
                   Text(site.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: t.titleMedium),
                   Text([s.metres(distance), if (plugs.isNotEmpty) s.evPlugLine(plugs.first)].join(' · '),
-                      style: t.bodyMedium?.copyWith(color: DL.mist)),
+                      style: t.bodyMedium?.copyWith(color: DL.muted(context))),
                 ],
               ),
             ),
@@ -126,7 +126,7 @@ class _EvDetail extends ConsumerWidget {
                   Expanded(child: Text(s.evPlugLine(p), style: t.bodyMedium)),
                   const SizedBox(width: 8),
                   Text(s.evPlugFree(p),
-                      style: t.labelLarge?.copyWith(color: p.free == 0 ? DL.attention : DL.tealText)),
+                      style: t.labelLarge?.copyWith(color: p.free == 0 ? DL.stopText(context) : DL.goText(context))),
                 ],
               ),
             ),

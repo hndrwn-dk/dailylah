@@ -214,7 +214,7 @@ class _StripRow extends StatelessWidget {
                 style: last
                     ? t.titleSmall?.copyWith(fontWeight: FontWeight.w800)
                     : passed
-                        ? t.bodyMedium?.copyWith(color: DL.mist)
+                        ? t.bodyMedium?.copyWith(color: DL.muted(context))
                         : t.bodyLarge,
               ),
             ),
@@ -224,7 +224,7 @@ class _StripRow extends StatelessWidget {
             child: Text(
               tag,
               style: t.labelMedium?.copyWith(
-                color: last ? DL.tealText : busHere != null ? const Color(0xFFB45309) : DL.mist,
+                color: last ? DL.goText(context) : busHere != null ? DL.nearText(context) : DL.muted(context),
                 fontWeight: last || busHere != null ? FontWeight.w800 : null,
               ),
             ),

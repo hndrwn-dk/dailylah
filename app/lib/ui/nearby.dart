@@ -229,10 +229,12 @@ void _openFull(BuildContext context, String title, Widget body) => Navigator.of(
       MaterialPageRoute(builder: (_) => Scaffold(appBar: AppBar(title: Text(title)), body: body)),
     );
 
-Widget _seeAll(S s, VoidCallback onTap) => TextButton(
-      style: TextButton.styleFrom(foregroundColor: DL.tealText),
-      onPressed: onTap,
-      child: Text(s.seeAll),
+Widget _seeAll(S s, VoidCallback onTap) => Builder(
+      builder: (context) => TextButton(
+        style: TextButton.styleFrom(foregroundColor: DL.goText(context)),
+        onPressed: onTap,
+        child: Text(s.seeAll),
+      ),
     );
 
 // ---------------------------------------------------------------- buses
@@ -869,7 +871,7 @@ class _HelpSection extends ConsumerWidget {
         SectionTitle(s.helpNearby,
             trailing: _seeAll(s, () => _openFull(context, s.emergency, _EmergencyTab(place: place)))),
         Panel(
-          color: DL.stop,
+          color: DL.stopDeep,
           child: InkWell(
             onTap: () => launchUrl(Uri(scheme: 'tel', path: '995')),
             child: Padding(
@@ -934,7 +936,7 @@ class _HelpSection extends ConsumerWidget {
               if (shelters.isEmpty) EmptyNote(em.of(EmergencyKind.shelter).isEmpty ? s.bundlesLoading : s.notAvailable),
               for (final (p, d) in shelters)
                 ListTile(
-                  leading: const Icon(Icons.shield_outlined, color: DL.stop),
+                  leading: Icon(Icons.shield_outlined, color: DL.stopText(context)),
                   title: Text(p.name),
                   subtitle: Text([s.metres(d), if (p.address.isNotEmpty) p.address].join(' · '),
                       maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -1379,13 +1381,13 @@ class _EmergencyTab extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Row(
                   children: [
-                    Icon(Icons.call, color: color == DL.stop ? Colors.white : DL.ink),
+                    Icon(Icons.call, color: color == DL.stopDeep ? Colors.white : DL.ink),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(label,
-                          style: t.titleMedium?.copyWith(color: color == DL.stop ? Colors.white : DL.ink)),
+                          style: t.titleMedium?.copyWith(color: color == DL.stopDeep ? Colors.white : DL.ink)),
                     ),
-                    Icon(Icons.chevron_right, color: color == DL.stop ? Colors.white : DL.ink),
+                    Icon(Icons.chevron_right, color: color == DL.stopDeep ? Colors.white : DL.ink),
                   ],
                 ),
               ),
@@ -1437,7 +1439,7 @@ class _EmergencyTab extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(14, 12, 18, 24 + kNavClearance),
       children: [
-        callButton('995', s.call995, DL.stop),
+        callButton('995', s.call995, DL.stopDeep),
         callButton('999', s.call999, DL.amber),
         callButton('1777', s.call1777, DL.card),
         group(s.aeHospitals, Icons.local_hospital_outlined, EmergencyKind.ae),

@@ -102,7 +102,7 @@ class LineChip extends StatelessWidget {
           fontFamily: DL.display,
           fontWeight: FontWeight.w700,
           fontSize: dense ? 13 : 15,
-          color: Colors.white,
+          color: DL.onColor(DL.lineColor(code)),
           letterSpacing: 0.3,
         ),
       ),
@@ -546,9 +546,13 @@ class _Pill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = selected
-        ? (danger ? DL.stop : DL.amber)
+        ? (danger ? DL.stopDeep : DL.amber)
         : (onDark ? DL.card : Theme.of(context).colorScheme.surfaceContainerLowest);
-    final fg = danger ? (selected ? Colors.white : DL.stop) : DL.ink;
+    // Selected pills are amber (ink text); unselected ones sit on the card surface, which is
+    // dark in dark mode, so their text follows the theme.
+    final fg = danger
+        ? (selected ? Colors.white : DL.stopText(context))
+        : (selected || onDark ? DL.ink : Theme.of(context).colorScheme.onSurface);
     final r = BorderRadius.circular(12);
     return DecoratedBox(
       decoration: BoxDecoration(

@@ -42,7 +42,7 @@ class MrtRidePage extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(top: 2, bottom: 12),
             child: Text(s.rideSub(firstLine == null ? '' : s.lineName(firstLine), r.stops - here, eta),
-                style: t.bodyMedium?.copyWith(color: DL.mist)),
+                style: t.bodyMedium?.copyWith(color: DL.muted(context))),
           ),
           RideStatusCard(state: st),
           const SizedBox(height: 14),
@@ -251,7 +251,7 @@ class _RideRow extends StatelessWidget {
                     style: last
                         ? t.titleSmall?.copyWith(fontWeight: FontWeight.w800)
                         : passed
-                            ? t.bodyMedium?.copyWith(color: DL.mist)
+                            ? t.bodyMedium?.copyWith(color: DL.muted(context))
                             : t.bodyMedium,
                   ),
                   if (first || last || codes.length > 1)
@@ -267,7 +267,7 @@ class _RideRow extends StatelessWidget {
                 tag,
                 style: t.labelMedium?.copyWith(
                   fontWeight: FontWeight.w800,
-                  color: last ? DL.tealText : passed ? DL.mist : const Color(0xFFB45309),
+                  color: last ? DL.goText(context) : passed ? DL.muted(context) : DL.nearText(context),
                 ),
               ),
             ),

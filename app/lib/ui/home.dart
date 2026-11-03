@@ -809,8 +809,8 @@ class _Emergency extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _Heading(s.emergency, Icons.emergency_outlined),
-        call('995', s.call995, DL.stop, Colors.white),
-        call('999', s.call999, DL.stop, Colors.white),
+        call('995', s.call995, DL.stopDeep, Colors.white),
+        call('999', s.call999, DL.stopDeep, Colors.white),
         call('1777', s.call1777, DL.card, DL.ink),
         NearGroup(title: s.aeHospitals, icon: Icons.local_hospital_outlined, items: NearItem.points(em.of(EmergencyKind.ae), home, radius: 20000, limit: 3)),
         NearGroup(title: s.aeds, icon: Icons.monitor_heart_outlined, items: NearItem.points(em.of(EmergencyKind.aed), home, radius: 1000)),
@@ -1006,7 +1006,7 @@ class _Food extends ConsumerWidget {
             Expanded(child: _Heading(s.foodTitle, Icons.restaurant_outlined)),
             // Same setting as More > Extras > Halal food nearby, one tap away here.
             FilterChip(
-              avatar: const Icon(Icons.verified_outlined, size: 18),
+              avatar: Icon(Icons.verified_outlined, size: 18, color: halal ? DL.ink : null),
               label: Text(s.halalTab),
               selected: halal,
               onSelected: (v) => ref.read(favoritesProvider.notifier).update((f) => f.copyWith(showHalal: v)),
