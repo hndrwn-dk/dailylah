@@ -1646,7 +1646,7 @@ List<(Hawker, Closure, double)> upcomingClosures(List<Hawker> all, double lat, d
 /// Halal places near a point, optionally matching every word of [query] in the name or
 /// address ("nasi padang", "cafe tampines"). Wider radius when searching.
 /// Halal places matching [query] near a point, nearest first. Favourites ([favs], by
-/// `mealPlaceId`) come first wherever they are, so a far favourite still shows.
+/// [halalPlaceId]) come first wherever they are, so a far favourite still shows.
 List<(EPoint, double)> halalNear(List<EPoint> all, double lat, double lng,
     {String query = '', int limit = 60, Set<String> favs = const {}}) {
   final words = query.toLowerCase().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
@@ -1658,7 +1658,7 @@ List<(EPoint, double)> halalNear(List<EPoint> all, double lat, double lng,
         ];
   final near = within(match, lat, lng, words.isEmpty ? 3000 : 15000, latOf: (p) => p.lat, lngOf: (p) => p.lng, limit: limit);
   if (favs.isEmpty) return near;
-  bool isFav(EPoint p) => favs.contains(mealPlaceId(p.lat, p.lng));
+  bool isFav(EPoint p) => favs.contains(halalPlaceId(p));
   final starred = [
     for (final p in match)
       if (isFav(p)) (p, distanceMeters(lat, lng, p.lat, p.lng)),
@@ -1820,6 +1820,11 @@ int? tripMinutes(DateTime start, DateTime end) {
 /// Meal id for a food place that is not a hawker centre (halal restaurants): its position,
 /// which stays the same across bundle rebuilds while list order does not.
 String mealPlaceId(double lat, double lng) => 'p:${lat.toStringAsFixed(5)},${lng.toStringAsFixed(5)}';
+
+/// Favourite id for a halal place. Position alone is not unique: a mall or food court puts
+/// many places on the same point (Marine Cove: Coffee Bean, McDonald's, a briyani shop),
+/// so the name is part of the id. Older saves used the bare `mealPlaceId`.
+String halalPlaceId(EPoint p) => '${mealPlaceId(p.lat, p.lng)}|${p.name}';
 
 /// A meal's corrected time: [hour]:[minute] on the day it was logged. Null when that is
 /// later than [now] (a meal cannot be in the future).

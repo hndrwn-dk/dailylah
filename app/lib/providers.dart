@@ -47,6 +47,9 @@ class FavoritesNotifier extends Notifier<Favorites> {
 
   Future<void> toggleHalal(String id) => update((f) {
         final s = {...f.halalPlaces};
+        // Drop an older position-only id for this spot (it starred every place there).
+        final legacy = id.split('|').first;
+        if (legacy != id) s.remove(legacy);
         if (!s.remove(id)) s.add(id);
         return f.copyWith(halalPlaces: s);
       });
