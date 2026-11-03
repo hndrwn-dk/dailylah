@@ -329,7 +329,7 @@ void main() {
     expect(find.descendant(of: find.byType(HistoryPage), matching: find.text(label)), findsOneWidget);
   });
 
-  testWidgets('A halal place can be starred and stays first in the list', (tester) async {
+  testWidgets('A halal place can be starred, stays put, and is listed first next time', (tester) async {
     await applyCondition(tester, _normal);
     await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
     await settle(tester);
@@ -343,7 +343,7 @@ void main() {
     await tester.tap(seeAll);
     await settle(tester);
 
-    // Star the third place: it moves to the top and is saved.
+    // Star the third place: it is saved, only that row is starred, and it does not jump.
     final rows = find.widgetWithIcon(ListTile, Icons.restaurant_outlined);
     final third = tester.widget<ListTile>(rows.at(2));
     final name = (third.title! as Text).data!;
@@ -354,8 +354,20 @@ void main() {
     await settle(tester);
     expect(box.read(favoritesProvider).halalPlaces, hasLength(1));
     expect(box.read(favoritesProvider).halalPlaces.single, startsWith('p:'));
-    final first = tester.widget<ListTile>(find.widgetWithIcon(ListTile, Icons.restaurant_outlined).first);
-    expect((first.title! as Text).data, name);
+    expect(box.read(favoritesProvider).halalPlaces.single, endsWith('|$name'));
+    String titleAt(int i) => (tester.widget<ListTile>(find.widgetWithIcon(ListTile, Icons.restaurant_outlined).at(i)).title! as Text).data!;
+    expect(titleAt(2), name);
+    expect(find.descendant(of: find.widgetWithIcon(ListTile, Icons.restaurant_outlined), matching: find.byIcon(Icons.star)),
+        findsOneWidget);
+
+    // Next visit: the favourite is listed first.
+    await tester.pageBack();
+    await settle(tester);
+    await tester.ensureVisible(seeAll);
+    await tester.pump();
+    await tester.tap(seeAll);
+    await settle(tester);
+    expect(titleAt(0), name);
     expect(find.descendant(of: find.widgetWithIcon(ListTile, Icons.restaurant_outlined).first, matching: find.byIcon(Icons.star)),
         findsOneWidget);
   });

@@ -842,8 +842,8 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        'Fixed: in dark mode, menu chips, red labels and teal text were hard to read. They are clear now.',
-        'Fixed: a download cut off halfway could stop bus routes and other data from loading.',
+        'Fixed: starring one halal place no longer stars other shops at the same address.',
+        'Starred places now stay where they are while you scroll; they move to the top next time you open the list.',
       ];
 
   // about

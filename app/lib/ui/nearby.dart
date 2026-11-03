@@ -465,7 +465,7 @@ class _EatSection extends ConsumerWidget {
                     leading: const Icon(Icons.restaurant_outlined),
                     title: Text(p.name),
                     subtitle: Text('${s.metres(d)} · ${p.address}', maxLines: 2, overflow: TextOverflow.ellipsis),
-                    trailing: fav.halalPlaces.contains(mealPlaceId(p.lat, p.lng)) ? const Icon(Icons.star, color: DL.amber) : null,
+                    trailing: fav.halalPlaces.contains(halalPlaceId(p)) ? const Icon(Icons.star, color: DL.amber) : null,
                     onTap: () => showPlaceSheet(context,
                         s: s,
                         title: p.name,
@@ -977,6 +977,10 @@ class _HalalTab extends ConsumerStatefulWidget {
 class _HalalTabState extends ConsumerState<_HalalTab> {
   String _query = '';
 
+  /// Favourites as they were when the list opened. Starring sorts only on the next visit,
+  /// so a row does not jump away from under the finger.
+  Set<String>? _pinned;
+
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(stringsProvider);
@@ -984,7 +988,7 @@ class _HalalTabState extends ConsumerState<_HalalTab> {
     final place = widget.place;
     return _loadingOr(ref.watch(halalProvider), s, (all) {
       final favs = ref.watch(favoritesProvider.select((f) => f.halalPlaces));
-      final list = halalNear(all, place.lat, place.lng, query: _query, favs: favs);
+      final list = halalNear(all, place.lat, place.lng, query: _query, favs: _pinned ??= favs);
       return ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24 + kNavClearance),
         children: [
@@ -1006,7 +1010,7 @@ class _HalalTabState extends ConsumerState<_HalalTab> {
                       leading: const Icon(Icons.restaurant_outlined),
                       title: Text(p.name),
                       subtitle: Text('${s.metres(d)} · ${p.address}', maxLines: 3, overflow: TextOverflow.ellipsis),
-                      trailing: _HalalStar(id: mealPlaceId(p.lat, p.lng), on: favs.contains(mealPlaceId(p.lat, p.lng))),
+                      trailing: _HalalStar(id: halalPlaceId(p), on: favs.contains(halalPlaceId(p))),
                       onTap: () => showPlaceSheet(context,
                           s: s,
                           title: p.name,
@@ -1043,21 +1047,31 @@ class _HalalStar extends ConsumerWidget {
 
 // ---------------------------------------------------------------- hawkers
 
-class _HawkerTab extends ConsumerWidget {
+class _HawkerTab extends ConsumerStatefulWidget {
   const _HawkerTab({required this.place});
   final Place place;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_HawkerTab> createState() => _HawkerTabState();
+}
+
+class _HawkerTabState extends ConsumerState<_HawkerTab> {
+  /// Favourites as they were when the list opened (see [_HalalTabState._pinned]).
+  Set<String>? _pinned;
+
+  @override
+  Widget build(BuildContext context) {
+    final place = widget.place;
     final s = ref.watch(stringsProvider);
     final fav = ref.watch(favoritesProvider);
+    final pinned = _pinned ??= fav.hawkers;
     final today = dateOnly(ref.watch(clockProvider).valueOrNull ?? DateTime.now());
     return _loadingOr(ref.watch(hawkersProvider), s, (all) {
       final list = within(all, place.lat, place.lng, 3000, latOf: (h) => h.lat, lngOf: (h) => h.lng, limit: 25);
-      // Favourites first, then by distance.
+      // Favourites first (as of opening), then by distance.
       list.sort((a, b) {
-        final fa = fav.hawkers.contains(a.$1.id) ? 0 : 1;
-        final fb = fav.hawkers.contains(b.$1.id) ? 0 : 1;
+        final fa = pinned.contains(a.$1.id) ? 0 : 1;
+        final fb = pinned.contains(b.$1.id) ? 0 : 1;
         return fa != fb ? fa - fb : a.$2.compareTo(b.$2);
       });
       if (list.isEmpty) return EmptyNote(all.isEmpty ? s.bundlesLoading : s.notAvailable);

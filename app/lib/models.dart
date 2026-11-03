@@ -297,7 +297,8 @@ class Favorites {
   /// Favourite hawker centre ids (hawkers.json "id").
   final Set<String> hawkers;
 
-  /// Favourite halal places, by position (`mealPlaceId`): the halal bundle has no ids.
+  /// Favourite halal places (`halalPlaceId`: position plus name; the halal bundle has no
+  /// ids). Older position-only entries are ignored and cleared on the next toggle there.
   final Set<String> halalPlaces;
 
   /// Saved HDB car park numbers (carparks.json "id").

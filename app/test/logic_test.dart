@@ -649,9 +649,25 @@ void main() {
     // A starred place comes first even when it is far away.
     final far = places.reduce((a, b) =>
         distanceMeters(1.3620, 103.8538, a.lat, a.lng) > distanceMeters(1.3620, 103.8538, b.lat, b.lng) ? a : b);
-    final starred = halalNear(places, 1.3620, 103.8538, favs: {mealPlaceId(far.lat, far.lng)});
+    final starred = halalNear(places, 1.3620, 103.8538, favs: {halalPlaceId(far)});
     expect(starred.first.$1.name, far.name);
     expect(starred.where((e) => e.$1.name == far.name), hasLength(1));
+  });
+
+  test('halal favourites are per place, not per position (several shops in one mall)', () {
+    const mall = [
+      EPoint(name: 'The Coffee Bean & Tea Leaf', address: '1000 East Coast Parkway #01-01', lat: 1.301402, lng: 103.912301),
+      EPoint(name: 'My Briyani House', address: '1000 East Coast Parkway #01-04', lat: 1.301402, lng: 103.912301),
+      EPoint(name: "McDonald's", address: '1000 East Coast Parkway #01-05', lat: 1.301402, lng: 103.912301),
+    ];
+    expect(mall.map(halalPlaceId).toSet(), hasLength(3));
+    final fav = {halalPlaceId(mall[2])};
+    final list = halalNear(mall, 1.3015, 103.9124, favs: fav);
+    expect(list, hasLength(3));
+    expect(list.first.$1.name, "McDonald's");
+    expect(list.where((e) => fav.contains(halalPlaceId(e.$1))), hasLength(1));
+    // An older position-only save matches none of them (it cannot tell the shops apart).
+    expect(mall.where((p) => {mealPlaceId(1.301402, 103.912301)}.contains(halalPlaceId(p))), isEmpty);
   });
 
   test('private project at a home and its bundle', () {
