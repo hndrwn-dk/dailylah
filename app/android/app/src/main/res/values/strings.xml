@@ -1,4 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_description">Cuaca dan status MRT dari kartu harian DailyLah</string>
+    <!-- Home screen widget (DailyLahWidgetProvider.kt). Lines with live data come from the app (S in l10n.dart). -->
+    <string name="widget_description">Weather, MRT, your usual trip and today\'s alerts at a glance. Resize it for more.</string>
+    <string name="widget_empty_body">Open DailyLah and save your home. This widget then shows weather, MRT and your trip.</string>
+    <string name="widget_loading">Open DailyLah to load today\'s card</string>
+    <string name="widget_updated">Updated %1$s</string>
+    <string name="widget_stale">Not updated since %1$s · tap to refresh</string>
+    <string name="widget_today">Today</string>
+    <string name="widget_nearby">Nearby</string>
+    <string name="widget_home">Home</string>
+    <string name="widget_open_today">Open Today in DailyLah</string>
+    <string name="widget_open_nearby">Open Nearby in DailyLah</string>
+    <string name="widget_open_home">Open Home in DailyLah</string>
+    <!-- Sample content for the widget picker preview (Android 12+). -->
+    <string name="widget_sample_header">Morning · Tampines</string>
+    <string name="widget_sample_updated">07.40</string>
+    <string name="widget_sample_wx">Thundery Showers</string>
+    <string name="widget_sample_note">Rain expected near Work</string>
+    <string name="widget_sample_mrt">MRT running normally</string>
+    <string name="widget_sample_trip">To Work · usual 08.10</string>
+    <string name="widget_sample_bus">Bus 15 · leave by 07.52</string>
+    <string name="widget_sample_alert">Heat stress high near School</string>
 </resources>

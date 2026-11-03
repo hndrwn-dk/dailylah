@@ -1,2 +1,2 @@
-- Fixed: starring one halal place no longer stars other shops at the same address.
-- Starred places now stay where they are while you scroll; they move to the top next time you open the list.
+- New home screen widget: weather, MRT, your usual trip, the bus to leave for and today's alerts. Resize it from 2x1 to full size; it fits foldables and the Galaxy Z Flip cover screen.
+- The widget follows your phone's dark mode, and its Today, Nearby and Home buttons open the app there.

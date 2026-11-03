@@ -2350,3 +2350,96 @@ List<EvLive> evLiveFor(EvSite site, List<EvLive> live) {
   }
   return total == 0 ? null : (free, total);
 }
+
+// ---------------------------------------------------------------- home screen widget
+
+/// Forecast text without NEA's "(Day)"/"(Night)" suffix, e.g. "Partly Cloudy".
+String shortForecast(String forecast) =>
+    forecast.replaceAll(RegExp(r'\s*\((day|night)\)\s*$', caseSensitive: false), '').trim();
+
+/// Icon key for a two-hour forecast, read by the Android widget (DailyLahWidgetProvider.kt):
+/// sun, moon, partly_day, partly_night, cloud, rain, thunder, haze, wind.
+String weatherKind(String forecast, DateTime now) {
+  final f = forecast.toLowerCase();
+  final night = f.contains('(night)') || (!f.contains('(day)') && (now.hour >= 19 || now.hour < 7));
+  if (f.contains('thunder')) return 'thunder';
+  if (f.contains('rain') || f.contains('shower') || f.contains('drizzle')) return 'rain';
+  if (f.contains('haz') || f.contains('mist') || f.contains('fog')) return 'haze';
+  if (f.contains('wind')) return 'wind';
+  if (f.contains('partly') || f.contains('fair & warm') || f.contains('fair and warm')) {
+    return night ? 'partly_night' : 'partly_day';
+  }
+  if (f.contains('cloud') || f.contains('overcast')) return 'cloud';
+  return night ? 'moon' : 'sun';
+}
+
+/// Today's usual trip for the widget ("To Work · usual 08.10"), or '' with no commute today
+/// (day off, or the school's holiday).
+String widgetTrip(S s, Favorites fav, DateTime now, {List<SchoolHoliday> schoolHolidays = const []}) {
+  final p = commutePlace(fav, now);
+  if (p == null) return '';
+  if (p.kind == PlaceKind.school && schoolHolidayOn(schoolHolidays, now) != null) return '';
+  final (go, back) = commuteTimes(fav, now);
+  return cardFor(now, fav) == CardKind.morning
+      ? s.widgetTripTo(s.placeLabel(p.kind.name), go.format())
+      : s.widgetTripHome(back.format());
+}
+
+/// What the Android home screen widget shows, as the string keys it reads
+/// (DailyLahWidgetProvider.kt). Only what is known is written: the app and the background
+/// pass each update their part without blanking the rest. [bus] is written (or cleared)
+/// only when [busChecked], because only the background pass looks for it.
+Map<String, String> widgetData({
+  required S s,
+  required Favorites fav,
+  required DateTime now,
+  AreaForecast? here,
+  List<LineStatus>? lines,
+  List<TodayAlert>? alerts,
+  LeaveBy? bus,
+  bool busChecked = false,
+  List<SchoolHoliday> schoolHolidays = const [],
+}) {
+  final kind = cardFor(now, fav);
+  final out = <String, String>{
+    'dl_v': '2',
+    'dl_updated': '${now.millisecondsSinceEpoch}',
+    'dl_card': kind == CardKind.morning ? s.widgetMorning : s.widgetEvening,
+    'dl_trip': widgetTrip(s, fav, now, schoolHolidays: schoolHolidays),
+  };
+  if (here != null) {
+    out['dl_place'] = here.area;
+    out['dl_wx'] = shortForecast(here.forecast);
+    out['dl_wx_kind'] = weatherKind(here.forecast, now);
+  }
+  if (lines != null) {
+    final bad = [for (final l in lines) if (l.disrupted) l.line];
+    out['dl_mrt'] = bad.isEmpty ? s.widgetMrtOk : s.widgetMrtBad(bad.join(', '));
+    out['dl_mrt_bad'] = bad.isEmpty ? '0' : '1';
+  }
+  if (alerts != null) {
+    // Rain sits under the weather, MRT has its own row; the rest share one alert row.
+    final rain = alerts.where((a) => a.kind == AlertKind.rain);
+    out['dl_wx_note'] = rain.isEmpty ? '' : rain.first.text;
+    final rest = [for (final a in alerts) if (a.kind != AlertKind.rain && a.kind != AlertKind.mrt) a];
+    out['dl_alert'] = rest.isEmpty ? '' : rest.first.text;
+    out['dl_alert_more'] = rest.length > 1 ? s.widgetMore(rest.length - 1) : '';
+  }
+  if (busChecked) {
+    final at = bus == null ? null : now.add(Duration(minutes: bus.leaveIn));
+    out['dl_bus'] = at == null ? '' : s.widgetLeaveBy(bus!.service, TimeOfDayHM(at.hour, at.minute).format());
+    out['dl_bus_at'] = at == null ? '' : '${at.millisecondsSinceEpoch}';
+  }
+  return out;
+}
+
+/// Tab a widget tap opens (dailylah://today, nearby, home), or null for anything else.
+int? tabForWidgetUri(Uri? uri) {
+  if (uri == null || uri.scheme != 'dailylah') return null;
+  return switch (uri.host) {
+    'today' => 0,
+    'nearby' => 1,
+    'home' => 2,
+    _ => null,
+  };
+}

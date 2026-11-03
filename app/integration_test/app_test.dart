@@ -111,9 +111,9 @@ void main() {
   });
 
   testWidgets('home screen widget receives the card text', (tester) async {
-    await updateWidget(title: 'Morning', body: 'Tampines: Thundery Showers');
-    expect(await HomeWidget.getWidgetData<String>('title'), 'DailyLah · Morning');
-    expect(await HomeWidget.getWidgetData<String>('body'), 'Tampines: Thundery Showers');
+    await updateWidget({'dl_card': 'Morning', 'dl_place': 'Tampines', 'dl_wx': 'Thundery Showers', 'dl_updated': '1'});
+    expect(await HomeWidget.getWidgetData<String>('dl_card'), 'Morning');
+    expect(await HomeWidget.getWidgetData<String>('dl_wx'), 'Thundery Showers');
   });
 
   testWidgets('first install with no saved data does not crash the background pass', (tester) async {

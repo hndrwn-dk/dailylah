@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="dl_w_card">#FF152024</color>
+    <color name="dl_w_text">#FFEAF4F6</color>
+    <color name="dl_w_mist">#FF8FA6AD</color>
+    <color name="dl_w_edge">#FF5E7880</color>
+    <color name="dl_w_shadow">#FF000000</color>
+    <color name="dl_w_teal_text">#FF3CC4B6</color>
+    <color name="dl_w_stop_text">#FFFF8A78</color>
+    <!-- "Look now" text and icons on the card (nearText in theme.dart). -->
+    <color name="dl_w_look_text">#FFFFB627</color>
+    <color name="dl_w_row">#FF1D2B30</color>
+    <!-- Row tints under card text: go (bus to take), look now (alerts), MRT disrupted. -->
+    <color name="dl_w_row_go">#FF133A36</color>
+    <color name="dl_w_row_look">#FF3D3014</color>
+    <color name="dl_w_row_bad">#FF45201B</color>
+</resources>

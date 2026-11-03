@@ -4,6 +4,8 @@ import 'package:dailylah/logic.dart';
 import 'package:dailylah/models.dart';
 import 'package:flutter_test/flutter_test.dart' hide within;
 
+import 'support/harness.dart' show householdFavorites, saturdayMorning, tuesdayEvening, tuesdayMorning;
+
 const tampines = BusStop(code: '75009', name: 'Tampines Int', road: 'Tampines Ctrl 1', lat: 1.354, lng: 103.943);
 const raffles = BusStop(code: '03011', name: 'Raffles Pl', road: 'Collyer Quay', lat: 1.284, lng: 103.851);
 
@@ -1487,5 +1489,119 @@ void main() {
     expect(rideMinutesTo(r2, 3), 6);
     expect(rideMinutesTo(r2, 4), 13);
     expect(rideLineAt(r2, 3), 'DTL');
+  });
+
+  group('home screen widget', () {
+    const s = S();
+    Map<String, dynamic> train({String? line}) => {
+          'data': {
+            'value': line == null
+                ? {'Status': 1, 'AffectedSegments': [], 'Message': []}
+                : {
+                    'Status': 2,
+                    'AffectedSegments': [
+                      {'Line': line, 'Stations': 'PSR,TAM', 'FreePublicBus': '', 'FreeMRTShuttle': ''},
+                    ],
+                    'Message': [],
+                  },
+          },
+        };
+
+    test('forecast text and icon key', () {
+      expect(shortForecast('Partly Cloudy (Night)'), 'Partly Cloudy');
+      expect(shortForecast('Thundery Showers'), 'Thundery Showers');
+      final noon = DateTime(2026, 10, 20, 12);
+      final night = DateTime(2026, 10, 20, 22);
+      expect(weatherKind('Thundery Showers', noon), 'thunder');
+      expect(weatherKind('Light Rain', noon), 'rain');
+      expect(weatherKind('Passing Showers', night), 'rain');
+      expect(weatherKind('Hazy', noon), 'haze');
+      expect(weatherKind('Windy', noon), 'wind');
+      expect(weatherKind('Cloudy', noon), 'cloud');
+      expect(weatherKind('Partly Cloudy (Day)', night), 'partly_day');
+      expect(weatherKind('Partly Cloudy (Night)', noon), 'partly_night');
+      expect(weatherKind('Fair', noon), 'sun');
+      expect(weatherKind('Fair', night), 'moon');
+    });
+
+    test('morning: weather, MRT, the trip to work and the top alert', () {
+      final here = forecastNear(forecastBody(), tampines.lat, tampines.lng);
+      final d = widgetData(
+        s: s,
+        fav: householdFavorites,
+        now: tuesdayMorning,
+        here: here,
+        lines: lineStatuses(train(), {'EWL', 'DTL'}),
+        alerts: const [
+          TodayAlert(AlertKind.mrt, 'ignored, MRT has its own row'),
+          TodayAlert(AlertKind.rain, 'Rain expected near Work'),
+          TodayAlert(AlertKind.lightning, 'Lightning nearby. Stay indoors.'),
+          TodayAlert(AlertKind.hawker, 'Hawker closed tomorrow'),
+          TodayAlert(AlertKind.dengue, 'Dengue near Home'),
+        ],
+      );
+      expect(d['dl_card'], 'Morning');
+      expect(d['dl_place'], 'Tampines');
+      expect(d['dl_wx'], 'Thundery Showers');
+      expect(d['dl_wx_kind'], 'thunder');
+      expect(d['dl_wx_note'], 'Rain expected near Work');
+      expect(d['dl_mrt'], 'MRT running normally');
+      expect(d['dl_mrt_bad'], '0');
+      expect(d['dl_trip'], 'To Work · usual 08.00');
+      expect(d['dl_alert'], 'Lightning nearby. Stay indoors.');
+      expect(d['dl_alert_more'], '+2 more');
+      expect(d['dl_updated'], '${tuesdayMorning.millisecondsSinceEpoch}');
+      // The app never checks the bus, so it leaves the background pass's bus alone.
+      expect(d.containsKey('dl_bus'), isFalse);
+    });
+
+    test('unknown parts are left out, so an update never blanks them', () {
+      final d = widgetData(s: s, fav: householdFavorites, now: tuesdayMorning);
+      for (final k in ['dl_wx', 'dl_place', 'dl_mrt', 'dl_alert', 'dl_wx_note', 'dl_bus']) {
+        expect(d.containsKey(k), isFalse, reason: k);
+      }
+    });
+
+    test('disruption, evening trip home, and a day off', () {
+      final evening = widgetData(
+        s: s,
+        fav: householdFavorites,
+        now: tuesdayEvening,
+        lines: lineStatuses(train(line: 'EWL'), {'EWL', 'DTL'}),
+        alerts: const [],
+      );
+      expect(evening['dl_card'], 'Evening');
+      expect(evening['dl_mrt'], 'EWL disrupted');
+      expect(evening['dl_mrt_bad'], '1');
+      expect(evening['dl_trip'], 'Home · usual 18.00');
+      expect(evening['dl_alert'], '');
+      expect(evening['dl_alert_more'], '');
+      expect(widgetData(s: s, fav: householdFavorites, now: saturdayMorning)['dl_trip'], '');
+    });
+
+    test('the bus to leave for is a clock time, cleared when the background finds none', () {
+      final at = DateTime(2026, 10, 20, 7, 50);
+      final d = widgetData(
+        s: s,
+        fav: householdFavorites,
+        now: at,
+        bus: const LeaveBy('15', 4, 3),
+        busChecked: true,
+      );
+      expect(d['dl_bus'], 'Bus 15 · leave by 07.54');
+      expect(d['dl_bus_at'], '${DateTime(2026, 10, 20, 7, 54).millisecondsSinceEpoch}');
+      final none = widgetData(s: s, fav: householdFavorites, now: at, busChecked: true);
+      expect(none['dl_bus'], '');
+      expect(none['dl_bus_at'], '');
+    });
+
+    test('widget taps open Today, Nearby or Home', () {
+      expect(tabForWidgetUri(Uri.parse('dailylah://today')), 0);
+      expect(tabForWidgetUri(Uri.parse('dailylah://nearby')), 1);
+      expect(tabForWidgetUri(Uri.parse('dailylah://home')), 2);
+      expect(tabForWidgetUri(Uri.parse('dailylah://more')), isNull);
+      expect(tabForWidgetUri(Uri.parse('https://dailylah.sg')), isNull);
+      expect(tabForWidgetUri(null), isNull);
+    });
   });
 }

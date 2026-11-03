@@ -546,6 +546,26 @@ final todayAlertsProvider = Provider.autoDispose<List<TodayAlert>>((ref) {
   );
 });
 
+/// What the home screen widget should show, from the data Today has loaded so far
+/// (the background pass fills in the bus and refreshes it every 15 minutes).
+final widgetDataProvider = Provider.autoDispose<Map<String, String>>((ref) {
+  final fav = ref.watch(favoritesProvider);
+  if (!fav.isSetUp) return const {};
+  final now = nowOf(ref);
+  final origin = fav.places[originFor(cardFor(now, fav), fav, now)];
+  final forecast = ref.watch(forecastProvider).valueOrNull;
+  final train = ref.watch(trainAlertsProvider).valueOrNull;
+  return widgetData(
+    s: ref.watch(stringsProvider),
+    fav: fav,
+    now: now,
+    here: forecast == null || origin == null ? null : forecastNear(forecast, origin.lat, origin.lng),
+    lines: train == null ? null : lineStatuses(train, watchedLines(fav)),
+    alerts: ref.watch(todayAlertsProvider),
+    schoolHolidays: ref.watch(schoolHolidaysProvider).valueOrNull ?? const [],
+  );
+});
+
 /// OneMap address search, cached per query while in use.
 final addressSearchProvider = FutureProvider.autoDispose.family<List<AddressHit>, String>((ref, q) async {
   if (q.trim().length < 3) return const [];

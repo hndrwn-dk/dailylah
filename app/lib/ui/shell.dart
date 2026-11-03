@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../background.dart';
 import '../logic.dart';
 import '../providers.dart';
 import 'history.dart';
@@ -33,14 +36,25 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   DateTime? _awaySince;
   CardKind? _cardWhenAway;
 
+  /// Taps on the home screen widget's Today / Nearby / Home buttons.
+  StreamSubscription<int>? _widgetTaps;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _widgetTaps = widgetTabTaps().listen(_openFromWidget);
+  }
+
+  void _openFromWidget(int tab) {
+    if (!mounted) return;
+    Navigator.of(context).popUntil((r) => r.isFirst);
+    ref.read(shellTabProvider.notifier).state = tab;
   }
 
   @override
   void dispose() {
+    _widgetTaps?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     for (final c in _scroll) {
       c.dispose();

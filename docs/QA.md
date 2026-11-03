@@ -40,6 +40,9 @@ Remove the `skip` when the gap is fixed (or change the PRD and delete the test).
 ## Still manual (about 5 minutes before a release)
 
 - [ ] Lock a real phone for an hour with the app set up; at least one alert or widget update arrives (Doze, vendor battery savers).
+- [ ] Widget on a Samsung phone: add it, resize it through 2x1, 4x1, 2x2, 4x2 and 4x3+; each size shows a full layout with nothing cut off, also at the largest font size and in dark mode.
+- [ ] Widget on a foldable (Galaxy Z Fold): fold and unfold; the widget switches layout on each screen. On a Galaxy Z Flip, add it under Settings > Cover screen > Widgets.
+- [ ] Widget buttons Today / Nearby / Home open the app on that tab, also when the app was closed.
 - [ ] Wake me on a locked screen on a real bus ride.
 - [ ] Look at Today and Home once on a small real phone at the largest font size.
 

@@ -40,16 +40,9 @@ class TodayPage extends ConsumerWidget {
     final t = Theme.of(context).textTheme;
 
     // Keep the home screen widget in sync with what the card shows.
-    ref.listen(forecastProvider, (_, next) {
-      final json = next.valueOrNull;
-      if (json == null || origin == null) return;
-      final here = forecastNear(json, origin.lat, origin.lng);
-      if (here == null) return;
-      updateWidget(
-        title: kind == CardKind.morning ? s.morningCard : s.eveningCard,
-        body: '${here.area}: ${here.forecast}',
-      );
-    });
+    ref.listen(widgetDataProvider, (_, next) {
+      if (next.isNotEmpty) updateWidget(next);
+    }, fireImmediately: true);
 
     Future<void> refresh() async {
       ref.invalidate(forecastProvider);

@@ -20,6 +20,9 @@ const _widgetChannel = MethodChannel('home_widget');
 /// Notifications "shown" during a test, as the plugin's method-channel arguments.
 final shown = <Map<Object?, Object?>>[];
 
+/// Home screen widget data saved during a test (HomeWidget.saveWidgetData).
+final widgetSaved = <String, Object?>{};
+
 Future<void> _withFavorites(Favorites fav, {List<String> sent = const []}) async {
   SharedPreferences.setMockInitialValues({
     'favorites.v1': jsonEncode(fav.toJson()),
@@ -37,6 +40,8 @@ void main() {
 
   setUp(() {
     shown.clear();
+    widgetSaved.clear();
+    resetWidgetCache();
     AndroidFlutterLocalNotificationsPlugin.registerWith();
     final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(_notifChannel, (call) async {
@@ -44,7 +49,34 @@ void main() {
       if (call.method == 'initialize') return true;
       return null;
     });
-    messenger.setMockMethodCallHandler(_widgetChannel, (call) async => true);
+    messenger.setMockMethodCallHandler(_widgetChannel, (call) async {
+      if (call.method == 'saveWidgetData') {
+        final args = (call.arguments as Map).cast<String, Object?>();
+        widgetSaved['${args['id']}'] = args['data'];
+      }
+      return true;
+    });
+  });
+
+  group('home screen widget', () {
+    test('the background pass saves weather, MRT, trip and clears an old bus', () async {
+      await _withFavorites(householdFavorites);
+      await runChecks(FakeApi(disruptedLine: 'EWL'), rainyBeforeWork, bundles: FileBundles());
+      expect(widgetSaved['dl_card'], 'Morning');
+      expect(widgetSaved['dl_trip'], 'To Work · usual 08.00');
+      expect(widgetSaved['dl_mrt'], 'EWL disrupted');
+      expect(widgetSaved['dl_mrt_bad'], '1');
+      expect('${widgetSaved['dl_wx']}', isNotEmpty);
+      expect(widgetSaved['dl_updated'], '${rainyBeforeWork.millisecondsSinceEpoch}');
+      // 07:20 is before the leave window (07:35): no bus yet, and any old one is cleared.
+      expect(widgetSaved['dl_bus'], '');
+    });
+
+    test('nothing is saved for the widget before setup', () async {
+      await _withFavorites(const Favorites());
+      await runChecks(FakeApi(), rainyBeforeWork, bundles: FileBundles());
+      expect(widgetSaved, isEmpty);
+    });
   });
 
   // Commute: leave home 08:00 on weekdays (household fixture).

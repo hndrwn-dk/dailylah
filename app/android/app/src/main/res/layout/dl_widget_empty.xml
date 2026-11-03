@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DailyLahWidgetProvider.kt picks this layout by widget size; keep view ids in sync. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/dl_widget_bg"
+    android:paddingStart="12dp"
+    android:paddingTop="11dp"
+    android:paddingEnd="15dp"
+    android:paddingBottom="14dp">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_vertical"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/w_empty_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-condensed"
+            android:maxLines="1"
+            android:textColor="@color/dl_w_text"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:text="DailyLah" />
+        <TextView
+            android:id="@+id/w_empty_body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif"
+            android:maxLines="4"
+            android:textColor="@color/dl_w_mist"
+            android:textSize="12sp"
+            android:layout_marginTop="2dp"
+            android:text="@string/widget_empty_body" />
+    </LinearLayout>
+</FrameLayout>

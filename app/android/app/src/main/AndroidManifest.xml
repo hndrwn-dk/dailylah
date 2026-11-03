@@ -43,6 +43,20 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/dailylah_widget_info" />
         </receiver>
+        <!-- Galaxy Z Flip cover screen (Flex Window): same widget, listed by Samsung's meta-data. -->
+        <receiver
+            android:name=".DailyLahCoverWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/dailylah_cover_widget_info" />
+            <meta-data
+                android:name="com.samsung.android.appwidget.provider"
+                android:resource="@xml/samsung_dailylah_cover_widget" />
+        </receiver>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

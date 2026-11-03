@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Home screen widget. Resizable from 2x1 up; DailyLahWidgetProvider.kt gives the system one
+     layout per size (Android 12+) or picks one from the reported size (Android 10/11).
+     minWidth/minHeight (4x2 by the 70n-30 rule) is the default size where targetCell* is unknown. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:initialLayout="@layout/dailylah_widget"
-    android:minWidth="180dp"
-    android:minHeight="70dp"
-    android:targetCellWidth="3"
-    android:targetCellHeight="1"
+    android:description="@string/widget_description"
+    android:initialLayout="@layout/dl_widget_empty"
+    android:previewLayout="@layout/dl_widget_preview"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="40dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="0"
-    android:widgetCategory="home_screen"
-    android:description="@string/widget_description" />
+    android:widgetCategory="home_screen" />

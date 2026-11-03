@@ -36,6 +36,10 @@ else
   echo "::error::DailyLahWidgetProvider (APPWIDGET_UPDATE receiver) is missing from the installed package."
   exit 1
 fi
+if ! adb -s "$DEVICE" shell dumpsys package "$PKG" | grep -q "DailyLahCoverWidgetProvider"; then
+  echo "::error::DailyLahCoverWidgetProvider (Galaxy Z Flip cover screen widget) is missing from the installed package."
+  exit 1
+fi
 # Notifications allowed (API 33+ only has this runtime permission), location refused.
 adb -s "$DEVICE" shell pm grant "$PKG" android.permission.POST_NOTIFICATIONS 2>/dev/null || true
 adb -s "$DEVICE" shell pm revoke "$PKG" android.permission.ACCESS_FINE_LOCATION 2>/dev/null || true

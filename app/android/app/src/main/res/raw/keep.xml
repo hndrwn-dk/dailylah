@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Resource shrinking keeps these: they are looked up by name at run time
-     (notification icon "@mipmap/ic_launcher" in lib/background.dart, the widget layout). -->
+     (notification icon "@mipmap/ic_launcher" in lib/background.dart, the widget layouts). -->
 <resources xmlns:tools="http://schemas.android.com/tools"
-    tools:keep="@mipmap/ic_launcher,@layout/dailylah_widget,@xml/*,@drawable/*" />
+    tools:keep="@mipmap/ic_launcher,@layout/dl_widget_*,@xml/*,@drawable/*" />
