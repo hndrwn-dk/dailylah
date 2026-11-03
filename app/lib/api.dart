@@ -154,7 +154,11 @@ class BundleRepository {
   /// A saved copy that does not decode is deleted and downloaded again.
   Future<Object?> load(String name) {
     if (_memory.containsKey(name)) return Future.value(_memory[name]);
-    return _loading[name] ??= _load(name).whenComplete(() => _loading.remove(name));
+    // The block body matters: `=> _loading.remove(name)` would return this same future to
+    // whenComplete, which then waits for itself forever.
+    return _loading[name] ??= _load(name).whenComplete(() {
+      _loading.remove(name);
+    });
   }
 
   Future<Object?> _load(String name, {bool retried = false}) async {
