@@ -102,7 +102,7 @@ internal object DailyLahWidget {
         return w.toFloat() to h.toFloat()
     }
 
-    private class Data(p: SharedPreferences) {
+    private class Data(private val p: SharedPreferences) {
         private fun s(key: String) = p.getString(key, null)?.trim().orEmpty()
         val updated = s("dl_updated").toLongOrNull()
         val card = s("dl_card")
