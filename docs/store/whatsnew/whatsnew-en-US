@@ -1,2 +1,2 @@
-- New home screen widget: weather, MRT, your usual trip, the bus to leave for and today's alerts. Resize it from 2x1 to full size; it fits foldables and the Galaxy Z Flip cover screen.
-- The widget follows your phone's dark mode, and its Today, Nearby and Home buttons open the app there.
+- Change line on the MRT card: pick another line for today, like the Green line, and DailyLah shows the way there, with a bus when the station is too far to walk. Your pick is remembered for that trip.
+- The MRT card now shows how busy your boarding station is right now.

@@ -391,6 +391,35 @@ class S {
   String get changeTrains => 'Change trains on the way';
   String alightAt(String station, String dist) => 'Get off at $station · $dist walk';
   String get mrtRouteInMaps => 'MRT route in Google Maps';
+  // pick a line for today
+  String get changeLine => 'Change line';
+  String get changeLineTitle => 'How do you want to go today?';
+  String get changeLineSub => 'DailyLah remembers your pick for this trip.';
+  String get usualRoute => 'Nearest station';
+  String get changeChoice => 'Change';
+  String boardAt(String station) => 'Board at $station';
+  String lineColour(String line) => switch (line) {
+        'NSL' => 'Red line',
+        'EWL' => 'Green line',
+        'CCL' => 'Orange line',
+        'DTL' => 'Blue line',
+        'NEL' => 'Purple line',
+        'TEL' => 'Brown line',
+        _ => lineName(line),
+      };
+  String lineChoiceTitle(String line) => '${lineColour(line)} · ${trainLines[line] ?? line}';
+  String todayOnLine(String line) => 'Today: ${lineColour(line)} (${trainLines[line] ?? line})';
+  String choiceSummary(int? minutes, int changes, String start) => [
+        if (minutes != null) '~$minutes min',
+        start,
+        changes == 0 ? 'no change' : '1 change',
+      ].join(' · ');
+  String choiceWalk(String station, double m) => 'walk ${(m / 80).ceil()} min to $station';
+  String choiceBus(String service, String station) => 'bus $service to $station';
+  String feederStep(String service, String stop, String station, int stops) =>
+      'Bus $service from $stop to $station · ${stops == 1 ? '1 stop' : '$stops stops'}';
+  String crowdNow(String station, String level) =>
+      '$station now: ${switch (level) { 'h' => 'packed', 'm' => 'busy', _ => 'quiet' }}';
   String get noMrtNearby => 'No MRT station within a 15-minute walk of both ends.';
   String mrtLineDisrupted(String line) => '$line is disrupted right now';
   String mrtStations(String stations) => 'Stations: $stations';
@@ -852,8 +881,8 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "New home screen widget: weather, MRT, your usual trip, the bus to leave for and today's alerts. Resize it from 2x1 to full size; it fits foldables and the Galaxy Z Flip cover screen.",
-        "The widget follows your phone's dark mode, and its Today, Nearby and Home buttons open the app there.",
+        "Change line on the MRT card: pick another line for today, like the Green line, and DailyLah shows the way there, with a bus when the station is too far to walk. Your pick is remembered for that trip.",
+        "The MRT card now shows how busy your boarding station is right now.",
       ];
 
   // about

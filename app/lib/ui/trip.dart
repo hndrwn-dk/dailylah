@@ -341,8 +341,17 @@ class _MrtOption extends ConsumerWidget {
     if (stations.isEmpty) return const SizedBox.shrink();
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    final plan = mrtPlan(stations, from, to);
-    if (plan == null) return const SizedBox.shrink();
+    final usual = mrtPlan(stations, from, to);
+    if (usual == null) return const SizedBox.shrink();
+    final key = mrtRouteKey(s, from, to);
+    final picked = ref.watch(favoritesProvider.select((f) => f.mrtLines[key]));
+    final choice = picked == null
+        ? null
+        : lineMrtChoice(stations, from, to, picked,
+            routes: ref.watch(busRoutesProvider).valueOrNull ?? BusRoutes.empty,
+            stops: ref.watch(busStopsProvider).valueOrNull ?? const <BusStop>[]);
+    final plan = choice?.plan ?? usual;
+    final feeder = choice?.feeder;
     final alerts = ref.watch(trainAlertsProvider).valueOrNull;
     final lines = {
       for (final c in [...plan.board.codes, ...plan.alight.codes])
@@ -352,8 +361,14 @@ class _MrtOption extends ConsumerWidget {
         ? const <String>[]
         : [for (final l in lineStatuses(alerts, lines)) if (l.disrupted) l.line];
     final resting = transitResting(ref.watch(clockProvider).valueOrNull ?? DateTime.now());
-    final ride = mrtRide(stations, plan);
+    final ride = choice?.ride ?? mrtRide(stations, plan);
     final riding = ref.watch(rideProvider);
+    // How busy the boarding station is now (LTA platform crowd, every 10 min).
+    final boardLine = ride != null ? rideLineAt(ride, 0) : (plan.line ?? lineOfCode(plan.board.codes.firstOrNull ?? ''));
+    final boardCode = [for (final c in plan.board.codes) if (lineOfCode(c) == boardLine) c].firstOrNull;
+    final crowd = boardLine == null || boardCode == null || resting
+        ? null
+        : ref.watch(stationCrowdProvider(boardLine)).valueOrNull?[boardCode];
 
     Widget stationRow(IconData icon, String text, MrtStation st) => Padding(
           padding: const EdgeInsets.only(bottom: 8),
@@ -388,6 +403,21 @@ class _MrtOption extends ConsumerWidget {
           ),
           const SizedBox(height: 10),
           if (resting) AlertBanner(icon: Icons.bedtime_outlined, text: s.trainsResting, tone: AlertTone.info),
+          if (choice != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  LineChip(choice.line!),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(s.todayOnLine(choice.line!), style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w700))),
+                  TextButton(
+                    onPressed: () => showMrtLineSheet(context, from: from, to: to),
+                    child: Text(s.changeChoice),
+                  ),
+                ],
+              ),
+            ),
           if (alerts != null && disrupted.isEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
@@ -405,7 +435,36 @@ class _MrtOption extends ConsumerWidget {
               ),
             ),
           ...[
-            stationRow(Icons.directions_walk, s.walkTo(plan.board.name, s.metres(plan.walkToBoard)), plan.board),
+            if (feeder != null) ...[
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.directions_bus_outlined, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        s.feederStep(feeder.ride.service, feeder.stop.name, plan.board.name, feeder.ride.stops),
+                        style: t.bodyMedium,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              stationRow(Icons.subway_outlined, s.boardAt(plan.board.name), plan.board),
+            ] else
+              stationRow(Icons.directions_walk, s.walkTo(plan.board.name, s.metres(plan.walkToBoard)), plan.board),
+            if (crowd != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    CrowdPeople(crowd),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text(s.crowdNow(plan.board.name, crowd), style: t.bodyMedium)),
+                  ],
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
@@ -443,10 +502,7 @@ class _MrtOption extends ConsumerWidget {
                   final fav = ref.read(favoritesProvider);
                   if (fav.learnHabits && ref.read(habitsProvider).tripStart == null) {
                     await ref.read(habitsProvider.notifier).startTrip(
-                          tripRouteKey(
-                            from.kind == PlaceKind.other ? placeTitle(s.placeLabel, from) : from.kind.name,
-                            to.kind == PlaceKind.other ? placeTitle(s.placeLabel, to) : to.kind.name,
-                          ),
+                          key,
                           DateTime.now(),
                           mode: TravelMode.transit.name,
                           km: distanceMeters(from.lat, from.lng, to.lat, to.lng) / 1000,
@@ -468,6 +524,16 @@ class _MrtOption extends ConsumerWidget {
               child: Text(s.imOnTrainSub, style: t.bodySmall, textAlign: TextAlign.center),
             ),
           ],
+          if (riding == null)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                icon: const Icon(Icons.swap_horiz),
+                label: Text(s.changeLine),
+                onPressed: () => showMrtLineSheet(context, from: from, to: to),
+              ),
+            ),
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
@@ -478,6 +544,101 @@ class _MrtOption extends ConsumerWidget {
           ),
         ],
       ),
+      ),
+    );
+  }
+}
+
+/// The trip key a picked line is saved under (the same key History uses).
+String mrtRouteKey(S s, Place from, Place to) => tripRouteKey(
+      from.kind == PlaceKind.other ? placeTitle(s.placeLabel, from) : from.kind.name,
+      to.kind == PlaceKind.other ? placeTitle(s.placeLabel, to) : to.kind.name,
+    );
+
+/// "How do you want to go today?": the usual route or a line to start on.
+Future<void> showMrtLineSheet(BuildContext context, {required Place from, required Place to}) =>
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => MrtLineSheet(from: from, to: to),
+    );
+
+class MrtLineSheet extends ConsumerWidget {
+  const MrtLineSheet({super.key, required this.from, required this.to});
+  final Place from;
+  final Place to;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final stations = ref.watch(mrtStationsProvider).valueOrNull ?? const <MrtStation>[];
+    final choices = mrtChoices(stations, from, to,
+        routes: ref.watch(busRoutesProvider).valueOrNull ?? BusRoutes.empty,
+        stops: ref.watch(busStopsProvider).valueOrNull ?? const <BusStop>[]);
+    final key = mrtRouteKey(s, from, to);
+    final picked = ref.watch(favoritesProvider.select((f) => f.mrtLines[key]));
+    final current = choices.any((c) => c.line == picked) ? picked : null;
+
+    String start(MrtChoice c) => c.feeder != null
+        ? s.choiceBus(c.feeder!.ride.service, c.plan.board.name)
+        : s.choiceWalk(c.plan.board.name, c.plan.walkToBoard);
+
+    return SafeArea(
+      child: ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        children: [
+          Text(s.changeLineTitle, style: t.titleLarge),
+          const SizedBox(height: 4),
+          Text(s.changeLineSub, style: t.bodyMedium?.copyWith(color: DL.muted(context))),
+          const SizedBox(height: 14),
+          for (final c in choices)
+            Panel(
+              margin: const EdgeInsets.only(bottom: 12),
+              color: c.line == current ? DL.mint : null,
+              child: InkWell(
+                onTap: () async {
+                  final nav = Navigator.of(context);
+                  await ref.read(favoritesProvider.notifier).setMrtLine(key, c.line);
+                  nav.pop();
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 4,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                if (c.line != null) LineChip(c.line!),
+                                Text(
+                                  c.line == null ? s.usualRoute : s.lineChoiceTitle(c.line!),
+                                  style: t.titleMedium?.copyWith(color: c.line == current ? DL.ink : null),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              s.choiceSummary(c.minutes, c.changes, start(c)),
+                              style: t.bodyMedium?.copyWith(color: c.line == current ? DL.ink : DL.muted(context)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (c.line == current) const Icon(Icons.check_circle, color: DL.ink),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

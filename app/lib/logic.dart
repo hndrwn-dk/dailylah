@@ -1394,6 +1394,13 @@ MrtPlan? mrtPlan(List<MrtStation> stations, Place from, Place to, {double maxWal
   final a = nearest(stations, from.lat, from.lng, latOf: (x) => x.lat, lngOf: (x) => x.lng);
   final b = nearest(stations, to.lat, to.lng, latOf: (x) => x.lat, lngOf: (x) => x.lng);
   if (a == null || b == null || a.$2 > maxWalk || b.$2 > maxWalk || a.$1.name == b.$1.name) return null;
+  return mrtPlanBetween(stations, a.$1, a.$2, b.$1, b.$2);
+}
+
+/// The plan from [board] to [alight]: the shared line, or one change of train.
+MrtPlan mrtPlanBetween(
+    List<MrtStation> stations, MrtStation board, double walkToBoard, MrtStation alight, double walkFromAlight) {
+  final a = (board, walkToBoard), b = (alight, walkFromAlight);
   String? line;
   int? stops;
   int? num(String c) => int.tryParse(RegExp(r'(\d+)').firstMatch(c)?.group(1) ?? '');
@@ -1417,6 +1424,7 @@ MrtPlan? mrtPlan(List<MrtStation> stations, Place from, Place to, {double maxWal
     String? prefix(String c) => RegExp(r'^[A-Z]+').firstMatch(c)?.group(0);
     var best = 1 << 30;
     for (final x in stations) {
+      if (x.name == a.$1.name || x.name == b.$1.name) continue;
       for (final ca in a.$1.codes) {
         for (final cx in x.codes) {
           if (prefix(ca) != prefix(cx)) continue;
@@ -1503,6 +1511,147 @@ MrtRide? mrtRide(List<MrtStation> all, MrtPlan plan) {
   final a = mrtLeg(all, plan.board, plan.via!), b = mrtLeg(all, plan.via!, plan.alight);
   if (a == null || b == null) return null;
   return MrtRide(stations: [...a, ...b.skip(1)], lines: lines, viaIndex: a.length - 1);
+}
+
+// ---------------------------------------------------------------- MRT: pick a line today
+
+/// Lines the rider can pick for a trip ("Green line today"), in [trainLines] keys.
+const choiceLines = ['NSL', 'EWL', 'CCL', 'DTL', 'NEL', 'TEL'];
+
+/// A station on a picked line can be this far from the start (walk, or a bus to it).
+const lineChoiceMaxMetres = 3000.0;
+
+/// Further than this from the start, a picked line's station needs a bus to get there.
+const feederWalkMetres = 1000.0;
+
+/// Bus stops within this of the start, or of the station, count for the bus to the station.
+const feederStopMetres = 400.0;
+
+/// Rough bus minutes: wait at the stop, then per stop.
+const feederWaitMinutes = 5;
+const feederMinutesPerStop = 2;
+
+/// A bus from near the start to a station on the picked line.
+class FeederBus {
+  const FeederBus({required this.stop, required this.walk, required this.ride});
+  final BusStop stop;
+
+  /// Metres from the start to [stop].
+  final double walk;
+  final DirectRide ride;
+}
+
+/// One way to make the MRT part of a trip: the usual nearest-station route ([line] null),
+/// or starting on a line the rider picked.
+class MrtChoice {
+  const MrtChoice({required this.plan, this.ride, this.minutes, this.line, this.feeder});
+  final String? line;
+  final MrtPlan plan;
+  final MrtRide? ride;
+
+  /// Bus to the boarding station when it is too far to walk.
+  final FeederBus? feeder;
+
+  /// Door to door estimate, null when the stations in between are not known.
+  final int? minutes;
+  int get changes => plan.direct ? 0 : 1;
+}
+
+/// [st] with only its codes on [line] (Tampines EW2/DT32 → DT32 for the Downtown Line), so
+/// the plan starts on that line.
+MrtStation stationOnLine(MrtStation st, String line) => MrtStation(
+      name: st.name,
+      codes: [for (final c in st.codes) if (lineOfCode(c) == line) c],
+      lat: st.lat,
+      lng: st.lng,
+    );
+
+/// The best direct bus from a stop near [from] to a stop near [st], or null.
+FeederBus? feederBus(BusRoutes routes, List<BusStop> stops, Place from, MrtStation st) {
+  final dest = {
+    for (final x in stops)
+      if (distanceMeters(st.lat, st.lng, x.lat, x.lng) <= feederStopMetres) x.code,
+  };
+  if (dest.isEmpty) return null;
+  FeederBus? best;
+  var bestCost = double.infinity;
+  for (final x in stops) {
+    final walk = distanceMeters(from.lat, from.lng, x.lat, x.lng);
+    if (walk > feederStopMetres || dest.contains(x.code)) continue;
+    for (final r in directRides(routes, x.code, dest).values) {
+      final cost = walkMinutesTo(walk) + r.stops * feederMinutesPerStop.toDouble();
+      if (cost < bestCost) {
+        bestCost = cost;
+        best = FeederBus(stop: x, walk: walk, ride: r);
+      }
+    }
+  }
+  return best;
+}
+
+int? _choiceMinutes(MrtPlan plan, MrtRide? ride, FeederBus? feeder) {
+  if (ride == null) return null;
+  final start = feeder == null
+      ? walkMinutesTo(plan.walkToBoard)
+      : walkMinutesTo(feeder.walk) + feederWaitMinutes + feeder.ride.stops * feederMinutesPerStop;
+  return start + rideMinutesTo(ride, ride.stops) + walkMinutesTo(plan.walkFromAlight);
+}
+
+/// The usual route as a choice (nearest stations at both ends), or null without one.
+MrtChoice? usualMrtChoice(List<MrtStation> stations, Place from, Place to) {
+  final plan = mrtPlan(stations, from, to);
+  if (plan == null) return null;
+  final ride = mrtRide(stations, plan);
+  return MrtChoice(plan: plan, ride: ride, minutes: _choiceMinutes(plan, ride, null));
+}
+
+/// The trip starting on [line]: its nearest station to [from] (walked, or by a direct bus
+/// when it is over [feederWalkMetres] away), to the usual station at the end. Null when no
+/// station on the line is near enough, it is the same ride as the usual one, or the
+/// stations in between are not known.
+MrtChoice? lineMrtChoice(List<MrtStation> stations, Place from, Place to, String line,
+    {BusRoutes routes = BusRoutes.empty, List<BusStop> stops = const []}) {
+  final usual = mrtPlan(stations, from, to);
+  if (usual == null) return null;
+  final on = [for (final st in stations) if (st.codes.any((c) => lineOfCode(c) == line)) st];
+  final a = nearest(on, from.lat, from.lng, latOf: (x) => x.lat, lngOf: (x) => x.lng);
+  if (a == null || a.$2 > lineChoiceMaxMetres || a.$1.name == usual.alight.name) return null;
+  final board = stationOnLine(a.$1, line);
+  final plan = mrtPlanBetween(stations, board, a.$2, usual.alight, usual.walkFromAlight);
+  final ride = mrtRide(stations, plan);
+  if (ride == null) return null;
+  final usualRide = mrtRide(stations, usual);
+  String names(MrtRide r) => [for (final st in r.stations) st.name].join('|');
+  if (usualRide != null && names(usualRide) == names(ride)) return null;
+  FeederBus? feeder;
+  if (a.$2 > feederWalkMetres) {
+    feeder = feederBus(routes, stops, from, a.$1);
+    if (feeder == null) return null;
+  }
+  return MrtChoice(plan: plan, ride: ride, line: line, feeder: feeder, minutes: _choiceMinutes(plan, ride, feeder));
+}
+
+/// Every way to make the trip by MRT: the usual route first, then one per line (quickest
+/// first). Empty without a usual route.
+List<MrtChoice> mrtChoices(List<MrtStation> stations, Place from, Place to,
+    {BusRoutes routes = BusRoutes.empty, List<BusStop> stops = const []}) {
+  final usual = usualMrtChoice(stations, from, to);
+  if (usual == null) return const [];
+  final others = [
+    for (final l in choiceLines)
+      if (lineMrtChoice(stations, from, to, l, routes: routes, stops: stops) case final c?) c,
+  ]..sort((x, y) => (x.minutes ?? 999).compareTo(y.minutes ?? 999));
+  return [usual, ...others];
+}
+
+/// Crowd level per station code ('l', 'm' or 'h') from an LTA PCDRealTime answer.
+Map<String, String> stationCrowd(Map<String, dynamic> apiBody) {
+  final value = (apiBody['data'] is Map) ? (apiBody['data'] as Map)['value'] : null;
+  if (value is! List) return const {};
+  return {
+    for (final s in value)
+      if (s is Map && const {'l', 'm', 'h'}.contains('${s['CrowdLevel']}')) '${s['Station']}': '${s['CrowdLevel']}',
+  };
 }
 
 /// Minutes from boarding to station [i] of the ride.

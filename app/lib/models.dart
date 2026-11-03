@@ -253,6 +253,7 @@ class Favorites {
     this.compareBlocks = const [],
     this.extraPlaces = const [],
     this.workDays = const {1, 2, 3, 4, 5},
+    this.mrtLines = const {},
   });
 
   final Map<PlaceKind, Place> places;
@@ -317,6 +318,10 @@ class Favorites {
   /// Weekdays (1 = Monday … 7 = Sunday) the user goes to work or school.
   final Set<int> workDays;
 
+  /// Line picked for a trip's MRT part ([tripRouteKey] -> 'EWL'...); absent = the usual route.
+  final Map<String, String> mrtLines;
+  static const maxMrtLines = 20;
+
   bool get isSetUp => places.containsKey(PlaceKind.home);
 
   Favorites copyWith({
@@ -346,6 +351,7 @@ class Favorites {
     List<String>? compareBlocks,
     List<Place>? extraPlaces,
     Set<int>? workDays,
+    Map<String, String>? mrtLines,
   }) =>
       Favorites(
         places: places ?? this.places,
@@ -374,6 +380,7 @@ class Favorites {
         compareBlocks: compareBlocks ?? this.compareBlocks,
         extraPlaces: extraPlaces ?? this.extraPlaces,
         workDays: workDays ?? this.workDays,
+        mrtLines: mrtLines ?? this.mrtLines,
       );
 
   Map<String, dynamic> toJson() => {
@@ -403,6 +410,7 @@ class Favorites {
         'compareBlocks': compareBlocks,
         if (extraPlaces.isNotEmpty) 'extra': [for (final p in extraPlaces) p.toJson()],
         'workDays': workDays.toList()..sort(),
+        if (mrtLines.isNotEmpty) 'mrtLines': mrtLines,
       };
 
   factory Favorites.fromJson(Map<String, dynamic> j) {
@@ -445,6 +453,9 @@ class Favorites {
       workDays: j['workDays'] is List
           ? {for (final d in j['workDays'] as List) (d as num).toInt()}
           : const {1, 2, 3, 4, 5},
+      mrtLines: {
+        for (final e in ((j['mrtLines'] as Map?) ?? const {}).entries) '${e.key}': '${e.value}',
+      },
     );
   }
 }

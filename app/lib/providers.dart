@@ -33,6 +33,18 @@ class FavoritesNotifier extends Notifier<Favorites> {
   Future<void> removePlace(PlaceKind kind) =>
       update((f) => f.copyWith(places: {...f.places}..remove(kind)));
 
+  /// Remembers the line picked for a trip; null goes back to the usual route.
+  Future<void> setMrtLine(String routeKey, String? line) => update((f) {
+        final m = {...f.mrtLines}..remove(routeKey);
+        if (line != null) {
+          while (m.length >= Favorites.maxMrtLines) {
+            m.remove(m.keys.first);
+          }
+          m[routeKey] = line;
+        }
+        return f.copyWith(mrtLines: m);
+      });
+
   Future<void> toggleLine(String line) => update((f) {
         final lines = {...f.lines};
         if (!lines.remove(line)) lines.add(line);
@@ -508,6 +520,11 @@ final busArrivalProvider = FutureProvider.autoDispose.family<List<BusEta>, Strin
   ref.onDispose(timer.cancel);
   final body = await ref.watch(apiProvider).busArrival(code);
   return parseBusArrival(body, DateTime.now());
+});
+
+/// Crowd level per station on one line right now ('l', 'm', 'h'), for the MRT card.
+final stationCrowdProvider = FutureProvider.autoDispose.family<Map<String, String>, String>((ref, line) async {
+  return stationCrowd(await ref.watch(apiProvider).crowd(line));
 });
 
 final crowdShareProvider = FutureProvider.autoDispose.family<double?, String>((ref, line) async {

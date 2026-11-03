@@ -460,6 +460,64 @@ void main() {
     expect(find.byType(MrtRidePage), findsNothing);
   });
 
+  testWidgets('Change line picks another line for the trip, remembers it and goes back', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    box.read(goFromKeyProvider.notifier).state = 'home';
+    box.read(goKeyProvider.notifier).state = 'work';
+    box.read(modeOverrideProvider.notifier).state = {'work': TravelMode.transit};
+    await settle(tester);
+
+    // 1. The sheet lists the usual route and the Downtown Line from the same station.
+    final change = find.text('Change line');
+    await tester.ensureVisible(change);
+    await tester.pump();
+    await tester.tap(change);
+    await settle(tester);
+    expect(find.byType(MrtLineSheet), findsOneWidget);
+    expect(find.text('How do you want to go today?'), findsOneWidget);
+    expect(find.text('Nearest station'), findsOneWidget);
+    final blue = find.text('Blue line · Downtown');
+    expect(blue, findsOneWidget);
+
+    // 2. Picking it saves the choice for home>work and the card shows it.
+    await tester.tap(blue);
+    await settle(tester);
+    expect(find.byType(MrtLineSheet), findsNothing);
+    expect(box.read(favoritesProvider).mrtLines, {'home>work': 'DTL'});
+    expect(find.text('Today: Blue line (Downtown)'), findsOneWidget);
+
+    // 3. "I'm on the train" now rides from the Downtown Line platform.
+    final onTrain = find.text("I'm on the train");
+    await tester.ensureVisible(onTrain);
+    await tester.pump();
+    await tester.tap(onTrain);
+    await settle(tester);
+    final ride = box.read(rideProvider);
+    if (ride == null) fail('No ride after tapping');
+    expect(ride.ride.board.codes, ['DT32']);
+    expect(ride.ride.alight.name, 'Raffles Place');
+    box.read(rideProvider.notifier).stop();
+    Navigator.of(tester.element(find.byType(MrtRidePage))).pop();
+    await settle(tester);
+
+    // 4. Going back to the nearest station forgets the pick.
+    final again = find.text('Change');
+    await tester.ensureVisible(again);
+    await tester.pump();
+    await tester.tap(again);
+    await settle(tester);
+    await tester.tap(find.text('Nearest station'));
+    await settle(tester);
+    expect(box.read(favoritesProvider).mrtLines, isEmpty);
+    expect(find.textContaining('Today: '), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Appearance in More switches the app to dark and back to the phone setting', (tester) async {
     await applyCondition(tester, _normal);
     const fav = Favorites(places: {PlaceKind.home: Place(kind: PlaceKind.home, addrLat: 1.35, addrLng: 103.94)}, onboarded: true);
