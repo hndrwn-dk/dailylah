@@ -838,12 +838,22 @@ class S {
         _ => 'Light or dark, the same as your phone',
       };
 
+  // home screen widget (more labels live in android/app/src/main/res/values/strings.xml)
+  String get widgetMorning => 'Morning';
+  String get widgetEvening => 'Evening';
+  String get widgetMrtOk => 'MRT running normally';
+  String widgetMrtBad(String lines) => '$lines disrupted';
+  String widgetTripTo(String place, String time) => 'To $place · usual $time';
+  String widgetTripHome(String time) => 'Home · usual $time';
+  String widgetLeaveBy(String service, String time) => 'Bus $service · leave by $time';
+  String widgetMore(int n) => '+$n more';
+
   // what's new (keep in sync with docs/store/whatsnew/whatsnew-en-US, checked by a test)
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        'Fixed: starring one halal place no longer stars other shops at the same address.',
-        'Starred places now stay where they are while you scroll; they move to the top next time you open the list.',
+        "New home screen widget: weather, MRT, your usual trip, the bus to leave for and today's alerts. Resize it from 2x1 to full size; it fits foldables and the Galaxy Z Flip cover screen.",
+        "The widget follows your phone's dark mode, and its Today, Nearby and Home buttons open the app there.",
       ];
 
   // about

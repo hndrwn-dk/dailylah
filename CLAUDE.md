@@ -80,6 +80,16 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   (`whatsNewDue`, `Favorites.seenVersion`). The version comes from `releaseVersionProvider` (the
   APP_VERSION dart-define, '' in tests and `flutter run`, so the card only shows in release builds);
   first-run setup marks the current version as seen, so new installs never get it.
+- Home screen widget (`DailyLahWidgetProvider.kt`, layouts `res/layout/dl_widget_*.xml`): the app (Today,
+  `widgetDataProvider`) and the background pass save string keys from `widgetData` in logic.dart (weather +
+  icon key, MRT, today's trip, the bus to leave for as a clock time, the top alert); only known parts are
+  written, and `updateWidget` skips repeats. Five layouts by size (small 2x1, wide 4x1, medium, large, XL with
+  Today/Nearby/Home buttons, `dailylah://` links read by `tabForWidgetUri`). Android 12+ gets them as a sized
+  `RemoteViews` map, so resizing and foldables switch layout without waking the app; Android 10/11 pick in
+  `onAppWidgetOptionsChanged`. Colours are resources (values-night for dark), never set from code, so a
+  dark-mode switch stays right. `DailyLahCoverWidgetProvider` is the same widget for the Galaxy Z Flip cover
+  screen (keyguard category + Samsung `sub_screen` meta-data). Layouts are written by hand-kept XML: keep view
+  ids in sync with the Kotlin.
 - Live readings (forecast, train alerts, weather) are cache first (`_live` in providers.dart,
   `LiveCache` in store.dart): the last good answer shows at once (forecast up to 2 h old, train
   alerts 30 min, weather 1 h), then the server's answer. A failed call is retried once (it wakes

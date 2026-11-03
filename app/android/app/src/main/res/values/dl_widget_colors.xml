@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home screen widget colours, from DL in lib/ui/theme.dart. Dark versions in values-night. -->
+<resources>
+    <color name="dl_w_card">#FFF4FBFE</color>
+    <color name="dl_w_text">#FF0F1618</color>
+    <color name="dl_w_mist">#FF50646A</color>
+    <color name="dl_w_edge">#FF0F1618</color>
+    <color name="dl_w_shadow">#FF0F1618</color>
+    <color name="dl_w_teal_text">#FF0A7068</color>
+    <color name="dl_w_stop_text">#FFC0392B</color>
+    <!-- "Look now" text and icons on the card (nearText in theme.dart). -->
+    <color name="dl_w_look_text">#FFB45309</color>
+    <color name="dl_w_row">#FFE8F3F6</color>
+    <!-- Sticker surfaces keep ink text in light and dark mode, like the app. -->
+    <color name="dl_w_ink">#FF0F1618</color>
+    <color name="dl_w_sky">#FFBFE4F1</color>
+    <color name="dl_w_amber">#FFEDAD2B</color>
+    <color name="dl_w_mint">#FFCFEDEA</color>
+    <color name="dl_w_teal">#FF0E9488</color>
+    <color name="dl_w_stop">#FFDC4A37</color>
+    <!-- Row tints under card text: go (bus to take), look now (alerts), MRT disrupted. -->
+    <color name="dl_w_row_go">#FFCFEDEA</color>
+    <color name="dl_w_row_look">#FFFCEBC6</color>
+    <color name="dl_w_row_bad">#FFFBE0DB</color>
+</resources>

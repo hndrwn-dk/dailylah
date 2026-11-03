@@ -3,6 +3,8 @@
 /// plain Dart, SharedPreferences and plugins — no Riverpod.
 library;
 
+import 'dart:io';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:home_widget/home_widget.dart';
@@ -18,6 +20,9 @@ import 'store.dart';
 
 const backgroundTask = 'dailylah-check';
 const androidWidgetName = 'DailyLahWidgetProvider';
+
+/// The same widget on the Galaxy Z Flip cover screen (Flex Window).
+const androidCoverWidgetName = 'DailyLahCoverWidgetProvider';
 
 final notifications = FlutterLocalNotificationsPlugin();
 
@@ -106,16 +111,20 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
   }
 
   final live = LiveCache();
-  String weatherLine = '';
-  String mrtLine = '';
+  // What the home screen widget shows, gathered by the checks below.
+  Map<String, dynamic>? forecastBody, trainBody, wbgtBody, lightningBody, psiBody, pm25Body;
+  AreaForecast? here;
+  List<LineStatus>? lineList;
+  LeaveBy? bus;
 
   // MRT: one notification per distinct disruption text.
   await guard(() async {
     final train = await api.trainAlerts();
     await live.write('train-alerts', train);
-    final bad = lineStatuses(train, watchedLines(fav)).where((x) => x.disrupted).toList();
+    trainBody = train;
+    lineList = lineStatuses(train, watchedLines(fav));
+    final bad = lineList!.where((x) => x.disrupted).toList();
     final lines = bad.map((x) => x.line).join(', ');
-    mrtLine = bad.isEmpty ? 'MRT: ${s.mrtNormal}' : s.mrtAlert(lines);
     if (!fav.mrtAlerts || bad.isEmpty || quiet) return;
     final id = 'mrt:$day:${bad.map((x) => '${x.line}${x.detail}').join('|').hashCode}';
     if (await log.alreadySent(id)) return;
@@ -129,10 +138,8 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     final body = await api.forecast();
     // Warm the app's cache, so opening the app shows this right away.
     await live.write('forecast', body);
-    if (origin != null) {
-      final here = forecastNear(body, origin.lat, origin.lng);
-      if (here != null) weatherLine = '${here.area}: ${here.forecast}';
-    }
+    forecastBody = body;
+    if (origin != null) here = forecastNear(body, origin.lat, origin.lng);
     if (!fav.rainAlerts || quiet) return;
     final (goAt, backAt) = commuteTimes(fav, now);
     final leave = kind == CardKind.morning ? goAt : backAt;
@@ -156,9 +163,10 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
 
   // Leave by: one reminder near the usual departure, for the first bus worth leaving for.
   await guard(() async {
-    if (!fav.leaveAlerts || quiet || kind != CardKind.morning || origin == null) return;
+    if (kind != CardKind.morning || origin == null) return;
     final (goAt, _) = commuteTimes(fav, now);
-    if (!inLeaveWindow(now, goAt) || await log.alreadySent('leave:$day')) return;
+    if (!inLeaveWindow(now, goAt)) return;
+    final remind = fav.leaveAlerts && !quiet && !await log.alreadySent('leave:$day');
     final holiday = schoolHolidayOn(SchoolHoliday.fromBundle(await repo.load('school_holidays')), now);
     if (holiday != null && commutePlace(fav, now)?.kind == PlaceKind.school) return;
     final dest = destinationFor(kind, fav, now);
@@ -177,7 +185,10 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
       final etas = groupEtas(parseBusArrival(await api.busArrival(st.code), now));
       final walk = walkMinutesTo(distanceMeters(origin.lat, origin.lng, st.lat, st.lng));
       final lb = leaveBy(etas, services, walk);
-      if (lb == null || lb.leaveIn > 10) continue;
+      if (lb == null) continue;
+      // The widget shows the first bus worth leaving for (stops are nearest first).
+      bus ??= lb;
+      if (!remind || lb.leaveIn > 10) continue;
       await notify(9, s.leaveTitle, s.leaveIn(lb.service, lb.leaveIn, lb.walk));
       await log.markSent('leave:$day');
       return;
@@ -309,12 +320,15 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     final p = (schoolDay ? fav.places[PlaceKind.school] : null) ?? fav.places[PlaceKind.home];
     if (p == null) return;
     final place = s.placeLabel(p.kind.name);
-    final heat = heatStressNear(await api.weather('wbgt'), p.lat, p.lng);
+    wbgtBody = await api.weather('wbgt');
+    final heat = heatStressNear(wbgtBody!, p.lat, p.lng);
     if (isHighHeat(heat) && !await log.alreadySent('heat:$day')) {
       await notify(5, s.heatTitle, s.heatAt(place, heat!.toLowerCase()));
       await log.markSent('heat:$day');
     }
-    final air = airNear(await api.weather('psi'), await api.weather('pm25'), p.lat, p.lng);
+    psiBody = await api.weather('psi');
+    pm25Body = await api.weather('pm25');
+    final air = airNear(psiBody, pm25Body, p.lat, p.lng);
     if (air != null && air.level.index >= AirLevel.unhealthy.index) {
       final id = 'haze:$day:${air.level.name}';
       if (!await log.alreadySent(id)) {
@@ -322,7 +336,8 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
         await log.markSent(id);
       }
     }
-    if (lightningNear(await api.weather('lightning'), p.lat, p.lng)) {
+    lightningBody = await api.weather('lightning');
+    if (lightningNear(lightningBody!, p.lat, p.lng)) {
       final id = 'lightning:$day:${now.hour}';
       if (!await log.alreadySent(id)) {
         await notify(6, s.heatTitle, s.lightningNear);
@@ -349,20 +364,86 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     await log.markSent('homes:$day');
   });
 
-  await updateWidget(
-    title: kind == CardKind.morning ? s.morningCard : s.eveningCard,
-    body: [weatherLine, mrtLine].where((x) => x.isNotEmpty).join('\n'),
-    emptyText: s.loading,
-  );
+  // Home screen widget: weather, MRT, today's trip, the first bus and the top alert.
+  await guard(() async {
+    List<T> rows<T>(Object? raw, T Function(Map<String, dynamic>) f) =>
+        [if (raw is List) for (final r in raw) f(r as Map<String, dynamic>)];
+    final dengueRaw = await repo.load('dengue');
+    final holidays = SchoolHoliday.fromBundle(await repo.load('school_holidays'));
+    final alerts = todayAlerts(
+      fav: fav,
+      now: now,
+      s: s,
+      forecast: forecastBody,
+      trainAlerts: trainBody,
+      hawkers: rows(await repo.load('hawkers'), Hawker.fromBundle),
+      dengue: rows(dengueRaw is Map ? dengueRaw['clusters'] : null, DengueCluster.fromBundle),
+      wbgt: wbgtBody,
+      lightning: lightningBody,
+      psi: psiBody,
+      pm25: pm25Body,
+      schoolHolidays: holidays,
+    );
+    await updateWidget(widgetData(
+      s: s,
+      fav: fav,
+      now: now,
+      here: here,
+      lines: lineList,
+      alerts: alerts,
+      bus: bus,
+      busChecked: true,
+      schoolHolidays: holidays,
+    ));
+  });
 }
 
-Future<void> updateWidget({required String title, required String body, String emptyText = 'DailyLah'}) async {
+Map<String, String>? _lastWidget;
+DateTime? _lastWidgetAt;
+
+/// Saves [data] (keys from `widgetData`) for the home screen widget and redraws it.
+/// The same content within 10 minutes is skipped, so the app can call this on every rebuild.
+Future<void> updateWidget(Map<String, String> data) async {
+  final content = {...data}..remove('dl_updated');
+  final now = DateTime.now();
+  if (_lastWidget != null &&
+      _lastWidgetAt != null &&
+      now.difference(_lastWidgetAt!) < const Duration(minutes: 10) &&
+      _sameMap(_lastWidget!, content)) {
+    return;
+  }
   try {
-    await HomeWidget.saveWidgetData<String>('title', 'DailyLah · $title');
-    await HomeWidget.saveWidgetData<String>('body', body.isEmpty ? emptyText : body);
+    for (final e in data.entries) {
+      await HomeWidget.saveWidgetData<String>(e.key, e.value);
+    }
     await HomeWidget.updateWidget(androidName: androidWidgetName);
+    await HomeWidget.updateWidget(androidName: androidCoverWidgetName);
+    _lastWidget = content;
+    _lastWidgetAt = now;
   } on Object catch (e) {
     // No widget support (tests, iOS without an extension): nothing to update.
     debugPrint('widget update skipped: $e');
   }
+}
+
+/// Forgets the last widget update, so the next one is always written (tests).
+@visibleForTesting
+void resetWidgetCache() {
+  _lastWidget = null;
+  _lastWidgetAt = null;
+}
+
+bool _sameMap(Map<String, String> a, Map<String, String> b) =>
+    a.length == b.length && a.entries.every((e) => b[e.key] == e.value);
+
+/// Taps on the home screen widget, as the tab to open (dailylah://today, nearby, home).
+/// Nothing under `flutter test`, where no plugin answers the channel.
+Stream<int> widgetTabTaps() async* {
+  if (Platform.environment.containsKey('FLUTTER_TEST')) return;
+  try {
+    if (tabForWidgetUri(await HomeWidget.initiallyLaunchedFromHomeWidget()) case final tab?) yield tab;
+  } on Object catch (e) {
+    debugPrint('widget launch check skipped: $e');
+  }
+  yield* HomeWidget.widgetClicked.map(tabForWidgetUri).where((t) => t != null).cast<int>();
 }
