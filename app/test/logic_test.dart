@@ -1632,7 +1632,7 @@ void main() {
       const nearHome = BusStop(code: 'A', name: 'Opp Marine Parade Stn', road: 'R', lat: 1.3032, lng: 103.9062);
       const midway = BusStop(code: 'M', name: 'Midway', road: 'R', lat: 1.311, lng: 103.904);
       final atEunos = BusStop(code: 'B', name: 'Eunos Stn', road: 'R', lat: eunos.lat + 0.0005, lng: eunos.lng);
-      final routes = BusRoutes({
+      const routes = BusRoutes({
         '15|1': [('A', 0.0), ('M', 0.9), ('B', 1.9)],
       });
       final c = lineMrtChoice(stations, home, office, 'EWL', routes: routes, stops: [nearHome, midway, atEunos])!;
