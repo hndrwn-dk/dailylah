@@ -42,7 +42,7 @@ class TodayPage extends ConsumerWidget {
     // Keep the home screen widget in sync with what the card shows.
     ref.listen(widgetDataProvider, (_, next) {
       if (next.isNotEmpty) updateWidget(next);
-    }, fireImmediately: true);
+    });
 
     Future<void> refresh() async {
       ref.invalidate(forecastProvider);

@@ -58,6 +58,13 @@ void main() {
     });
   });
 
+  });
+
+  // Commute: leave home 08:00 on weekdays (household fixture).
+  final rainyBeforeWork = DateTime(2026, 10, 20, 7, 20); // Tuesday, 40 min before leaving
+  final lateNight = DateTime(2026, 10, 20, 23, 0);
+  final earlyMorning = DateTime(2026, 10, 20, 5, 30);
+
   group('home screen widget', () {
     test('the background pass saves weather, MRT, trip and clears an old bus', () async {
       await _withFavorites(householdFavorites);
@@ -77,12 +84,6 @@ void main() {
       await runChecks(FakeApi(), rainyBeforeWork, bundles: FileBundles());
       expect(widgetSaved, isEmpty);
     });
-  });
-
-  // Commute: leave home 08:00 on weekdays (household fixture).
-  final rainyBeforeWork = DateTime(2026, 10, 20, 7, 20); // Tuesday, 40 min before leaving
-  final lateNight = DateTime(2026, 10, 20, 23, 0);
-  final earlyMorning = DateTime(2026, 10, 20, 5, 30);
 
   group('MRT disruption', () {
     test('sends one alert for a disruption on a starred line', () async {
