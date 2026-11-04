@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:dailylah/data.dart';
 import 'package:dailylah/l10n.dart';
 import 'package:dailylah/logic.dart';
@@ -1602,6 +1605,84 @@ void main() {
       expect(tabForWidgetUri(Uri.parse('dailylah://more')), isNull);
       expect(tabForWidgetUri(Uri.parse('https://dailylah.sg')), isNull);
       expect(tabForWidgetUri(null), isNull);
+    });
+  });
+
+  group('pick a line for today', () {
+    final stations = [
+      for (final j in jsonDecode(File('../web/data/mrt_stations.json').readAsStringSync()) as List)
+        MrtStation.fromBundle(j as Map<String, dynamic>),
+    ];
+    const home = Place(kind: PlaceKind.home, addrLat: 1.3030, addrLng: 103.9060); // Marine Parade
+    const office = Place(kind: PlaceKind.work, addrLat: 1.2935, addrLng: 103.8612); // Promenade
+
+    test('the usual route comes first and a station keeps only the picked line', () {
+      final choices = mrtChoices(stations, home, office);
+      expect(choices.first.line, isNull);
+      expect(choices.first.plan.board.name, 'Marine Parade');
+      expect(stationOnLine(const MrtStation(name: 'Tampines', codes: ['DT32', 'EW2'], lat: 1, lng: 1), 'EWL').codes,
+          ['EW2']);
+      // The usual line itself is never offered again.
+      expect(choices.skip(1).map((c) => c.line), isNot(contains('TEL')));
+    });
+
+    test('a station too far to walk needs a direct bus to it', () {
+      expect(lineMrtChoice(stations, home, office, 'EWL'), isNull); // Eunos, 1.9 km, no bus data
+      final eunos = stations.firstWhere((x) => x.name == 'Eunos');
+      const nearHome = BusStop(code: 'A', name: 'Opp Marine Parade Stn', road: 'R', lat: 1.3032, lng: 103.9062);
+      const midway = BusStop(code: 'M', name: 'Midway', road: 'R', lat: 1.311, lng: 103.904);
+      final atEunos = BusStop(code: 'B', name: 'Eunos Stn', road: 'R', lat: eunos.lat + 0.0005, lng: eunos.lng);
+      const routes = BusRoutes({
+        '15|1': [('A', 0.0), ('M', 0.9), ('B', 1.9)],
+      });
+      final c = lineMrtChoice(stations, home, office, 'EWL', routes: routes, stops: [nearHome, midway, atEunos])!;
+      expect(c.line, 'EWL');
+      expect(c.plan.board.name, 'Eunos');
+      expect(c.plan.board.codes, ['EW7']);
+      expect(c.feeder!.ride.service, '15');
+      expect(c.feeder!.ride.stops, 2);
+      expect(c.ride!.alight.name, 'Promenade');
+      expect(c.changes, 1);
+      // walk 1 + wait 5 + bus 2 stops + train + walk at the end
+      expect(c.minutes, greaterThan(1 + feederWaitMinutes + 2 * feederMinutesPerStop));
+      expect(mrtChoices(stations, home, office, routes: routes, stops: [nearHome, midway, atEunos]).map((x) => x.line),
+          contains('EWL'));
+    });
+
+    test('a line from the same station is offered when the ride differs', () {
+      const tampines = Place(kind: PlaceKind.home, addrLat: 1.35159, addrLng: 103.94503);
+      const raffles = Place(kind: PlaceKind.work, addrLat: 1.2841, addrLng: 103.8514);
+      expect(mrtPlan(stations, tampines, raffles)!.line, 'EWL');
+      final dtl = lineMrtChoice(stations, tampines, raffles, 'DTL')!;
+      expect(dtl.plan.board.codes, ['DT32']);
+      expect(dtl.feeder, isNull);
+      expect(dtl.ride!.stations.length, greaterThan(2));
+      expect(lineMrtChoice(stations, tampines, raffles, 'EWL'), isNull); // that is the usual ride
+    });
+
+    test('station crowd levels and plain words', () {
+      final crowd = stationCrowd({
+        'data': {
+          'value': [
+            {'Station': 'EW7', 'CrowdLevel': 'l'},
+            {'Station': 'EW8', 'CrowdLevel': 'h'},
+            {'Station': 'EW9', 'CrowdLevel': 'NA'},
+          ],
+        },
+      });
+      expect(crowd, {'EW7': 'l', 'EW8': 'h'});
+      expect(stationCrowd({'data': {}}), isEmpty);
+      const s = S();
+      expect(s.crowdNow('Paya Lebar', 'h'), 'Paya Lebar now: packed');
+      expect(s.todayOnLine('EWL'), 'Today: Green line (East-West)');
+      expect(s.choiceSummary(31, 1, s.choiceBus('15', 'Eunos')), '~31 min · bus 15 to Eunos · 1 change');
+      expect(s.choiceWalk('Tampines', 400), 'walk 5 min to Tampines');
+    });
+
+    test('the picked line is saved per trip and survives a restart', () {
+      const fav = Favorites(mrtLines: {'home>work': 'EWL'});
+      expect(Favorites.fromJson(fav.toJson()).mrtLines, {'home>work': 'EWL'});
+      expect(const Favorites().toJson().containsKey('mrtLines'), isFalse);
     });
   });
 }

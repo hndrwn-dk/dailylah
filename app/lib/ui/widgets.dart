@@ -1169,3 +1169,25 @@ class BigNumber extends StatelessWidget {
     );
   }
 }
+
+/// One to three people for a station's crowd level ('l', 'm', 'h'); the text beside it says
+/// the level, so this is decoration for screen readers.
+class CrowdPeople extends StatelessWidget {
+  const CrowdPeople(this.level, {super.key});
+  final String level;
+
+  @override
+  Widget build(BuildContext context) {
+    final n = switch (level) { 'h' => 3, 'm' => 2, _ => 1 };
+    final on = Theme.of(context).colorScheme.onSurface;
+    return ExcludeSemantics(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < 3; i++)
+            Icon(i < n ? Icons.person : Icons.person_outline, size: 18, color: i < n ? on : DL.muted(context)),
+        ],
+      ),
+    );
+  }
+}

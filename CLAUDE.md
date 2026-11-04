@@ -136,6 +136,13 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   `rideIndexAt`; GPS fixes near a station correct it, `rideFixIndex`), checks LTA train alerts every
   `rideCheckEvery` and notifies once on a disruption, and alerts one stop before (`rideAlertDue`).
   `MrtRidePage` / `RideBanner` in `ui/mrt_ride.dart`; Arrived ends the ride and the timed trip.
+  "Change line" on the MRT card opens `MrtLineSheet` (ui/trip.dart): the usual nearest-station route plus one
+  option per line (`mrtChoices`, `lineMrtChoice`): that line's nearest station within `lineChoiceMaxMetres`, boarded
+  on that line only (`stationOnLine`), walked or, beyond `feederWalkMetres`, reached by a direct bus from the
+  bus_routes bundle (`feederBus`); options that ride the same stations as the usual one are dropped. The pick is
+  saved per trip key (`Favorites.mrtLines`, `mrtRouteKey`, max 20) and the card shows "Today: Green line" with
+  Change. The card also shows the boarding station's crowd now (`stationCrowd`, `stationCrowdProvider` on
+  `/v1/crowd/{line}`, `CrowdPeople`). No live train positions: LTA does not publish them.
 - History tab (`ui/history.dart`): logged trips, finished parkings (`ParkLog`, written by
   `clearParked`) and meals by day for this week/month/all (`historyEntries`, `historySummary`,
   `historyByDay`); filter by kind, swipe to remove with Undo, or remove all shown. Costs: an
