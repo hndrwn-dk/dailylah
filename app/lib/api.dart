@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'logic.dart' show isMapsLinkHost;
 import 'models.dart';
 
 /// DailyLah API (Render). Override at build time:
@@ -255,5 +256,38 @@ class BusStopRepository {
     if (rows is! List) return const [];
     _memory = [for (final r in rows) BusStop.fromBundle(r as Map<String, dynamic>)];
     return _memory!;
+  }
+}
+
+/// Opens a short Google Maps link (maps.app.goo.gl/...) shared to DailyLah and returns the full
+/// Google Maps address it leads to, where the destination's name, address and pin are. Follows
+/// redirects by hand and only while they stay on Google Maps hosts; nothing is sent but the link.
+class MapsLinks {
+  MapsLinks([Dio? dio])
+      : _dio = dio ??
+            Dio(BaseOptions(
+              connectTimeout: const Duration(seconds: 10),
+              receiveTimeout: const Duration(seconds: 10),
+              followRedirects: false,
+              validateStatus: (code) => code != null && code < 500,
+              headers: {'User-Agent': 'DailyLah'},
+            ));
+
+  final Dio _dio;
+
+  Future<String?> expand(String link) async {
+    var uri = Uri.tryParse(link);
+    String? last;
+    // Only short links are opened; the full Google Maps address they lead to is read, not loaded.
+    bool short(Uri u) => const {'maps.app.goo.gl', 'goo.gl', 'g.co', 'share.google'}.contains(u.host.toLowerCase());
+    for (var hop = 0; hop < 5 && uri != null && isMapsLinkHost(uri) && short(uri); hop++) {
+      last = uri.toString();
+      final res = await _dio.getUri<String>(uri, options: Options(responseType: ResponseType.plain));
+      final to = res.headers.value('location');
+      if (to == null || res.statusCode == null || res.statusCode! < 300 || res.statusCode! >= 400) break;
+      uri = uri.resolve(to);
+    }
+    if (uri != null && isMapsLinkHost(uri)) last = uri.toString();
+    return last;
   }
 }

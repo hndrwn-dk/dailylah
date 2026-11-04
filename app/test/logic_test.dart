@@ -1722,7 +1722,9 @@ void main() {
       expect(p.name, isNull);
       expect(p.lat, closeTo(1.29661, 1e-6));
       expect(p.lng, closeTo(103.8522, 1e-6));
-      expect(parseSharedPlace('https://maps.google.com/?q=48.85837,2.29448'), isNull); // Paris
+      final paris = parseSharedPlace('https://maps.google.com/?q=48.85837,2.29448')!;
+      expect(paris.hasPoint, isFalse); // outside Singapore: no point, only the link
+      expect(mapsLinkPlace(paris.link!), isNull);
     });
 
     test('the subject can carry the name', () {
@@ -1733,8 +1735,69 @@ void main() {
 
     test('nothing to go on', () {
       expect(parseSharedPlace(null), isNull);
-      expect(parseSharedPlace('https://maps.app.goo.gl/AbC'), isNull);
       expect(parseSharedPlace('   \n  '), isNull);
+    });
+  });
+
+  group('Google Maps links', () {
+    // Real redirect of a route shared from Google Maps (Your location → Putra Minang), Nov 2026.
+    const routeUrl = 'https://www.google.com/maps/dir/1.3015204,103.9050613/Putra+Minang+Restaurant+Bencoolen/'
+        'data=!4m12!4m11!1m1!4e1!1m5!1m4!1s0x31da19faa330d147:0x815145de046b9fd8!8m2!3d1.2994204999999999'
+        '!4d103.85050939999999!2m1!11b1!3e2?g_st=ac&skid=46bc1625-4926-456e-8742-240d489288a0';
+
+    test('a shared route is only a link, not a place called "Shared route"', () {
+      final p = parseSharedPlace('https://maps.app.goo.gl/oseWUrfHe23uqLKZ7?g_st=ac', subject: 'Shared route')!;
+      expect(p.name, isNull);
+      expect(p.postal, isNull);
+      expect(p.link, 'https://maps.app.goo.gl/oseWUrfHe23uqLKZ7?g_st=ac');
+      expect(p.needsLink, isTrue);
+    });
+
+    test('links outside Google Maps are not opened', () {
+      expect(mapsLinkIn('see https://evil.example/maps.app.goo.gl/x'), isNull);
+      expect(mapsLinkIn('http://maps.app.goo.gl/x'), isNull); // not https
+      expect(mapsLinkIn('https://www.google.com/url?q=https://evil.example'), isNull);
+      expect(mapsLinkIn('Putra Minang Restaurant Bencoolen https://share.google/HNv5xr5XDLISCfUZa'),
+          'https://share.google/HNv5xr5XDLISCfUZa'); // a place shared from Google Search in Chrome
+      expect(mapsLinkIn('https://maps.app.goo.gl/x'), 'https://maps.app.goo.gl/x');
+    });
+
+    test('directions: the last stop and its pin, not where you started', () {
+      final p = mapsLinkPlace(routeUrl)!;
+      expect(p.name, 'Putra Minang Restaurant Bencoolen');
+      expect(p.lat, closeTo(1.29942, 1e-4));
+      expect(p.lng, closeTo(103.85051, 1e-4));
+    });
+
+    test('a place page with its address', () {
+      final p = mapsLinkPlace('https://www.google.com/maps/place/Putra+Minang+Restaurant+Bencoolen,'
+          '+51+Bencoolen+St,+%2301-05,+Singapore+189630/@1.2994,103.8505,17z/data=!3m1!4b1!4m6!3m5!8m2'
+          '!3d1.2994205!4d103.8505094')!;
+      expect(p.name, 'Putra Minang Restaurant Bencoolen');
+      expect(p.postal, '189630');
+      expect(p.lat, closeTo(1.29942, 1e-4));
+    });
+
+    test('a Google Search place result with its address', () {
+      final p = mapsLinkPlace('https://www.google.com/search?q=Putra+Minang+Restaurant+Bencoolen,'
+          '+51+Bencoolen+St,+%2301-05,+Singapore+189630&kgmid=/g/11x')!;
+      expect(p.name, 'Putra Minang Restaurant Bencoolen');
+      expect(p.postal, '189630');
+    });
+
+    test('a link to a point or nothing', () {
+      expect(mapsLinkPlace('https://maps.google.com/?q=1.29661,103.85220')!.lat, closeTo(1.29661, 1e-6));
+      expect(mapsLinkPlace('https://www.google.com/maps/@1.3,103.8,15z'), isNull); // just a map view
+      expect(mapsLinkPlace('https://example.com/maps/place/X'), isNull);
+      expect(mapsLinkPlace('https://maps.google.com/?q=48.85837,2.29448'), isNull); // Paris: not a name either
+    });
+
+    test('what the link led to fills the share', () {
+      const shared = SharedPlace(link: 'https://maps.app.goo.gl/x');
+      final p = shared.merge(mapsLinkPlace(routeUrl)!);
+      expect(p.name, 'Putra Minang Restaurant Bencoolen');
+      expect(p.hasPoint, isTrue);
+      expect(p.needsLink, isFalse);
     });
   });
 }

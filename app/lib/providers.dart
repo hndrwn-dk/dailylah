@@ -11,6 +11,7 @@ import 'store.dart';
 
 final apiProvider = Provider((ref) => DailyLahApi());
 final oneMapProvider = Provider((ref) => OneMapApi());
+final mapsLinksProvider = Provider((ref) => MapsLinks());
 final bundleRepoProvider = Provider((ref) => BundleRepository());
 final busStopRepoProvider = Provider((ref) => BusStopRepository.fromBundles(ref.watch(bundleRepoProvider)));
 final favoritesStoreProvider = Provider((ref) => FavoritesStore());
