@@ -52,10 +52,17 @@ class _OneMap extends OneMapApi {
   }
 }
 
+/// Google Maps short links that lead nowhere (no network in tests).
+class _NoMapsLinks extends MapsLinks {
+  @override
+  Future<String?> expand(String link) async => null;
+}
+
 Widget _appWithOneMap(OneMapApi oneMap) => ProviderScope(
       overrides: [
         ...overridesFor(_normal, householdFavorites, tuesdayMorning),
         oneMapProvider.overrideWithValue(oneMap),
+        mapsLinksProvider.overrideWithValue(_NoMapsLinks()),
       ],
       child: const DailyLahApp(),
     );

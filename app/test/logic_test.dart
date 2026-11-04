@@ -1733,7 +1733,6 @@ void main() {
 
     test('nothing to go on', () {
       expect(parseSharedPlace(null), isNull);
-      expect(parseSharedPlace('https://maps.app.goo.gl/AbC'), isNull);
       expect(parseSharedPlace('   \n  '), isNull);
     });
   });

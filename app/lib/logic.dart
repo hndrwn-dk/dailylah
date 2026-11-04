@@ -2599,51 +2599,155 @@ int? tabForWidgetUri(Uri? uri) {
 /// "Putra Minang Restaurant Bencoolen\n51 Bencoolen St, #01-05, Singapore 189630\nhttps://maps.app.goo.gl/...").
 /// [name] is what the place is called (shown as the trip's destination), [postal] the 6-digit
 /// postal code to look up on OneMap, or [lat]/[lng] when the text carries coordinates (a dropped pin).
+/// A share of a route ("Shared route" and a short link) carries only [link], a Google Maps link the
+/// phone opens to read the destination ([mapsLinkPlace]).
 class SharedPlace {
-  const SharedPlace({this.name, this.postal, this.lat, this.lng});
+  const SharedPlace({this.name, this.postal, this.lat, this.lng, this.link});
   final String? name;
   final String? postal;
   final double? lat;
   final double? lng;
+  final String? link;
 
   bool get hasPoint => lat != null && lng != null;
+
+  /// Only a link: the place has to be read from where it leads.
+  bool get needsLink => link != null && postal == null && !hasPoint;
+
+  /// Fills what this share lacks from [other] (what the link led to).
+  SharedPlace merge(SharedPlace other) => SharedPlace(
+        name: name ?? other.name,
+        postal: postal ?? other.postal,
+        lat: lat ?? other.lat,
+        lng: lng ?? other.lng,
+        link: link,
+      );
 }
 
-/// Reads a shared text. Null when it has nothing to go on (no name, postal code or point).
+/// Titles Google Maps puts on a share that are not the place's name.
+const _sharedTitles = {'shared route', 'dropped pin', 'shared location', 'shared place', 'directions', 'google maps'};
+
+final _urlPattern = RegExp(r'\S*(https?://|geo:)\S*', caseSensitive: false);
+
+/// A Google Maps link the phone may open to read a shared place. Only Google's own hosts.
+String? mapsLinkIn(String text) {
+  for (final m in RegExp(r'https://[^\s<>"]+', caseSensitive: false).allMatches(text)) {
+    final uri = Uri.tryParse(m.group(0)!);
+    if (uri != null && isMapsLinkHost(uri)) return uri.toString();
+  }
+  return null;
+}
+
+bool isMapsLinkHost(Uri uri) {
+  if (uri.scheme != 'https') return false;
+  final h = uri.host.toLowerCase();
+  if (h == 'maps.app.goo.gl' || h == 'goo.gl' || h == 'maps.google.com' || h == 'g.co') return true;
+  return RegExp(r'^(www\.)?google\.com(\.sg)?$').hasMatch(h) && uri.path.startsWith('/maps');
+}
+
+/// A point inside Singapore's box, from "lat,lng" anywhere in [s]. Null when none.
+(double, double)? _sgPoint(String s) {
+  for (final m in RegExp(r'(-?\d{1,2}\.\d{3,})\s*,\s*(-?\d{2,3}\.\d{3,})').allMatches(s)) {
+    final a = double.parse(m.group(1)!), b = double.parse(m.group(2)!);
+    if (_inSg(a, b)) return (a, b);
+  }
+  return null;
+}
+
+bool _inSg(double lat, double lng) => lat > 1.1 && lat < 1.5 && lng > 103.5 && lng < 104.1;
+
+String? _postalIn(String plain) =>
+    RegExp(r'singapore\s+(\d{6})\b', caseSensitive: false).firstMatch(plain)?.group(1) ??
+    RegExp(r'(?<![\d#-])(\d{6})(?!\d)').firstMatch(plain)?.group(1);
+
+String _shortName(String l) => l.length > 60 ? '${l.substring(0, 59).trimRight()}…' : l;
+
+/// Reads a shared text. Null when it has nothing to go on (no name, postal code, point or maps link).
 /// Postal codes inside links are ignored; one after "Singapore" wins over any other 6 digits.
 SharedPlace? parseSharedPlace(String? text, {String? subject}) {
   if (text == null && subject == null) return null;
   final raw = [subject ?? '', text ?? ''].join('\n');
   final all = raw.length > 2000 ? raw.substring(0, 2000) : raw;
-  final url = RegExp(r'\S*(https?://|geo:)\S*', caseSensitive: false);
-
-  // A point in a link or geo: URI, kept to Singapore's box.
-  double? lat, lng;
-  for (final m in RegExp(r'(-?\d{1,2}\.\d{3,})\s*,\s*(-?\d{2,3}\.\d{3,})').allMatches(all)) {
-    final a = double.parse(m.group(1)!), b = double.parse(m.group(2)!);
-    if (a > 1.1 && a < 1.5 && b > 103.5 && b < 104.1) {
-      lat = a;
-      lng = b;
-      break;
-    }
-  }
-
-  final plain = all.replaceAll(url, ' ');
-  final postal = RegExp(r'singapore\s+(\d{6})\b', caseSensitive: false).firstMatch(plain)?.group(1) ??
-      RegExp(r'(?<![\d#-])(\d{6})(?!\d)').firstMatch(plain)?.group(1);
+  final point = _sgPoint(all);
+  final plain = all.replaceAll(_urlPattern, ' ');
+  final postal = _postalIn(plain);
 
   String? name;
   for (final line in all.split(RegExp(r'[\r\n]+'))) {
-    var l = line.replaceAll(url, '').trim();
+    var l = line.replaceAll(_urlPattern, '').trim();
     if (l.isEmpty) continue;
     // "Name · address" on one line: keep the name part.
     l = l.split(RegExp(r'\s+[·•|]\s+')).first.trim();
     final looksLikeAddress = (postal != null && l.contains(postal)) ||
         RegExp(r'^(blk\s*)?\d+[a-z]?\s', caseSensitive: false).hasMatch(l);
-    if (looksLikeAddress || RegExp(r'^dropped pin$', caseSensitive: false).hasMatch(l)) continue;
-    name = l.length > 60 ? '${l.substring(0, 59).trimRight()}…' : l;
+    if (looksLikeAddress || _sharedTitles.contains(l.toLowerCase())) continue;
+    name = _shortName(l);
     break;
   }
-  if (name == null && postal == null && lat == null) return null;
-  return SharedPlace(name: name, postal: postal, lat: lat, lng: lng);
+  final link = mapsLinkIn(all);
+  if (name == null && postal == null && point == null && link == null) return null;
+  return SharedPlace(name: name, postal: postal, lat: point?.$1, lng: point?.$2, link: link);
+}
+
+/// The destination a Google Maps link leads to (after its short link is opened): a place page
+/// (/maps/place/<name, address>/...), directions (/maps/dir/<from>/<to>/...: the last stop), or
+/// ?q= / ?daddr= / ?destination=. Its pin (!3d<lat>!4d<lng>, else the last !1d<lng>!2d<lat>) wins
+/// over the map's centre (@lat,lng). Null when the link holds no place.
+SharedPlace? mapsLinkPlace(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null || !isMapsLinkHost(uri)) return null;
+  String dec(String s) {
+    try {
+      return Uri.decodeComponent(s.replaceAll('+', ' ')).trim();
+    } on ArgumentError {
+      return s.replaceAll('+', ' ').trim();
+    }
+  }
+
+  final segs = uri.pathSegments.map(dec).toList();
+  String? dest;
+  final q = uri.queryParameters;
+  final fromQuery = q['destination'] ?? q['daddr'] ?? q['q'] ?? q['query'];
+  if (fromQuery != null && fromQuery.trim().isNotEmpty) dest = fromQuery.trim();
+  final at = segs.indexWhere((s) => s.startsWith('@') || s.startsWith('data='));
+  final head = at < 0 ? segs : segs.sublist(0, at);
+  if (dest == null && head.length >= 3 && head[0] == 'maps' && (head[1] == 'place' || head[1] == 'search')) {
+    dest = head[2];
+  } else if (dest == null && head.length >= 3 && head[0] == 'maps' && head[1] == 'dir') {
+    final stops = head.sublist(2).where((s) => s.isNotEmpty).toList();
+    if (stops.isNotEmpty) dest = stops.last;
+  }
+
+  // The destination's own pin, then a "lat,lng" destination, then the map centre.
+  final whole = dec(uri.toString());
+  (double, double)? point;
+  final pin = RegExp(r'!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)').allMatches(whole).lastOrNull;
+  if (pin != null) {
+    final a = double.parse(pin.group(1)!), b = double.parse(pin.group(2)!);
+    if (_inSg(a, b)) point = (a, b);
+  }
+  if (point == null) {
+    final pairs = RegExp(r'!1d(-?\d+\.\d+)!2d(-?\d+\.\d+)').allMatches(whole).toList();
+    if (pairs.isNotEmpty) {
+      final last = pairs.last;
+      final lng = double.parse(last.group(1)!), lat = double.parse(last.group(2)!);
+      if (_inSg(lat, lng)) point = (lat, lng);
+    }
+  }
+  if (point == null && dest != null) point = _sgPoint(dest);
+  if (point == null) {
+    final centre = segs.where((s) => s.startsWith('@')).firstOrNull;
+    if (centre != null && dest != null) point = _sgPoint(centre.substring(1));
+  }
+
+  String? name;
+  String? postal;
+  if (dest != null && _sgPoint(dest) == null) {
+    postal = _postalIn(dest);
+    final first = dest.split(',').first.trim();
+    final isAddress = (postal != null && first.contains(postal)) || RegExp(r'^(blk\s*)?\d+[a-z]?\s', caseSensitive: false).hasMatch(first);
+    if (first.isNotEmpty && !isAddress && !_sharedTitles.contains(first.toLowerCase())) name = _shortName(first);
+  }
+  if (name == null && postal == null && point == null) return null;
+  return SharedPlace(name: name, postal: postal, lat: point?.$1, lng: point?.$2);
 }

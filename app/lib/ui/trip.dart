@@ -1223,14 +1223,26 @@ class _TripPlannerPageState extends ConsumerState<TripPlannerPage> {
     });
   }
 
-  /// Turns the shared place into the trip's destination: its point, else its postal code
-  /// looked up on OneMap, else the address search with a note saying what was missing.
+  /// Turns the shared place into the trip's destination: a link alone (a shared route) is opened
+  /// first to read where it leads; then its point or its postal code looked up on OneMap, else the
+  /// address search with a note saying what was missing.
   Future<void> _useShared(SharedPlace shared) async {
     final s = ref.read(stringsProvider);
+    var place = shared;
+    if (place.needsLink) {
+      try {
+        final full = await ref.read(mapsLinksProvider).expand(place.link!);
+        final fromLink = full == null ? null : mapsLinkPlace(full);
+        if (fromLink != null) place = place.merge(fromLink);
+      } on Object {
+        // Offline or Google unreachable: ask for the postal code below.
+      }
+    }
+
     void setDest(String? address, String? postal, double lat, double lng) {
       ref.read(goAdhocDestProvider.notifier).state = Place(
         kind: PlaceKind.other,
-        name: shared.name ?? (address == null ? s.sharedPlace : shortAddress(address)),
+        name: place.name ?? (address == null ? s.sharedPlace : shortAddress(address)),
         address: address,
         postal: postal,
         addrLat: lat,
@@ -1241,7 +1253,7 @@ class _TripPlannerPageState extends ConsumerState<TripPlannerPage> {
 
     String? note;
     try {
-      if (shared.postal case final postal?) {
+      if (place.postal case final postal?) {
         final hits = parseOneMap(await ref.read(oneMapProvider).search(postal));
         final hit = hits.where((h) => h.postal == postal).firstOrNull ?? hits.firstOrNull;
         if (hit != null) {
@@ -1250,14 +1262,14 @@ class _TripPlannerPageState extends ConsumerState<TripPlannerPage> {
         }
         note = s.sharedNotFound(postal);
       }
-      if (shared.hasPoint) {
-        setDest(null, null, shared.lat!, shared.lng!);
+      if (place.hasPoint) {
+        setDest(null, null, place.lat!, place.lng!);
         return;
       }
     } on Object {
       // Search failed (offline, server asleep): fall back to the point or the search page.
-      if (shared.hasPoint) {
-        setDest(null, null, shared.lat!, shared.lng!);
+      if (place.hasPoint) {
+        setDest(null, null, place.lat!, place.lng!);
         return;
       }
     } finally {
@@ -1266,7 +1278,7 @@ class _TripPlannerPageState extends ConsumerState<TripPlannerPage> {
     if (!mounted) return;
     final hit = await Navigator.of(context).push<AddressHit>(
       MaterialPageRoute(
-        builder: (_) => AddressPickerPage(title: s.searchPlace, note: note ?? s.sharedNoAddress(shared.name)),
+        builder: (_) => AddressPickerPage(title: s.searchPlace, note: note ?? s.sharedNoAddress(place.name)),
       ),
     );
     if (hit == null || !mounted) return;
