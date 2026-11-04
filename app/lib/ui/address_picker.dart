@@ -11,8 +11,11 @@ import 'widgets.dart';
 /// Search an address on OneMap (postal code, block and street, or building), or use the
 /// phone's location. Pops with an [AddressHit].
 class AddressPickerPage extends ConsumerStatefulWidget {
-  const AddressPickerPage({super.key, required this.title});
+  const AddressPickerPage({super.key, required this.title, this.note});
   final String title;
+
+  /// Shown above the search box, e.g. when a place shared from Google Maps came without an address.
+  final String? note;
 
   @override
   ConsumerState<AddressPickerPage> createState() => _AddressPickerPageState();
@@ -80,6 +83,10 @@ class _AddressPickerPageState extends ConsumerState<AddressPickerPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          if (widget.note case final note?) ...[
+            Panel(child: EmptyNote(note)),
+            const SizedBox(height: 8),
+          ],
           TextField(
             autofocus: true,
             textInputAction: TextInputAction.search,
@@ -103,7 +110,15 @@ class _AddressPickerPageState extends ConsumerState<AddressPickerPage> {
               loading: () => const Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator()),
               error: (_, __) => Panel(child: EmptyNote(s.serverWaking)),
               data: (hits) => hits.isEmpty
-                  ? Panel(child: EmptyNote(s.noAddressFound))
+                  ? Panel(
+                      child: EmptyNote(
+                        s.noAddressFound,
+                        action: Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(s.noAddressTips, style: t.bodySmall),
+                        ),
+                      ),
+                    )
                   : Panel(
                       child: Column(
                         children: [

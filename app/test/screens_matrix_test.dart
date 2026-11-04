@@ -5,10 +5,12 @@
 // Flutter reports layout overflow as a test failure on its own, so most checks here are
 // "render it, scroll through it, expect no exception".
 import 'package:dailylah/data.dart';
+import 'package:dailylah/l10n.dart';
 import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/about.dart';
+import 'package:dailylah/ui/address_picker.dart';
 import 'package:dailylah/ui/bus_sheet.dart';
 import 'package:dailylah/ui/history.dart';
 import 'package:dailylah/ui/home.dart';
@@ -48,6 +50,8 @@ final Map<String, Widget Function()> _pages = {
   'Stop picker': () => const StopPickerPage(title: 'Pick a stop near Home'),
   'Stop arrivals': () => const StopArrivalsPage(stop: tampinesInt),
   'Plan a trip': () => const TripPlannerPage(),
+  'Address search (shared, no address)': () =>
+      AddressPickerPage(title: 'Search', note: const S().sharedNoAddress('Putra Minang Restaurant Bencoolen')),
   'Wake me': () => const WakeMePage(service: '10', alight: fullertonSq),
   'Block search': () => const BlockSearchPage(),
   'Block page': () => const BlockPage(block: _block156),

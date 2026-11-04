@@ -881,8 +881,8 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Change line on the MRT card: pick another line for today, like the Green line, and DailyLah shows the way there, with a bus when the station is too far to walk. Your pick is remembered for that trip.",
-        "The MRT card now shows how busy your boarding station is right now.",
+        "Going somewhere you found in Google Maps? Tap Share there and pick DailyLah: the trip opens with that place as the destination.",
+        "Address search now says what it can find (addresses and buildings, not shop names) when nothing matches.",
       ];
 
   // about
@@ -913,7 +913,16 @@ class S {
   String get addressHint => 'Postal code, block and street, or building';
   String get useMyLocation => 'Use my current location';
   String get myLocation => 'My location';
-  String get noAddressFound => 'No address found. Try a postal code.';
+  String get noAddressFound => 'No address found.';
+  String get noAddressTips =>
+      'Search finds addresses and buildings, not shop or restaurant names. Try the building name or the postal code, '
+      'or open the place in Google Maps, tap Share and pick DailyLah.';
+  String get sharedPlace => 'Shared place';
+  String sharedNoAddress(String? name) => name == null
+      ? 'No address came with what you shared. Type its postal code.'
+      : 'No address came with $name. Type its postal code or building.';
+  String sharedNotFound(String postal) => 'Postal code $postal was not found. Search for the address instead.';
+  String get findingShared => 'Finding the shared place…';
   String get addressPrivacy => 'Search uses OneMap (Singapore Land Authority). Your saved address stays on this phone.';
   String get busStopsHere => 'Bus stops';
   String get stopsAutoPicked => 'Nearest stops picked for you. Change them any time.';

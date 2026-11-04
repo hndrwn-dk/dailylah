@@ -181,6 +181,13 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   works (`around.json` bundle from OneMap themes, `projectsNear`), schools, health, community,
   recycling, weekend, parking; block search is `BlockSearchPage`. HDB data is computed on the
   phone from bundles; only CEA lookups hit the API.
+- Share to DailyLah: OneMap search finds addresses and buildings, not shop names, so a place found in Google Maps
+  is shared in (Android `SEND` text/plain filter on MainActivity, channel `dailylah/share`: `take` hands over the
+  launching share once, `shared` pushes later ones; `sharedPlaces()` in `lib/share_intake.dart`). `parseSharedPlace`
+  (logic.dart) takes the name, the postal code (never digits in links or unit numbers) or a dropped pin's point;
+  the shell opens `TripPlannerPage(shared:)`, which searches only the postal code and sets the ad hoc destination
+  under the shared name, else opens `AddressPickerPage(note:)`. The picker's empty state explains what search finds
+  (`S.noAddressTips`).
 - OneMap needs a token: the backend (`app/onemap.py`) logs in with `ONEMAP_EMAIL` /
   `ONEMAP_PASSWORD` (Render env and GitHub secrets) and renews it; the app searches via
   `/v1/search`. Never put OneMap credentials or tokens in the app.

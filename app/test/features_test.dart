@@ -6,12 +6,14 @@ import 'dart:io';
 
 import 'package:dailylah/data.dart';
 import 'package:dailylah/l10n.dart';
-import 'package:dailylah/logic.dart' show offsetMetres, rideMinutesTo;
+import 'package:dailylah/api.dart';
+import 'package:dailylah/logic.dart' show offsetMetres, parseSharedPlace, rideMinutesTo;
 import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/mrt_ride.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/store.dart';
+import 'package:dailylah/ui/address_picker.dart';
 import 'package:dailylah/ui/bus_sheet.dart';
 import 'package:dailylah/ui/history.dart';
 import 'package:dailylah/ui/mrt_ride.dart';
@@ -26,6 +28,37 @@ import 'package:flutter_test/flutter_test.dart';
 import 'support/harness.dart';
 
 const _normal = Condition('normal');
+
+/// OneMap that knows one postal code (Somerset Bencoolen) and no shop names.
+class _OneMap extends OneMapApi {
+  final queries = <String>[];
+  @override
+  Future<Map<String, dynamic>> search(String query) async {
+    queries.add(query);
+    return {
+      'results': [
+        if (query == '189630')
+          {
+            'BLK_NO': '51',
+            'ROAD_NAME': 'BENCOOLEN STREET',
+            'BUILDING': 'SOMERSET BENCOOLEN SINGAPORE',
+            'POSTAL': '189630',
+            'LATITUDE': '1.29661',
+            'LONGITUDE': '103.85220',
+            'SEARCHVAL': 'SOMERSET BENCOOLEN SINGAPORE',
+          },
+      ],
+    };
+  }
+}
+
+Widget _appWithOneMap(OneMapApi oneMap) => ProviderScope(
+      overrides: [
+        ...overridesFor(_normal, householdFavorites, tuesdayMorning),
+        oneMapProvider.overrideWithValue(oneMap),
+      ],
+      child: const DailyLahApp(),
+    );
 const _tabs = {'Today': 0, 'Nearby': 1, 'Home': 2, 'History': 3, 'More': 4};
 
 /// Live arrivals with LTA GPS: service 10 three stops before Tampines Int (route 10
@@ -585,5 +618,62 @@ void main() {
         .map((l) => l.startsWith('- ') ? l.substring(2) : l)
         .toList();
     expect(const S().whatsNewNotes, notes);
+  });
+
+  testWidgets('A place shared from Google Maps opens the planner with it as the destination', (tester) async {
+    await applyCondition(tester, _normal);
+    final oneMap = _OneMap();
+    await tester.pumpWidget(_appWithOneMap(oneMap));
+    await settle(tester);
+    final box = containerOf(tester);
+    final shared = parseSharedPlace(
+        'Putra Minang Restaurant Bencoolen\n51 Bencoolen St, #01-05, Singapore 189630\nhttps://maps.app.goo.gl/AbC123')!;
+    Navigator.of(tester.element(find.byType(TodayPage)))
+        .push(MaterialPageRoute<void>(builder: (_) => TripPlannerPage(shared: shared)));
+    await settle(tester);
+
+    expect(oneMap.queries, ['189630']); // only the postal code is searched, never the shared text
+    expect(box.read(goKeyProvider), 'adhoc');
+    final dest = box.read(goAdhocDestProvider)!;
+    expect(dest.name, 'Putra Minang Restaurant Bencoolen');
+    expect(dest.postal, '189630');
+    expect(dest.addrLat, closeTo(1.29661, 1e-6));
+    expect(find.text('Putra Minang Restaurant Bencoolen'), findsWidgets);
+    expect(find.byType(AddressPickerPage), findsNothing);
+  });
+
+  testWidgets('A shared place without an address asks for the postal code, and search explains what it finds',
+      (tester) async {
+    await applyCondition(tester, _normal);
+    final oneMap = _OneMap();
+    await tester.pumpWidget(_appWithOneMap(oneMap));
+    await settle(tester);
+    final box = containerOf(tester);
+    const s = S();
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(
+        builder: (_) => TripPlannerPage(shared: parseSharedPlace('Putra Minang Restaurant\nhttps://maps.app.goo.gl/x'))));
+    await settle(tester);
+
+    expect(find.byType(AddressPickerPage), findsOneWidget);
+    expect(find.text(s.sharedNoAddress('Putra Minang Restaurant')), findsOneWidget);
+
+    // A shop name finds nothing on OneMap: the empty state says why and what to try.
+    await tester.enterText(find.descendant(of: find.byType(AddressPickerPage), matching: find.byType(TextField)), 'putra minang');
+    await tester.pump(const Duration(milliseconds: 500));
+    await settle(tester);
+    expect(find.text(s.noAddressFound), findsOneWidget);
+    expect(find.text(s.noAddressTips), findsOneWidget);
+
+    // The postal code does, and becomes the destination under the shared name.
+    await tester.enterText(find.descendant(of: find.byType(AddressPickerPage), matching: find.byType(TextField)), '189630');
+    await tester.pump(const Duration(milliseconds: 500));
+    await settle(tester);
+    await tester.tap(find.textContaining('51 Bencoolen Street'));
+    await settle(tester);
+    expect(find.byType(AddressPickerPage), findsNothing);
+    final dest = box.read(goAdhocDestProvider)!;
+    expect(dest.name, 'Putra Minang Restaurant');
+    expect(dest.postal, '189630');
+    expect(box.read(goKeyProvider), 'adhoc');
   });
 }

@@ -2592,3 +2592,58 @@ int? tabForWidgetUri(Uri? uri) {
     _ => null,
   };
 }
+
+// ---------------------------------------------------------------- shared from another app
+
+/// A place shared to DailyLah from another app (Google Maps' Share button sends text like
+/// "Putra Minang Restaurant Bencoolen\n51 Bencoolen St, #01-05, Singapore 189630\nhttps://maps.app.goo.gl/...").
+/// [name] is what the place is called (shown as the trip's destination), [postal] the 6-digit
+/// postal code to look up on OneMap, or [lat]/[lng] when the text carries coordinates (a dropped pin).
+class SharedPlace {
+  const SharedPlace({this.name, this.postal, this.lat, this.lng});
+  final String? name;
+  final String? postal;
+  final double? lat;
+  final double? lng;
+
+  bool get hasPoint => lat != null && lng != null;
+}
+
+/// Reads a shared text. Null when it has nothing to go on (no name, postal code or point).
+/// Postal codes inside links are ignored; one after "Singapore" wins over any other 6 digits.
+SharedPlace? parseSharedPlace(String? text, {String? subject}) {
+  if (text == null && subject == null) return null;
+  final raw = [subject ?? '', text ?? ''].join('\n');
+  final all = raw.length > 2000 ? raw.substring(0, 2000) : raw;
+  final url = RegExp(r'\S*(https?://|geo:)\S*', caseSensitive: false);
+
+  // A point in a link or geo: URI, kept to Singapore's box.
+  double? lat, lng;
+  for (final m in RegExp(r'(-?\d{1,2}\.\d{3,})\s*,\s*(-?\d{2,3}\.\d{3,})').allMatches(all)) {
+    final a = double.parse(m.group(1)!), b = double.parse(m.group(2)!);
+    if (a > 1.1 && a < 1.5 && b > 103.5 && b < 104.1) {
+      lat = a;
+      lng = b;
+      break;
+    }
+  }
+
+  final plain = all.replaceAll(url, ' ');
+  final postal = RegExp(r'singapore\s+(\d{6})\b', caseSensitive: false).firstMatch(plain)?.group(1) ??
+      RegExp(r'(?<![\d#-])(\d{6})(?!\d)').firstMatch(plain)?.group(1);
+
+  String? name;
+  for (final line in all.split(RegExp(r'[\r\n]+'))) {
+    var l = line.replaceAll(url, '').trim();
+    if (l.isEmpty) continue;
+    // "Name · address" on one line: keep the name part.
+    l = l.split(RegExp(r'\s+[·•|]\s+')).first.trim();
+    final looksLikeAddress = (postal != null && l.contains(postal)) ||
+        RegExp(r'^(blk\s*)?\d+[a-z]?\s', caseSensitive: false).hasMatch(l);
+    if (looksLikeAddress || RegExp(r'^dropped pin$', caseSensitive: false).hasMatch(l)) continue;
+    name = l.length > 60 ? '${l.substring(0, 59).trimRight()}…' : l;
+    break;
+  }
+  if (name == null && postal == null && lat == null) return null;
+  return SharedPlace(name: name, postal: postal, lat: lat, lng: lng);
+}

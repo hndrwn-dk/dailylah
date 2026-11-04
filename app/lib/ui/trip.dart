@@ -1187,16 +1187,25 @@ class GoSomewhere extends ConsumerWidget {
 /// Trip planner on its own page, so it is not mixed up with the daily trip on Today.
 /// Starts from "Here" when location is already allowed.
 class TripPlannerPage extends ConsumerStatefulWidget {
-  const TripPlannerPage({super.key});
+  const TripPlannerPage({super.key, this.shared});
+
+  /// A place shared from another app (Google Maps' Share): it becomes the destination.
+  final SharedPlace? shared;
 
   @override
   ConsumerState<TripPlannerPage> createState() => _TripPlannerPageState();
 }
 
 class _TripPlannerPageState extends ConsumerState<TripPlannerPage> {
+  bool _resolving = false;
+
   @override
   void initState() {
     super.initState();
+    if (widget.shared case final shared?) {
+      _resolving = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _useShared(shared));
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
         final perm = await Geolocator.checkPermission();
@@ -1214,6 +1223,56 @@ class _TripPlannerPageState extends ConsumerState<TripPlannerPage> {
     });
   }
 
+  /// Turns the shared place into the trip's destination: its point, else its postal code
+  /// looked up on OneMap, else the address search with a note saying what was missing.
+  Future<void> _useShared(SharedPlace shared) async {
+    final s = ref.read(stringsProvider);
+    void setDest(String? address, String? postal, double lat, double lng) {
+      ref.read(goAdhocDestProvider.notifier).state = Place(
+        kind: PlaceKind.other,
+        name: shared.name ?? (address == null ? s.sharedPlace : shortAddress(address)),
+        address: address,
+        postal: postal,
+        addrLat: lat,
+        addrLng: lng,
+      );
+      ref.read(goKeyProvider.notifier).state = 'adhoc';
+    }
+
+    String? note;
+    try {
+      if (shared.postal case final postal?) {
+        final hits = parseOneMap(await ref.read(oneMapProvider).search(postal));
+        final hit = hits.where((h) => h.postal == postal).firstOrNull ?? hits.firstOrNull;
+        if (hit != null) {
+          setDest(hit.label, hit.postal.isEmpty ? postal : hit.postal, hit.lat, hit.lng);
+          return;
+        }
+        note = s.sharedNotFound(postal);
+      }
+      if (shared.hasPoint) {
+        setDest(null, null, shared.lat!, shared.lng!);
+        return;
+      }
+    } on Object {
+      // Search failed (offline, server asleep): fall back to the point or the search page.
+      if (shared.hasPoint) {
+        setDest(null, null, shared.lat!, shared.lng!);
+        return;
+      }
+    } finally {
+      if (mounted) setState(() => _resolving = false);
+    }
+    if (!mounted) return;
+    final hit = await Navigator.of(context).push<AddressHit>(
+      MaterialPageRoute(
+        builder: (_) => AddressPickerPage(title: s.searchPlace, note: note ?? s.sharedNoAddress(shared.name)),
+      ),
+    );
+    if (hit == null || !mounted) return;
+    setDest(hit.label, hit.postal.isEmpty ? null : hit.postal, hit.lat, hit.lng);
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(stringsProvider);
@@ -1221,7 +1280,17 @@ class _TripPlannerPageState extends ConsumerState<TripPlannerPage> {
       appBar: AppBar(title: Text(s.planTrip)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-        children: const [GoSomewhere(showTitle: false)],
+        children: [
+          if (_resolving)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [Text(s.findingShared), const SizedBox(height: 8), const LinearProgressIndicator()],
+              ),
+            ),
+          const GoSomewhere(showTitle: false),
+        ],
       ),
     );
   }

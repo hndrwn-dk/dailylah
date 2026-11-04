@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../background.dart';
 import '../logic.dart';
 import '../providers.dart';
+import '../share_intake.dart';
 import 'history.dart';
 import 'home.dart';
 import 'more.dart';
@@ -39,11 +40,24 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   /// Taps on the home screen widget's Today / Nearby / Home buttons.
   StreamSubscription<int>? _widgetTaps;
 
+  /// Places shared to DailyLah from Google Maps (Share > DailyLah).
+  StreamSubscription<SharedPlace>? _shares;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _widgetTaps = widgetTabTaps().listen(_openFromWidget);
+    _shares = sharedPlaces().listen(_openShared);
+  }
+
+  /// Opens the trip planner with a shared place as the destination, above Today.
+  void _openShared(SharedPlace place) {
+    if (!mounted) return;
+    final nav = Navigator.of(context);
+    nav.popUntil((r) => r.isFirst);
+    ref.read(shellTabProvider.notifier).state = 0;
+    nav.push(MaterialPageRoute<void>(builder: (_) => TripPlannerPage(shared: place)));
   }
 
   void _openFromWidget(int tab) {
@@ -55,6 +69,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   @override
   void dispose() {
     _widgetTaps?.cancel();
+    _shares?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     for (final c in _scroll) {
       c.dispose();
