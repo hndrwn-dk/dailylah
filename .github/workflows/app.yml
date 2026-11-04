@@ -11,6 +11,9 @@ on:
         type: choice
         default: alpha
         options: [none, internal, alpha, beta, production]
+# Read-only by default; no job here writes to the repo. Google Play uses its own service account.
+permissions:
+  contents: read
 jobs:
   analyze:
     runs-on: ubuntu-latest
@@ -25,9 +28,10 @@ jobs:
       run:
         working-directory: app
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - id: track
         name: Release or build only?
         working-directory: .
@@ -53,7 +57,7 @@ jobs:
       - name: Check app id is com.tursinalabs.dailylah
         working-directory: .
         run: ./scripts/check-app-id.sh
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
           cache: true
@@ -71,7 +75,7 @@ jobs:
           flutter test --reporter=expanded --file-reporter=json:test.json 2>&1 | tee test.log || {
             # One annotation listing every failed test with its first error line.
             python3 ../scripts/test_failures.py test.json ; exit 1; }
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         if: steps.track.outputs.track != 'none'
         with:
           distribution: temurin
@@ -105,7 +109,7 @@ jobs:
           echo "Release $APP_VERSION, versionCode ${GITHUB_RUN_NUMBER}" >> "$GITHUB_STEP_SUMMARY"
       - name: Upload App Bundle for Google Play
         if: hashFiles('app/build/dailylah.aab') != ''
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dailylah-aab
           path: |
@@ -131,8 +135,10 @@ jobs:
     env:
       PLAY_TRACK: ${{ needs.analyze.outputs.track }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         # Missing when the keystore secrets are not set; the next step then says so.
         continue-on-error: true
         with:

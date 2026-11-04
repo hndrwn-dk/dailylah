@@ -17,9 +17,37 @@ This file maps that plan to the automated tests in this repo and lists what is s
 | Feature tests `app/test/features_test.dart` | GitHub Actions `app` (flutter test) | every PR | each feature through the real widgets: Ate here at halal places, meal time in History, live bus position |
 | Release gate | GitHub Actions `app` jobs `e2e` + `play` | every push to `main` and manual releases | the whole `emulator` workflow must pass on the commit before the AAB goes to Google Play (closed testing by default) |
 | Real phones `testlab.yml` (Robo) | Firebase Test Lab | by hand before a release | 6: crashes on a Samsung, a Xiaomi/Oppo and a Google phone |
+| Security scans `security.yml` | GitHub Actions `security` | every PR, push to `main`, Mondays | CodeQL (actions, python, java-kotlin), osv-scanner (dependencies), zizmor (workflows); see below |
+| Backend security `backend.yml` | GitHub Actions `backend` | every push touching `backend/` | ruff bandit rules (`S`), `pip-audit` on the installed dependency tree |
 
 The screen matrix uses the bundles committed in `web/data/`, so screens render with real data.
 The API, location and storage are faked. A test fails on any exception or layout overflow.
+
+## Security scans
+
+Layer order: deterministic scans (this section) → AI review (planned) → a person decides.
+None of these block the Google Play upload; a red `security` run is fixed before merging.
+
+| Tool | Scans | Fails the run on | Baseline |
+| --- | --- | --- | --- |
+| CodeQL `actions`, `python` | workflows, `backend/`, `scripts/` | results show in Security > Code scanning (PR check) | dismiss in the Security tab with a reason |
+| CodeQL `java-kotlin` | `app/android` (MainActivity, home screen widget), built with `flutter build apk --debug` | same | same |
+| osv-scanner v2.7.0 | `app/pubspec.lock`, `backend/requirements*.txt`, `.github/tools/requirements.txt` | High/Critical (CVSS ≥ 7.0); Medium/Low are warnings | `osv-scanner.toml` |
+| zizmor | `.github/workflows/` | High; Medium is a warning | `.github/zizmor.yml` |
+| ruff `S` (bandit) | `backend/` | any finding | inline `# noqa: Sxxx` with the reason; tests may assert and use fake tokens |
+| pip-audit | backend runtime dependencies | any known vulnerability | `--ignore-vuln ID` in `backend.yml`, with a comment |
+| Dependabot | pub, gradle, pip, github-actions | opens update PRs weekly (Monday), minor/patch grouped | — |
+
+- **Dart is not supported by CodeQL.** The app's Dart code is covered by `dart analyze`
+  (infos are fatal) in the `app` workflow and, from Phase 6, by the AI review.
+- The java-kotlin build takes about 10 minutes, so on PRs it only runs when `app/android/`
+  or `security.yml` changes; the Monday run and manual runs always include it.
+- A baseline takes **Low findings only**, each with a reason (and for osv a date to look
+  again). Anything higher is fixed or the dependency is replaced.
+- Lockfiles: `app/pubspec.lock` is committed and CI uses `flutter pub get --enforce-lockfile`;
+  backend dependencies are pinned with `==`.
+- GitHub settings that are not in the repo (one-time, by hand): secret scanning, push
+  protection, Dependabot alerts and security updates. See docs/HANDOFF.md.
 
 ## Layout bugs the matrix found (fixed in PR #51)
 

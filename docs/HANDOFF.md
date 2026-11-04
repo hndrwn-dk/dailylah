@@ -16,6 +16,27 @@ Start here, then read `CLAUDE.md` (the feature map is kept current there) and `d
   - Merged branches are deleted automatically on GitHub ("Automatically delete head branches" is on
     since 25 Oct 2026). Do not send branch delete commands after a merge.
 
+## CI/CD hardening (Nov 2026, 8 phases, one PR each)
+Layers: deterministic scans → AI review → a person decides. Existing gates (analyze, test,
+emulator e2e, Play upload gate) stay as they are.
+- Phase 1 (security scans, branch `security/phase1-deterministic-scan`): `security.yml`
+  (CodeQL actions/python/java-kotlin, osv-scanner, zizmor), ruff `S` + `pip-audit`, Dependabot,
+  committed `app/pubspec.lock`, every action pinned to a SHA, minimal `permissions`. Old findings
+  were fixed in the same PR; baselines hold Low only. Rules are in CLAUDE.md "CI security" and
+  docs/QA.md "Security scans".
+- Next: 2 split CLAUDE.md + REPO_MAP, 3 Maestro on the release APK, 4 app↔backend contract tests,
+  5 golden tests, 6 advisory AI review, 7 release-check before production, 8 daily web check.
+- `AGENTS.md` has fallen behind CLAUDE.md (only the CI security rules were synced in Phase 1);
+  bring it in line in Phase 2.
+
+### GitHub settings to set by hand (Phase 1)
+Settings > Advanced Security (or Code security):
+1. **Secret scanning**: Enable. Then **Push protection**: Enable.
+2. **Dependabot alerts**: Enable. **Dependabot security updates**: Enable.
+3. **Code scanning**: leave **Default setup** off (or switch it off). `security.yml` is an
+   advanced setup, and GitHub rejects its CodeQL uploads while default setup is on.
+No new secrets are needed for Phase 1.
+
 ## Recent batches (22 to 24 Oct)
 - #36 to #39:
   - Nearby section chips.

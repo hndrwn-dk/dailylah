@@ -1,6 +1,8 @@
-fastapi>=0.115
-uvicorn[standard]>=0.30
-httpx>=0.27
-pydantic-settings>=2.4
-redis>=5.0
-qstash>=3.0
+# Exact versions so builds are reproducible and osv-scanner/pip-audit check what Render installs.
+# Dependabot (pip, weekly) opens the version bumps.
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
+httpx==0.28.1
+pydantic-settings==2.16.2
+redis==8.1.0
+qstash==3.4.0

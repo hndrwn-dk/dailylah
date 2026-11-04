@@ -129,6 +129,31 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - Upstream headers: data.gov.sg uses `x-api-key` (optional, higher limits); LTA uses `AccountKey`.
 - Every new endpoint gets a pytest test with `respx` mocks; no real network calls in tests.
 
+## CI security (docs/QA.md, "Security scans")
+- `app/pubspec.lock` is committed and every workflow runs `flutter pub get --enforce-lockfile`, so
+  builds are reproducible and osv-scanner sees the exact versions. Backend dependencies are pinned
+  with `==` in `backend/requirements*.txt`. A dependency change updates the lockfile in the same PR.
+- Every `uses:` is pinned to a full commit SHA with the version in a comment
+  (`actions/checkout@<sha> # v7.0.1`); Dependabot bumps both. Never use a tag or branch.
+- Every workflow sets `permissions:` at the top (read-only or `{}`) and widens it per job only
+  where needed. Checkouts use `persist-credentials: false`; a job that pushes passes the token only
+  to that `git push`. Never use `pull_request_target`. Expressions from inputs, vars or step
+  outputs go through `env:`, not straight into `run:`.
+- `security.yml` (every PR and push to main, weekly on Monday): CodeQL for actions, python and
+  java-kotlin (Kotlin only when `app/android/` changes, plus the weekly run), osv-scanner and
+  zizmor. osv-scanner and zizmor fail on High/Critical; Medium/Low are warnings. Dart is not
+  supported by CodeQL: `dart analyze` covers it. Baselines (`osv-scanner.toml`,
+  `.github/zizmor.yml`) take Low findings only, each with a reason.
+- Backend: ruff includes the bandit rules (`S`); an exception is an inline `# noqa: Sxxx` with the
+  reason. `backend` also runs `pip-audit`.
+- Dependabot (`.github/dependabot.yml`): pub, gradle, pip and github-actions, weekly on Monday,
+  minor/patch grouped per ecosystem.
+
+## Git workflow
+- One branch and one PR per batch, squash-merged into `main`.
+- Commits and PR descriptions carry no AI attribution: no `Co-Authored-By: Claude` or
+  `Claude-Session` trailers, and no "Generated with/by Claude Code" line.
+
 ## Style
 - Python: ruff (line length 100), type hints, async httpx.
 - Dart: flutter_lints, Riverpod providers, no business logic in widgets.

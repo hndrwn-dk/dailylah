@@ -58,6 +58,7 @@ adb -s "$DEVICE" shell am force-stop "$PKG"
 
 # Install the new build over the old one, keeping data.
 cd "$ROOT/app"
+flutter pub get --enforce-lockfile
 flutter build apk --debug
 adb -s "$DEVICE" install -r -t build/app/outputs/flutter-apk/app-debug.apk
 echo "- Installed new build over $BASE_REF with adb install -r ✅" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"

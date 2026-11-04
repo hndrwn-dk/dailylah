@@ -10,39 +10,50 @@ on:
       - "app/test_store/**"
       - "scripts/frame_screenshots.py"
       - ".github/workflows/screenshots.yml"
-permissions:
-  contents: write
+permissions: {}
 concurrency:
   group: screenshots-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   shoot:
     runs-on: ubuntu-latest
+    # Commits the result back to the branch it ran on.
+    permissions:
+      contents: write
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The token is passed only to the push below, never stored in .git/config.
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
           cache: true
       - name: Render screens
         working-directory: app
         run: |
-          flutter pub get
+          flutter pub get --enforce-lockfile
           flutter test test_store --update-goldens
       - name: Add captions
         run: |
           pip install pillow
           python3 scripts/frame_screenshots.py app/test_store/goldens docs/store/screenshots
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: play-screenshots
           path: docs/store/screenshots
       - name: Commit
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           git add docs/store/screenshots app/test_store/goldens
           if git diff --cached --quiet; then echo "No changes"; exit 0; fi
           git config user.name "dailylah-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "Update Play Store screenshots"
-          git push
+          # Push with the job token in a one-off header (checkout does not persist it).
+          b64=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          echo "::add-mask::$b64"
+          auth="AUTHORIZATION: basic $b64"
+          git -c http.extraheader="$auth" push

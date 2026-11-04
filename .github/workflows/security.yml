@@ -1,0 +1,178 @@
+name: security
+# Deterministic security scans (docs/QA.md, "Security scans"). Advisory for the upload gate:
+# nothing here blocks a Google Play upload, but a red run must be fixed before merging.
+#   - CodeQL: actions, python, java-kotlin. Dart is not supported by CodeQL; it is covered by
+#     `dart analyze` (app workflow) and the AI review.
+#   - osv-scanner: app/pubspec.lock and backend/requirements*.txt. Fails on High/Critical.
+#   - zizmor: every workflow. Fails on High; Medium shows as a warning.
+# Baselines (Low findings only, each with a reason): osv-scanner.toml, .github/zizmor.yml.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 1 * * 1" # Mondays 09:23 SGT: full CodeQL run incl. java-kotlin, fresh advisories
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  changes:
+    name: what changed
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      languages: ${{ steps.diff.outputs.languages }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: diff
+        # The java-kotlin build takes ~10 min, so it runs only when the native Android code or
+        # this workflow changes, plus the weekly and manual runs.
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          android=false
+          if [ "$EVENT" = schedule ] || [ "$EVENT" = workflow_dispatch ]; then
+            android=true
+          elif ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            android=true # new branch or force push: no base to compare with
+          elif git diff --name-only "$BASE" HEAD | grep -qE '^(app/android/|\.github/workflows/security\.yml$)'; then
+            android=true
+          fi
+          if [ "$android" = true ]; then
+            echo 'languages=["actions","python","java-kotlin"]' >> "$GITHUB_OUTPUT"
+          else
+            echo 'languages=["actions","python"]' >> "$GITHUB_OUTPUT"
+          fi
+
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ${{ fromJSON(needs.changes.outputs.languages) }}
+    env:
+      # java-kotlin is built by hand so the Kotlin sources (MainActivity, home screen widget)
+      # are analysed; build-mode none covers Java only.
+      BUILD_MODE: ${{ matrix.language == 'java-kotlin' && 'manual' || 'none' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        if: matrix.language == 'java-kotlin'
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        if: matrix.language == 'java-kotlin'
+        with:
+          channel: stable
+          # No cache: this job has security-events: write.
+          cache: false
+      - uses: github/codeql-action/init@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ env.BUILD_MODE }}
+          queries: security-extended
+      - name: Build the debug APK (traced by CodeQL)
+        if: env.BUILD_MODE == 'manual'
+        working-directory: app
+        run: |
+          # CodeQL must see the Kotlin compiler run: no Gradle daemon or build cache.
+          mkdir -p ~/.gradle
+          printf 'org.gradle.daemon=false\norg.gradle.caching=false\n' >> ~/.gradle/gradle.properties
+          flutter pub get --enforce-lockfile
+          flutter build apk --debug
+      - uses: github/codeql-action/analyze@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+        with:
+          category: /language:${{ matrix.language }}
+
+  osv:
+    name: osv-scanner (dependencies)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    env:
+      OSV_VERSION: v2.7.0
+      OSV_SHA256: 160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install osv-scanner (pinned by checksum)
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/osv-scanner" \
+            "https://github.com/google/osv-scanner/releases/download/$OSV_VERSION/osv-scanner_linux_amd64"
+          echo "$OSV_SHA256  $RUNNER_TEMP/osv-scanner" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/osv-scanner"
+      - name: Scan lockfiles
+        run: |
+          set +e
+          args=(--config osv-scanner.toml
+                --lockfile app/pubspec.lock
+                --lockfile backend/requirements.txt
+                --lockfile requirements.txt:backend/requirements-dev.txt
+                --lockfile .github/tools/requirements.txt)
+          "$RUNNER_TEMP/osv-scanner" scan source "${args[@]}" --format json --output-file osv.json
+          rc=$?
+          "$RUNNER_TEMP/osv-scanner" scan source "${args[@]}" --format sarif --output-file osv.sarif
+          # 0 = clean, 1 = vulnerabilities found (judged below); anything else is a scanner error.
+          [ "$rc" -le 1 ] || { echo "::error::osv-scanner failed (exit $rc)"; exit "$rc"; }
+          python3 scripts/osv_gate.py osv.json
+      - uses: github/codeql-action/upload-sarif@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+        if: always() && hashFiles('osv.sarif') != ''
+        with:
+          sarif_file: osv.sarif
+          category: osv-scanner
+
+  zizmor:
+    name: zizmor (workflows)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install zizmor (pinned by hash)
+        run: pip install --only-binary ':all:' --require-hashes -r .github/tools/requirements.txt
+      - name: Audit workflows
+        env:
+          # Online audits (impostor commits, known-vulnerable actions) read public repos only.
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          zizmor --format sarif .github/workflows > zizmor.sarif
+          zizmor --format github .github/workflows
+          rc=$?
+          # Exit codes: 0 clean, 11 info, 12 low, 13 medium, 14 high; others are tool errors.
+          case "$rc" in
+            0|11|12|13) exit 0 ;;
+            14) echo "::error::zizmor found a High finding (see annotations)"; exit 1 ;;
+            *) echo "::error::zizmor failed (exit $rc)"; exit "$rc" ;;
+          esac
+      - uses: github/codeql-action/upload-sarif@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+        if: always() && hashFiles('zizmor.sarif') != ''
+        with:
+          sarif_file: zizmor.sarif
+          category: zizmor
