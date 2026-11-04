@@ -1722,7 +1722,9 @@ void main() {
       expect(p.name, isNull);
       expect(p.lat, closeTo(1.29661, 1e-6));
       expect(p.lng, closeTo(103.8522, 1e-6));
-      expect(parseSharedPlace('https://maps.google.com/?q=48.85837,2.29448'), isNull); // Paris
+      final paris = parseSharedPlace('https://maps.google.com/?q=48.85837,2.29448')!;
+      expect(paris.hasPoint, isFalse); // outside Singapore: no point, only the link
+      expect(mapsLinkPlace(paris.link!), isNull);
     });
 
     test('the subject can carry the name', () {
