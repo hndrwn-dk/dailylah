@@ -1685,4 +1685,56 @@ void main() {
       expect(const Favorites().toJson().containsKey('mrtLines'), isFalse);
     });
   });
+
+  group('places shared from Google Maps', () {
+    test('name and postal code from a Google Maps share', () {
+      final p = parseSharedPlace(
+          'Putra Minang Restaurant Bencoolen\n51 Bencoolen St, #01-05, Singapore 189630\n\nhttps://maps.app.goo.gl/AbC123456789')!;
+      expect(p.name, 'Putra Minang Restaurant Bencoolen');
+      expect(p.postal, '189630');
+      expect(p.hasPoint, isFalse);
+    });
+
+    test('name and address on one line', () {
+      final p = parseSharedPlace('Putra Minang Restaurant · 51 Bencoolen St, Singapore 189630 https://maps.app.goo.gl/x')!;
+      expect(p.name, 'Putra Minang Restaurant');
+      expect(p.postal, '189630');
+    });
+
+    test('digits in the link or the unit number are not a postal code', () {
+      final p = parseSharedPlace('Some Cafe\nhttps://maps.app.goo.gl/123456789012\n#01-123456')!;
+      expect(p.name, 'Some Cafe');
+      expect(p.postal, isNull);
+    });
+
+    test('the code after Singapore wins over other 6 digits', () {
+      expect(parseSharedPlace('Shop 888888 Deals\n10 Bayfront Ave, Singapore 018956')!.postal, '018956');
+    });
+
+    test('an address alone has no name', () {
+      final p = parseSharedPlace('51 Bencoolen St, Singapore 189630\nhttps://maps.app.goo.gl/x')!;
+      expect(p.name, isNull);
+      expect(p.postal, '189630');
+    });
+
+    test('a dropped pin gives a point inside Singapore', () {
+      final p = parseSharedPlace('Dropped pin\nhttps://maps.google.com/?q=1.29661,103.85220')!;
+      expect(p.name, isNull);
+      expect(p.lat, closeTo(1.29661, 1e-6));
+      expect(p.lng, closeTo(103.8522, 1e-6));
+      expect(parseSharedPlace('https://maps.google.com/?q=48.85837,2.29448'), isNull); // Paris
+    });
+
+    test('the subject can carry the name', () {
+      final p = parseSharedPlace('51 Bencoolen St, Singapore 189630', subject: 'Putra Minang Restaurant Bencoolen')!;
+      expect(p.name, 'Putra Minang Restaurant Bencoolen');
+      expect(p.postal, '189630');
+    });
+
+    test('nothing to go on', () {
+      expect(parseSharedPlace(null), isNull);
+      expect(parseSharedPlace('https://maps.app.goo.gl/AbC'), isNull);
+      expect(parseSharedPlace('   \n  '), isNull);
+    });
+  });
 }
