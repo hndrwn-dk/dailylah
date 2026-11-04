@@ -186,7 +186,7 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   launching share once, `shared` pushes later ones; `sharedPlaces()` in `lib/share_intake.dart`). `parseSharedPlace`
   (logic.dart) takes the name, the postal code (never digits in links or unit numbers) or a dropped pin's point;
   a share with only a Google Maps link ("Shared route" + maps.app.goo.gl) is opened on the phone (`MapsLinks` in
-  api.dart: short-link redirects only, Google hosts only, `isMapsLinkHost`) and read by `mapsLinkPlace` (directions:
+  api.dart: short-link redirects only, incl. share.google from Chrome's Google Search; Google hosts only, `isMapsLinkHost`) and read by `mapsLinkPlace` (directions:
   last stop and its `!3d!4d` pin; place pages: name, postal code, pin). Generic titles (`_sharedTitles`) are not names;
   the shell opens `TripPlannerPage(shared:)`, which searches only the postal code and sets the ad hoc destination
   under the shared name, else opens `AddressPickerPage(note:)`. The picker's empty state explains what search finds

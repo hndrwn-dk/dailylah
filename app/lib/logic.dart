@@ -2641,8 +2641,10 @@ String? mapsLinkIn(String text) {
 bool isMapsLinkHost(Uri uri) {
   if (uri.scheme != 'https') return false;
   final h = uri.host.toLowerCase();
-  if (h == 'maps.app.goo.gl' || h == 'goo.gl' || h == 'maps.google.com' || h == 'g.co') return true;
-  return RegExp(r'^(www\.)?google\.com(\.sg)?$').hasMatch(h) && uri.path.startsWith('/maps');
+  if (const {'maps.app.goo.gl', 'goo.gl', 'g.co', 'share.google', 'maps.google.com'}.contains(h)) return true;
+  // Google Maps, and Google Search's place results (shared from Chrome: share.google → /search?q=...).
+  return RegExp(r'^(www\.)?google\.com(\.sg)?$').hasMatch(h) &&
+      (uri.path.startsWith('/maps') || uri.path == '/search');
 }
 
 /// A point inside Singapore's box, from "lat,lng" anywhere in [s]. Null when none.

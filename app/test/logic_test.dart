@@ -1754,7 +1754,9 @@ void main() {
     test('links outside Google Maps are not opened', () {
       expect(mapsLinkIn('see https://evil.example/maps.app.goo.gl/x'), isNull);
       expect(mapsLinkIn('http://maps.app.goo.gl/x'), isNull); // not https
-      expect(mapsLinkIn('https://www.google.com/search?q=x'), isNull);
+      expect(mapsLinkIn('https://www.google.com/url?q=https://evil.example'), isNull);
+      expect(mapsLinkIn('Putra Minang Restaurant Bencoolen https://share.google/HNv5xr5XDLISCfUZa'),
+          'https://share.google/HNv5xr5XDLISCfUZa'); // a place shared from Google Search in Chrome
       expect(mapsLinkIn('https://maps.app.goo.gl/x'), 'https://maps.app.goo.gl/x');
     });
 
@@ -1772,6 +1774,13 @@ void main() {
       expect(p.name, 'Putra Minang Restaurant Bencoolen');
       expect(p.postal, '189630');
       expect(p.lat, closeTo(1.29942, 1e-4));
+    });
+
+    test('a Google Search place result with its address', () {
+      final p = mapsLinkPlace('https://www.google.com/search?q=Putra+Minang+Restaurant+Bencoolen,'
+          '+51+Bencoolen+St,+%2301-05,+Singapore+189630&kgmid=/g/11x')!;
+      expect(p.name, 'Putra Minang Restaurant Bencoolen');
+      expect(p.postal, '189630');
     });
 
     test('a link to a point or nothing', () {
