@@ -1789,6 +1789,7 @@ void main() {
       expect(mapsLinkPlace('https://maps.google.com/?q=1.29661,103.85220')!.lat, closeTo(1.29661, 1e-6));
       expect(mapsLinkPlace('https://www.google.com/maps/@1.3,103.8,15z'), isNull); // just a map view
       expect(mapsLinkPlace('https://example.com/maps/place/X'), isNull);
+      expect(mapsLinkPlace('https://maps.google.com/?q=48.85837,2.29448'), isNull); // Paris: not a name either
     });
 
     test('what the link led to fills the share', () {

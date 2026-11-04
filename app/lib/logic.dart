@@ -2744,7 +2744,9 @@ SharedPlace? mapsLinkPlace(String url) {
 
   String? name;
   String? postal;
-  if (dest != null && _sgPoint(dest) == null) {
+  // A "lat,lng" destination is a point, never a name (also outside Singapore, where it is dropped).
+  final isCoords = dest != null && RegExp(r'^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$').hasMatch(dest);
+  if (dest != null && !isCoords) {
     postal = _postalIn(dest);
     final first = dest.split(',').first.trim();
     final isAddress = (postal != null && first.contains(postal)) || RegExp(r'^(blk\s*)?\d+[a-z]?\s', caseSensitive: false).hasMatch(first);
