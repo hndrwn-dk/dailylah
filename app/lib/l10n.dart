@@ -881,8 +881,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Going somewhere you found in Google Maps? Tap Share there and pick DailyLah: the trip opens with that place as the destination.",
-        "Address search now says what it can find (addresses and buildings, not shop names) when nothing matches.",
+        "Sharing directions from Google Maps to DailyLah now opens the trip to that place, not an empty search.",
       ];
 
   // about

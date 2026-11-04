@@ -278,7 +278,9 @@ class MapsLinks {
   Future<String?> expand(String link) async {
     var uri = Uri.tryParse(link);
     String? last;
-    for (var hop = 0; hop < 5 && uri != null && isMapsLinkHost(uri); hop++) {
+    // Only short links are opened; the full Google Maps address they lead to is read, not loaded.
+    bool short(Uri u) => const {'maps.app.goo.gl', 'goo.gl', 'g.co'}.contains(u.host.toLowerCase());
+    for (var hop = 0; hop < 5 && uri != null && isMapsLinkHost(uri) && short(uri); hop++) {
       last = uri.toString();
       final res = await _dio.getUri<String>(uri, options: Options(responseType: ResponseType.plain));
       final to = res.headers.value('location');

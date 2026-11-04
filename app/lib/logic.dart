@@ -2699,8 +2699,8 @@ SharedPlace? mapsLinkPlace(String url) {
   String dec(String s) {
     try {
       return Uri.decodeComponent(s.replaceAll('+', ' ')).trim();
-    } on ArgumentError {
-      return s.replaceAll('+', ' ').trim();
+    } on Object {
+      return s.replaceAll('+', ' ').trim(); // a stray % in the link
     }
   }
 

@@ -58,11 +58,23 @@ class _NoMapsLinks extends MapsLinks {
   Future<String?> expand(String link) async => null;
 }
 
-Widget _appWithOneMap(OneMapApi oneMap) => ProviderScope(
+/// The redirect Google sends for a route shared from Google Maps (Your location → Putra Minang).
+class _RouteLink extends MapsLinks {
+  final opened = <String>[];
+  @override
+  Future<String?> expand(String link) async {
+    opened.add(link);
+    return 'https://www.google.com/maps/dir/1.3015204,103.9050613/Putra+Minang+Restaurant+Bencoolen/'
+        'data=!4m12!4m11!1m1!4e1!1m5!1m4!1s0x31da19faa330d147:0x815145de046b9fd8!8m2!3d1.2994204999999999'
+        '!4d103.85050939999999!2m1!11b1!3e2?g_st=ac';
+  }
+}
+
+Widget _appWithOneMap(OneMapApi oneMap, {MapsLinks? links}) => ProviderScope(
       overrides: [
         ...overridesFor(_normal, householdFavorites, tuesdayMorning),
         oneMapProvider.overrideWithValue(oneMap),
-        mapsLinksProvider.overrideWithValue(_NoMapsLinks()),
+        mapsLinksProvider.overrideWithValue(links ?? _NoMapsLinks()),
       ],
       child: const DailyLahApp(),
     );
@@ -681,6 +693,27 @@ void main() {
     final dest = box.read(goAdhocDestProvider)!;
     expect(dest.name, 'Putra Minang Restaurant');
     expect(dest.postal, '189630');
+    expect(box.read(goKeyProvider), 'adhoc');
+  });
+
+  testWidgets('A route shared from Google Maps opens the planner to its destination', (tester) async {
+    await applyCondition(tester, _normal);
+    final oneMap = _OneMap();
+    final links = _RouteLink();
+    await tester.pumpWidget(_appWithOneMap(oneMap, links: links));
+    await settle(tester);
+    final box = containerOf(tester);
+    final shared = parseSharedPlace('https://maps.app.goo.gl/oseWUrfHe23uqLKZ7?g_st=ac', subject: 'Shared route')!;
+    Navigator.of(tester.element(find.byType(TodayPage)))
+        .push(MaterialPageRoute<void>(builder: (_) => TripPlannerPage(shared: shared)));
+    await settle(tester);
+
+    expect(links.opened, ['https://maps.app.goo.gl/oseWUrfHe23uqLKZ7?g_st=ac']);
+    expect(oneMap.queries, isEmpty); // the pin is enough, nothing searched
+    expect(find.byType(AddressPickerPage), findsNothing);
+    final dest = box.read(goAdhocDestProvider)!;
+    expect(dest.name, 'Putra Minang Restaurant Bencoolen');
+    expect(dest.addrLat, closeTo(1.29942, 1e-4));
     expect(box.read(goKeyProvider), 'adhoc');
   });
 }
