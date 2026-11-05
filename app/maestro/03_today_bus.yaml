@@ -22,7 +22,13 @@ name: 03 Today bus arrivals
     when:
       visible: "(?s)\\w+\\n(Arr|\\d+ min)\\n.*"
     commands:
-      - tapOn: "(?s)\\w+\\n(Arr|\\d+ min).*"
+      # Centre the row first: at the bottom of the screen it sits under the floating tab bar,
+      # and the tap would open the tab instead.
+      - scrollUntilVisible:
+          element: "(?s)\\w+\\n(Arr|\\d+ min)\\n.*"
+          direction: DOWN
+          centerElement: true
+      - tapOn: "(?s)\\w+\\n(Arr|\\d+ min)\\n.*"
       - extendedWaitUntil:
           visible: "(?s).*Where's my bus\\?.*"
           timeout: 20000
