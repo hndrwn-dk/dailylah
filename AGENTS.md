@@ -131,8 +131,10 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 
 ## CI security (docs/QA.md, "Security scans")
 - `app/pubspec.lock` is committed and every workflow runs `flutter pub get --enforce-lockfile`, so
-  builds are reproducible and osv-scanner sees the exact versions. Backend dependencies are pinned
-  with `==` in `backend/requirements*.txt`. A dependency change updates the lockfile in the same PR.
+  builds are reproducible and osv-scanner sees the exact versions. Backend: direct dependencies
+  live in `backend/requirements*.in`; `requirements*.txt` are the full locked trees with hashes,
+  made with `uv pip compile --python-version 3.12 --generate-hashes <file>.in -o <file>.txt`
+  (Render installs `requirements.txt`). A dependency change updates the lockfile in the same PR.
 - Every `uses:` is pinned to a full commit SHA with the version in a comment
   (`actions/checkout@<sha> # v7.0.1`); Dependabot bumps both. Never use a tag or branch.
 - Every workflow sets `permissions:` at the top (read-only or `{}`) and widens it per job only

@@ -35,7 +35,7 @@ None of these block the Google Play upload; a red `security` run is fixed before
 | osv-scanner v2.7.0 | `app/pubspec.lock`, `backend/requirements*.txt`, `.github/tools/requirements.txt` | High/Critical (CVSS ≥ 7.0); Medium/Low are warnings | `osv-scanner.toml` |
 | zizmor | `.github/workflows/` | High; Medium is a warning | `.github/zizmor.yml` |
 | ruff `S` (bandit) | `backend/` | any finding | inline `# noqa: Sxxx` with the reason; tests may assert and use fake tokens |
-| pip-audit | backend runtime dependencies | any known vulnerability | `--ignore-vuln ID` in `backend.yml`, with a comment |
+| pip-audit | backend runtime lock `requirements.txt` (hashes required) | any known vulnerability | `--ignore-vuln ID` in `backend.yml`, with a comment |
 | Dependabot | pub, gradle, pip, github-actions | opens update PRs weekly (Monday), minor/patch grouped | — |
 
 - **Dart is not supported by CodeQL.** The app's Dart code is covered by `dart analyze`
@@ -44,8 +44,11 @@ None of these block the Google Play upload; a red `security` run is fixed before
   or `security.yml` changes; the Monday run and manual runs always include it.
 - A baseline takes **Low findings only**, each with a reason (and for osv a date to look
   again). Anything higher is fixed or the dependency is replaced.
-- Lockfiles: `app/pubspec.lock` is committed and CI uses `flutter pub get --enforce-lockfile`;
-  backend dependencies are pinned with `==`.
+- Lockfiles: `app/pubspec.lock` is committed and CI uses `flutter pub get --enforce-lockfile`.
+  The backend's `requirements*.txt` are full locked trees with hashes made from
+  `requirements*.in` (`uv pip compile`), so osv-scanner runs with `--no-resolve` and checks
+  exactly what Render installs. Without a full lock, osv-scanner guesses transitive versions
+  and reports old ones that are never installed (Phase 1 saw 23 such false High findings).
 - GitHub settings that are not in the repo (one-time, by hand): secret scanning, push
   protection, Dependabot alerts and security updates. See docs/HANDOFF.md.
 

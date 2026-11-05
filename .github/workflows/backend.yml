@@ -26,8 +26,8 @@ jobs:
       - run: ruff check .
       - run: ruff format --check .
       - run: pytest -q
-      # Known vulnerabilities in the installed dependency tree (direct and transitive) from
-      # PyPI advisories and OSV. Fails on any; a deliberate exception needs `--ignore-vuln ID`
-      # here with a comment saying why.
+      # Known vulnerabilities in the locked runtime tree (requirements.txt, hashed) from PyPI
+      # advisories and OSV. Fails on any; a deliberate exception needs `--ignore-vuln ID` here
+      # with a comment saying why.
       - name: pip-audit
-        run: pip-audit -r requirements.txt --strict --progress-spinner off
+        run: pip-audit -r requirements.txt --require-hashes --disable-pip --strict --progress-spinner off

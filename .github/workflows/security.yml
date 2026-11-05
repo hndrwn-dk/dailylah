@@ -97,8 +97,31 @@ jobs:
           flutter pub get --enforce-lockfile
           flutter build apk --debug
       - uses: github/codeql-action/analyze@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+        id: analyze
         with:
           category: /language:${{ matrix.language }}
+      - name: Kotlin was analysed
+        # A traced build that misses the Kotlin compiler still "passes" with Java only.
+        if: matrix.language == 'java-kotlin'
+        env:
+          SARIF_DIR: ${{ steps.analyze.outputs.sarif-output }}
+        run: |
+          python3 - <<'EOF'
+          import glob, json, os
+          lines = {}
+          for path in glob.glob(os.path.join(os.environ["SARIF_DIR"], "*.sarif")):
+              for run in json.load(open(path)).get("runs", []):
+                  for m in run.get("properties", {}).get("metricResults", []):
+                      lines[m.get("ruleId")] = m.get("value")
+          kt = lines.get("java/summary/lines-of-code-kotlin") or 0
+          java = lines.get("java/summary/lines-of-code-java") or 0
+          print(f"Lines analysed: Kotlin {kt}, Java {java}")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write(f"CodeQL java-kotlin: {kt} lines of Kotlin, {java} lines of Java\n")
+          if not kt:
+              print("::error::CodeQL extracted no Kotlin: MainActivity and the widget were not analysed.")
+              raise SystemExit(1)
+          EOF
 
   osv:
     name: osv-scanner (dependencies)
@@ -123,7 +146,9 @@ jobs:
       - name: Scan lockfiles
         run: |
           set +e
-          args=(--config osv-scanner.toml
+          # Every file is a full lock (exact versions of the whole tree), so no guessing of
+          # transitive versions (--no-resolve): the scan checks exactly what gets installed.
+          args=(--config osv-scanner.toml --no-resolve
                 --lockfile app/pubspec.lock
                 --lockfile backend/requirements.txt
                 --lockfile requirements.txt:backend/requirements-dev.txt
