@@ -7,11 +7,9 @@
 // commits them. A failed run uploads the expected, actual and diff images as `golden-failures`.
 import 'dart:io';
 
-import 'package:dailylah/main.dart';
 import 'package:dailylah/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/harness.dart';
