@@ -15,6 +15,10 @@ name: 02 Save home and work
     direction: DOWN
 - tapOn: "(?s).*Places, lines and times.*"
 - assertVisible: "(?s).*Singapore 560201.*"
+# Work is below the fold; Flutter leaves off-screen rows out of the hierarchy.
+- scrollUntilVisible:
+    element: "Set address"
+    direction: DOWN
 - tapOn:
     text: "Set address"
     index: 0
