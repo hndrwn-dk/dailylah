@@ -1,0 +1,25 @@
+name: web-check
+# Daily check that the public web side works (docs/QA.md, "Web check"): dailylah.sg opens,
+# /privacy and /terms redirect to the policy pages, and data/manifest.json is valid on every host
+# the app downloads bundles from. A failed scheduled run emails the repository owner.
+on:
+  schedule:
+    - cron: "23 23 * * *" # 07:23 Singapore time
+  workflow_dispatch:
+  pull_request:
+    paths: ["scripts/web_check.sh", ".github/workflows/web-check.yml"]
+permissions:
+  contents: read
+concurrency:
+  group: web-check-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check the site, policy redirects and data manifests
+        run: bash scripts/web_check.sh

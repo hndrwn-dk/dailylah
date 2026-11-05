@@ -1,0 +1,62 @@
+{
+  "request": "/v1/weather/lightning",
+  "upstream": {
+    "code": 0,
+    "errorMsg": "",
+    "data": {
+      "records": [
+        {
+          "datetime": "2026-11-05T12:00:00+08:00",
+          "updatedTimestamp": "2026-11-05T12:00:00+08:00",
+          "item": {
+            "isStationData": false,
+            "type": "observation",
+            "readings": [
+              {
+                "location": {
+                  "latitude": "1.3712",
+                  "longtitude": "103.8478"
+                },
+                "datetime": "2026-11-05T12:00:00+08:00",
+                "text": "Cloud to ground",
+                "type": "G"
+              }
+            ]
+          }
+        }
+      ],
+      "paginationToken": null
+    }
+  },
+  "response": {
+    "fetched_at": 1793850000,
+    "data": {
+      "code": 0,
+      "errorMsg": "",
+      "data": {
+        "records": [
+          {
+            "datetime": "2026-11-05T12:00:00+08:00",
+            "updatedTimestamp": "2026-11-05T12:00:00+08:00",
+            "item": {
+              "isStationData": false,
+              "type": "observation",
+              "readings": [
+                {
+                  "location": {
+                    "latitude": "1.3712",
+                    "longtitude": "103.8478"
+                  },
+                  "datetime": "2026-11-05T12:00:00+08:00",
+                  "text": "Cloud to ground",
+                  "type": "G"
+                }
+              ]
+            }
+          }
+        ],
+        "paginationToken": null
+      }
+    }
+  }
+}

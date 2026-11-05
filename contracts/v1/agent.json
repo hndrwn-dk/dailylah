@@ -1,0 +1,30 @@
+{
+  "request": "/v1/agent/R012345A",
+  "upstream": {
+    "result": {
+      "records": [
+        {
+          "salesperson_name": "EXAMPLE AGENT",
+          "registration_no": "R012345A",
+          "registration_start_date": "2024-01-01",
+          "registration_end_date": "2026-12-31",
+          "estate_agent_name": "EXAMPLE REALTY PTE. LTD.",
+          "estate_agent_license_no": "L3000000X"
+        }
+      ]
+    }
+  },
+  "response": {
+    "fetched_at": 1793850000,
+    "data": [
+      {
+        "name": "EXAMPLE AGENT",
+        "registration_no": "R012345A",
+        "start": "2024-01-01",
+        "end": "2026-12-31",
+        "agency": "EXAMPLE REALTY PTE. LTD.",
+        "agency_licence": "L3000000X"
+      }
+    ]
+  }
+}

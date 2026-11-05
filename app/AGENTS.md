@@ -191,7 +191,8 @@ feature, screen, provider or rule moves, appears or goes away.
   (`e2e`, a reusable call: flows on API 29/35/36; upgrade test against the previous `main`; Maestro
   flows on a universal APK made from the very AAB that is uploaded), and only if all of it passes the
   `play` job uploads to `alpha` (closed testing, the testers for the 14-day production requirement).
-  Promote a tested release to production in Play Console. A manual run of `app` on `main` can pick
+  Promote a tested release to production in Play Console only after the checklist in docs/QA.md
+  "Before promoting a release to production" (security green, Test Lab, /vuln-scan) is done. A manual run of `app` on `main` can pick
   another `play_track` (internal, beta, production as draft); it runs the same tests first. A flaky emulator
   job blocks the upload: re-run failed jobs and `play` follows. The upload sends the AAB, mapping file
   and release notes with the service account in secret `PLAY_SERVICE_ACCOUNT_JSON` (upload action pinned
@@ -221,5 +222,11 @@ feature, screen, provider or rule moves, appears or goes away.
   Today buses, Nearby, Home, location, Appearance), run by the emulator `maestro` job. A change to a
   string, tab or screen those flows tap on updates the flow in the same PR; how to write and run them
   is in docs/QA.md "Maestro".
+- `test/contract_test.dart` runs the parsers on the shared API examples in `contracts/v1/`; a parser
+  that reads a new field or endpoint gets an example and a check there (docs/QA.md "Contract tests").
+- `test/golden_test.dart` compares Today, Nearby, Home and More (light and dark) with the images in
+  `test/goldens/`, on Linux CI only. A PR that changes how those tabs look on purpose updates the
+  images with the `goldens` workflow on its branch and says so in the description (docs/QA.md
+  "Golden tests").
 - `test/screens_matrix_test.dart` renders every screen under every condition in docs/QA.md (offline,
   denied location, 200% text, dark, small screen); a new screen or tab section is added there.

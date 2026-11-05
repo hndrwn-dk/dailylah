@@ -1,0 +1,78 @@
+{
+  "request": "/v1/weather/pm25",
+  "upstream": {
+    "code": 0,
+    "errorMsg": "",
+    "data": {
+      "regionMetadata": [
+        {
+          "name": "north",
+          "labelLocation": {
+            "latitude": 1.41803,
+            "longitude": 103.82
+          }
+        },
+        {
+          "name": "central",
+          "labelLocation": {
+            "latitude": 1.35735,
+            "longitude": 103.82
+          }
+        }
+      ],
+      "items": [
+        {
+          "date": "2026-11-05",
+          "updatedTimestamp": "2026-11-05T12:00:00+08:00",
+          "timestamp": "2026-11-05T12:00:00+08:00",
+          "readings": {
+            "pm25_one_hourly": {
+              "north": 9,
+              "central": 14
+            }
+          }
+        }
+      ],
+      "paginationToken": null
+    }
+  },
+  "response": {
+    "fetched_at": 1793850000,
+    "data": {
+      "code": 0,
+      "errorMsg": "",
+      "data": {
+        "regionMetadata": [
+          {
+            "name": "north",
+            "labelLocation": {
+              "latitude": 1.41803,
+              "longitude": 103.82
+            }
+          },
+          {
+            "name": "central",
+            "labelLocation": {
+              "latitude": 1.35735,
+              "longitude": 103.82
+            }
+          }
+        ],
+        "items": [
+          {
+            "date": "2026-11-05",
+            "updatedTimestamp": "2026-11-05T12:00:00+08:00",
+            "timestamp": "2026-11-05T12:00:00+08:00",
+            "readings": {
+              "pm25_one_hourly": {
+                "north": 9,
+                "central": 14
+              }
+            }
+          }
+        ],
+        "paginationToken": null
+      }
+    }
+  }
+}
