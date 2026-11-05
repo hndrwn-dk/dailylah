@@ -1,0 +1,60 @@
+name: goldens
+# Rewrites the golden images of test/golden_test.dart (the main tabs in light and dark) on Linux
+# and commits them to the branch it ran on (docs/QA.md, "Golden tests"). Run it by hand on a
+# branch after a deliberate UI change; it also runs when the golden test itself changes. Never on
+# main: new images reach main only through a reviewed pull request.
+on:
+  workflow_dispatch:
+  push:
+    branches-ignore: [main]
+    paths:
+      - "app/test/golden_test.dart"
+      - ".github/workflows/goldens.yml"
+permissions: {}
+concurrency:
+  group: goldens-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  update:
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # Commits the images back to the branch it ran on.
+    permissions:
+      contents: write
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The token is passed only to the push below, never stored in .git/config.
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          cache: true
+      - name: Render the golden images
+        working-directory: app
+        env:
+          GOLDENS: "1"
+        run: |
+          flutter pub get --enforce-lockfile
+          flutter test test/golden_test.dart --update-goldens
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: goldens
+          path: app/test/goldens
+          retention-days: 14
+      - name: Commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git add app/test/goldens
+          if git diff --cached --quiet; then echo "No changes"; exit 0; fi
+          git diff --cached --stat >> "$GITHUB_STEP_SUMMARY"
+          git config user.name "dailylah-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update golden images"
+          # Push with the job token in a one-off header (checkout does not persist it).
+          b64=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          echo "::add-mask::$b64"
+          auth="AUTHORIZATION: basic $b64"
+          git -c http.extraheader="$auth" push

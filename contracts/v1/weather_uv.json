@@ -1,0 +1,54 @@
+{
+  "request": "/v1/weather/uv",
+  "upstream": {
+    "code": 0,
+    "errorMsg": "",
+    "data": {
+      "records": [
+        {
+          "date": "2026-11-05",
+          "updatedTimestamp": "2026-11-05T12:00:00+08:00",
+          "timestamp": "2026-11-05T12:00:00+08:00",
+          "index": [
+            {
+              "hour": "2026-11-05T12:00:00+08:00",
+              "value": 8
+            },
+            {
+              "hour": "2026-11-05T11:00:00+08:00",
+              "value": 6
+            }
+          ]
+        }
+      ],
+      "paginationToken": null
+    }
+  },
+  "response": {
+    "fetched_at": 1793850000,
+    "data": {
+      "code": 0,
+      "errorMsg": "",
+      "data": {
+        "records": [
+          {
+            "date": "2026-11-05",
+            "updatedTimestamp": "2026-11-05T12:00:00+08:00",
+            "timestamp": "2026-11-05T12:00:00+08:00",
+            "index": [
+              {
+                "hour": "2026-11-05T12:00:00+08:00",
+                "value": 8
+              },
+              {
+                "hour": "2026-11-05T11:00:00+08:00",
+                "value": 6
+              }
+            ]
+          }
+        ],
+        "paginationToken": null
+      }
+    }
+  }
+}

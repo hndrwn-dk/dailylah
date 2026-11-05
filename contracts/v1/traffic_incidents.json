@@ -1,0 +1,24 @@
+{
+  "request": "/v1/traffic-incidents",
+  "upstream": {
+    "value": [
+      {
+        "Type": "Accident",
+        "Latitude": 1.35021,
+        "Longitude": 103.84822,
+        "Message": "(5/11)12:00 Accident on CTE (towards AYE) after Braddell Rd Exit."
+      }
+    ]
+  },
+  "response": {
+    "fetched_at": 1793850000,
+    "data": [
+      [
+        "Accident",
+        1.35021,
+        103.84822,
+        "(5/11)12:00 Accident on CTE (towards AYE) after Braddell Rd Exit."
+      ]
+    ]
+  }
+}
