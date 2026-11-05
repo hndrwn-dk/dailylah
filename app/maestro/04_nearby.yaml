@@ -3,8 +3,12 @@
 appId: com.tursinalabs.dailylah
 name: 04 Nearby
 ---
+# launchApp grants every permission unless told otherwise; with location on, Nearby switches
+# itself to "Here" and races the Work tap.
 - launchApp:
     stopApp: true
+    permissions:
+      location: deny
 - startRecording: 04_nearby
 - tapOn: "(?s)Nearby.*"
 - extendedWaitUntil:
