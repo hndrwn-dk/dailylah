@@ -31,7 +31,15 @@ emulator e2e, Play upload gate) stay as they are.
   next to it. `scripts/repo_map.py` writes `docs/REPO_MAP.md` (files, public symbols, providers,
   endpoints) and the AGENTS.md copies; the `docs` workflow fails when either is stale.
   `.omc/` is ignored except `.omc/skills/`.
-- Next: 3 Maestro on the release APK, 4 app↔backend contract tests, 5 golden tests, 6 advisory
+- Phase 3 (Maestro, branch `test/phase3-maestro`, PR open): Maestro tests the release build;
+  on a release it tests a universal APK made with bundletool from the very AAB that goes to Play
+  (re-signed with a throwaway key), so the upload key never reaches the emulator job; on a PR it
+  tests the R8 release APK built from the commit. `maestro` job in emulator.yml (Maestro 2.12.1 and
+  bundletool 1.18.3 pinned by SHA-256), `scripts/emulator_maestro.sh`, flows 01–07 in
+  `app/maestro/` (7/7 pass in about 4.5 min). How to write and run them: docs/QA.md "Maestro".
+  - Not yet seen in CI: the release path (`aab_artifact`, bundletool). It first runs on the next
+    release; if the `maestro` job fails there, read its log before re-running.
+- Next: 4 app↔backend contract tests, 5 golden tests, 6 advisory
   AI review, 7 release-check before production, 8 daily web check.
 
 ### GitHub settings to set by hand (Phase 1)
