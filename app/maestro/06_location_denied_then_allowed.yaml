@@ -1,4 +1,4 @@
-# Location: denied shows the message and keeps search; allowed sets "My location".
+# Location: denied shows the message and search still works; allowed sets "My location".
 appId: com.tursinalabs.dailylah
 name: 06 Location denied then allowed
 ---
@@ -8,5 +8,36 @@ name: 06 Location denied then allowed
       location: deny
 - startRecording: 06_location
 - tapOn: "(?s)Nearby.*"
-- takeScreenshot: discover_location_1
+- tapOn: "(?s)Here"
+# Android may ask again; say no.
+- runFlow:
+    when:
+      visible: "(?i).*(don.t allow|deny).*"
+    commands:
+      - tapOn: "(?i)(don.t allow|deny)"
+- extendedWaitUntil:
+    visible: "(?s).*Location permission denied.*"
+    timeout: 20000
+- tapOn: "(?s)Search"
+- runFlow:
+    file: common/search_address.yaml
+    env:
+      POSTAL: "310201"
+- extendedWaitUntil:
+    visible: "(?s).*Buses near here.*"
+    timeout: 20000
+- stopApp
+# Ang Mo Kio, near the saved home.
+- setLocation:
+    latitude: 1.3691
+    longitude: 103.8454
+- launchApp:
+    permissions:
+      location: allow
+- tapOn: "(?s)Nearby.*"
+- tapOn: "(?s)Here"
+- extendedWaitUntil:
+    visible: "(?s).*My location.*"
+    timeout: 30000
+- assertNotVisible: "(?s).*Location permission denied.*"
 - stopRecording

@@ -1,4 +1,5 @@
-# Today shows the card for the saved home and live bus arrivals at its nearest stop.
+# Today shows the commute trip for the saved home and live bus arrivals at its stop; a bus
+# opens "Where's my bus?". Late at night the board says buses have stopped, which also passes.
 appId: com.tursinalabs.dailylah
 name: 03 Today bus arrivals
 ---
@@ -6,12 +7,23 @@ name: 03 Today bus arrivals
     stopApp: true
 - startRecording: 03_today_bus
 - tapOn: "(?s)Today.*"
+- scrollUntilVisible:
+    element: "(?s).*Buses (to|from) .*"
+    direction: DOWN
+    timeout: 30000
+    centerElement: true
+# Arrivals come from the API on Render (LTA DataMall); wait for an answer, not the spinner.
 - extendedWaitUntil:
-    visible: "(?s)Today.*"
-    timeout: 20000
-- takeScreenshot: discover_today_1
-- scroll
-- takeScreenshot: discover_today_2
-- scroll
-- takeScreenshot: discover_today_3
+    visible: "(?s).*(Tap a bus to see where it is|No direct bus|No buses right now|Buses have stopped|Bus times not available).*"
+    timeout: 90000
+- assertNotVisible: "(?s).*Bus times not available.*"
+- runFlow:
+    when:
+      visible: "(?s).*Tap a bus to see where it is.*"
+    commands:
+      - tapOn: "(?s)\\w+\\n(Arr|\\d+ min).*"
+      - extendedWaitUntil:
+          visible: "(?s).*Where's my bus\\?.*"
+          timeout: 20000
+      - back
 - stopRecording

@@ -1,4 +1,5 @@
-# Nearby: one section at a time, each chip opens its section without a crash.
+# Nearby with location off: the saved Work place, then one section at a time; each chip opens
+# its section without a crash.
 appId: com.tursinalabs.dailylah
 name: 04 Nearby
 ---
@@ -6,5 +7,30 @@ name: 04 Nearby
     stopApp: true
 - startRecording: 04_nearby
 - tapOn: "(?s)Nearby.*"
-- takeScreenshot: discover_nearby_1
+- extendedWaitUntil:
+    visible: "(?s).*Use your location to see buses.*"
+    timeout: 20000
+- tapOn: "(?s)Work"
+- extendedWaitUntil:
+    visible: "(?is).*(Singapore 310201|toa payoh).*"
+    timeout: 20000
+- tapOn: "(?s)Bus"
+- extendedWaitUntil:
+    visible: "(?s).*Buses near here.*"
+    timeout: 20000
+- tapOn: "(?s)Eat"
+- tapOn: "(?s)Parks"
+- tapOn: "(?s)Parking"
+# The chip row scrolls sideways; bring Taxi and Help into view.
+- swipe:
+    from: "(?s)Parking"
+    direction: LEFT
+- tapOn: "(?s)Taxi"
+- extendedWaitUntil:
+    visible: "(?s).*Taxis nearby.*"
+    timeout: 20000
+- tapOn: "(?s)Help"
+- extendedWaitUntil:
+    visible: "(?s).*995 Ambulance & fire.*"
+    timeout: 20000
 - stopRecording
