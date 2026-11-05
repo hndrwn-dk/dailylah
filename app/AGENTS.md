@@ -223,5 +223,9 @@ feature, screen, provider or rule moves, appears or goes away.
   is in docs/QA.md "Maestro".
 - `test/contract_test.dart` runs the parsers on the shared API examples in `contracts/v1/`; a parser
   that reads a new field or endpoint gets an example and a check there (docs/QA.md "Contract tests").
+- `test/golden_test.dart` compares Today, Nearby, Home and More (light and dark) with the images in
+  `test/goldens/`, on Linux CI only. A PR that changes how those tabs look on purpose updates the
+  images with the `goldens` workflow on its branch and says so in the description (docs/QA.md
+  "Golden tests").
 - `test/screens_matrix_test.dart` renders every screen under every condition in docs/QA.md (offline,
   denied location, 200% text, dark, small screen); a new screen or tab section is added there.
