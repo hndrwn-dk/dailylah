@@ -1,0 +1,22 @@
+# Address picker: the search field has focus when the page opens. Type a postal code and pick
+# the result. The API on Render may be asleep, so the first search can take up to a minute;
+# when no result shows, the search is sent again once.
+appId: com.tursinalabs.dailylah
+---
+- inputText: ${POSTAL}
+- pressKey: Enter
+- extendedWaitUntil:
+    visible: "(?s).*Singapore ${POSTAL}.*"
+    timeout: 90000
+    optional: true
+- runFlow:
+    when:
+      notVisible: "(?s).*Singapore ${POSTAL}.*"
+    commands:
+      - eraseText
+      - inputText: ${POSTAL}
+      - pressKey: Enter
+      - extendedWaitUntil:
+          visible: "(?s).*Singapore ${POSTAL}.*"
+          timeout: 90000
+- tapOn: "(?s).*Singapore ${POSTAL}.*"

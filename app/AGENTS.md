@@ -188,7 +188,8 @@ feature, screen, provider or rule moves, appears or goes away.
   (docs, tests, CI, data) leave both alone. On a push to `main` the `app` workflow builds the AAB and
   uploads only when `version:` changed (otherwise it runs analyze and tests only), and fails if it
   changed without new release notes. A release runs: build (`analyze`), then the whole `emulator` workflow on that commit
-  (`e2e`, a reusable call: flows on API 29/35/36; upgrade test against the previous `main`), and only if all of it passes the
+  (`e2e`, a reusable call: flows on API 29/35/36; upgrade test against the previous `main`; Maestro
+  flows on a universal APK made from the very AAB that is uploaded), and only if all of it passes the
   `play` job uploads to `alpha` (closed testing, the testers for the 14-day production requirement).
   Promote a tested release to production in Play Console. A manual run of `app` on `main` can pick
   another `play_track` (internal, beta, production as draft); it runs the same tests first. A flaky emulator
@@ -216,6 +217,10 @@ feature, screen, provider or rule moves, appears or goes away.
 - `test/contrast_test.dart` runs Flutter's text contrast check (4.5:1, large text 3:1) on every tab
   and section in light and dark. Text on the page or a card uses `DL.goText`, `DL.muted`, `DL.stopText`
   (theme-aware), never the light-only `DL.tealText`/`DL.mist`/`DL.stop`; those stay for sticker surfaces.
+- `maestro/` drives the release build through the screen like a person (onboarding, Setup over a restart,
+  Today buses, Nearby, Home, location, Appearance), run by the emulator `maestro` job. A change to a
+  string, tab or screen those flows tap on updates the flow in the same PR; how to write and run them
+  is in docs/QA.md "Maestro".
 - `test/contract_test.dart` runs the parsers on the shared API examples in `contracts/v1/`; a parser
   that reads a new field or endpoint gets an example and a check there (docs/QA.md "Contract tests").
 - `test/screens_matrix_test.dart` renders every screen under every condition in docs/QA.md (offline,

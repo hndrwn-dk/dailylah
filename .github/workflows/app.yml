@@ -118,7 +118,7 @@ jobs:
           retention-days: 30
 
   # The same commit must pass the on-device tests (app flows on API 29/35/36, upgrade over
-  # the previous main, the R8 release build) before anything goes to Google Play.
+  # the previous main, the R8 release build, Maestro on this AAB) before anything goes to Google Play.
   e2e:
     name: on-device tests
     needs: analyze
@@ -126,6 +126,8 @@ jobs:
     uses: ./.github/workflows/emulator.yml
     with:
       base_ref: ${{ github.event_name == 'push' && github.event.before || 'HEAD~1' }}
+      # The Maestro job tests the APK made from this very App Bundle.
+      aab_artifact: dailylah-aab
 
   play:
     name: upload to Google Play (${{ needs.analyze.outputs.track }})
