@@ -1,4 +1,4 @@
-# More > Appearance: switch to dark and back to following the phone.
+# More > Appearance: dark is kept after a restart, then back to following the phone.
 appId: com.tursinalabs.dailylah
 name: 07 More and appearance
 ---
@@ -6,7 +6,29 @@ name: 07 More and appearance
     stopApp: true
 - startRecording: 07_more
 - tapOn: "(?s)More.*"
-- takeScreenshot: discover_more_1
-- scroll
-- takeScreenshot: discover_more_2
+- scrollUntilVisible:
+    element: "(?s).*Appearance.*"
+    direction: DOWN
+- tapOn: "(?s).*Appearance.*"
+- extendedWaitUntil:
+    visible: "How should DailyLah look?"
+    timeout: 10000
+- tapOn: "(?s)Dark.*Always dark.*"
+- extendedWaitUntil:
+    visible: "(?s).*Appearance.*Dark.*"
+    timeout: 10000
+- stopApp
+- launchApp
+- tapOn: "(?s)More.*"
+- scrollUntilVisible:
+    element: "(?s).*Appearance.*Dark.*"
+    direction: DOWN
+- tapOn: "(?s).*Appearance.*"
+- extendedWaitUntil:
+    visible: "How should DailyLah look?"
+    timeout: 10000
+- tapOn: "(?s)Follow my phone.*"
+- extendedWaitUntil:
+    visible: "(?s).*Appearance.*Follow my phone.*"
+    timeout: 10000
 - stopRecording
