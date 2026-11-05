@@ -16,7 +16,7 @@ from .svy21 import to_latlon
 
 log = logging.getLogger(__name__)
 
-TOKEN_URL = "https://eservice.ura.gov.sg/uraDataService/insertNewToken/v1"
+TOKEN_URL = "https://eservice.ura.gov.sg/uraDataService/insertNewToken/v1"  # noqa: S105 (an endpoint URL, not a secret)
 DATA_URL = "https://eservice.ura.gov.sg/uraDataService/invokeUraDS/v1"
 # URA's gateway rejects requests without a browser-like agent.
 UA = {"User-Agent": "Mozilla/5.0 (compatible; DailyLah data build)"}

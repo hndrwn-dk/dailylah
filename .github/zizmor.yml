@@ -1,0 +1,8 @@
+# zizmor baseline (docs/QA.md, "Security scans"). Only Low/Informational findings may be
+# listed here, each with the reason. CI fails on any High finding; Medium shows as a warning.
+rules:
+  self-repository:
+    ignore:
+      # The release gate calls the emulator workflow as ./.github/workflows/emulator.yml:
+      # a local path in the same commit, so it cannot point at another repo or ref. Low.
+      - app.yml

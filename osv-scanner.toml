@@ -1,0 +1,10 @@
+# osv-scanner baseline (docs/QA.md, "Security scans"). security.yml fails on any High/Critical
+# advisory; Medium/Low show as warnings. List an advisory here only when it is Low and cannot
+# be fixed yet, with the reason and a date to look again:
+#
+# [[IgnoredVulns]]
+# id = "GHSA-xxxx-xxxx-xxxx"
+# ignoreUntil = 2027-01-31
+# reason = "Low: only reachable from <code path> that DailyLah does not use. Fix comes with <x>."
+#
+# Empty: no known advisories at the time of PR (Phase 1).

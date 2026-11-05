@@ -15,19 +15,24 @@ on:
       - "backend/app/sources.py"
       - "backend/app/bundles.py"
       - "backend/app/datagov.py"
-permissions:
-  contents: write
+permissions: {}
 concurrency:
   group: data
   cancel-in-progress: false
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Commits the rebuilt bundles to main.
+    permissions:
+      contents: write
     # The first run geocodes ~13,000 HDB blocks through OneMap (cached afterwards).
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The token is passed only to the push below, never stored in .git/config.
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
           cache: pip
@@ -47,6 +52,8 @@ jobs:
           EVENTFINDA_PASSWORD: ${{ secrets.EVENTFINDA_PASSWORD }}
         run: python -m app.build_static ../web/data
       - name: Commit if changed
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           # Stage first: plain `git diff` ignores new (untracked) files.
           git add web/data backend/data
@@ -56,9 +63,14 @@ jobs:
           git config user.name "dailylah-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "Update static data bundles"
+          # Push with the job token in a one-off header (checkout does not persist it).
+          b64=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          echo "::add-mask::$b64"
+          auth="AUTHORIZATION: basic $b64"
           # main may have moved while the build ran (it can take ~40 min).
           for i in 1 2 3; do
-            git pull --rebase origin main && git push && exit 0
+            git -c http.extraheader="$auth" pull --rebase origin main \
+              && git -c http.extraheader="$auth" push && exit 0
             sleep 10
           done
           exit 1

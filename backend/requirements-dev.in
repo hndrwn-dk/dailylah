@@ -1,0 +1,10 @@
+# Test and lint tools. requirements-dev.txt is the full locked tree made from this file:
+#   uv pip compile --python-version 3.12 --generate-hashes requirements-dev.in -o requirements-dev.txt
+# The runtime versions are taken from requirements.txt (-c), so tests run what Render runs.
+-c requirements.txt
+-r requirements.in
+pytest==9.2.0
+pytest-asyncio==1.4.1.post1
+respx==0.23.1
+ruff==0.17.3
+pip-audit==2.10.1

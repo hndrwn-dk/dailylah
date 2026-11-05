@@ -13,7 +13,7 @@ import httpx
 
 log = logging.getLogger("dailylah.onemap")
 
-TOKEN_URL = "https://www.onemap.gov.sg/api/auth/post/getToken"
+TOKEN_URL = "https://www.onemap.gov.sg/api/auth/post/getToken"  # noqa: S105 (an endpoint URL, not a secret)
 SEARCH_URL = "https://www.onemap.gov.sg/api/common/elastic/search"
 THEME_URL = "https://www.onemap.gov.sg/api/public/themesvc/retrieveTheme"
 

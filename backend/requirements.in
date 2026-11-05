@@ -1,0 +1,9 @@
+# Direct runtime dependencies. requirements.txt is the full locked tree made from this file:
+#   uv pip compile --python-version 3.12 --generate-hashes requirements.in -o requirements.txt
+# (Python 3.12, as on Render and in CI). Dependabot (pip) updates both.
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
+httpx==0.28.1
+pydantic-settings==2.16.2
+redis==8.1.0
+qstash==3.4.0
