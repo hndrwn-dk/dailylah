@@ -31,7 +31,30 @@ emulator e2e, Play upload gate) stay as they are.
   next to it. `scripts/repo_map.py` writes `docs/REPO_MAP.md` (files, public symbols, providers,
   endpoints) and the AGENTS.md copies; the `docs` workflow fails when either is stale.
   `.omc/` is ignored except `.omc/skills/`.
-- Next: 3 Maestro on the release APK, 4 app↔backend contract tests, 5 golden tests, 6 advisory
+- Phase 3 (Maestro, IN PROGRESS on branch `test/phase3-maestro`, no PR yet). Decision A: Maestro
+  tests the release build; on a release it tests a universal APK made with bundletool from the very
+  AAB that goes to Play (re-signed with a throwaway key), so the upload key never reaches the
+  emulator job; on a PR it tests the R8 release APK built from the commit.
+  - Done: `maestro` job in emulator.yml (Maestro 2.12.1 and bundletool 1.18.3 pinned by SHA-256),
+    input `aab_artifact` (app.yml `e2e` passes `dailylah-aab`), `scripts/emulator_maestro.sh`,
+    `app/maestro/config.yaml` (flowsOrder uses each flow's `name:`), `common/search_address.yaml`,
+    flows 01–07.
+  - Iterate with a manual run on the branch:
+    `gh api -X POST repos/hndrwn-dk/dailylah/actions/workflows/emulator.yml/dispatches -f ref=test/phase3-maestro`,
+    then read the Maestro job log (`gh api repos/hndrwn-dk/dailylah/actions/jobs/<id>/logs`). On a
+    failure the script prints the texts on screen ("Screen when the flows stopped").
+  - Last run (4th): 01 Onboarding passes (about 1 min). 02 fails: in More, "Your setup" is only a
+    section title; tap "(?s).*Places, lines and times.*" (S.editSetup) instead, in both places.
+  - Lessons: Flutter often merges texts into one node, so match with "(?s).*text.*"; a TextField
+    hint cannot be matched (the address field has autofocus, so just inputText); test postal codes
+    560201 (Blk 201 Ang Mo Kio Ave 3) and 310201 (Toa Payoh); the first search through Render can
+    take about a minute.
+  - Left: write flows 03–07 from the real screens (they are still "discover" versions that only
+    take screenshots); remove the TEMPORARY screenshot block in emulator_maestro.sh (it never
+    printed anything; the screen dump is enough); docs (QA.md, app/CLAUDE.md, CLAUDE.md, this
+    file) and `python3 scripts/repo_map.py`; measure CI time; show the commit and PR drafts.
+  - Commits and PRs carry no AI attribution; the final squash merge uses its own title and message.
+- Next: 4 app↔backend contract tests, 5 golden tests, 6 advisory
   AI review, 7 release-check before production, 8 daily web check.
 
 ### GitHub settings to set by hand (Phase 1)
