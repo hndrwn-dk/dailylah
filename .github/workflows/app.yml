@@ -118,7 +118,7 @@ jobs:
           retention-days: 30
 
   # The same commit must pass the on-device tests (app flows on API 29/35/36, upgrade over
-  # the previous main, the R8 release build) before anything goes to Google Play.
+  # the previous main, the R8 release build, Maestro on this AAB) before anything goes to Google Play.
   e2e:
     name: on-device tests
     needs: analyze
