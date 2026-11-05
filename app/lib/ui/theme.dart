@@ -76,7 +76,7 @@ class DL {
       Theme.of(context).brightness == Brightness.dark ? nightEdge : ink;
 
   /// Hard offset shadow, no blur.
-  static List<BoxShadow> hard(BuildContext context, {double d = 5}) =>
+  static List<BoxShadow> hard(BuildContext context, {double d = 4}) =>
       [BoxShadow(color: edge(context), offset: Offset(d, d))];
 
   /// Official MRT/LRT line colours.
