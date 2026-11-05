@@ -16,6 +16,7 @@ This file maps that plan to the automated tests in this repo and lists what is s
 | Release build (R8) `scripts/emulator_release.sh` | GitHub Actions `emulator` (API 35) | every PR touching `app/` | release build with R8 starts with saved data, runs the WorkManager job and widget; fails on missing classes/plugins in logcat |
 | Maestro flows `app/maestro/` (`scripts/emulator_maestro.sh`) | GitHub Actions `emulator` job `maestro` (API 35) | every PR touching `app/`, and every release before the upload | 1, 3A, 3C as a person uses the release build: onboarding, Setup saved over a restart, Today bus arrivals, Nearby sections, Home block, location denied then allowed, Appearance; see "Maestro" below |
 | Contract tests `contracts/v1/` | GitHub Actions `backend` (`tests/test_contracts.py`) and `app` (`test/contract_test.dart`) | every push touching `backend/`, `app/` or `contracts/` | the app and the server agree on every `/v1/*` response; see "Contract tests" below |
+| Golden tests `app/test/golden_test.dart` | GitHub Actions `app` (Linux only, `GOLDENS=1`) | every push touching `app/` | Today, Nearby, Home and More in light and dark, pixel by pixel against `app/test/goldens/`; see "Golden tests" below |
 | Feature tests `app/test/features_test.dart` | GitHub Actions `app` (flutter test) | every PR | each feature through the real widgets: Ate here at halal places, meal time in History, live bus position |
 | Release gate | GitHub Actions `app` jobs `e2e` + `play` | every push to `main` and manual releases | the whole `emulator` workflow must pass on the commit before the AAB goes to Google Play (closed testing by default) |
 | Real phones `testlab.yml` (Robo) | Firebase Test Lab | by hand before a release | 6: crashes on a Samsung, a Xiaomi/Oppo and a Google phone |
@@ -105,6 +106,23 @@ and the `response` the app reads.
   `contracts/` changes. `fetched_at` stays fixed in the examples so the diff only shows real changes.
 - Not covered: the upstream itself (data.gov.sg, LTA, OneMap) changing its format. The data
   workflow and live use catch that.
+
+## Golden tests (visual regression)
+
+`app/test/golden_test.dart` renders Today, Nearby, Home and More in light and dark (8 images,
+824x1830, the app's fonts and Material icons) with the test household, a fixed clock (Tuesday
+7 am), `FakeApi` and the committed bundles, and compares each with `app/test/goldens/<tab>-<mode>.png`.
+
+- Linux CI only: fonts render a little differently on macOS and Windows, so the tests are skipped
+  unless `GOLDENS=1` on Linux (the `app` workflow sets it). `flutter test` on a laptop skips them.
+- A failure means the screen changed. The `app` run keeps the expected, actual and diff images as
+  the artifact `golden-failures` (Actions > the run > Artifacts), readable on a phone.
+- A deliberate UI change: run Actions > goldens > Run workflow on the PR branch. It renders the
+  images on Linux, commits them as dailylah-bot and keeps them as the artifact `goldens`; review
+  the new images in the PR diff. A commit made with the workflow token does not start other
+  workflows, so the next push to the branch (or the merge to main) checks them again.
+  `goldens` never runs on main.
+- An unexpected change is a bug: fix the code, do not update the images.
 
 ## Layout bugs the matrix found (fixed in PR #51)
 

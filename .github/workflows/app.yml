@@ -70,11 +70,22 @@ jobs:
             | awk -F'|' 'NF>=8 {printf "::error file=app/%s,line=%s,col=%s::%s %s: %s\n", substr($4, index($4, "/lib/") ? index($4, "/lib/")+1 : index($4, "/test/")+1), $5, $6, $1, $3, $8}' || true
           flutter analyze
       - name: flutter test
+        env:
+          # Golden tests (test/golden_test.dart) run on this Linux runner only.
+          GOLDENS: "1"
         run: |
           set -o pipefail
           flutter test --reporter=expanded --file-reporter=json:test.json 2>&1 | tee test.log || {
             # One annotation listing every failed test with its first error line.
             python3 ../scripts/test_failures.py test.json ; exit 1; }
+      # Expected, actual and diff images of failed golden tests (docs/QA.md, "Golden tests").
+      - name: Keep golden test failures
+        if: failure() && hashFiles('app/test/failures/**') != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: golden-failures
+          path: app/test/failures
+          retention-days: 14
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         if: steps.track.outputs.track != 'none'
         with:

@@ -43,7 +43,10 @@ emulator e2e, Play upload gate) stay as they are.
   request, upstream, response), `backend/tests/test_contracts.py` (structure, with
   `UPDATE_CONTRACTS=1` to rewrite) and `app/test/contract_test.dart` (parsers read the same files).
   `backend` and `app` workflows also run on `contracts/**`.
-- Next: 5 golden tests, 6 advisory
+- Phase 5 (golden tests, branch `test/phase5-goldens`): `app/test/golden_test.dart` (4 tabs x
+  light/dark, Linux CI only via `GOLDENS=1`), images in `app/test/goldens/`, artifact
+  `golden-failures` on a failed `app` run, `goldens.yml` rewrites and commits the images on a branch.
+- Next: 6 advisory
   AI review, 7 release-check before production, 8 daily web check.
 
 ### GitHub settings to set by hand (Phase 1)
