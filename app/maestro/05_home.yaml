@@ -5,6 +5,6 @@ name: 05 Home
 - launchApp:
     stopApp: true
 - startRecording: 05_home
-- tapOn: "Home.*"
+- tapOn: "(?s)Home.*"
 - takeScreenshot: discover_home_1
 - stopRecording

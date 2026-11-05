@@ -7,6 +7,6 @@ name: 06 Location denied then allowed
     permissions:
       location: deny
 - startRecording: 06_location
-- tapOn: "Nearby.*"
+- tapOn: "(?s)Nearby.*"
 - takeScreenshot: discover_location_1
 - stopRecording

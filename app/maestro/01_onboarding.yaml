@@ -9,7 +9,7 @@ name: 01 Onboarding
       notifications: allow
 - startRecording: 01_onboarding
 - extendedWaitUntil:
-    visible: "Welcome to"
+    visible: "(?s).*Welcome to.*"
     timeout: 30000
 - assertNotVisible: "(?is).*(relig|muslim|prayer).*"
 - tapOn:
@@ -30,7 +30,7 @@ name: 01 Onboarding
     direction: DOWN
 - tapOn: "Done"
 - extendedWaitUntil:
-    visible: "Today.*"
+    visible: "(?s)Today.*"
     timeout: 30000
-- assertNotVisible: "Welcome to"
+- assertNotVisible: "(?s).*Welcome to.*"
 - stopRecording

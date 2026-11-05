@@ -47,7 +47,7 @@ adb -s "$DEVICE" install "$APK"
 
 set +e
 cd "$OUT"  # takeScreenshot and startRecording write here
-maestro --device "$DEVICE" test "$ROOT/app/maestro" \
+maestro --device "$DEVICE" test --config "$ROOT/app/maestro/config.yaml" "$ROOT/app/maestro" \
   --format junit --output "$OUT/report.xml" \
   --debug-output "$OUT/debug"
 rc=$?
@@ -90,7 +90,8 @@ except ValueError:
   echo "- Screenshots, videos and logs: artifact maestro-results" >> "$SUMMARY"
 fi
 # TEMPORARY (Phase 3 work): print the screenshots so the flows can be written from real screens.
-for f in "$OUT"/discover_*.png; do
+adb -s "$DEVICE" logcat -d 2>/dev/null | grep -E "flutter|AndroidRuntime|dailylah|FATAL" | tail -60 || true
+for f in "$OUT"/discover_*.png $(find "$OUT/debug" -name '*.png' 2>/dev/null | head -8); do
   [ -f "$f" ] || continue
   echo "::group::SHOT $(basename "$f")"
   convert "$f" -resize 45% -quality 55 jpg:- | base64 -w0

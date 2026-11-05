@@ -6,14 +6,14 @@ name: 02 Save home and work
     stopApp: true
 - startRecording: 02_save_home_work
 - extendedWaitUntil:
-    visible: "More.*"
+    visible: "(?s)More.*"
     timeout: 30000
-- assertNotVisible: "Welcome to"
-- tapOn: "More.*"
+- assertNotVisible: "(?s).*Welcome to.*"
+- tapOn: "(?s)More.*"
 - scrollUntilVisible:
-    element: "Your setup.*"
+    element: "(?s).*Your setup.*"
     direction: DOWN
-- tapOn: "Your setup.*"
+- tapOn: "(?s).*Your setup.*"
 - assertVisible: "Singapore 560201"
 - tapOn:
     text: "Set address"
@@ -34,11 +34,11 @@ name: 02 Save home and work
 - tapOn: "Save"
 - stopApp
 - launchApp
-- tapOn: "More.*"
+- tapOn: "(?s)More.*"
 - scrollUntilVisible:
-    element: "Your setup.*"
+    element: "(?s).*Your setup.*"
     direction: DOWN
-- tapOn: "Your setup.*"
+- tapOn: "(?s).*Your setup.*"
 - assertVisible: "Singapore 560201"
 - scrollUntilVisible:
     element: "Singapore 310201"

@@ -5,9 +5,9 @@ name: 03 Today bus arrivals
 - launchApp:
     stopApp: true
 - startRecording: 03_today_bus
-- tapOn: "Today.*"
+- tapOn: "(?s)Today.*"
 - extendedWaitUntil:
-    visible: "Today.*"
+    visible: "(?s)Today.*"
     timeout: 20000
 - takeScreenshot: discover_today_1
 - scroll
