@@ -46,13 +46,21 @@ emulator e2e, Play upload gate) stay as they are.
 - Phase 5 (golden tests, branch `test/phase5-goldens`): `app/test/golden_test.dart` (4 tabs x
   light/dark, Linux CI only via `GOLDENS=1`), images in `app/test/goldens/`, artifact
   `golden-failures` on a failed `app` run, `goldens.yml` rewrites and commits the images on a branch.
-- Phase 6 (AI review, branch `test/phase6-ai-review`): no API key and no workflow. A Claude Code
-  cloud scheduled task (every 8 h, Singapore time) runs `.claude/skills/review-pr` with
+- Phase 6 (AI review, PR #101): no API key and no workflow. On request in a session,
+  `.claude/skills/review-pr` runs with
   `.github/prompts/review.md` and `.claude/security-profile.md`; one advisory comment per PR,
   security through the owner's claude-toolkit (read from the private `hndrwn-dk/security-memory`,
   not installed: auto mode blocks writing hooks into `~/.claude`), details only in that repo.
   Merges after #101 get the toolkit's security gate first ("security gate for PR #N").
-- Next: 7 release-check before production, 8 daily web check.
+  The 8-hourly scheduled run was tried and removed: it needs a standing session with the repos
+  attached, and since most PRs come from Claude sessions that already run the gate, it mostly spent
+  plan usage.
+- Phase 7 (release check) shrank to a checklist: docs/QA.md "Before promoting a release to
+  production" (security green, Test Lab, /vuln-scan in a session); no new workflow, since the Play
+  upload is already gated and production is promoted by hand.
+- Phase 8 (web check, branch `ci/phase8-web-check`): `web-check.yml` daily at 07:23 SGT runs
+  `scripts/web_check.sh` (curl): site, /privacy and /terms redirects, manifest on the 3 hosts, one
+  bundle sha256. CI/CD hardening is done after this PR.
 
 ### GitHub settings to set by hand (Phase 1)
 Settings > Advanced Security (or Code security):
