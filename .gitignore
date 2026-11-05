@@ -22,3 +22,7 @@ GoogleService-Info.plist
 .idea/
 .vscode/
 .vercel
+
+# Local agent state (oh-my-claudecode). Only the shared skills are committed.
+.omc/*
+!.omc/skills/

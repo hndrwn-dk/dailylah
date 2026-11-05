@@ -1,6 +1,7 @@
 # DailyLah: handoff for the next chat
 
-Start here, then read `CLAUDE.md` (the feature map is kept current there) and `docs/PRD.md`.
+Start here, then read `CLAUDE.md` (root rules and where everything else lives), `app/CLAUDE.md`
+(the feature map is kept current there), `backend/CLAUDE.md`, `docs/REPO_MAP.md` and `docs/PRD.md`.
 
 ## Status (24 Oct 2026)
 - `main` is at PR #42. All feature branches are merged and deleted on GitHub, except
@@ -24,10 +25,14 @@ emulator e2e, Play upload gate) stay as they are.
   committed `app/pubspec.lock`, every action pinned to a SHA, minimal `permissions`. Old findings
   were fixed in the same PR; baselines hold Low only. Rules are in CLAUDE.md "CI security" and
   docs/QA.md "Security scans".
-- Next: 2 split CLAUDE.md + REPO_MAP, 3 Maestro on the release APK, 4 app↔backend contract tests,
-  5 golden tests, 6 advisory AI review, 7 release-check before production, 8 daily web check.
-- `AGENTS.md` has fallen behind CLAUDE.md (only the CI security rules were synced in Phase 1);
-  bring it in line in Phase 2.
+- Phase 2 (agent docs, branch `docs/phase2-memory-repo-map`): CLAUDE.md split into root,
+  `app/CLAUDE.md` (feature map, UI, build/release, tests) and `backend/CLAUDE.md` (free tier, API,
+  data pipeline), with no line lost. `AGENTS.md` in each folder is now made from the CLAUDE.md
+  next to it. `scripts/repo_map.py` writes `docs/REPO_MAP.md` (files, public symbols, providers,
+  endpoints) and the AGENTS.md copies; the `docs` workflow fails when either is stale.
+  `.omc/` is ignored except `.omc/skills/`.
+- Next: 3 Maestro on the release APK, 4 app↔backend contract tests, 5 golden tests, 6 advisory
+  AI review, 7 release-check before production, 8 daily web check.
 
 ### GitHub settings to set by hand (Phase 1)
 Settings > Advanced Security (or Code security):

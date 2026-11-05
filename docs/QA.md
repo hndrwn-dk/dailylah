@@ -19,6 +19,7 @@ This file maps that plan to the automated tests in this repo and lists what is s
 | Real phones `testlab.yml` (Robo) | Firebase Test Lab | by hand before a release | 6: crashes on a Samsung, a Xiaomi/Oppo and a Google phone |
 | Security scans `security.yml` | GitHub Actions `security` | every PR, push to `main`, Mondays | CodeQL (actions, python, java-kotlin), osv-scanner (dependencies), zizmor (workflows); see below |
 | Backend security `backend.yml` | GitHub Actions `backend` | every push touching `backend/` | ruff bandit rules (`S`), `pip-audit` on the installed dependency tree |
+| Agent docs `docs.yml` | GitHub Actions `docs` | every PR and push to `main` | `docs/REPO_MAP.md` and every `AGENTS.md` match the code and CLAUDE.md (`scripts/repo_map.py --check`) |
 
 The screen matrix uses the bundles committed in `web/data/`, so screens render with real data.
 The API, location and storage are faked. A test fails on any exception or layout overflow.

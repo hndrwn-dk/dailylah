@@ -4,7 +4,9 @@ Know before you go lah. A free Flutter app that turns Singapore open data (data.
 LTA DataMall) into one morning card, one evening card, and only the alerts that matter.
 
 - Product requirements: [`docs/PRD.md`](docs/PRD.md)
-- Guide for AI coding agents: [`CLAUDE.md`](CLAUDE.md) / [`AGENTS.md`](AGENTS.md)
+- Guide for AI coding agents: [`CLAUDE.md`](CLAUDE.md) / [`AGENTS.md`](AGENTS.md), with
+  [`app/CLAUDE.md`](app/CLAUDE.md), [`backend/CLAUDE.md`](backend/CLAUDE.md) and the code index
+  [`docs/REPO_MAP.md`](docs/REPO_MAP.md)
 
 ## Stack
 | Part | Tech | Hosting (free tier) |
