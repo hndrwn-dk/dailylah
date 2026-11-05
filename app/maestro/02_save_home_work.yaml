@@ -1,4 +1,4 @@
-# Saved home survives a restart; work is added from More > Your setup and saved.
+# Saved home survives a restart; work is added from More > Places, lines and times and saved.
 appId: com.tursinalabs.dailylah
 name: 02 Save home and work
 ---
@@ -11,9 +11,9 @@ name: 02 Save home and work
 - assertNotVisible: "(?s).*Welcome to.*"
 - tapOn: "(?s)More.*"
 - scrollUntilVisible:
-    element: "(?s).*Your setup.*"
+    element: "(?s).*Places, lines and times.*"
     direction: DOWN
-- tapOn: "(?s).*Your setup.*"
+- tapOn: "(?s).*Places, lines and times.*"
 - assertVisible: "(?s).*Singapore 560201.*"
 - tapOn:
     text: "Set address"
@@ -36,9 +36,9 @@ name: 02 Save home and work
 - launchApp
 - tapOn: "(?s)More.*"
 - scrollUntilVisible:
-    element: "(?s).*Your setup.*"
+    element: "(?s).*Places, lines and times.*"
     direction: DOWN
-- tapOn: "(?s).*Your setup.*"
+- tapOn: "(?s).*Places, lines and times.*"
 - assertVisible: "(?s).*Singapore 560201.*"
 - scrollUntilVisible:
     element: "(?s).*Singapore 310201.*"
