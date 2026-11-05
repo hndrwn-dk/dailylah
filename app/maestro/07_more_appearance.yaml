@@ -1,0 +1,37 @@
+# More > Appearance: dark is kept after a restart, then back to following the phone.
+appId: com.tursinalabs.dailylah
+name: 07 More and appearance
+---
+- launchApp:
+    stopApp: true
+- startRecording: 07_more
+- tapOn: "(?s)More.*"
+# Centred, so the tap does not land under the floating tab bar.
+- scrollUntilVisible:
+    element: "(?s)Appearance.*"
+    direction: DOWN
+    centerElement: true
+- tapOn: "(?s)Appearance.*"
+- extendedWaitUntil:
+    visible: "How should DailyLah look?"
+    timeout: 10000
+- tapOn: "(?s)Dark.*Always dark.*"
+- extendedWaitUntil:
+    visible: "(?s)Appearance.*Dark.*"
+    timeout: 10000
+- stopApp
+- launchApp
+- tapOn: "(?s)More.*"
+- scrollUntilVisible:
+    element: "(?s)Appearance.*Dark.*"
+    direction: DOWN
+    centerElement: true
+- tapOn: "(?s)Appearance.*"
+- extendedWaitUntil:
+    visible: "How should DailyLah look?"
+    timeout: 10000
+- tapOn: "(?s)Follow my phone.*"
+- extendedWaitUntil:
+    visible: "(?s)Appearance.*Follow my phone.*"
+    timeout: 10000
+- stopRecording

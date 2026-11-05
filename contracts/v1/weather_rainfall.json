@@ -1,0 +1,68 @@
+{
+  "request": "/v1/weather/rainfall",
+  "upstream": {
+    "code": 0,
+    "errorMsg": "",
+    "data": {
+      "stations": [
+        {
+          "id": "S109",
+          "deviceId": "S109",
+          "name": "Ang Mo Kio Avenue 5",
+          "location": {
+            "latitude": 1.3764,
+            "longitude": 103.8492
+          }
+        }
+      ],
+      "readings": [
+        {
+          "timestamp": "2026-11-05T12:00:00+08:00",
+          "data": [
+            {
+              "stationId": "S109",
+              "value": 0.4
+            }
+          ]
+        }
+      ],
+      "readingType": "TB1 Rainfall 5 Minute Total F",
+      "readingUnit": "mm",
+      "paginationToken": null
+    }
+  },
+  "response": {
+    "fetched_at": 1793850000,
+    "data": {
+      "code": 0,
+      "errorMsg": "",
+      "data": {
+        "stations": [
+          {
+            "id": "S109",
+            "deviceId": "S109",
+            "name": "Ang Mo Kio Avenue 5",
+            "location": {
+              "latitude": 1.3764,
+              "longitude": 103.8492
+            }
+          }
+        ],
+        "readings": [
+          {
+            "timestamp": "2026-11-05T12:00:00+08:00",
+            "data": [
+              {
+                "stationId": "S109",
+                "value": 0.4
+              }
+            ]
+          }
+        ],
+        "readingType": "TB1 Rainfall 5 Minute Total F",
+        "readingUnit": "mm",
+        "paginationToken": null
+      }
+    }
+  }
+}

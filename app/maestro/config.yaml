@@ -1,0 +1,14 @@
+# Maestro flows on the release build (docs/QA.md, "Maestro"). Run by scripts/emulator_maestro.sh
+# in the emulator workflow. They run in this order: 01 sets up the household the others use.
+flows:
+  - "*.yaml"
+executionOrder:
+  continueOnFailure: false
+  flowsOrder:
+    - "01 Onboarding"
+    - "02 Save home and work"
+    - "03 Today bus arrivals"
+    - "04 Nearby"
+    - "05 Home"
+    - "06 Location denied then allowed"
+    - "07 More and appearance"

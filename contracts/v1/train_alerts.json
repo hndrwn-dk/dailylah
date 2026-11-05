@@ -1,0 +1,50 @@
+{
+  "request": "/v1/train-alerts",
+  "upstream": {
+    "odata.metadata": "https://datamall2.mytransport.sg/ltaodataservice/$metadata#TrainServiceAlerts",
+    "value": {
+      "Status": 2,
+      "AffectedSegments": [
+        {
+          "Line": "NSL",
+          "Direction": "Both",
+          "Stations": "NS16,NS17,NS18",
+          "FreePublicBus": "NS16,NS17,NS18",
+          "FreeMRTShuttle": "",
+          "MRTShuttleDirection": ""
+        }
+      ],
+      "Message": [
+        {
+          "Content": "1200hrs: NSL - No train service between Ang Mo Kio and Braddell stations.",
+          "CreatedDate": "2026-11-05 12:00:00"
+        }
+      ]
+    }
+  },
+  "response": {
+    "fetched_at": 1793850000,
+    "data": {
+      "odata.metadata": "https://datamall2.mytransport.sg/ltaodataservice/$metadata#TrainServiceAlerts",
+      "value": {
+        "Status": 2,
+        "AffectedSegments": [
+          {
+            "Line": "NSL",
+            "Direction": "Both",
+            "Stations": "NS16,NS17,NS18",
+            "FreePublicBus": "NS16,NS17,NS18",
+            "FreeMRTShuttle": "",
+            "MRTShuttleDirection": ""
+          }
+        ],
+        "Message": [
+          {
+            "Content": "1200hrs: NSL - No train service between Ang Mo Kio and Braddell stations.",
+            "CreatedDate": "2026-11-05 12:00:00"
+          }
+        ]
+      }
+    }
+  }
+}

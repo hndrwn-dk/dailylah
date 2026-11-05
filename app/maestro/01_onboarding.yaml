@@ -1,0 +1,36 @@
+# New install: Setup asks no religion question, home is set by postal code, Done opens Today.
+appId: com.tursinalabs.dailylah
+name: 01 Onboarding
+---
+- launchApp:
+    clearState: true
+    permissions:
+      all: deny
+      notifications: allow
+- startRecording: 01_onboarding
+- extendedWaitUntil:
+    visible: "(?s).*Welcome to.*"
+    timeout: 30000
+- assertNotVisible: "(?is).*(relig|muslim|prayer).*"
+- tapOn:
+    text: "Set address"
+    index: 0
+- extendedWaitUntil:
+    visible: "Address of Home"
+    timeout: 10000
+- runFlow:
+    file: common/search_address.yaml
+    env:
+      POSTAL: "560201"
+- extendedWaitUntil:
+    visible: "(?s).*Singapore 560201.*"
+    timeout: 20000
+- scrollUntilVisible:
+    element: "Done"
+    direction: DOWN
+- tapOn: "Done"
+- extendedWaitUntil:
+    visible: "(?s)Today.*"
+    timeout: 30000
+- assertNotVisible: "(?s).*Welcome to.*"
+- stopRecording

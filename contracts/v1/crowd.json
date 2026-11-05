@@ -1,0 +1,50 @@
+{
+  "request": "/v1/crowd/NSL",
+  "upstream": {
+    "value": [
+      {
+        "Station": "NS16",
+        "StartTime": "2026-11-05T12:00:00+08:00",
+        "EndTime": "2026-11-05T12:10:00+08:00",
+        "CrowdLevel": "h"
+      },
+      {
+        "Station": "NS17",
+        "StartTime": "2026-11-05T12:00:00+08:00",
+        "EndTime": "2026-11-05T12:10:00+08:00",
+        "CrowdLevel": "l"
+      },
+      {
+        "Station": "NS18",
+        "StartTime": "2026-11-05T12:00:00+08:00",
+        "EndTime": "2026-11-05T12:10:00+08:00",
+        "CrowdLevel": "NA"
+      }
+    ]
+  },
+  "response": {
+    "fetched_at": 1793850000,
+    "data": {
+      "value": [
+        {
+          "Station": "NS16",
+          "StartTime": "2026-11-05T12:00:00+08:00",
+          "EndTime": "2026-11-05T12:10:00+08:00",
+          "CrowdLevel": "h"
+        },
+        {
+          "Station": "NS17",
+          "StartTime": "2026-11-05T12:00:00+08:00",
+          "EndTime": "2026-11-05T12:10:00+08:00",
+          "CrowdLevel": "l"
+        },
+        {
+          "Station": "NS18",
+          "StartTime": "2026-11-05T12:00:00+08:00",
+          "EndTime": "2026-11-05T12:10:00+08:00",
+          "CrowdLevel": "NA"
+        }
+      ]
+    }
+  }
+}

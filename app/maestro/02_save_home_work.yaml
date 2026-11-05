@@ -1,0 +1,50 @@
+# Saved home survives a restart; work is added from More > Places, lines and times and saved.
+appId: com.tursinalabs.dailylah
+name: 02 Save home and work
+---
+- launchApp:
+    stopApp: true
+- startRecording: 02_save_home_work
+- extendedWaitUntil:
+    visible: "(?s)More.*"
+    timeout: 30000
+- assertNotVisible: "(?s).*Welcome to.*"
+- tapOn: "(?s)More.*"
+- scrollUntilVisible:
+    element: "(?s).*Places, lines and times.*"
+    direction: DOWN
+- tapOn: "(?s).*Places, lines and times.*"
+- assertVisible: "(?s).*Singapore 560201.*"
+# Work is below the fold; Flutter leaves off-screen rows out of the hierarchy.
+- scrollUntilVisible:
+    element: "Set address"
+    direction: DOWN
+- tapOn:
+    text: "Set address"
+    index: 0
+- extendedWaitUntil:
+    visible: "Address of Work"
+    timeout: 10000
+- runFlow:
+    file: common/search_address.yaml
+    env:
+      POSTAL: "310201"
+- extendedWaitUntil:
+    visible: "(?s).*Singapore 310201.*"
+    timeout: 20000
+- scrollUntilVisible:
+    element: "Save"
+    direction: DOWN
+- tapOn: "Save"
+- stopApp
+- launchApp
+- tapOn: "(?s)More.*"
+- scrollUntilVisible:
+    element: "(?s).*Places, lines and times.*"
+    direction: DOWN
+- tapOn: "(?s).*Places, lines and times.*"
+- assertVisible: "(?s).*Singapore 560201.*"
+- scrollUntilVisible:
+    element: "(?s).*Singapore 310201.*"
+    direction: DOWN
+- stopRecording
