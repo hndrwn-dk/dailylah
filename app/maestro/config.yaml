@@ -5,10 +5,10 @@ flows:
 executionOrder:
   continueOnFailure: false
   flowsOrder:
-    - 01_onboarding
-    - 02_save_home_work
-    - 03_today_bus
-    - 04_nearby
-    - 05_home
-    - 06_location_denied_then_allowed
-    - 07_more_appearance
+    - "01 Onboarding"
+    - "02 Save home and work"
+    - "03 Today bus arrivals"
+    - "04 Nearby"
+    - "05 Home"
+    - "06 Location denied then allowed"
+    - "07 More and appearance"

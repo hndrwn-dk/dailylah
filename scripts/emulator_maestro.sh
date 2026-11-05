@@ -91,7 +91,7 @@ except ValueError:
 fi
 # TEMPORARY (Phase 3 work): print the screenshots so the flows can be written from real screens.
 adb -s "$DEVICE" logcat -d 2>/dev/null | grep -E "flutter|AndroidRuntime|dailylah|FATAL" | tail -60 || true
-for f in "$OUT"/discover_*.png $(find "$OUT/debug" -name '*.png' 2>/dev/null | head -8); do
+for f in "$OUT"/discover_*.png $(find "$OUT/debug" "$HOME/.maestro/tests" -name '*.png' 2>/dev/null | head -8); do
   [ -f "$f" ] || continue
   echo "::group::SHOT $(basename "$f")"
   convert "$f" -resize 45% -quality 55 jpg:- | base64 -w0

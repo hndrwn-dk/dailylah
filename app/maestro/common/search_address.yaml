@@ -1,8 +1,8 @@
-# Address picker: type a postal code and pick the result. The API on Render may be asleep,
-# so the first search can take up to a minute; a "waking up" answer is retried once.
+# Address picker: the search field has focus when the page opens. Type a postal code and pick
+# the result. The API on Render may be asleep, so the first search can take up to a minute;
+# when no result shows, the search is sent again once.
 appId: com.tursinalabs.dailylah
 ---
-- tapOn: "Postal code, block and street, or building"
 - inputText: ${POSTAL}
 - pressKey: Enter
 - extendedWaitUntil:
@@ -13,7 +13,8 @@ appId: com.tursinalabs.dailylah
     when:
       notVisible: "Singapore ${POSTAL}"
     commands:
-      - tapOn: "Postal code, block and street, or building"
+      - eraseText
+      - inputText: ${POSTAL}
       - pressKey: Enter
       - extendedWaitUntil:
           visible: "Singapore ${POSTAL}"
