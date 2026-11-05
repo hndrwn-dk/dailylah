@@ -1,0 +1,12 @@
+# Location: denied shows the message and keeps search; allowed sets "My location".
+appId: com.tursinalabs.dailylah
+name: 06 Location denied then allowed
+---
+- launchApp:
+    stopApp: true
+    permissions:
+      location: deny
+- startRecording: 06_location
+- tapOn: "Nearby.*"
+- takeScreenshot: discover_location_1
+- stopRecording

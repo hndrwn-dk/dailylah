@@ -1,0 +1,10 @@
+# Nearby: one section at a time, each chip opens its section without a crash.
+appId: com.tursinalabs.dailylah
+name: 04 Nearby
+---
+- launchApp:
+    stopApp: true
+- startRecording: 04_nearby
+- tapOn: "Nearby.*"
+- takeScreenshot: discover_nearby_1
+- stopRecording

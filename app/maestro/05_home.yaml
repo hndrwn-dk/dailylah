@@ -1,0 +1,10 @@
+# Home tab: the saved HDB block (Blk 201 Ang Mo Kio Ave 3) and its sections.
+appId: com.tursinalabs.dailylah
+name: 05 Home
+---
+- launchApp:
+    stopApp: true
+- startRecording: 05_home
+- tapOn: "Home.*"
+- takeScreenshot: discover_home_1
+- stopRecording

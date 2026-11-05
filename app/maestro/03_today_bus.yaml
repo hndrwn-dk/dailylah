@@ -1,0 +1,17 @@
+# Today shows the card for the saved home and live bus arrivals at its nearest stop.
+appId: com.tursinalabs.dailylah
+name: 03 Today bus arrivals
+---
+- launchApp:
+    stopApp: true
+- startRecording: 03_today_bus
+- tapOn: "Today.*"
+- extendedWaitUntil:
+    visible: "Today.*"
+    timeout: 20000
+- takeScreenshot: discover_today_1
+- scroll
+- takeScreenshot: discover_today_2
+- scroll
+- takeScreenshot: discover_today_3
+- stopRecording

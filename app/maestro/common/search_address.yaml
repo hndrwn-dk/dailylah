@@ -1,0 +1,21 @@
+# Address picker: type a postal code and pick the result. The API on Render may be asleep,
+# so the first search can take up to a minute; a "waking up" answer is retried once.
+appId: com.tursinalabs.dailylah
+---
+- tapOn: "Postal code, block and street, or building"
+- inputText: ${POSTAL}
+- pressKey: Enter
+- extendedWaitUntil:
+    visible: "Singapore ${POSTAL}"
+    timeout: 90000
+    optional: true
+- runFlow:
+    when:
+      notVisible: "Singapore ${POSTAL}"
+    commands:
+      - tapOn: "Postal code, block and street, or building"
+      - pressKey: Enter
+      - extendedWaitUntil:
+          visible: "Singapore ${POSTAL}"
+          timeout: 90000
+- tapOn: "Singapore ${POSTAL}"

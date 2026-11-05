@@ -126,6 +126,8 @@ jobs:
     uses: ./.github/workflows/emulator.yml
     with:
       base_ref: ${{ github.event_name == 'push' && github.event.before || 'HEAD~1' }}
+      # The Maestro job tests the APK made from this very App Bundle.
+      aab_artifact: dailylah-aab
 
   play:
     name: upload to Google Play (${{ needs.analyze.outputs.track }})

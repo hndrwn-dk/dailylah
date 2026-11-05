@@ -1,0 +1,46 @@
+# Saved home survives a restart; work is added from More > Your setup and saved.
+appId: com.tursinalabs.dailylah
+name: 02 Save home and work
+---
+- launchApp:
+    stopApp: true
+- startRecording: 02_save_home_work
+- extendedWaitUntil:
+    visible: "More.*"
+    timeout: 30000
+- assertNotVisible: "Welcome to"
+- tapOn: "More.*"
+- scrollUntilVisible:
+    element: "Your setup.*"
+    direction: DOWN
+- tapOn: "Your setup.*"
+- assertVisible: "Singapore 560201"
+- tapOn:
+    text: "Set address"
+    index: 0
+- extendedWaitUntil:
+    visible: "Address of Work"
+    timeout: 10000
+- runFlow:
+    file: common/search_address.yaml
+    env:
+      POSTAL: "310201"
+- extendedWaitUntil:
+    visible: "Singapore 310201"
+    timeout: 20000
+- scrollUntilVisible:
+    element: "Save"
+    direction: DOWN
+- tapOn: "Save"
+- stopApp
+- launchApp
+- tapOn: "More.*"
+- scrollUntilVisible:
+    element: "Your setup.*"
+    direction: DOWN
+- tapOn: "Your setup.*"
+- assertVisible: "Singapore 560201"
+- scrollUntilVisible:
+    element: "Singapore 310201"
+    direction: DOWN
+- stopRecording

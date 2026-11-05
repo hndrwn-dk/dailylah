@@ -1,0 +1,12 @@
+# More > Appearance: switch to dark and back to following the phone.
+appId: com.tursinalabs.dailylah
+name: 07 More and appearance
+---
+- launchApp:
+    stopApp: true
+- startRecording: 07_more
+- tapOn: "More.*"
+- takeScreenshot: discover_more_1
+- scroll
+- takeScreenshot: discover_more_2
+- stopRecording
