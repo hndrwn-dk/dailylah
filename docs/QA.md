@@ -14,6 +14,7 @@ This file maps that plan to the automated tests in this repo and lists what is s
 | On-device flows `app/integration_test/app_test.dart` | GitHub Actions `emulator` (API 29 = minSdk / Android 10, API 35, API 36 = Play's required target) | every PR touching `app/` | 1, 3A, 3B, 3C: real SharedPreferences, notification read back from Android's active notifications, widget provider in the package, location revoked |
 | Upgrade on device `scripts/emulator_upgrade.sh` | GitHub Actions `emulator` | every PR, or by hand with a `base_ref` | 5: previous build installed, data seeded, new build installed with `adb install -r` |
 | Release build (R8) `scripts/emulator_release.sh` | GitHub Actions `emulator` (API 35) | every PR touching `app/` | release build with R8 starts with saved data, runs the WorkManager job and widget; fails on missing classes/plugins in logcat |
+| Maestro flows `app/maestro/` (`scripts/emulator_maestro.sh`) | GitHub Actions `emulator` job `maestro` (API 35) | every PR touching `app/`, and every release before the upload | 1, 3A, 3C as a person uses the release build: onboarding, Setup saved over a restart, Today bus arrivals, Nearby sections, Home block, location denied then allowed, Appearance; see "Maestro" below |
 | Feature tests `app/test/features_test.dart` | GitHub Actions `app` (flutter test) | every PR | each feature through the real widgets: Ate here at halal places, meal time in History, live bus position |
 | Release gate | GitHub Actions `app` jobs `e2e` + `play` | every push to `main` and manual releases | the whole `emulator` workflow must pass on the commit before the AAB goes to Google Play (closed testing by default) |
 | Real phones `testlab.yml` (Robo) | Firebase Test Lab | by hand before a release | 6: crashes on a Samsung, a Xiaomi/Oppo and a Google phone |
@@ -52,6 +53,36 @@ None of these block the Google Play upload; a red `security` run is fixed before
   and reports old ones that are never installed (Phase 1 saw 23 such false High findings).
 - GitHub settings that are not in the repo (one-time, by hand): secret scanning, push
   protection, Dependabot alerts and security updates. See docs/HANDOFF.md.
+
+## Maestro (release build, black box)
+
+`app/maestro/` holds flows that drive the installed release build through the screen, like a
+person: no test hooks, the real API on Render and real bundles. `config.yaml` runs them in
+order (01 sets up the household the others use) and stops at the first failure.
+
+- Pull request: the R8 release APK built from the commit (debug key, no CI secrets).
+- Release (`app` job `e2e` passes `aab_artifact: dailylah-aab`): bundletool makes a universal APK
+  from the exact App Bundle that goes to Google Play and signs it with a throwaway key, so the
+  upload key never reaches the emulator job. The script fails if the APK is debuggable.
+- Maestro and bundletool are downloaded at pinned versions and checked by SHA-256 in
+  `emulator.yml`; bump the version and checksum together.
+- On a failure the log shows the texts on screen ("Screen when the flows stopped") and the artifact
+  `maestro-results` keeps the videos, screenshots and error logcat for 14 days. The job summary
+  lists each flow as passed or failed.
+
+Writing flows:
+- Flutter merges the texts of a tile or card into one node, so match with `"(?s).*text.*"`, or
+  anchor the start (`"(?s)Appearance.*"`) when a longer node also contains the text.
+- Rows off screen are not in the hierarchy: `scrollUntilVisible` first; add `centerElement: true`
+  when the row could end up under the floating tab bar.
+- A TextField hint cannot be matched. The address search field has focus when the picker opens,
+  so `common/search_address.yaml` just types the postal code.
+- Test addresses: 560201 (Blk 201 Ang Mo Kio Ave 3, home) and 310201 (Toa Payoh, work). The first
+  search wakes Render and can take about a minute; the shared flow retries once.
+- Live data changes: flow 03 passes on live arrivals and on "Buses have stopped" at night, and only
+  fails on "Bus times not available".
+- Run by hand on a branch: Actions > emulator > Run workflow (or
+  `gh api -X POST repos/hndrwn-dk/dailylah/actions/workflows/emulator.yml/dispatches -f ref=<branch>`).
 
 ## Layout bugs the matrix found (fixed in PR #51)
 
