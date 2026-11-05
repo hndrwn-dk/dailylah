@@ -14,6 +14,7 @@ This file maps that plan to the automated tests in this repo and lists what is s
 | On-device flows `app/integration_test/app_test.dart` | GitHub Actions `emulator` (API 29 = minSdk / Android 10, API 35, API 36 = Play's required target) | every PR touching `app/` | 1, 3A, 3B, 3C: real SharedPreferences, notification read back from Android's active notifications, widget provider in the package, location revoked |
 | Upgrade on device `scripts/emulator_upgrade.sh` | GitHub Actions `emulator` | every PR, or by hand with a `base_ref` | 5: previous build installed, data seeded, new build installed with `adb install -r` |
 | Release build (R8) `scripts/emulator_release.sh` | GitHub Actions `emulator` (API 35) | every PR touching `app/` | release build with R8 starts with saved data, runs the WorkManager job and widget; fails on missing classes/plugins in logcat |
+| Contract tests `contracts/v1/` | GitHub Actions `backend` (`tests/test_contracts.py`) and `app` (`test/contract_test.dart`) | every push touching `backend/`, `app/` or `contracts/` | the app and the server agree on every `/v1/*` response; see "Contract tests" below |
 | Feature tests `app/test/features_test.dart` | GitHub Actions `app` (flutter test) | every PR | each feature through the real widgets: Ate here at halal places, meal time in History, live bus position |
 | Release gate | GitHub Actions `app` jobs `e2e` + `play` | every push to `main` and manual releases | the whole `emulator` workflow must pass on the commit before the AAB goes to Google Play (closed testing by default) |
 | Real phones `testlab.yml` (Robo) | Firebase Test Lab | by hand before a release | 6: crashes on a Samsung, a Xiaomi/Oppo and a Google phone |
@@ -52,6 +53,26 @@ None of these block the Google Play upload; a red `security` run is fixed before
   and reports old ones that are never installed (Phase 1 saw 23 such false High findings).
 - GitHub settings that are not in the repo (one-time, by hand): secret scanning, push
   protection, Dependabot alerts and security updates. See docs/HANDOFF.md.
+
+## Contract tests (app and backend)
+
+`contracts/v1/<name>.json` holds, per `/v1/*` endpoint (each weather kind on its own): the
+`request`, the `upstream` answer it is built from (made-up values in the real upstream format)
+and the `response` the app reads.
+
+- Backend (`backend/tests/test_contracts.py`): upstream is mocked with `upstream`, the endpoint
+  is called, and the answer must have the structure of `response`: every key, list and value
+  type in the example must be there. Values may differ and extra keys are allowed, so adding a
+  field never breaks the app; removing or retyping one fails here.
+- App (`app/test/contract_test.dart`): the real parsers (`forecastNear`, `parseBusArrival`,
+  `parseParking`, `EvLive.fromApi`...) read each `response` and must find the expected values.
+  A test fails when an example has no check, so a new endpoint gets one on both sides.
+- Changing a response on purpose: change the backend, run
+  `cd backend && UPDATE_CONTRACTS=1 pytest tests/test_contracts.py` to rewrite the examples, then
+  update the app parser and `contract_test.dart` in the same PR. Both workflows run when
+  `contracts/` changes. `fetched_at` stays fixed in the examples so the diff only shows real changes.
+- Not covered: the upstream itself (data.gov.sg, LTA, OneMap) changing its format. The data
+  workflow and live use catch that.
 
 ## Layout bugs the matrix found (fixed in PR #51)
 

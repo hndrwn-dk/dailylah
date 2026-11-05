@@ -216,5 +216,7 @@ feature, screen, provider or rule moves, appears or goes away.
 - `test/contrast_test.dart` runs Flutter's text contrast check (4.5:1, large text 3:1) on every tab
   and section in light and dark. Text on the page or a card uses `DL.goText`, `DL.muted`, `DL.stopText`
   (theme-aware), never the light-only `DL.tealText`/`DL.mist`/`DL.stop`; those stay for sticker surfaces.
+- `test/contract_test.dart` runs the parsers on the shared API examples in `contracts/v1/`; a parser
+  that reads a new field or endpoint gets an example and a check there (docs/QA.md "Contract tests").
 - `test/screens_matrix_test.dart` renders every screen under every condition in docs/QA.md (offline,
   denied location, 200% text, dark, small screen); a new screen or tab section is added there.

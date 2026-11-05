@@ -1,0 +1,70 @@
+{
+  "request": "/v1/weather/wbgt",
+  "upstream": {
+    "code": 0,
+    "errorMsg": "",
+    "data": {
+      "records": [
+        {
+          "datetime": "2026-11-05T12:00:00+08:00",
+          "updatedTimestamp": "2026-11-05T12:00:00+08:00",
+          "item": {
+            "isStationData": true,
+            "type": "observation",
+            "readings": [
+              {
+                "station": {
+                  "id": "S128",
+                  "name": "Ang Mo Kio",
+                  "townCenter": "Ang Mo Kio"
+                },
+                "location": {
+                  "latitude": "1.3691",
+                  "longitude": "103.8454"
+                },
+                "wbgt": "30.2",
+                "heatStress": "Moderate"
+              }
+            ]
+          }
+        }
+      ],
+      "paginationToken": null
+    }
+  },
+  "response": {
+    "fetched_at": 1793850000,
+    "data": {
+      "code": 0,
+      "errorMsg": "",
+      "data": {
+        "records": [
+          {
+            "datetime": "2026-11-05T12:00:00+08:00",
+            "updatedTimestamp": "2026-11-05T12:00:00+08:00",
+            "item": {
+              "isStationData": true,
+              "type": "observation",
+              "readings": [
+                {
+                  "station": {
+                    "id": "S128",
+                    "name": "Ang Mo Kio",
+                    "townCenter": "Ang Mo Kio"
+                  },
+                  "location": {
+                    "latitude": "1.3691",
+                    "longitude": "103.8454"
+                  },
+                  "wbgt": "30.2",
+                  "heatStress": "Moderate"
+                }
+              ]
+            }
+          }
+        ],
+        "paginationToken": null
+      }
+    }
+  }
+}

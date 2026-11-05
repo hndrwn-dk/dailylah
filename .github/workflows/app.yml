@@ -1,9 +1,9 @@
 name: app
 on:
   push:
-    paths: ["app/**", ".github/workflows/app.yml"]
+    paths: ["app/**", "contracts/**", ".github/workflows/app.yml"]
   pull_request:
-    paths: ["app/**"]
+    paths: ["app/**", "contracts/**"]
   workflow_dispatch:
     inputs:
       play_track:

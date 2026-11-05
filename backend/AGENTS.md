@@ -20,6 +20,11 @@ relative to `backend/` when they start with `app/`. Endpoint index: `docs/REPO_M
 - `/internal/*` endpoints require a valid `Upstash-Signature` (QStash) outside `ENV=dev`.
 - Upstream headers: data.gov.sg uses `x-api-key` (optional, higher limits); LTA uses `AccountKey`.
 - Every new endpoint gets a pytest test with `respx` mocks; no real network calls in tests.
+- Every `/v1/*` endpoint has an example in `contracts/v1/` (request, upstream, response), checked by
+  `tests/test_contracts.py` and by the app's `test/contract_test.dart`. A new endpoint adds one and
+  its `UPSTREAM` entry; a changed response rewrites them with
+  `UPDATE_CONTRACTS=1 pytest tests/test_contracts.py` and updates the app parser in the same PR
+  (docs/QA.md "Contract tests").
 
 ## Data pipeline
 - Static bundles (`/data/manifest.json` + `<name>.json`) come from

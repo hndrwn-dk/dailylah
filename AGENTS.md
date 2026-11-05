@@ -35,6 +35,8 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - `backend/` — Python 3.12, FastAPI. Deployed to Render (free) via `render.yaml`.
 - `app/` — Flutter app (Riverpod, dio). Platform folders are generated with `flutter create`.
 - `web/` — static site on Vercel: landing page, privacy policy, static data bundles in `web/data/`.
+- `contracts/v1/` — one example per `/v1/*` endpoint, checked by the backend and app tests
+  (docs/QA.md "Contract tests").
 - `docs/PRD.md` — product requirements (Bahasa Indonesia).
 - `scripts/` — one-off ops scripts (QStash schedule).
 - Free-tier hard rules for the backend and data (Redis, QStash, Neon, Render, Vercel) are in

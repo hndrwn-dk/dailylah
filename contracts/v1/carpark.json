@@ -1,0 +1,32 @@
+{
+  "request": "/v1/carpark",
+  "upstream": {
+    "items": [
+      {
+        "timestamp": "2026-11-05T12:00:00+08:00",
+        "carpark_data": [
+          {
+            "carpark_info": [
+              {
+                "lot_type": "C",
+                "lots_available": "102",
+                "total_lots": "305"
+              }
+            ],
+            "carpark_number": "AM14",
+            "update_datetime": "2026-11-05T11:58:00"
+          }
+        ]
+      }
+    ]
+  },
+  "response": {
+    "fetched_at": 1793850000,
+    "data": {
+      "AM14": [
+        305,
+        102
+      ]
+    }
+  }
+}

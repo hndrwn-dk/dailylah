@@ -1,0 +1,44 @@
+{
+  "request": "/v1/search?q=560201",
+  "upstream": {
+    "found": 1,
+    "totalNumPages": 1,
+    "pageNum": 1,
+    "results": [
+      {
+        "SEARCHVAL": "ANG MO KIO VIEW",
+        "BLK_NO": "201",
+        "ROAD_NAME": "ANG MO KIO AVENUE 3",
+        "BUILDING": "ANG MO KIO VIEW",
+        "ADDRESS": "201 ANG MO KIO AVENUE 3 ANG MO KIO VIEW SINGAPORE 560201",
+        "POSTAL": "560201",
+        "X": "29832.1",
+        "Y": "38957.2",
+        "LATITUDE": "1.36906",
+        "LONGITUDE": "103.84418"
+      }
+    ]
+  },
+  "response": {
+    "fetched_at": 1793850000,
+    "data": {
+      "found": 1,
+      "totalNumPages": 1,
+      "pageNum": 1,
+      "results": [
+        {
+          "SEARCHVAL": "ANG MO KIO VIEW",
+          "BLK_NO": "201",
+          "ROAD_NAME": "ANG MO KIO AVENUE 3",
+          "BUILDING": "ANG MO KIO VIEW",
+          "ADDRESS": "201 ANG MO KIO AVENUE 3 ANG MO KIO VIEW SINGAPORE 560201",
+          "POSTAL": "560201",
+          "X": "29832.1",
+          "Y": "38957.2",
+          "LATITUDE": "1.36906",
+          "LONGITUDE": "103.84418"
+        }
+      ]
+    }
+  }
+}
