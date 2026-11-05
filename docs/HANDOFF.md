@@ -89,6 +89,8 @@ No new secrets are needed for Phase 1.
     that dataset were not visible from the sandbox, so `FACILITY_LABELS` in bundles.py may need tuning.
 
 ## Open ideas / not possible
+- Riverpod 3 migration (from 2.6): ~177 analyzer errors (StateProvider moved to `legacy.dart`,
+  AsyncValue API changes). Dependabot ignores riverpod majors until it lands (`.github/dependabot.yml`).
 - Wikimedia photos for big parks: not started.
 - OnePA and NParks events: written permission needed. A short email to PA was drafted, not sent.
 - Return Right machine locations: the website terms forbid reuse; ask BCRS.

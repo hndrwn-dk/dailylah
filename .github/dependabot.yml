@@ -14,6 +14,11 @@ updates:
     groups:
       pub-minor:
         update-types: [minor, patch]
+    ignore:
+      # Riverpod 3 changes every provider (StateProvider moves to legacy, AsyncValue API changes);
+      # it gets its own planned migration PR. Remove this once that lands.
+      - dependency-name: flutter_riverpod
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: gradle
     directory: /app/android
