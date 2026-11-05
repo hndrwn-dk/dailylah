@@ -17,6 +17,7 @@ This file maps that plan to the automated tests in this repo and lists what is s
 | Maestro flows `app/maestro/` (`scripts/emulator_maestro.sh`) | GitHub Actions `emulator` job `maestro` (API 35) | every PR touching `app/`, and every release before the upload | 1, 3A, 3C as a person uses the release build: onboarding, Setup saved over a restart, Today bus arrivals, Nearby sections, Home block, location denied then allowed, Appearance; see "Maestro" below |
 | Contract tests `contracts/v1/` | GitHub Actions `backend` (`tests/test_contracts.py`) and `app` (`test/contract_test.dart`) | every push touching `backend/`, `app/` or `contracts/` | the app and the server agree on every `/v1/*` response; see "Contract tests" below |
 | Golden tests `app/test/golden_test.dart` | GitHub Actions `app` (Linux only, `GOLDENS=1`) | every push touching `app/` | Today, Nearby, Home and More in light and dark, pixel by pixel against `app/test/goldens/`; see "Golden tests" below |
+| AI review (advisory) `.claude/skills/review-pr` | Claude Code cloud, scheduled task "DailyLah PR review" | every 8 hours (02:17, 10:17, 18:17 Singapore time), or on request in a session | bugs, CLAUDE.md rules and security on open PRs; one comment per PR, never blocks; see "AI review" below |
 | Feature tests `app/test/features_test.dart` | GitHub Actions `app` (flutter test) | every PR | each feature through the real widgets: Ate here at halal places, meal time in History, live bus position |
 | Release gate | GitHub Actions `app` jobs `e2e` + `play` | every push to `main` and manual releases | the whole `emulator` workflow must pass on the commit before the AAB goes to Google Play (closed testing by default) |
 | Real phones `testlab.yml` (Robo) | Firebase Test Lab | by hand before a release | 6: crashes on a Samsung, a Xiaomi/Oppo and a Google phone |
@@ -123,6 +124,26 @@ and the `response` the app reads.
   workflows, so the next push to the branch (or the merge to main) checks them again.
   `goldens` never runs on main.
 - An unexpected change is a bug: fix the code, do not update the images.
+
+## AI review (advisory)
+
+The last layer before a person decides. It runs in a Claude Code cloud session on the owner's
+Claude plan: no secret in GitHub Actions, no workflow, no laptop.
+
+- Scheduled task "DailyLah PR review" (claude.ai > Claude Code > scheduled tasks) fires every 8 hours
+  and starts a fresh session that runs the `review-pr` skill (`.claude/skills/review-pr/SKILL.md`)
+  on open PRs that have no review for their current head commit. Forks, drafts and bot PRs
+  (dailylah-bot, Dependabot) are skipped.
+- On request: in any Claude Code session on this repo, ask "review PR #N".
+- What it checks and how it writes is in `.github/prompts/review.md` (change the prompt there, no
+  workflow change needed). It reads `.claude/security-profile.md` for the threat model.
+- Output: one comment per PR, updated on each new commit: `SETUJUI` or `PERLU PERUBAHAN`, then
+  findings by severity (Kritis, Tinggi, Sedang) with `file:line`.
+- The repository is public, so a security finding shows only as a count in the PR. Its details go
+  to the private repository `hndrwn-dk/security-memory` (`dailylah/reviews/`).
+- Advisory only: it never approves, blocks, merges or pushes. A review can be wrong; a person
+  decides. It does not replace any gate above.
+- Stop or change the schedule in the scheduled task settings.
 
 ## Layout bugs the matrix found (fixed in PR #51)
 
