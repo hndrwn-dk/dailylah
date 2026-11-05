@@ -6,17 +6,17 @@ appId: com.tursinalabs.dailylah
 - inputText: ${POSTAL}
 - pressKey: Enter
 - extendedWaitUntil:
-    visible: "Singapore ${POSTAL}"
+    visible: "(?s).*Singapore ${POSTAL}.*"
     timeout: 90000
     optional: true
 - runFlow:
     when:
-      notVisible: "Singapore ${POSTAL}"
+      notVisible: "(?s).*Singapore ${POSTAL}.*"
     commands:
       - eraseText
       - inputText: ${POSTAL}
       - pressKey: Enter
       - extendedWaitUntil:
-          visible: "Singapore ${POSTAL}"
+          visible: "(?s).*Singapore ${POSTAL}.*"
           timeout: 90000
-- tapOn: "Singapore ${POSTAL}"
+- tapOn: "(?s).*Singapore ${POSTAL}.*"

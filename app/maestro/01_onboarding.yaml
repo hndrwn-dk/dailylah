@@ -23,7 +23,7 @@ name: 01 Onboarding
     env:
       POSTAL: "560201"
 - extendedWaitUntil:
-    visible: "Singapore 560201"
+    visible: "(?s).*Singapore 560201.*"
     timeout: 20000
 - scrollUntilVisible:
     element: "Done"

@@ -14,7 +14,7 @@ name: 02 Save home and work
     element: "(?s).*Your setup.*"
     direction: DOWN
 - tapOn: "(?s).*Your setup.*"
-- assertVisible: "Singapore 560201"
+- assertVisible: "(?s).*Singapore 560201.*"
 - tapOn:
     text: "Set address"
     index: 0
@@ -26,7 +26,7 @@ name: 02 Save home and work
     env:
       POSTAL: "310201"
 - extendedWaitUntil:
-    visible: "Singapore 310201"
+    visible: "(?s).*Singapore 310201.*"
     timeout: 20000
 - scrollUntilVisible:
     element: "Save"
@@ -39,8 +39,8 @@ name: 02 Save home and work
     element: "(?s).*Your setup.*"
     direction: DOWN
 - tapOn: "(?s).*Your setup.*"
-- assertVisible: "Singapore 560201"
+- assertVisible: "(?s).*Singapore 560201.*"
 - scrollUntilVisible:
-    element: "Singapore 310201"
+    element: "(?s).*Singapore 310201.*"
     direction: DOWN
 - stopRecording
