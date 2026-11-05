@@ -17,6 +17,10 @@ on:
         description: "Previous version for the upgrade test (branch, tag or SHA)"
         type: string
         default: "origin/main"
+      aab_artifact:
+        description: "Artifact (in this run) holding dailylah.aab; the Maestro job then tests the APK made from it"
+        type: string
+        default: ""
 # Read-only: builds and runs APKs on emulators, writes nothing back.
 permissions:
   contents: read
@@ -148,3 +152,72 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
           script: bash scripts/emulator_release.sh
+
+  maestro:
+    name: Maestro flows (release APK)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      MAESTRO_VERSION: "2.12.1"
+      MAESTRO_SHA256: 54dbb0716425626604973cbb374c585ca30272375d9ce15177a1152765ddd9d7
+      BUNDLETOOL_VERSION: "1.18.3"
+      BUNDLETOOL_SHA256: a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29
+      AAB_ARTIFACT: ${{ inputs.aab_artifact }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      # Release (called by the app workflow): test the exact App Bundle that goes to Google Play.
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        if: inputs.aab_artifact != ''
+        with:
+          name: ${{ inputs.aab_artifact }}
+          path: ${{ runner.temp }}/aab
+      # Pull request: build the R8 release APK from this commit (no upload key here).
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        if: inputs.aab_artifact == ''
+        with:
+          channel: stable
+          cache: true
+      - name: Build the release APK
+        if: inputs.aab_artifact == ''
+        working-directory: app
+        run: |
+          flutter pub get --enforce-lockfile
+          flutter build apk --release
+      - name: Install Maestro and bundletool (pinned by checksum)
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/maestro.zip" \
+            "https://github.com/mobile-dev-inc/maestro/releases/download/cli-$MAESTRO_VERSION/maestro.zip"
+          echo "$MAESTRO_SHA256  $RUNNER_TEMP/maestro.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/maestro.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/maestro/bin" >> "$GITHUB_PATH"
+          curl -fsSL -o "$RUNNER_TEMP/bundletool.jar" \
+            "https://github.com/google/bundletool/releases/download/$BUNDLETOOL_VERSION/bundletool-all-$BUNDLETOOL_VERSION.jar"
+          echo "$BUNDLETOOL_SHA256  $RUNNER_TEMP/bundletool.jar" | sha256sum -c -
+      - name: Run the Maestro flows on the emulator
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          ram-size: 3072M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          script: bash scripts/emulator_maestro.sh
+      - name: Keep screenshots, videos and logs of a failed run
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: maestro-results
+          path: ${{ runner.temp }}/maestro-out
+          retention-days: 14

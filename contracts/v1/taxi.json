@@ -1,0 +1,28 @@
+{
+  "request": "/v1/taxi",
+  "upstream": {
+    "value": [
+      {
+        "Longitude": 103.84555,
+        "Latitude": 1.36912
+      },
+      {
+        "Longitude": 103.85601,
+        "Latitude": 1.33441
+      }
+    ]
+  },
+  "response": {
+    "fetched_at": 1793850000,
+    "data": [
+      [
+        1.3691,
+        103.8456
+      ],
+      [
+        1.3344,
+        103.856
+      ]
+    ]
+  }
+}

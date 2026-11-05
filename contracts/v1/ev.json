@@ -1,0 +1,67 @@
+{
+  "request": "/v1/ev/560201",
+  "upstream": {
+    "value": {
+      "evLocationsData": [
+        {
+          "address": "201 Ang Mo Kio Avenue 3 Singapore 560201",
+          "name": "Blk 201 Car Park",
+          "longitude": 103.8442,
+          "latitude": 1.3691,
+          "locationId": "AMK201",
+          "status": "1",
+          "chargingPoints": [
+            {
+              "status": "1",
+              "operator": "Example Charge",
+              "position": "Level 1",
+              "name": "CP1",
+              "id": "CP1",
+              "plugTypes": [
+                {
+                  "plugType": "Type 2",
+                  "powerRating": "AC",
+                  "chargingSpeed": "7.4",
+                  "price": "0.60",
+                  "priceType": "kWh",
+                  "evIds": [
+                    {
+                      "id": "E1",
+                      "evCpId": "CP1-1",
+                      "status": "1"
+                    },
+                    {
+                      "id": "E2",
+                      "evCpId": "CP1-2",
+                      "status": "0"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "response": {
+    "fetched_at": 1793850000,
+    "data": [
+      {
+        "id": "AMK201",
+        "n": "Blk 201 Car Park",
+        "pl": [
+          {
+            "t": "Type 2",
+            "c": "AC",
+            "kw": 7.4,
+            "p": 0.6,
+            "pu": "kWh",
+            "n": 2,
+            "a": 1
+          }
+        ]
+      }
+    ]
+  }
+}

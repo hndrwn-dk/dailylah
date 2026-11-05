@@ -14,11 +14,17 @@ This file maps that plan to the automated tests in this repo and lists what is s
 | On-device flows `app/integration_test/app_test.dart` | GitHub Actions `emulator` (API 29 = minSdk / Android 10, API 35, API 36 = Play's required target) | every PR touching `app/` | 1, 3A, 3B, 3C: real SharedPreferences, notification read back from Android's active notifications, widget provider in the package, location revoked |
 | Upgrade on device `scripts/emulator_upgrade.sh` | GitHub Actions `emulator` | every PR, or by hand with a `base_ref` | 5: previous build installed, data seeded, new build installed with `adb install -r` |
 | Release build (R8) `scripts/emulator_release.sh` | GitHub Actions `emulator` (API 35) | every PR touching `app/` | release build with R8 starts with saved data, runs the WorkManager job and widget; fails on missing classes/plugins in logcat |
+| Maestro flows `app/maestro/` (`scripts/emulator_maestro.sh`) | GitHub Actions `emulator` job `maestro` (API 35) | every PR touching `app/`, and every release before the upload | 1, 3A, 3C as a person uses the release build: onboarding, Setup saved over a restart, Today bus arrivals, Nearby sections, Home block, location denied then allowed, Appearance; see "Maestro" below |
+| Contract tests `contracts/v1/` | GitHub Actions `backend` (`tests/test_contracts.py`) and `app` (`test/contract_test.dart`) | every push touching `backend/`, `app/` or `contracts/` | the app and the server agree on every `/v1/*` response; see "Contract tests" below |
+| Golden tests `app/test/golden_test.dart` | GitHub Actions `app` (Linux only, `GOLDENS=1`) | every push touching `app/` | Today, Nearby, Home and More in light and dark, pixel by pixel against `app/test/goldens/`; see "Golden tests" below |
+| AI review (advisory) `.claude/skills/review-pr` | a Claude Code session, on request | "review PR #N" or "security gate for PR #N" before a merge | bugs, CLAUDE.md rules and security on a PR; one comment, never blocks; see "AI review" below |
+| Web check `scripts/web_check.sh` | GitHub Actions `web-check` | daily 07:23 Singapore time, and by hand | dailylah.sg opens, /privacy and /terms redirect to the policy pages, `data/manifest.json` valid on all three hosts, one bundle matches its sha256; see "Web check" below |
 | Feature tests `app/test/features_test.dart` | GitHub Actions `app` (flutter test) | every PR | each feature through the real widgets: Ate here at halal places, meal time in History, live bus position |
 | Release gate | GitHub Actions `app` jobs `e2e` + `play` | every push to `main` and manual releases | the whole `emulator` workflow must pass on the commit before the AAB goes to Google Play (closed testing by default) |
 | Real phones `testlab.yml` (Robo) | Firebase Test Lab | by hand before a release | 6: crashes on a Samsung, a Xiaomi/Oppo and a Google phone |
 | Security scans `security.yml` | GitHub Actions `security` | every PR, push to `main`, Mondays | CodeQL (actions, python, java-kotlin), osv-scanner (dependencies), zizmor (workflows); see below |
 | Backend security `backend.yml` | GitHub Actions `backend` | every push touching `backend/` | ruff bandit rules (`S`), `pip-audit` on the installed dependency tree |
+| Agent docs `docs.yml` | GitHub Actions `docs` | every PR and push to `main` | `docs/REPO_MAP.md` and every `AGENTS.md` match the code and CLAUDE.md (`scripts/repo_map.py --check`) |
 
 The screen matrix uses the bundles committed in `web/data/`, so screens render with real data.
 The API, location and storage are faked. A test fails on any exception or layout overflow.
@@ -52,6 +58,116 @@ None of these block the Google Play upload; a red `security` run is fixed before
 - GitHub settings that are not in the repo (one-time, by hand): secret scanning, push
   protection, Dependabot alerts and security updates. See docs/HANDOFF.md.
 
+## Maestro (release build, black box)
+
+`app/maestro/` holds flows that drive the installed release build through the screen, like a
+person: no test hooks, the real API on Render and real bundles. `config.yaml` runs them in
+order (01 sets up the household the others use) and stops at the first failure.
+
+- Pull request: the R8 release APK built from the commit (debug key, no CI secrets).
+- Release (`app` job `e2e` passes `aab_artifact: dailylah-aab`): bundletool makes a universal APK
+  from the exact App Bundle that goes to Google Play and signs it with a throwaway key, so the
+  upload key never reaches the emulator job. The script fails if the APK is debuggable.
+- Maestro and bundletool are downloaded at pinned versions and checked by SHA-256 in
+  `emulator.yml`; bump the version and checksum together.
+- On a failure the log shows the texts on screen ("Screen when the flows stopped") and the artifact
+  `maestro-results` keeps the videos, screenshots and error logcat for 14 days. The job summary
+  lists each flow as passed or failed.
+
+Writing flows:
+- Flutter merges the texts of a tile or card into one node, so match with `"(?s).*text.*"`, or
+  anchor the start (`"(?s)Appearance.*"`) when a longer node also contains the text.
+- Rows off screen are not in the hierarchy: `scrollUntilVisible` first; add `centerElement: true`
+  when the row could end up under the floating tab bar.
+- A TextField hint cannot be matched. The address search field has focus when the picker opens,
+  so `common/search_address.yaml` just types the postal code.
+- Test addresses: 560201 (Blk 201 Ang Mo Kio Ave 3, home) and 310201 (Toa Payoh, work). The first
+  search wakes Render and can take about a minute; the shared flow retries once.
+- `launchApp` grants every permission unless the flow lists `permissions`; a flow that needs
+  location off says `location: deny` (Nearby otherwise switches itself to "Here").
+- Live data changes: flow 03 passes on live arrivals and on "Buses have stopped" at night, and only
+  fails on "Bus times not available".
+- Run by hand on a branch: Actions > emulator > Run workflow (or
+  `gh api -X POST repos/hndrwn-dk/dailylah/actions/workflows/emulator.yml/dispatches -f ref=<branch>`).
+## Contract tests (app and backend)
+
+`contracts/v1/<name>.json` holds, per `/v1/*` endpoint (each weather kind on its own): the
+`request`, the `upstream` answer it is built from (made-up values in the real upstream format)
+and the `response` the app reads.
+
+- Backend (`backend/tests/test_contracts.py`): upstream is mocked with `upstream`, the endpoint
+  is called, and the answer must have the structure of `response`: every key, list and value
+  type in the example must be there. Values may differ and extra keys are allowed, so adding a
+  field never breaks the app; removing or retyping one fails here.
+- App (`app/test/contract_test.dart`): the real parsers (`forecastNear`, `parseBusArrival`,
+  `parseParking`, `EvLive.fromApi`...) read each `response` and must find the expected values.
+  A test fails when an example has no check, so a new endpoint gets one on both sides.
+- Changing a response on purpose: change the backend, run
+  `cd backend && UPDATE_CONTRACTS=1 pytest tests/test_contracts.py` to rewrite the examples, then
+  update the app parser and `contract_test.dart` in the same PR. Both workflows run when
+  `contracts/` changes. `fetched_at` stays fixed in the examples so the diff only shows real changes.
+- Not covered: the upstream itself (data.gov.sg, LTA, OneMap) changing its format. The data
+  workflow and live use catch that.
+
+## Golden tests (visual regression)
+
+`app/test/golden_test.dart` renders Today, Nearby, Home and More in light and dark (8 images,
+824x1830, the app's fonts and Material icons) with the test household, a fixed clock (Tuesday
+7 am), `FakeApi` and the committed bundles, and compares each with `app/test/goldens/<tab>-<mode>.png`.
+
+- Linux CI only: fonts render a little differently on macOS and Windows, so the tests are skipped
+  unless `GOLDENS=1` on Linux (the `app` workflow sets it). `flutter test` on a laptop skips them.
+- A failure means the screen changed. The `app` run keeps the expected, actual and diff images as
+  the artifact `golden-failures` (Actions > the run > Artifacts), readable on a phone.
+- A deliberate UI change: run Actions > goldens > Run workflow on the PR branch. It renders the
+  images on Linux, commits them as dailylah-bot and keeps them as the artifact `goldens`; review
+  the new images in the PR diff. A commit made with the workflow token does not start other
+  workflows, so the next push to the branch (or the merge to main) checks them again.
+  `goldens` never runs on main.
+- An unexpected change is a bug: fix the code, do not update the images.
+
+## AI review (advisory)
+
+The last layer before a person decides. It runs in a Claude Code cloud session on the owner's
+Claude plan: no secret in GitHub Actions, no workflow, no laptop.
+
+- On request, in any Claude Code session on this repo: "review PR #N" (or "review open PRs") runs
+  the `review-pr` skill (`.claude/skills/review-pr/SKILL.md`). For open PRs it skips forks, drafts,
+  bot PRs (dailylah-bot, Dependabot) and PRs already reviewed at their head commit (only its own
+  marker comments count). There is no scheduled run: most PRs here come from Claude sessions that
+  already run the security gate, so a timed reviewer mostly spent plan usage without new findings.
+- What it checks and how it writes is in `.github/prompts/review.md` (change the prompt there, no
+  workflow change needed). It reads `.claude/security-profile.md` for the threat model.
+- Security uses the owner's claude-toolkit in the private `hndrwn-dk/security-memory`
+  (`claude-toolkit/global/`): a fresh `security-reviewer` subagent per PR, the memory format of
+  `/vuln-scan`. The toolkit is read from the clone, not installed into the session (auto mode
+  blocks writing hooks into `~/.claude`).
+- Security gate before a merge: ask the session for "security gate for PR #N"; it follows the
+  toolkit's `/security-gate` and posts `Security gate: pass at <sha>.` on the PR.
+- Output: one comment per PR, updated on each new commit: `SETUJUI` or `PERLU PERUBAHAN`, then
+  findings by severity (Kritis, Tinggi, Sedang) with `file:line`.
+- The repository is public, so a security finding shows only as a count in the PR. Its details go
+  to the private repository `hndrwn-dk/security-memory` (`dailylah/reports/` and
+  `dailylah/dailylah---flagged-vulnerabilities.json`).
+- Advisory only: it never approves, blocks, merges or pushes. A review can be wrong; a person
+  decides. It does not replace any gate above.
+
+## Web check
+
+`.github/workflows/web-check.yml` runs `scripts/web_check.sh` every morning (07:23 Singapore time),
+by hand (Actions > web-check > Run workflow) and on PRs that change it. With curl only, it checks:
+- `https://dailylah.sg` opens and is the DailyLah page;
+- `/privacy` and `/terms` redirect to `https://www.tursinalabs.com/dailylah/privacy` and `/terms`
+  (`web/vercel.json`), and those pages open;
+- `data/manifest.json` loads from every host in `webUrls` (`app/lib/api.dart`) and has a version and
+  a non-empty file list with paths and sha256 (different versions across hosts are only a warning:
+  the same Vercel deployment sits behind all three, and `/data/` is cached for an hour);
+- the smallest bundle on dailylah.sg matches its sha256 in the manifest.
+
+A failed scheduled run emails the repository owner (GitHub's default for scheduled workflows); the
+job summary lists each check. The backend on Render is not checked here: the app tolerates it
+sleeping, and waking it daily would only spend free-tier hours.
+
 ## Layout bugs the matrix found (fixed in PR #51)
 
 Text overflowed at 200% text or on 320 dp screens in: Setup go/back time buttons, the bus
@@ -67,6 +183,18 @@ Remove the `skip` when the gap is fixed (or change the PRD and delete the test).
 3. MRT alerts are not sent during quiet hours, but the PRD exempts morning MRT disruptions. `background_rules_test.dart`
 4. The PRD caps all non-MRT alerts at 3 a day; the app caps only rain. Not tested yet.
 5. Heat-stress alerts default to on; the PRD says off. `background_rules_test.dart`
+
+## Before promoting a release to production
+
+Uploads to closed testing are already gated (`app` > `e2e`: emulator flows, upgrade, R8 release and
+Maestro on the AAB that is uploaded). Production is promoted by hand in Play Console; before that,
+for the release's commit on `main`:
+- [ ] `security` workflow green on that commit (CodeQL, osv-scanner, zizmor).
+- [ ] `testlab` run on real phones (Actions > testlab > Run workflow) with no crash.
+- [ ] Full security scan: in a Claude Code session ask for "/vuln-scan on main" (the owner's
+      claude-toolkit, details only in the private `hndrwn-dk/security-memory`); no new medium+ issue.
+- [ ] The manual checks below.
+No promote to production while any of these is open.
 
 ## Still manual (about 5 minutes before a release)
 
