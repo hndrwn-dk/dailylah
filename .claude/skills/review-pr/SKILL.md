@@ -1,6 +1,6 @@
 ---
 name: review-pr
-description: Advisory AI review of open DailyLah pull requests, on top of the owner's claude-toolkit security SOP (hndrwn-dk/security-memory). Bugs and CLAUDE.md rules go in one PR comment; security findings go through the toolkit's security-reviewer and its private memory format. Use for "review PR #N", "review open PRs", "security gate for PR #N", or when the scheduled review task fires.
+description: Advisory AI review of open DailyLah pull requests, on top of the owner's claude-toolkit security SOP (hndrwn-dk/security-memory). Bugs and CLAUDE.md rules go in one PR comment; security findings go through the toolkit's security-reviewer and its private memory format. Use for "review PR #N", "review open PRs" or "security gate for PR #N".
 ---
 
 # Review DailyLah pull requests
@@ -12,7 +12,7 @@ approves or merges anything. Two sources of rules:
 - The owner's claude-toolkit in the private `hndrwn-dk/security-memory`
   (`claude-toolkit/global/`): `CLAUDE.md` (the security SOP and disclosure rules),
   `agents/security-reviewer.md`, `commands/security-gate.md`, `commands/vuln-scan.md` (memory
-  format) and `commands/find-critical-bugs.md`. Where they differ, the toolkit wins on security.
+  format). Where they differ, the toolkit wins on security.
 
 ## Setup
 1. Clone or pull `https://github.com/hndrwn-dk/security-memory` (private) into a directory
@@ -26,7 +26,7 @@ approves or merges anything. Two sources of rules:
 
 ## Which pull requests
 - Asked for one PR ("review PR #N"): review that one, even if it was reviewed before.
-- Run by the scheduled task, or asked to review open PRs: every open PR of hndrwn-dk/dailylah that
+- Asked to review open PRs: every open PR of hndrwn-dk/dailylah that
   - changes `app/`, `backend/`, `contracts/`, `web/` (not `web/data/`), `scripts/`, `.github/` or
     `.claude/`,
   - is not a draft, does not come from a fork, and is not authored by `dailylah-bot`,
@@ -66,12 +66,6 @@ and at most two fix rounds with a separate fixer subagent whose instructions are
 `agents/security-fixer.md`. On a pass, post the neutral comment
 `Security gate: pass at <short sha>.` on the PR. Any later commit needs a new gate.
 
-## Scheduled run extras
-After the PR reviews, run `commands/find-critical-bugs.md` from the toolkit on `main` for the
-profile's window (7 days), with its memory file `dailylah/bugs.md` and its disclosure rule for this
-public repo.
-
 ## Run summary
 End with a short summary: PRs reviewed (number, verdict, counts), PRs skipped and why, whether
-the private notes were saved, and the critical-bug scan result. When nothing needed a review and no
-critical bug was found, say so in one line.
+the private notes were saved. When nothing needed a review, say so in one line.
