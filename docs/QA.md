@@ -132,7 +132,8 @@ Claude plan: no secret in GitHub Actions, no workflow, no laptop.
 
 - Scheduled task "DailyLah PR review" (claude.ai > Claude Code > scheduled tasks) fires every 8 hours
   and starts a fresh session that runs the `review-pr` skill (`.claude/skills/review-pr/SKILL.md`)
-  on open PRs that have no review for their current head commit. Forks, drafts and bot PRs
+  on open PRs that have no review for their current head commit (only its own marker comments count;
+  a marker written by anyone else is ignored). Forks, drafts and bot PRs
   (dailylah-bot, Dependabot) are skipped.
 - On request: in any Claude Code session on this repo, ask "review PR #N".
 - What it checks and how it writes is in `.github/prompts/review.md` (change the prompt there, no
