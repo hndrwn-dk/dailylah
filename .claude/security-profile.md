@@ -18,10 +18,10 @@
   - Upstash Redis keys built from user input (search text is normalised and kept in memory only); cost of cache misses under abuse
   - `/internal/poll`: QStash signature check outside `ENV=dev`
   - Neon Postgres: `DATABASE_URL` is configured but not used by any code yet; any new SQL must be parameterised
-  - Secrets in Render / Vercel config and GitHub Actions: Android upload keystore (4 secrets), Play service account, Firebase service account (Test Lab), upstream keys; `permissions`, `persist-credentials: false`, no `pull_request_target`, actions pinned by SHA
+  - Secrets in Render / Vercel config and GitHub Actions: Android upload keystore (4 secrets), Play service account, upstream keys; `permissions`, `persist-credentials: false`, no `pull_request_target`, actions pinned by SHA
   - Personal data: locations and favourites stay on the phone; the server sees search text (may be a home address or postal code), EV postal codes, bus stop codes and CEA registration numbers, and must not log them
   - Android: exported components, intent and deep-link parsing, WorkManager background job, cleartext traffic (none expected), R8 keep rules that widen what is reachable
-- **Sensitive data handled:** upstream API keys and logins, Android upload keystore, Play Console and Firebase service accounts, Upstash Redis and QStash credentials, Neon URL (unused), user search text and saved places (on the phone), user location (on the phone only)
+- **Sensitive data handled:** upstream API keys and logins, Android upload keystore, Play Console service account, Upstash Redis and QStash credentials, Neon URL (unused), user search text and saved places (on the phone), user location (on the phone only)
 - **Private dependencies not in this repo:** none known
 - **Exclude paths:** **/build/, **/.dart_tool/, **/android/.gradle/, **/ios/Pods/, **/*.g.dart, **/*.freezed.dart, **/__pycache__/, **/.venv/, web/data/*.json (generated bundles), app/test/goldens/, app/test_store/goldens/, docs/store/
 - **Test command:** cd app && flutter analyze && flutter test (app; runs in CI, Flutter is not installed in cloud sessions); cd backend && pytest && ruff check . (backend)
