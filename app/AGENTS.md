@@ -221,5 +221,7 @@ feature, screen, provider or rule moves, appears or goes away.
   Today buses, Nearby, Home, location, Appearance), run by the emulator `maestro` job. A change to a
   string, tab or screen those flows tap on updates the flow in the same PR; how to write and run them
   is in docs/QA.md "Maestro".
+- `test/contract_test.dart` runs the parsers on the shared API examples in `contracts/v1/`; a parser
+  that reads a new field or endpoint gets an example and a check there (docs/QA.md "Contract tests").
 - `test/screens_matrix_test.dart` renders every screen under every condition in docs/QA.md (offline,
   denied location, 200% text, dark, small screen); a new screen or tab section is added there.

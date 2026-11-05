@@ -15,6 +15,7 @@ This file maps that plan to the automated tests in this repo and lists what is s
 | Upgrade on device `scripts/emulator_upgrade.sh` | GitHub Actions `emulator` | every PR, or by hand with a `base_ref` | 5: previous build installed, data seeded, new build installed with `adb install -r` |
 | Release build (R8) `scripts/emulator_release.sh` | GitHub Actions `emulator` (API 35) | every PR touching `app/` | release build with R8 starts with saved data, runs the WorkManager job and widget; fails on missing classes/plugins in logcat |
 | Maestro flows `app/maestro/` (`scripts/emulator_maestro.sh`) | GitHub Actions `emulator` job `maestro` (API 35) | every PR touching `app/`, and every release before the upload | 1, 3A, 3C as a person uses the release build: onboarding, Setup saved over a restart, Today bus arrivals, Nearby sections, Home block, location denied then allowed, Appearance; see "Maestro" below |
+| Contract tests `contracts/v1/` | GitHub Actions `backend` (`tests/test_contracts.py`) and `app` (`test/contract_test.dart`) | every push touching `backend/`, `app/` or `contracts/` | the app and the server agree on every `/v1/*` response; see "Contract tests" below |
 | Feature tests `app/test/features_test.dart` | GitHub Actions `app` (flutter test) | every PR | each feature through the real widgets: Ate here at halal places, meal time in History, live bus position |
 | Release gate | GitHub Actions `app` jobs `e2e` + `play` | every push to `main` and manual releases | the whole `emulator` workflow must pass on the commit before the AAB goes to Google Play (closed testing by default) |
 | Real phones `testlab.yml` (Robo) | Firebase Test Lab | by hand before a release | 6: crashes on a Samsung, a Xiaomi/Oppo and a Google phone |
@@ -85,6 +86,25 @@ Writing flows:
   fails on "Bus times not available".
 - Run by hand on a branch: Actions > emulator > Run workflow (or
   `gh api -X POST repos/hndrwn-dk/dailylah/actions/workflows/emulator.yml/dispatches -f ref=<branch>`).
+## Contract tests (app and backend)
+
+`contracts/v1/<name>.json` holds, per `/v1/*` endpoint (each weather kind on its own): the
+`request`, the `upstream` answer it is built from (made-up values in the real upstream format)
+and the `response` the app reads.
+
+- Backend (`backend/tests/test_contracts.py`): upstream is mocked with `upstream`, the endpoint
+  is called, and the answer must have the structure of `response`: every key, list and value
+  type in the example must be there. Values may differ and extra keys are allowed, so adding a
+  field never breaks the app; removing or retyping one fails here.
+- App (`app/test/contract_test.dart`): the real parsers (`forecastNear`, `parseBusArrival`,
+  `parseParking`, `EvLive.fromApi`...) read each `response` and must find the expected values.
+  A test fails when an example has no check, so a new endpoint gets one on both sides.
+- Changing a response on purpose: change the backend, run
+  `cd backend && UPDATE_CONTRACTS=1 pytest tests/test_contracts.py` to rewrite the examples, then
+  update the app parser and `contract_test.dart` in the same PR. Both workflows run when
+  `contracts/` changes. `fetched_at` stays fixed in the examples so the diff only shows real changes.
+- Not covered: the upstream itself (data.gov.sg, LTA, OneMap) changing its format. The data
+  workflow and live use catch that.
 
 ## Layout bugs the matrix found (fixed in PR #51)
 

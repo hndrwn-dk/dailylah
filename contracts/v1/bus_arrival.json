@@ -1,0 +1,96 @@
+{
+  "request": "/v1/bus-arrival/54239",
+  "upstream": {
+    "BusStopCode": "54239",
+    "Services": [
+      {
+        "ServiceNo": "73",
+        "Operator": "SBST",
+        "NextBus": {
+          "OriginCode": "54009",
+          "DestinationCode": "52009",
+          "EstimatedArrival": "2026-11-05T12:04:00+08:00",
+          "Monitored": 1,
+          "Latitude": "1.3655",
+          "Longitude": "103.8481",
+          "VisitNumber": "1",
+          "Load": "SEA",
+          "Feature": "WAB",
+          "Type": "DD"
+        },
+        "NextBus2": {
+          "OriginCode": "54009",
+          "DestinationCode": "52009",
+          "EstimatedArrival": "2026-11-05T12:15:00+08:00",
+          "Monitored": 1,
+          "Latitude": "0.0",
+          "Longitude": "0.0",
+          "VisitNumber": "1",
+          "Load": "SDA",
+          "Feature": "WAB",
+          "Type": "SD"
+        },
+        "NextBus3": {
+          "OriginCode": "",
+          "DestinationCode": "",
+          "EstimatedArrival": "",
+          "Monitored": 0,
+          "Latitude": "",
+          "Longitude": "",
+          "VisitNumber": "",
+          "Load": "",
+          "Feature": "",
+          "Type": ""
+        }
+      }
+    ]
+  },
+  "response": {
+    "fetched_at": 1793850000,
+    "data": {
+      "BusStopCode": "54239",
+      "Services": [
+        {
+          "ServiceNo": "73",
+          "Operator": "SBST",
+          "NextBus": {
+            "OriginCode": "54009",
+            "DestinationCode": "52009",
+            "EstimatedArrival": "2026-11-05T12:04:00+08:00",
+            "Monitored": 1,
+            "Latitude": "1.3655",
+            "Longitude": "103.8481",
+            "VisitNumber": "1",
+            "Load": "SEA",
+            "Feature": "WAB",
+            "Type": "DD"
+          },
+          "NextBus2": {
+            "OriginCode": "54009",
+            "DestinationCode": "52009",
+            "EstimatedArrival": "2026-11-05T12:15:00+08:00",
+            "Monitored": 1,
+            "Latitude": "0.0",
+            "Longitude": "0.0",
+            "VisitNumber": "1",
+            "Load": "SDA",
+            "Feature": "WAB",
+            "Type": "SD"
+          },
+          "NextBus3": {
+            "OriginCode": "",
+            "DestinationCode": "",
+            "EstimatedArrival": "",
+            "Monitored": 0,
+            "Latitude": "",
+            "Longitude": "",
+            "VisitNumber": "",
+            "Load": "",
+            "Feature": "",
+            "Type": ""
+          }
+        }
+      ]
+    }
+  }
+}
