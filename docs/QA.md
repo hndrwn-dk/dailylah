@@ -137,10 +137,17 @@ Claude plan: no secret in GitHub Actions, no workflow, no laptop.
 - On request: in any Claude Code session on this repo, ask "review PR #N".
 - What it checks and how it writes is in `.github/prompts/review.md` (change the prompt there, no
   workflow change needed). It reads `.claude/security-profile.md` for the threat model.
+- Security uses the owner's claude-toolkit in the private `hndrwn-dk/security-memory`
+  (`claude-toolkit/global/`): a fresh `security-reviewer` subagent per PR, the memory format of
+  `/vuln-scan`, and after the PR reviews a `/find-critical-bugs` pass over the last 7 days. The
+  toolkit is read from the clone, not installed into the session.
+- Security gate before a merge: ask the session for "security gate for PR #N"; it follows the
+  toolkit's `/security-gate` and posts `Security gate: pass at <sha>.` on the PR.
 - Output: one comment per PR, updated on each new commit: `SETUJUI` or `PERLU PERUBAHAN`, then
   findings by severity (Kritis, Tinggi, Sedang) with `file:line`.
 - The repository is public, so a security finding shows only as a count in the PR. Its details go
-  to the private repository `hndrwn-dk/security-memory` (`dailylah/reviews/`).
+  to the private repository `hndrwn-dk/security-memory` (`dailylah/reports/` and
+  `dailylah/dailylah---flagged-vulnerabilities.json`).
 - Advisory only: it never approves, blocks, merges or pushes. A review can be wrong; a person
   decides. It does not replace any gate above.
 - Stop or change the schedule in the scheduled task settings.

@@ -49,7 +49,9 @@ emulator e2e, Play upload gate) stay as they are.
 - Phase 6 (AI review, branch `test/phase6-ai-review`): no API key and no workflow. A Claude Code
   cloud scheduled task (every 8 h, Singapore time) runs `.claude/skills/review-pr` with
   `.github/prompts/review.md` and `.claude/security-profile.md`; one advisory comment per PR,
-  security details only in the private `hndrwn-dk/security-memory`.
+  security through the owner's claude-toolkit (read from the private `hndrwn-dk/security-memory`,
+  not installed: auto mode blocks writing hooks into `~/.claude`), details only in that repo.
+  Merges after #101 get the toolkit's security gate first ("security gate for PR #N").
 - Next: 7 release-check before production, 8 daily web check.
 
 ### GitHub settings to set by hand (Phase 1)
