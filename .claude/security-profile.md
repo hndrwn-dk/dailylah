@@ -1,0 +1,31 @@
+# Security profile
+
+- **Project type:** flutter-mobile (Android only; the iOS folder is generated but never built or released), python-web-backend (FastAPI on Render), static-web (Vercel: landing page, privacy/terms redirects, data bundles)
+- **Repo visibility:** public (findings must not be posted in public PR comments or issues; see Reporting)
+- **One-line purpose:** Singapore daily-life app for residents (locals and PRs, no tourist mode): public transport, weather, HDB rent/buy and nearby places, built from data.gov.sg (NEA, HDB, CEA), LTA DataMall, OneMap and URA, with a Python backend that proxies and caches the live feeds.
+- **Trust boundaries / attackers:**
+  - Any internet client calling the backend API directly (bypassing the app), including scrapers and abusers of free-tier quotas (Upstash Redis 500K commands/month, QStash, Render, upstream rate limits)
+  - Anyone calling `/internal/poll` without a valid QStash signature
+  - Other apps on the same device: the exported MainActivity (`SEND` text/plain share intent), `dailylah://` widget links, home-screen widget broadcasts, shared storage
+  - Text shared into the app (Google Maps links are expanded on the phone: redirects must stay on Google hosts)
+  - Network attacker (MITM) between app and backend, and between app and the static bundle hosts
+  - Compromised or malformed upstream data from data.gov.sg / LTA DataMall / OneMap / URA / Eventfinda
+  - Compromised static bundle host or data workflow (the app trusts JSON from dailylah.sg, dailylah.tursinalabs.com, dailylah-web.vercel.app)
+  - GitHub Actions supply chain: third-party actions, Dependabot updates, workflows that push to the repo (data, screenshots, goldens)
+- **Extra attack surfaces to prioritise:**
+  - Upstream credentials (LTA AccountKey, data.gov.sg key, OneMap email/password and token, URA access key, Eventfinda login): backend or CI only, never in the APK, the bundles or logs
+  - Backend `/v1/*` endpoints: input validation (stop code, postal code, CEA registration, train line, search text), upstream URLs never built from free user input (SSRF), errors that do not echo upstream responses
+  - Upstash Redis keys built from user input (search text is normalised and kept in memory only); cost of cache misses under abuse
+  - `/internal/poll`: QStash signature check outside `ENV=dev`
+  - Neon Postgres: `DATABASE_URL` is configured but not used by any code yet; any new SQL must be parameterised
+  - Secrets in Render / Vercel config and GitHub Actions: Android upload keystore (4 secrets), Play service account, Firebase service account (Test Lab), upstream keys; `permissions`, `persist-credentials: false`, no `pull_request_target`, actions pinned by SHA
+  - Personal data: locations and favourites stay on the phone; the server sees search text (may be a home address or postal code), EV postal codes, bus stop codes and CEA registration numbers, and must not log them
+  - Android: exported components, intent and deep-link parsing, WorkManager background job, cleartext traffic (none expected), R8 keep rules that widen what is reachable
+- **Sensitive data handled:** upstream API keys and logins, Android upload keystore, Play Console and Firebase service accounts, Upstash Redis and QStash credentials, Neon URL (unused), user search text and saved places (on the phone), user location (on the phone only)
+- **Private dependencies not in this repo:** none known
+- **Exclude paths:** **/build/, **/.dart_tool/, **/android/.gradle/, **/ios/Pods/, **/*.g.dart, **/*.freezed.dart, **/__pycache__/, **/.venv/, web/data/*.json (generated bundles), app/test/goldens/, app/test_store/goldens/, docs/store/
+- **Test command:** cd app && flutter analyze && flutter test (app; runs in CI, Flutter is not installed in cloud sessions); cd backend && pytest && ruff check . (backend)
+- **Recent commits window:** 7 days
+- **Memory repo:** hndrwn-dk/security-memory (must be private)
+- **Reporting:** memory-repo; on a public PR only the verdict and the number of findings per severity, never the details of a Critical/High security finding
+- **Timezone:** Asia/Singapore

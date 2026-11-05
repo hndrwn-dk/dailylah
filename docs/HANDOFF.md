@@ -46,8 +46,13 @@ emulator e2e, Play upload gate) stay as they are.
 - Phase 5 (golden tests, branch `test/phase5-goldens`): `app/test/golden_test.dart` (4 tabs x
   light/dark, Linux CI only via `GOLDENS=1`), images in `app/test/goldens/`, artifact
   `golden-failures` on a failed `app` run, `goldens.yml` rewrites and commits the images on a branch.
-- Next: 6 advisory
-  AI review, 7 release-check before production, 8 daily web check.
+- Phase 6 (AI review, branch `test/phase6-ai-review`): no API key and no workflow. A Claude Code
+  cloud scheduled task (every 8 h, Singapore time) runs `.claude/skills/review-pr` with
+  `.github/prompts/review.md` and `.claude/security-profile.md`; one advisory comment per PR,
+  security through the owner's claude-toolkit (read from the private `hndrwn-dk/security-memory`,
+  not installed: auto mode blocks writing hooks into `~/.claude`), details only in that repo.
+  Merges after #101 get the toolkit's security gate first ("security gate for PR #N").
+- Next: 7 release-check before production, 8 daily web check.
 
 ### GitHub settings to set by hand (Phase 1)
 Settings > Advanced Security (or Code security):
