@@ -28,7 +28,7 @@ import '../test/support/harness.dart' show FakeApi, householdFavorites;
 /// Starts the app the way main() does: load stored favourites, then show the app.
 Future<void> launch(WidgetTester tester) async {
   final fav = await FavoritesStore().load();
-  await tester.pumpWidget(ProviderScope(
+  await tester.pumpWidget(ProviderScope(retry: noRetry,
     overrides: [initialFavoritesProvider.overrideWithValue(fav)],
     child: const DailyLahApp(),
   ));

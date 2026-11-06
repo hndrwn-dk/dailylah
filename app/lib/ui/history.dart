@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../data.dart';
 import '../l10n.dart';
@@ -28,13 +29,13 @@ class HistoryPage extends ConsumerWidget {
     final t = Theme.of(context).textTheme;
     final on = ref.watch(favoritesProvider.select((f) => f.learnHabits));
     final habits = ref.watch(habitsProvider);
-    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
+    final now = ref.watch(clockProvider).value ?? DateTime.now();
     final period = ref.watch(historyPeriodProvider);
     final kind = ref.watch(historyKindProvider);
     final entries =
         historyOfKinds(historyEntries(habits, since: historySince(period, now)), {if (kind != null) kind});
     final sum = historySummary(entries);
-    final hawkers = {for (final h in ref.watch(hawkersProvider).valueOrNull ?? const <Hawker>[]) h.id: h.name};
+    final hawkers = {for (final h in ref.watch(hawkersProvider).value ?? const <Hawker>[]) h.id: h.name};
 
     return Scaffold(
       body: ListView(

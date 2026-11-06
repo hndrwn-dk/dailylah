@@ -165,8 +165,8 @@ class _PlaceViewState extends ConsumerState<_PlaceView> {
 
     // Direct bus from a stop near you (or the selected place) to a stop near the place.
     String? busHint;
-    final routes = ref.watch(busRoutesProvider).valueOrNull;
-    final stops = ref.watch(busStopsProvider).valueOrNull;
+    final routes = ref.watch(busRoutesProvider).value;
+    final stops = ref.watch(busStopsProvider).value;
     if (me != null && routes != null && routes.routes.isNotEmpty && stops != null) {
       final dest = Place(kind: PlaceKind.other, addrLat: widget.lat, addrLng: widget.lng);
       final destStops = destinationStops(dest, stops);

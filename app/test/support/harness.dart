@@ -13,6 +13,7 @@ import 'package:dailylah/ui/theme.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -337,13 +338,13 @@ List<Override> overridesFor(Condition c, Favorites fav, DateTime now, {String? d
     ];
 
 /// The whole app (setup or tabs, depending on [fav.onboarded]).
-Widget appUnder(Condition c, Favorites fav, DateTime now, {String? disruptedLine}) => ProviderScope(
+Widget appUnder(Condition c, Favorites fav, DateTime now, {String? disruptedLine}) => ProviderScope(retry: noRetry,
       overrides: overridesFor(c, fav, now, disruptedLine: disruptedLine),
       child: const DailyLahApp(),
     );
 
 /// A single page, themed like the app.
-Widget pageUnder(Condition c, Favorites fav, DateTime now, Widget page) => ProviderScope(
+Widget pageUnder(Condition c, Favorites fav, DateTime now, Widget page) => ProviderScope(retry: noRetry,
       overrides: overridesFor(c, fav, now),
       child: MaterialApp(
         theme: buildTheme(Brightness.light),

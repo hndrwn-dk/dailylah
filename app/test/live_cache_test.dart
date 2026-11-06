@@ -35,26 +35,26 @@ void main() {
   test('cached forecast shows while the server is asleep, live answer replaces it', () async {
     await LiveCache().write('forecast', {'fetched_at': 1, 'data': {'cached': true}});
     final api = SleepyApi();
-    final c = ProviderContainer(overrides: [apiProvider.overrideWithValue(api)]);
+    final c = ProviderContainer(retry: noRetry, overrides: [apiProvider.overrideWithValue(api)]);
     addTearDown(c.dispose);
     final sub = c.listen(forecastProvider, (_, __) {});
     addTearDown(sub.close);
 
     var v = await settle(c);
-    expect(v.valueOrNull?['data'], {'cached': true});
+    expect(v.value?['data'], {'cached': true});
     expect(api.calls, 2); // tried, then tried once more
 
     // Server is awake now; the app coming back to the foreground refetches.
     api.up = true;
     c.invalidate(forecastProvider);
     v = await settle(c);
-    expect(v.valueOrNull?['data'], {'live': true});
+    expect(v.value?['data'], {'live': true});
     expect((await LiveCache().read('forecast'))!.$1['data'], {'live': true});
   });
 
   test('no cache and server asleep: an error, then data once it answers', () async {
     final api = SleepyApi();
-    final c = ProviderContainer(overrides: [apiProvider.overrideWithValue(api)]);
+    final c = ProviderContainer(retry: noRetry, overrides: [apiProvider.overrideWithValue(api)]);
     addTearDown(c.dispose);
     final sub = c.listen(forecastProvider, (_, __) {});
     addTearDown(sub.close);
@@ -62,12 +62,12 @@ void main() {
     expect((await settle(c)).hasError, isTrue);
     api.up = true;
     c.invalidate(forecastProvider);
-    expect((await settle(c)).valueOrNull?['data'], {'live': true});
+    expect((await settle(c)).value?['data'], {'live': true});
   });
 
   test('an old cache is not shown', () async {
     await LiveCache().write('forecast', {'data': {'cached': true}}, DateTime.now().subtract(const Duration(hours: 9)));
-    final c = ProviderContainer(overrides: [apiProvider.overrideWithValue(SleepyApi())]);
+    final c = ProviderContainer(retry: noRetry, overrides: [apiProvider.overrideWithValue(SleepyApi())]);
     addTearDown(c.dispose);
     final sub = c.listen(forecastProvider, (_, __) {});
     addTearDown(sub.close);

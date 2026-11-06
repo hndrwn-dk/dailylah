@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../data.dart';
 import '../l10n.dart';
@@ -23,12 +24,12 @@ class BlockSearchPage extends ConsumerWidget {
     final blocks = ref.watch(hdbBlocksProvider);
     final t = Theme.of(context).textTheme;
 
-    final all = blocks.valueOrNull ?? const <HdbBlock>[];
+    final all = blocks.value ?? const <HdbBlock>[];
     final postal = isPostalCode(query);
     final byPostal = postal ? searchBlocks(all, query) : const <HdbBlock>[];
     // Postal codes not in the bundle are resolved on OneMap, then matched to a block.
     final postalHit = postal && byPostal.isEmpty && all.isNotEmpty ? ref.watch(addressSearchProvider(query.trim())) : null;
-    final postalBlock = postalHit?.valueOrNull?.isNotEmpty == true ? blockForAddress(all, postalHit!.value!.first) : null;
+    final postalBlock = postalHit?.value?.isNotEmpty == true ? blockForAddress(all, postalHit!.value!.first) : null;
     final results = postal
         ? (byPostal.isNotEmpty ? byPostal : [if (postalBlock != null) postalBlock])
         : query.trim().length < 2
@@ -107,7 +108,7 @@ class BlockTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final resale = ref.watch(resaleProvider).valueOrNull;
+    final resale = ref.watch(resaleProvider).value;
     final stats = resale?.blocks[block.key] ?? const <ResaleStat>[];
     final t = Theme.of(context).textTheme;
     final top = stats.isEmpty ? null : (stats.toList()..sort((a, b) => b.count.compareTo(a.count))).first;
@@ -191,9 +192,9 @@ class BlockPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final fav = ref.watch(favoritesProvider);
-    final resale = ref.watch(resaleProvider).valueOrNull;
-    final rent = ref.watch(rentProvider).valueOrNull;
-    final year = (ref.watch(clockProvider).valueOrNull ?? DateTime.now()).year;
+    final resale = ref.watch(resaleProvider).value;
+    final rent = ref.watch(rentProvider).value;
+    final year = (ref.watch(clockProvider).value ?? DateTime.now()).year;
     final stats = resale?.blocks[block.key] ?? const <ResaleStat>[];
     final townMedians = resale?.towns[block.town] ?? const <String, int>{};
     final rents = rent?.towns[block.town] ?? const <String, int>{};
@@ -445,10 +446,10 @@ class _ScoreCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final pois = ref.watch(poisProvider).valueOrNull;
-    final stops = ref.watch(busStopsProvider).valueOrNull;
-    final hawkers = ref.watch(hawkersProvider).valueOrNull;
-    final dengue = ref.watch(dengueProvider).valueOrNull ?? const <DengueCluster>[];
+    final pois = ref.watch(poisProvider).value;
+    final stops = ref.watch(busStopsProvider).value;
+    final hawkers = ref.watch(hawkersProvider).value;
+    final dengue = ref.watch(dengueProvider).value ?? const <DengueCluster>[];
     if (pois == null || stops == null || hawkers == null) {
       return const Panel(child: Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator()));
     }
@@ -503,12 +504,12 @@ class ComparePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final fav = ref.watch(favoritesProvider);
-    final blocks = ref.watch(hdbBlocksProvider).valueOrNull ?? const <HdbBlock>[];
-    final resale = ref.watch(resaleProvider).valueOrNull;
-    final pois = ref.watch(poisProvider).valueOrNull;
-    final stops = ref.watch(busStopsProvider).valueOrNull ?? const <BusStop>[];
-    final hawkers = ref.watch(hawkersProvider).valueOrNull ?? const <Hawker>[];
-    final dengue = ref.watch(dengueProvider).valueOrNull ?? const <DengueCluster>[];
+    final blocks = ref.watch(hdbBlocksProvider).value ?? const <HdbBlock>[];
+    final resale = ref.watch(resaleProvider).value;
+    final pois = ref.watch(poisProvider).value;
+    final stops = ref.watch(busStopsProvider).value ?? const <BusStop>[];
+    final hawkers = ref.watch(hawkersProvider).value ?? const <Hawker>[];
+    final dengue = ref.watch(dengueProvider).value ?? const <DengueCluster>[];
     final year = DateTime.now().year;
     final byKey = {for (final b in blocks) b.key: b};
     final chosen = [for (final k in fav.compareBlocks) if (byKey[k] != null) byKey[k]!];

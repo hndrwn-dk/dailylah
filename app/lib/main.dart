@@ -20,7 +20,7 @@ Future<void> main() async {
     debugPrint('favourites not loaded: $e');
   }
   // Show the app first; notifications and background work must never block start-up.
-  runApp(ProviderScope(
+  runApp(ProviderScope(retry: noRetry,
     overrides: [initialFavoritesProvider.overrideWithValue(favorites)],
     child: const DailyLahApp(),
   ));

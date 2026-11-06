@@ -164,7 +164,7 @@ Future<void> _shoot(
   tester.view.devicePixelRatio = _dpr;
   tester.view.physicalSize = _logical * _dpr;
   final now = at ?? tuesdayMorning;
-  await tester.pumpWidget(ProviderScope(
+  await tester.pumpWidget(ProviderScope(retry: noRetry,
     overrides: [
       initialFavoritesProvider.overrideWithValue(_fav),
       apiProvider.overrideWithValue(StoreApi(disruptedLine: disruptedLine)),

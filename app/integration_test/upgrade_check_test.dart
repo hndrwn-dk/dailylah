@@ -21,7 +21,7 @@ void main() {
     expect(fav.lines, contains('EWL'));
     expect(fav.mrtAlerts, isFalse, reason: 'a toggle changed in the old version must stay changed');
 
-    await tester.pumpWidget(ProviderScope(
+    await tester.pumpWidget(ProviderScope(retry: noRetry,
       overrides: [initialFavoritesProvider.overrideWithValue(fav)],
       child: const DailyLahApp(),
     ));
