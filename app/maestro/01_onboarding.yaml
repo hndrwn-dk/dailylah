@@ -7,6 +7,12 @@ name: 01 Onboarding
     permissions:
       all: deny
 - startRecording: 01_onboarding
+# THROWAWAY (verification): fail the first attempt only.
+- runFlow:
+    when:
+      true: ${MAESTRO_ATTEMPT == '1'}
+    commands:
+      - assertVisible: "Forced failure for the retry check"
 - extendedWaitUntil:
     visible: "(?s).*Welcome to.*"
     timeout: 30000

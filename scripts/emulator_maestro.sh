@@ -87,7 +87,8 @@ run_attempt() {
   "${ADB[@]}" logcat -c 2>/dev/null || true
   # takeScreenshot and startRecording write to the working directory.
   (cd "$dir" && maestro --device "$DEVICE" test --config "$ROOT/app/maestro/config.yaml" \
-    "$ROOT/app/maestro" --format junit --output "$dir/report.xml" --debug-output "$dir/debug")
+    "$ROOT/app/maestro" -e MAESTRO_ATTEMPT="$1" \
+    --format junit --output "$dir/report.xml" --debug-output "$dir/debug")
 }
 
 # flow_lines N: one line per flow in the job summary, from the JUnit report.
