@@ -1056,7 +1056,7 @@ int compass8(double east, double north) {
 
 // ---------------------------------------------------------------- trips: buses that go there
 
-/// LTA bus routes bundle: "<service>|<direction>" -> stops in order with km from start.
+/// LTA bus routes bundle: `"<service>|<direction>"` -> stops in order with km from start.
 class BusRoutes {
   const BusRoutes(this.routes);
   final Map<String, List<(String, double)>> routes;
@@ -2692,8 +2692,8 @@ SharedPlace? parseSharedPlace(String? text, {String? subject}) {
 }
 
 /// The destination a Google Maps link leads to (after its short link is opened): a place page
-/// (/maps/place/<name, address>/...), directions (/maps/dir/<from>/<to>/...: the last stop), or
-/// ?q= / ?daddr= / ?destination=. Its pin (!3d<lat>!4d<lng>, else the last !1d<lng>!2d<lat>) wins
+/// (`/maps/place/<name, address>/...`), directions (`/maps/dir/<from>/<to>/...`: the last stop), or
+/// ?q= / ?daddr= / ?destination=. Its pin (`!3d<lat>!4d<lng>`, else the last `!1d<lng>!2d<lat>`) wins
 /// over the map's centre (@lat,lng). Null when the link holds no place.
 SharedPlace? mapsLinkPlace(String url) {
   final uri = Uri.tryParse(url);

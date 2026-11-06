@@ -32,7 +32,7 @@ Future<void> _withFavorites(Favorites fav, {List<String> sent = const []}) async
 
 Iterable<String> get titles => shown.map((m) => '${m['title']}');
 
-/// MRT alerts are titled "Disruption on <lines>" (S.mrtAlert).
+/// MRT alerts are titled "Disruption on `<lines>`" (S.mrtAlert).
 Iterable<String> get mrtTitles => titles.where((t) => t.startsWith('Disruption'));
 
 void main() {
