@@ -224,7 +224,8 @@ feature, screen, provider or rule moves, appears or goes away.
 - `maestro/` drives the release build through the screen like a person (onboarding, Setup over a restart,
   Today buses, Nearby, Home, location, Appearance), run by the emulator `maestro` job. A change to a
   string, tab or screen those flows tap on updates the flow in the same PR; how to write and run them
-  is in docs/QA.md "Maestro".
+  is in docs/QA.md "Maestro". Every `launchApp` denies notifications. A failed run prints why and runs all
+  flows once more; a pass on that retry is a "Maestro flaky" warning to read, not to ignore.
 - `test/contract_test.dart` runs the parsers on the shared API examples in `contracts/v1/`; a parser
   that reads a new field or endpoint gets an example and a check there (docs/QA.md "Contract tests").
 - `test/golden_test.dart` compares Today, Nearby, Home and More (light and dark) with the images in

@@ -4,6 +4,8 @@ name: 07 More and appearance
 ---
 - launchApp:
     stopApp: true
+    permissions:
+      notifications: deny
 - startRecording: 07_more
 - tapOn: "(?s)More.*"
 # Centred, so the tap does not land under the floating tab bar.
@@ -20,7 +22,9 @@ name: 07 More and appearance
     visible: "(?s)Appearance.*Dark.*"
     timeout: 10000
 - stopApp
-- launchApp
+- launchApp:
+    permissions:
+      notifications: deny
 - tapOn: "(?s)More.*"
 - scrollUntilVisible:
     element: "(?s)Appearance.*Dark.*"

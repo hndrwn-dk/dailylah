@@ -5,6 +5,8 @@ name: 03 Today bus arrivals
 ---
 - launchApp:
     stopApp: true
+    permissions:
+      notifications: deny
 - startRecording: 03_today_bus
 - tapOn: "(?s)Today.*"
 - scrollUntilVisible:

@@ -9,6 +9,7 @@ name: 04 Nearby
     stopApp: true
     permissions:
       location: deny
+      notifications: deny
 - startRecording: 04_nearby
 - tapOn: "(?s)Nearby.*"
 - extendedWaitUntil:
