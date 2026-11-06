@@ -7,10 +7,15 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- No Android backup: saved places and habits stay on this phone (docs/legal/privacy.md).
+         allowBackup="false" stops cloud backup on every version; on Android 12+ the rules file
+         also excludes everything from device-to-device transfer. -->
     <application
         android:label="DailyLah"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <activity
             android:name=".MainActivity"
             android:exported="true"
