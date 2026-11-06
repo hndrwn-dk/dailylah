@@ -39,5 +39,3 @@ name: 07 More and appearance
     visible: "(?s)Appearance.*Follow my phone.*"
     timeout: 10000
 - stopRecording
-# THROWAWAY (verification): fail on every attempt.
-- assertVisible: "Forced failure on every attempt"

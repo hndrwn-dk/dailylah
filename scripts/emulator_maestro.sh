@@ -87,8 +87,7 @@ run_attempt() {
   "${ADB[@]}" logcat -c 2>/dev/null || true
   # Screenshots and recordings go to --test-output-dir (Maestro 2 ignores the working directory).
   (cd "$dir" && maestro --device "$DEVICE" test --config "$ROOT/app/maestro/config.yaml" \
-    "$ROOT/app/maestro" -e MAESTRO_ATTEMPT="$1" \
-    --format junit --output "$dir/report.xml" --debug-output "$dir/debug" \
+    "$ROOT/app/maestro" --format junit --output "$dir/report.xml" --debug-output "$dir/debug" \
     --test-output-dir "$dir/output")
 }
 
@@ -199,7 +198,9 @@ EOF
   "${ADB[@]}" logcat -d -b crash 2>/dev/null | tail -100 || true
   echo "::endgroup::"
   echo "::group::Attempt $1: app log (flutter, AndroidRuntime, $PKG)"
-  "${ADB[@]}" logcat -d -v time 2>/dev/null | grep -E "flutter|AndroidRuntime|$PKG" | tail -200 || true
+  "${ADB[@]}" logcat -d -v time 2>/dev/null | grep -E "flutter|AndroidRuntime|$PKG" \
+    | grep -vE "I/Maestro|D/UiDevice|WindowManager|AppsFilter|nativeloader|ImeTracker" \
+    | cut -c1-300 | tail -200 || true
   echo "::endgroup::"
   echo "::group::Attempt $1: screen when the flows stopped"
   maestro --device "$DEVICE" hierarchy 2>/dev/null | python3 -c '
