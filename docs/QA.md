@@ -69,9 +69,22 @@ order (01 sets up the household the others use) and stops at the first failure.
   upload key never reaches the emulator job. The script fails if the APK is debuggable.
 - Maestro and bundletool are downloaded at pinned versions and checked by SHA-256 in
   `emulator.yml`; bump the version and checksum together.
-- On a failure the log shows the texts on screen ("Screen when the flows stopped") and the artifact
-  `maestro-results` keeps the videos, screenshots and error logcat for 14 days. The job summary
-  lists each flow as passed or failed.
+- Before the flows the script waits until the emulator answers on adb (`sys.boot_completed`) and
+  wakes the API on Render (`/health`, up to 90 s), so a cold start does not land inside a flow.
+  The flows run with notifications denied (no live alerts on screen); `common/decline_notifications.yaml`
+  answers Android's prompt after Setup's Done/Save.
+- One retry: when a flow fails, the log shows why (each failed flow's message from `report.xml`,
+  the last steps before the failure from the debug output, `adb logcat -b crash`, the app's log
+  and the texts on screen), then every flow runs once more on a fresh install (01 sets up the
+  household the others need, so a single flow cannot run alone). Passing the second time keeps
+  the job green with a `Maestro flaky: passed on retry` warning naming the flow and its first
+  reason; failing twice fails the job, which still blocks the Play upload. Read the warnings:
+  a flaky flow can also be a real bug that shows only sometimes.
+- The job summary lists each flow per attempt. The artifact `maestro-results` keeps the reports,
+  debug output, videos, screenshots and error logcat of every failed attempt for 14 days.
+- The flows use the live API and live data (LTA bus arrivals, OneMap search, weather). If they
+  stay flaky, pull request runs could point the app at a fixture server built from
+  `contracts/v1/`; releases keep the live API.
 
 Writing flows:
 - Flutter merges the texts of a tile or card into one node, so match with `"(?s).*text.*"`, or

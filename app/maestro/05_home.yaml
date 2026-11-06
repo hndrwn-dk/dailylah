@@ -4,6 +4,8 @@ name: 05 Home
 ---
 - launchApp:
     stopApp: true
+    permissions:
+      notifications: deny
 - startRecording: 05_home
 - tapOn: "(?s)Home.*"
 - extendedWaitUntil:
