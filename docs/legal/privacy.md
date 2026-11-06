@@ -1,6 +1,6 @@
 # DailyLah Privacy Policy
 
-**Last updated: 31 October 2026**
+**Last updated: 6 November 2026**
 App: DailyLah (Android, package `com.tursinalabs.dailylah`)
 Published at: https://www.tursinalabs.com/dailylah/privacy
 
@@ -25,7 +25,7 @@ DailyLah is a free daily companion for people in Singapore. It shows bus arrival
 - What you choose to log with **Learn my habits**: trips you start and end with "I'm leaving" and "Arrived" (route, start time, minutes, whether it was raining, travel mode and straight-line distance), hawker centres and halal places (name and position) you mark with "Ate here", and the car park, level and lot you save with "I parked here" (and, once you pick the car up, how long you parked there and whether it was an HDB car park, for a cost estimate), and any costs you enter for trips or parking. These are shown on the History tab, where you can remove single entries. You can turn this off and delete it all any time in More > Extras. It is not part of the family share code.
 - Copies of public data bundles (bus stops, hawker centres, dengue clusters, schools, parks and their facilities, supermarkets, car parks, HDB blocks, resale and rent statistics, prayer times, public and MOE school holidays, public events listed on Eventfinda, and EV charging locations), and the text shown on the home screen widget
 
-This data never leaves your phone. It is not backed up to Tursina Labs.
+This data never leaves your phone. It is not backed up to Tursina Labs, and DailyLah turns off Android backup and phone-to-phone transfer for it, so it is not copied to your Google account or to a new phone. To move your setup to another phone, use **Share with family**.
 
 **Share with family** creates a QR code or text code on your phone containing your saved bus stops, MRT lines and departure times. It is not sent to Tursina Labs; it only leaves your phone if you show it or send it yourself (for example through a chat app). Importing a code works by pasting it, without the camera.
 
@@ -104,7 +104,7 @@ DailyLah adalah teman harian gratis untuk warga Singapura. Aplikasi ini menampil
 - Yang Anda catat sendiri lewat **Learn my habits**: perjalanan yang Anda mulai dan akhiri dengan "I'm leaving" dan "Arrived" (rute, jam mulai, durasi, apakah sedang hujan, moda perjalanan, dan jarak garis lurus), hawker dan tempat makan halal (nama dan lokasi) yang Anda tandai dengan "Ate here", serta lokasi parkir, level, dan nomor lot yang Anda simpan dengan "I parked here" (dan, setelah mobil diambil, berapa lama parkirnya serta apakah itu tempat parkir HDB, untuk perkiraan biaya), serta biaya perjalanan atau parkir yang Anda isi sendiri. Semua ini tampil di tab History, tempat Anda bisa menghapus entri satu per satu. Fitur ini bisa dimatikan dan seluruh datanya dihapus kapan saja di More > Extras. Data ini tidak ikut dalam kode berbagi keluarga.
 - Salinan bundel data publik (halte bus, hawker, cluster dengue, sekolah, taman beserta fasilitasnya, supermarket, parkir, blok HDB, statistik harga resale dan sewa, jadwal sholat, hari libur nasional dan libur sekolah MOE, serta event publik dari Eventfinda), dan teks yang tampil di widget layar utama
 
-Data ini tidak pernah keluar dari HP Anda dan tidak dicadangkan ke Tursina Labs.
+Data ini tidak pernah keluar dari HP Anda dan tidak dicadangkan ke Tursina Labs. DailyLah juga mematikan backup Android dan transfer antar-HP untuk data ini, jadi data tidak tersalin ke akun Google Anda atau ke HP baru. Untuk memindahkan pengaturan ke HP lain, pakai **Share with family**.
 
 **Bagikan ke keluarga** membuat kode QR atau kode teks di HP Anda yang berisi halte bus, jalur MRT, dan jam berangkat yang Anda simpan. Kode ini tidak dikirim ke Tursina Labs; kode hanya keluar dari HP jika Anda sendiri menunjukkan atau mengirimkannya (misalnya lewat aplikasi chat). Impor kode dilakukan dengan menempelkan teks, tanpa kamera.
 
