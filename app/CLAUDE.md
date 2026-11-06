@@ -178,7 +178,8 @@ feature, screen, provider or rule moves, appears or goes away.
   from secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
   `ANDROID_KEY_PASSWORD`). Native changes (manifest, Kotlin widget, `dailylah/apps` channel) are
   compile-checked by the `emulator` workflow, which builds and runs the debug and release APKs on every
-  pull request; its `release` job also checks targetSdk 36+ for Google Play. Testers get builds from
+  pull request; its `release` job also checks targetSdk 36+ for Google Play and that Android backup stays off
+  (`allowBackup="false"`, privacy). Testers get builds from
   Play (closed testing), not from CI artifacts.
 - Release builds use R8 (minify + resource shrinking). Plugins reached by reflection/JNI are kept in
   `android/app/proguard-rules.pro`, resources used by name in `res/raw/keep.xml`. The AAB artifact
