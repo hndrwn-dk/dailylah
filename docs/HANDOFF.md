@@ -56,11 +56,14 @@ emulator e2e, Play upload gate) stay as they are.
   attached, and since most PRs come from Claude sessions that already run the gate, it mostly spent
   plan usage.
 - Phase 7 (release check) shrank to a checklist: docs/QA.md "Before promoting a release to
-  production" (security green, Test Lab, /vuln-scan in a session); no new workflow, since the Play
+  production" (security green, a real phone in closed testing, /vuln-scan in a session); no new workflow, since the Play
   upload is already gated and production is promoted by hand.
 - Phase 8 (web check, branch `ci/phase8-web-check`): `web-check.yml` daily at 07:23 SGT runs
   `scripts/web_check.sh` (curl): site, /privacy and /terms redirects, manifest on the 3 hosts, one
   bundle sha256. CI/CD hardening is done after this PR.
+- Firebase Test Lab (`testlab.yml`) was removed: it never ran (its secret was never set), the app
+  uses no Firebase, the emulators and Maestro cover API 29/35/36, and Test Lab shuts down on
+  30 Sep 2027. Real phones are covered by closed testing.
 
 ### GitHub settings to set by hand (Phase 1)
 Settings > Advanced Security (or Code security):
@@ -89,6 +92,8 @@ No new secrets are needed for Phase 1.
     that dataset were not visible from the sandbox, so `FACILITY_LABELS` in bundles.py may need tuning.
 
 ## Open ideas / not possible
+- Riverpod 3 migration (from 2.6): ~177 analyzer errors (StateProvider moved to `legacy.dart`,
+  AsyncValue API changes). Dependabot ignores riverpod majors until it lands (`.github/dependabot.yml`).
 - Wikimedia photos for big parks: not started.
 - OnePA and NParks events: written permission needed. A short email to PA was drafted, not sent.
 - Return Right machine locations: the website terms forbid reuse; ask BCRS.

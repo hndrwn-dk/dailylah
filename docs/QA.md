@@ -21,7 +21,6 @@ This file maps that plan to the automated tests in this repo and lists what is s
 | Web check `scripts/web_check.sh` | GitHub Actions `web-check` | daily 07:23 Singapore time, and by hand | dailylah.sg opens, /privacy and /terms redirect to the policy pages, `data/manifest.json` valid on all three hosts, one bundle matches its sha256; see "Web check" below |
 | Feature tests `app/test/features_test.dart` | GitHub Actions `app` (flutter test) | every PR | each feature through the real widgets: Ate here at halal places, meal time in History, live bus position |
 | Release gate | GitHub Actions `app` jobs `e2e` + `play` | every push to `main` and manual releases | the whole `emulator` workflow must pass on the commit before the AAB goes to Google Play (closed testing by default) |
-| Real phones `testlab.yml` (Robo) | Firebase Test Lab | by hand before a release | 6: crashes on a Samsung, a Xiaomi/Oppo and a Google phone |
 | Security scans `security.yml` | GitHub Actions `security` | every PR, push to `main`, Mondays | CodeQL (actions, python, java-kotlin), osv-scanner (dependencies), zizmor (workflows); see below |
 | Backend security `backend.yml` | GitHub Actions `backend` | every push touching `backend/` | ruff bandit rules (`S`), `pip-audit` on the installed dependency tree |
 | Agent docs `docs.yml` | GitHub Actions `docs` | every PR and push to `main` | `docs/REPO_MAP.md` and every `AGENTS.md` match the code and CLAUDE.md (`scripts/repo_map.py --check`) |
@@ -190,7 +189,8 @@ Uploads to closed testing are already gated (`app` > `e2e`: emulator flows, upgr
 Maestro on the AAB that is uploaded). Production is promoted by hand in Play Console; before that,
 for the release's commit on `main`:
 - [ ] `security` workflow green on that commit (CodeQL, osv-scanner, zizmor).
-- [ ] `testlab` run on real phones (Actions > testlab > Run workflow) with no crash.
+- [ ] The closed-testing build ran on at least one real phone (yours or a tester's) for a few days
+      with no crash in Play Console > Android vitals.
 - [ ] Full security scan: in a Claude Code session ask for "/vuln-scan on main" (the owner's
       claude-toolkit, details only in the private `hndrwn-dk/security-memory`); no new medium+ issue.
 - [ ] The manual checks below.
@@ -204,18 +204,6 @@ No promote to production while any of these is open.
 - [ ] Widget buttons Today / Nearby / Home open the app on that tab, also when the app was closed.
 - [ ] Wake me on a locked screen on a real bus ride.
 - [ ] Look at Today and Home once on a small real phone at the largest font size.
-
-## Firebase Test Lab (one-time setup)
-
-1. In the Google Cloud console for your Firebase project, enable the **Cloud Testing API** and **Cloud Tool Results API**.
-2. IAM > Service accounts > create `github-testlab` with roles **Firebase Test Lab Admin** and **Storage Object Admin**, then create a JSON key.
-3. GitHub > Settings > Secrets and variables > Actions:
-   - secret `FIREBASE_SA_KEY` = the JSON key contents (paste it there, never in chat or a commit)
-   - variable `FIREBASE_PROJECT_ID` = your Firebase project id
-4. Run it: Actions > testlab > Run workflow. Results link is in the run summary.
-
-Free Spark plan: 5 physical-device runs a day. Test Lab is deprecated and shuts down on
-30 Sep 2027 (Firebase docs); move the Robo job elsewhere before then.
 
 ## Run locally
 
