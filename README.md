@@ -17,7 +17,7 @@ LTA DataMall) into one morning card, one evening card, and only the alerts that 
 | Real-time cache | Upstash Redis | Upstash |
 | Static + spatial data | PostgreSQL + PostGIS | Neon |
 | Landing, privacy, data bundles | Static HTML/JSON | Vercel |
-| Push | Firebase Cloud Messaging | Firebase |
+| Alerts | On-device (WorkManager, local notifications) | none |
 
 ## Quick start
 

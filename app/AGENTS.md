@@ -192,7 +192,7 @@ feature, screen, provider or rule moves, appears or goes away.
   flows on a universal APK made from the very AAB that is uploaded), and only if all of it passes the
   `play` job uploads to `alpha` (closed testing, the testers for the 14-day production requirement).
   Promote a tested release to production in Play Console only after the checklist in docs/QA.md
-  "Before promoting a release to production" (security green, Test Lab, /vuln-scan) is done. A manual run of `app` on `main` can pick
+  "Before promoting a release to production" (security green, real-phone check in closed testing, /vuln-scan) is done. A manual run of `app` on `main` can pick
   another `play_track` (internal, beta, production as draft); it runs the same tests first. A flaky emulator
   job blocks the upload: re-run failed jobs and `play` follows. The upload sends the AAB, mapping file
   and release notes with the service account in secret `PLAY_SERVICE_ACCOUNT_JSON` (upload action pinned
