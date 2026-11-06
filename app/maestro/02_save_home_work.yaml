@@ -4,6 +4,8 @@ name: 02 Save home and work
 ---
 - launchApp:
     stopApp: true
+    permissions:
+      notifications: deny
 - startRecording: 02_save_home_work
 - extendedWaitUntil:
     visible: "(?s)More.*"
@@ -36,8 +38,11 @@ name: 02 Save home and work
     element: "Save"
     direction: DOWN
 - tapOn: "Save"
+- runFlow: common/decline_notifications.yaml
 - stopApp
-- launchApp
+- launchApp:
+    permissions:
+      notifications: deny
 - tapOn: "(?s)More.*"
 - scrollUntilVisible:
     element: "(?s).*Places, lines and times.*"

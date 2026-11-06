@@ -6,7 +6,6 @@ name: 01 Onboarding
     clearState: true
     permissions:
       all: deny
-      notifications: allow
 - startRecording: 01_onboarding
 - extendedWaitUntil:
     visible: "(?s).*Welcome to.*"
@@ -29,6 +28,7 @@ name: 01 Onboarding
     element: "Done"
     direction: DOWN
 - tapOn: "Done"
+- runFlow: common/decline_notifications.yaml
 - extendedWaitUntil:
     visible: "(?s)Today.*"
     timeout: 30000

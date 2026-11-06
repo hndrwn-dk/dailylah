@@ -1,0 +1,13 @@
+# Setup's Done/Save asks for notifications; the flows run with them denied, so Android may show
+# its prompt. Say no when it appears (up to 5 s); nothing happens when it does not.
+appId: com.tursinalabs.dailylah
+---
+- extendedWaitUntil:
+    visible: "(?i)don.t allow"
+    timeout: 5000
+    optional: true
+- runFlow:
+    when:
+      visible: "(?i)don.t allow"
+    commands:
+      - tapOn: "(?i)don.t allow"

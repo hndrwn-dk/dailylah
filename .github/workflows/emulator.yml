@@ -214,10 +214,12 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
           script: bash scripts/emulator_maestro.sh
-      - name: Keep screenshots, videos and logs of a failed run
-        if: failure()
+      # Kept when an attempt failed, also when the retry passed (the script removes a clean run).
+      - name: Keep screenshots, videos, reports and logs of a failed attempt
+        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: maestro-results
-          path: ${{ runner.temp }}/maestro-out
+          path: ${{ runner.temp }}/maestro-out/attempt-*
+          if-no-files-found: ignore
           retention-days: 14

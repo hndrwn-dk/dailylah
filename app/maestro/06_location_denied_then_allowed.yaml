@@ -6,6 +6,7 @@ name: 06 Location denied then allowed
     stopApp: true
     permissions:
       location: deny
+      notifications: deny
 - startRecording: 06_location
 - tapOn: "(?s)Nearby.*"
 - tapOn: "(?s)Here"
@@ -34,6 +35,7 @@ name: 06 Location denied then allowed
 - launchApp:
     permissions:
       location: allow
+      notifications: deny
 - tapOn: "(?s)Nearby.*"
 - tapOn: "(?s)Here"
 - extendedWaitUntil:
