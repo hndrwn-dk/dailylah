@@ -45,11 +45,11 @@ class HomePage extends ConsumerWidget {
     final t = Theme.of(context).textTheme;
     final fav = ref.watch(favoritesProvider);
     final home = fav.places[PlaceKind.home];
-    final blocks = ref.watch(hdbBlocksProvider).valueOrNull;
+    final blocks = ref.watch(hdbBlocksProvider).value;
     final block = home == null || blocks == null ? null : homeBlock(blocks, home);
     final private = home == null || block != null
         ? null
-        : privateProjectFor(ref.watch(privateHomesProvider).valueOrNull ?? const [], home);
+        : privateProjectFor(ref.watch(privateHomesProvider).value ?? const [], home);
     final section = home == null ? 'blocks' : ref.watch(homeSectionProvider);
 
     Widget hero() {
@@ -180,19 +180,19 @@ class _Glance extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
-    final around = ref.watch(aroundProvider).valueOrNull ?? AroundSet.empty;
+    final now = ref.watch(clockProvider).value ?? DateTime.now();
+    final around = ref.watch(aroundProvider).value ?? AroundSet.empty;
     final works = projectsNear(around.projects, home.lat, home.lng, now: now);
     final mine = upgradingAtHome(works);
-    final dengue = ref.watch(dengueProvider).valueOrNull;
+    final dengue = ref.watch(dengueProvider).value;
     final near = dengue == null ? const <(DengueCluster, double)>[] : dengueNear(dengue, home.lat, home.lng, km: 1);
-    final pois = ref.watch(poisProvider).valueOrNull;
+    final pois = ref.watch(poisProvider).value;
     final school = pois == null
         ? null
         : nearest(pois.of(PoiKind.primarySchool), home.lat, home.lng, latOf: (p) => p.lat, lngOf: (p) => p.lng);
-    final em = ref.watch(emergencyProvider).valueOrNull ?? EmergencySet.empty;
+    final em = ref.watch(emergencyProvider).value ?? EmergencySet.empty;
     final aed = nearestPoints(em.of(EmergencyKind.aed), home.lat, home.lng, limit: 1);
-    final hawkers = ref.watch(hawkersProvider).valueOrNull ?? const <Hawker>[];
+    final hawkers = ref.watch(hawkersProvider).value ?? const <Hawker>[];
     final hawker = nearest(hawkers, home.lat, home.lng, latOf: (h) => h.lat, lngOf: (h) => h.lng);
     void go(String k) => ref.read(homeSectionProvider.notifier).state = k;
 
@@ -507,8 +507,8 @@ class _MyBlock extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    final resale = ref.watch(resaleProvider).valueOrNull;
-    final rent = ref.watch(rentProvider).valueOrNull;
+    final resale = ref.watch(resaleProvider).value;
+    final rent = ref.watch(rentProvider).value;
     final stats = [...?resale?.blocks[block.key]]..sort((a, b) => b.count.compareTo(a.count));
     final rents = rent?.towns[block.town] ?? const <String, int>{};
     final topRent = rentFor(rents, stats.isEmpty ? null : stats.first.flatType);
@@ -612,8 +612,8 @@ class _Works extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    final around = ref.watch(aroundProvider).valueOrNull ?? AroundSet.empty;
-    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
+    final around = ref.watch(aroundProvider).value ?? AroundSet.empty;
+    final now = ref.watch(clockProvider).value ?? DateTime.now();
     final near = projectsNear(around.projects, home.lat, home.lng, now: now);
     final mine = upgradingAtHome(near);
 
@@ -671,7 +671,7 @@ class _Dengue extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final all = ref.watch(dengueProvider).valueOrNull;
+    final all = ref.watch(dengueProvider).value;
     final near = all == null ? const <(DengueCluster, double)>[] : dengueNear(all, home.lat, home.lng, km: 2);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -705,7 +705,7 @@ class _Schools extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final pois = ref.watch(poisProvider).valueOrNull;
+    final pois = ref.watch(poisProvider).value;
     if (pois == null) return const SizedBox.shrink();
     final (near, far) = schoolsByBand(pois.of(PoiKind.primarySchool), home.lat, home.lng);
     NearItem item((Poi, double) x) => NearItem(name: x.$1.name, lat: x.$1.lat, lng: x.$1.lng, distance: x.$2);
@@ -732,8 +732,8 @@ class _Health extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final em = ref.watch(emergencyProvider).valueOrNull ?? EmergencySet.empty;
-    final around = ref.watch(aroundProvider).valueOrNull ?? AroundSet.empty;
+    final em = ref.watch(emergencyProvider).value ?? EmergencySet.empty;
+    final around = ref.watch(aroundProvider).value ?? AroundSet.empty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -754,7 +754,7 @@ class _Shelters extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final em = ref.watch(emergencyProvider).valueOrNull ?? EmergencySet.empty;
+    final em = ref.watch(emergencyProvider).value ?? EmergencySet.empty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -780,8 +780,8 @@ class _Emergency extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    final em = ref.watch(emergencyProvider).valueOrNull ?? EmergencySet.empty;
-    final around = ref.watch(aroundProvider).valueOrNull ?? AroundSet.empty;
+    final em = ref.watch(emergencyProvider).value ?? EmergencySet.empty;
+    final around = ref.watch(aroundProvider).value ?? AroundSet.empty;
 
     Widget call(String number, String label, Color bg, Color fg) => Padding(
           padding: const EdgeInsets.only(bottom: 12),
@@ -831,8 +831,8 @@ class _Community extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final around = ref.watch(aroundProvider).valueOrNull ?? AroundSet.empty;
-    final pois = ref.watch(poisProvider).valueOrNull;
+    final around = ref.watch(aroundProvider).value ?? AroundSet.empty;
+    final pois = ref.watch(poisProvider).value;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -861,7 +861,7 @@ class _Recycling extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final around = ref.watch(aroundProvider).valueOrNull ?? AroundSet.empty;
+    final around = ref.watch(aroundProvider).value ?? AroundSet.empty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -883,14 +883,14 @@ class _Weekend extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final around = ref.watch(aroundProvider).valueOrNull ?? AroundSet.empty;
-    final pois = ref.watch(poisProvider).valueOrNull;
+    final around = ref.watch(aroundProvider).value ?? AroundSet.empty;
+    final pois = ref.watch(poisProvider).value;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _Heading(s.weekendTitle, Icons.park_outlined),
-        if (eventsNear(ref.watch(eventsProvider).valueOrNull ?? const <PublicEvent>[], home.lat, home.lng,
-                ref.watch(clockProvider).valueOrNull ?? DateTime.now(),
+        if (eventsNear(ref.watch(eventsProvider).value ?? const <PublicEvent>[], home.lat, home.lng,
+                ref.watch(clockProvider).value ?? DateTime.now(),
                 days: 7, limit: 10) case final evs when evs.isNotEmpty)
           NearGroup(
             title: s.eventsNearby,
@@ -954,8 +954,8 @@ class _Parking extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final carparks = ref.watch(carparkInfoProvider).valueOrNull ?? const <Carpark>[];
-    final lots = ref.watch(carparkLiveProvider).valueOrNull ?? const <String, (int, int)>{};
+    final carparks = ref.watch(carparkInfoProvider).value ?? const <Carpark>[];
+    final lots = ref.watch(carparkLiveProvider).value ?? const <String, (int, int)>{};
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -993,8 +993,8 @@ class _Food extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    final hawkers = ref.watch(hawkersProvider).valueOrNull ?? const <Hawker>[];
-    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
+    final hawkers = ref.watch(hawkersProvider).value ?? const <Hawker>[];
+    final now = ref.watch(clockProvider).value ?? DateTime.now();
     final closures = upcomingClosures(hawkers, home.lat, home.lng, now);
     final halal = ref.watch(favoritesProvider.select((f) => f.showHalal));
     String day(DateTime d) => '${d.day}/${d.month}';
@@ -1018,7 +1018,7 @@ class _Food extends ConsumerWidget {
             title: s.halalFood,
             icon: Icons.restaurant_outlined,
             items: [
-              for (final (p, d) in halalNear(ref.watch(halalProvider).valueOrNull ?? const <EPoint>[], home.lat, home.lng,
+              for (final (p, d) in halalNear(ref.watch(halalProvider).value ?? const <EPoint>[], home.lat, home.lng,
                   limit: 15, favs: ref.watch(favoritesProvider.select((f) => f.halalPlaces))))
                 NearItem(name: p.name, detail: p.address, lat: p.lat, lng: p.lng, distance: d),
             ],
@@ -1034,7 +1034,7 @@ class _Food extends ConsumerWidget {
               NearItem(name: shortPlaceName(h.name), detail: h.address, lat: h.lat, lng: h.lng, distance: d),
           ],
         ),
-        if ((ref.watch(poisProvider).valueOrNull ?? PoiSet.empty).of(PoiKind.supermarket) case final shops when shops.isNotEmpty)
+        if ((ref.watch(poisProvider).value ?? PoiSet.empty).of(PoiKind.supermarket) case final shops when shops.isNotEmpty)
           NearGroup(
             title: s.supermarkets,
             icon: Icons.shopping_cart_outlined,
@@ -1069,7 +1069,7 @@ class _WatchedAndAgent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final fav = ref.watch(favoritesProvider);
-    final blocks = ref.watch(hdbBlocksProvider).valueOrNull ?? const <HdbBlock>[];
+    final blocks = ref.watch(hdbBlocksProvider).value ?? const <HdbBlock>[];
     final byKey = {for (final b in blocks) b.key: b};
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

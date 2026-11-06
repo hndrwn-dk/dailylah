@@ -17,7 +17,7 @@ class MrtRidePage extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
     final st = ref.watch(rideProvider);
-    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
+    final now = ref.watch(clockProvider).value ?? DateTime.now();
     if (st == null) {
       return Scaffold(appBar: AppBar(title: Text(s.rideTitle)), body: const SizedBox.shrink());
     }
@@ -288,7 +288,7 @@ class RideBanner extends ConsumerWidget {
     if (st == null) return const SizedBox.shrink();
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
+    final now = ref.watch(clockProvider).value ?? DateTime.now();
     final bad = st.disrupted;
     final left = st.ride.stops - st.indexAt(now);
     return Panel(

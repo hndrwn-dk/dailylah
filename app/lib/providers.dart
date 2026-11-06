@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import 'api.dart';
 import 'data.dart';
@@ -8,6 +10,11 @@ import 'l10n.dart';
 import 'logic.dart';
 import 'models.dart';
 import 'store.dart';
+
+/// Riverpod 3 retries failed providers on its own (up to 10 times). The app keeps its own retry
+/// rules instead (`_live`: once at once, then every `liveRetryEvery`), so every ProviderScope and
+/// ProviderContainer is created with `retry: noRetry`.
+Duration? noRetry(int retryCount, Object error) => null;
 
 final apiProvider = Provider((ref) => DailyLahApi());
 final oneMapProvider = Provider((ref) => OneMapApi());
@@ -282,7 +289,7 @@ final busStopsProvider = FutureProvider<List<BusStop>>(
 
 /// Bus stops by code (for placing a live bus on its route), empty until loaded.
 final busStopsByCodeProvider = Provider<Map<String, BusStop>>((ref) => {
-      for (final s in ref.watch(busStopsProvider).valueOrNull ?? const <BusStop>[]) s.code: s,
+      for (final s in ref.watch(busStopsProvider).value ?? const <BusStop>[]) s.code: s,
     });
 
 final hawkersProvider = FutureProvider<List<Hawker>>((ref) => _list(ref, 'hawkers', Hawker.fromBundle));
@@ -390,7 +397,7 @@ final clockProvider = StreamProvider<DateTime>(
   (ref) => Stream.periodic(const Duration(seconds: 30), (_) => DateTime.now()),
 );
 
-DateTime nowOf(Ref ref) => ref.watch(clockProvider).valueOrNull ?? DateTime.now();
+DateTime nowOf(Ref ref) => ref.watch(clockProvider).value ?? DateTime.now();
 
 final cardKindProvider = Provider<CardKind>((ref) => cardFor(nowOf(ref), ref.watch(favoritesProvider)));
 
@@ -456,7 +463,7 @@ final forecastProvider = StreamProvider.autoDispose(
 final trainAlertsProvider = StreamProvider.autoDispose(
     (ref) => _live(ref, 'train-alerts', const Duration(minutes: 30), (api) => api.trainAlerts()));
 
-AutoDisposeStreamProvider<Map<String, dynamic>> _weather(String kind) => StreamProvider.autoDispose(
+StreamProvider<Map<String, dynamic>> _weather(String kind) => StreamProvider.autoDispose(
     (ref) => _live(ref, 'weather-$kind', const Duration(hours: 1), (api) => api.weather(kind)));
 
 final wbgtProvider = _weather('wbgt');
@@ -492,12 +499,12 @@ final liveProviders = <ProviderOrFamily>[
 /// Good time for a park near a point? Null until at least one weather reading has loaded.
 final parkTimeProvider = Provider.autoDispose.family<ParkTime?, (double, double)>((ref, at) {
   final (lat, lng) = at;
-  final lightning = ref.watch(lightningProvider).valueOrNull;
-  final rain = ref.watch(rainfallProvider).valueOrNull;
-  final wbgt = ref.watch(wbgtProvider).valueOrNull;
-  final uv = ref.watch(uvProvider).valueOrNull;
-  final forecast = ref.watch(forecastProvider).valueOrNull;
-  final air = airNear(ref.watch(psiProvider).valueOrNull, ref.watch(pm25Provider).valueOrNull, lat, lng);
+  final lightning = ref.watch(lightningProvider).value;
+  final rain = ref.watch(rainfallProvider).value;
+  final wbgt = ref.watch(wbgtProvider).value;
+  final uv = ref.watch(uvProvider).value;
+  final forecast = ref.watch(forecastProvider).value;
+  final air = airNear(ref.watch(psiProvider).value, ref.watch(pm25Provider).value, lat, lng);
   if (lightning == null && rain == null && wbgt == null && uv == null && air == null) return null;
   return parkTime(
     now: nowOf(ref),
@@ -552,15 +559,15 @@ final todayAlertsProvider = Provider.autoDispose<List<TodayAlert>>((ref) {
     fav: ref.watch(favoritesProvider),
     now: nowOf(ref),
     s: ref.watch(stringsProvider),
-    forecast: ref.watch(forecastProvider).valueOrNull,
-    trainAlerts: ref.watch(trainAlertsProvider).valueOrNull,
-    hawkers: ref.watch(hawkersProvider).valueOrNull ?? const [],
-    dengue: ref.watch(dengueProvider).valueOrNull ?? const [],
-    wbgt: ref.watch(wbgtProvider).valueOrNull,
-    lightning: ref.watch(lightningProvider).valueOrNull,
-    psi: ref.watch(psiProvider).valueOrNull,
-    pm25: ref.watch(pm25Provider).valueOrNull,
-    schoolHolidays: ref.watch(schoolHolidaysProvider).valueOrNull ?? const [],
+    forecast: ref.watch(forecastProvider).value,
+    trainAlerts: ref.watch(trainAlertsProvider).value,
+    hawkers: ref.watch(hawkersProvider).value ?? const [],
+    dengue: ref.watch(dengueProvider).value ?? const [],
+    wbgt: ref.watch(wbgtProvider).value,
+    lightning: ref.watch(lightningProvider).value,
+    psi: ref.watch(psiProvider).value,
+    pm25: ref.watch(pm25Provider).value,
+    schoolHolidays: ref.watch(schoolHolidaysProvider).value ?? const [],
   );
 });
 
@@ -571,8 +578,8 @@ final widgetDataProvider = Provider.autoDispose<Map<String, String>>((ref) {
   if (!fav.isSetUp) return const {};
   final now = nowOf(ref);
   final origin = fav.places[originFor(cardFor(now, fav), fav, now)];
-  final forecast = ref.watch(forecastProvider).valueOrNull;
-  final train = ref.watch(trainAlertsProvider).valueOrNull;
+  final forecast = ref.watch(forecastProvider).value;
+  final train = ref.watch(trainAlertsProvider).value;
   return widgetData(
     s: ref.watch(stringsProvider),
     fav: fav,
@@ -580,7 +587,7 @@ final widgetDataProvider = Provider.autoDispose<Map<String, String>>((ref) {
     here: forecast == null || origin == null ? null : forecastNear(forecast, origin.lat, origin.lng),
     lines: train == null ? null : lineStatuses(train, watchedLines(fav)),
     alerts: ref.watch(todayAlertsProvider),
-    schoolHolidays: ref.watch(schoolHolidaysProvider).valueOrNull ?? const [],
+    schoolHolidays: ref.watch(schoolHolidaysProvider).value ?? const [],
   );
 });
 

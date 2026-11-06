@@ -246,7 +246,7 @@ class _BusSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final stops = ref.watch(busStopsProvider).valueOrNull ?? const <BusStop>[];
+    final stops = ref.watch(busStopsProvider).value ?? const <BusStop>[];
     final near = within(stops, place.lat, place.lng, 500, latOf: (b) => b.lat, lngOf: (b) => b.lng, limit: 3);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -280,8 +280,8 @@ class _StopBoardState extends ConsumerState<_StopBoard> {
     final stop = widget.stop;
     final etas = ref.watch(busArrivalProvider(stop.code));
     final fav = ref.watch(favoritesProvider);
-    final routes = ref.watch(busRoutesProvider).valueOrNull ?? BusRoutes.empty;
-    final stops = ref.watch(busStopsProvider).valueOrNull ?? const <BusStop>[];
+    final routes = ref.watch(busRoutesProvider).value ?? BusRoutes.empty;
+    final stops = ref.watch(busStopsProvider).value ?? const <BusStop>[];
     final byCode = ref.watch(busStopsByCodeProvider);
     // Which services here go straight to Home, Work or School: "to Home" on the board.
     final goesTo = servicesToPlaces(routes, stop, {
@@ -302,7 +302,7 @@ class _StopBoardState extends ConsumerState<_StopBoard> {
               error: (_, __) => EmptyNote(s.busesUnavailable),
               data: (list) {
                 if (list.isEmpty) {
-                  return EmptyNote(transitResting(ref.watch(clockProvider).valueOrNull ?? DateTime.now())
+                  return EmptyNote(transitResting(ref.watch(clockProvider).value ?? DateTime.now())
                       ? s.busesResting
                       : s.noBusesNow);
                 }
@@ -359,17 +359,17 @@ class _EatSection extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
     final fav = ref.watch(favoritesProvider);
-    final today = dateOnly(ref.watch(clockProvider).valueOrNull ?? DateTime.now());
-    final all = ref.watch(hawkersProvider).valueOrNull ?? const <Hawker>[];
+    final today = dateOnly(ref.watch(clockProvider).value ?? DateTime.now());
+    final all = ref.watch(hawkersProvider).value ?? const <Hawker>[];
     final list = within(all, place.lat, place.lng, 2000, latOf: (h) => h.lat, lngOf: (h) => h.lng, limit: 3);
-    final rain = ref.watch(rainfallProvider).valueOrNull;
-    final air = airNear(ref.watch(psiProvider).valueOrNull, ref.watch(pm25Provider).valueOrNull, place.lat, place.lng);
+    final rain = ref.watch(rainfallProvider).value;
+    final air = airNear(ref.watch(psiProvider).value, ref.watch(pm25Provider).value, place.lat, place.lng);
     final why = orderInReason(
       rainMm: rain == null ? null : rainfallNear(rain, place.lat, place.lng)?.$2,
       air: air?.level,
       nearestHawkerClosed: list.isNotEmpty && list.first.$1.closureOn(today) != null,
     );
-    final halal = fav.showHalal ? ref.watch(halalProvider).valueOrNull ?? const <EPoint>[] : const <EPoint>[];
+    final halal = fav.showHalal ? ref.watch(halalProvider).value ?? const <EPoint>[] : const <EPoint>[];
     final halalList = fav.showHalal ? halalNear(halal, place.lat, place.lng, limit: 3, favs: fav.halalPlaces) : const <(EPoint, double)>[];
 
     Widget orderButtons() => Row(
@@ -529,7 +529,7 @@ class _GreenSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final pois = ref.watch(poisProvider).valueOrNull;
+    final pois = ref.watch(poisProvider).value;
     final items = pois == null ? const <NearItem>[] : NearItem.pois(pois.of(PoiKind.park), place, radius: 2000);
     if (items.isEmpty) return Panel(child: EmptyNote(pois == null ? s.bundlesLoading : s.notAvailable));
     return Padding(
@@ -558,11 +558,11 @@ class _ParkSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    final lots = ref.watch(carparkLiveProvider).valueOrNull ?? const <String, (int, int)>{};
-    final all = ref.watch(carparkInfoProvider).valueOrNull ?? const [];
+    final lots = ref.watch(carparkLiveProvider).value ?? const <String, (int, int)>{};
+    final all = ref.watch(carparkInfoProvider).value ?? const [];
     final list = within(all, place.lat, place.lng, 800, latOf: (c) => c.lat, lngOf: (c) => c.lng, limit: 3);
     // In town there are few HDB car parks: use LTA's live list (malls, URA, HDB) as well.
-    final live = parkingNear(ref.watch(parkingLiveProvider).valueOrNull ?? const <ParkingLot>[],
+    final live = parkingNear(ref.watch(parkingLiveProvider).value ?? const <ParkingLot>[],
         place.lat, place.lng, 'C', radius: 800, limit: 3);
     Widget bigNumber(int? n) => Column(
           mainAxisSize: MainAxisSize.min,
@@ -719,7 +719,7 @@ class _ParkedCard extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
     final p = ref.watch(habitsProvider).parked;
-    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
+    final now = ref.watch(clockProvider).value ?? DateTime.now();
     if (p == null) {
       return Padding(
         padding: const EdgeInsets.only(top: 8),
@@ -784,7 +784,7 @@ class _TaxiSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final taxis = ref.watch(taxiProvider).valueOrNull;
+    final taxis = ref.watch(taxiProvider).value;
     final n = taxis == null ? null : taxisWithin(taxis, place.lat, place.lng);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -817,8 +817,8 @@ class _PrayerSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
-    final prayer = ref.watch(prayerProvider).valueOrNull;
+    final now = ref.watch(clockProvider).value ?? DateTime.now();
+    final prayer = ref.watch(prayerProvider).value;
     final times = prayer?.on(dayKey(now));
     final next = times == null ? null : nextPrayerIndex(times, now);
     // After Isyak, show tomorrow's Subuh instead of nothing.
@@ -856,8 +856,8 @@ class _HelpSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final em = ref.watch(emergencyProvider).valueOrNull ?? EmergencySet.empty;
-    final around = ref.watch(aroundProvider).valueOrNull ?? AroundSet.empty;
+    final em = ref.watch(emergencyProvider).value ?? EmergencySet.empty;
+    final around = ref.watch(aroundProvider).value ?? AroundSet.empty;
     final rows = <(IconData, List<EPoint>, int, String)>[
       (Icons.monitor_heart_outlined, em.of(EmergencyKind.aed), 1, s.aedShort),
       (Icons.local_hospital_outlined, em.of(EmergencyKind.ae), 1, s.aeShort),
@@ -1065,7 +1065,7 @@ class _HawkerTabState extends ConsumerState<_HawkerTab> {
     final s = ref.watch(stringsProvider);
     final fav = ref.watch(favoritesProvider);
     final pinned = _pinned ??= fav.hawkers;
-    final today = dateOnly(ref.watch(clockProvider).valueOrNull ?? DateTime.now());
+    final today = dateOnly(ref.watch(clockProvider).value ?? DateTime.now());
     return _loadingOr(ref.watch(hawkersProvider), s, (all) {
       final list = within(all, place.lat, place.lng, 3000, latOf: (h) => h.lat, lngOf: (h) => h.lng, limit: 25);
       // Favourites first (as of opening), then by distance.
@@ -1190,7 +1190,7 @@ class _ParkingTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final fav = ref.watch(favoritesProvider);
-    final lots = ref.watch(carparkLiveProvider).valueOrNull ?? const <String, (int, int)>{};
+    final lots = ref.watch(carparkLiveProvider).value ?? const <String, (int, int)>{};
     return _loadingOr(ref.watch(carparkInfoProvider), s, (all) {
       final list = within(all, lat, lng, 800, latOf: (c) => c.lat, lngOf: (c) => c.lng, limit: 20);
       final t = Theme.of(context).textTheme;
@@ -1314,7 +1314,7 @@ class _PrayerTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
+    final now = ref.watch(clockProvider).value ?? DateTime.now();
     return _loadingOr(ref.watch(prayerProvider), s, (prayer) {
       final times = prayer.on(dayKey(now));
       final next = times == null ? null : nextPrayerIndex(times, now);
@@ -1382,7 +1382,7 @@ class _EmergencyTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    final em = ref.watch(emergencyProvider).valueOrNull ?? EmergencySet.empty;
+    final em = ref.watch(emergencyProvider).value ?? EmergencySet.empty;
 
     Widget callButton(String number, String label, Color color) => Padding(
           padding: const EdgeInsets.only(bottom: 12),

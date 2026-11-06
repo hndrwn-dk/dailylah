@@ -70,7 +70,7 @@ class _RouteLink extends MapsLinks {
   }
 }
 
-Widget _appWithOneMap(OneMapApi oneMap, {MapsLinks? links}) => ProviderScope(
+Widget _appWithOneMap(OneMapApi oneMap, {MapsLinks? links}) => ProviderScope(retry: noRetry,
       overrides: [
         ...overridesFor(_normal, householdFavorites, tuesdayMorning),
         oneMapProvider.overrideWithValue(oneMap),
@@ -188,7 +188,7 @@ void main() {
     final stop = (_bundle('bus_stops') as List).cast<Map>().firstWhere((s) => s['c'] == code);
 
     await applyCondition(tester, _normal);
-    await tester.pumpWidget(ProviderScope(
+    await tester.pumpWidget(ProviderScope(retry: noRetry,
       overrides: [
         initialFavoritesProvider.overrideWithValue(householdFavorites),
         apiProvider.overrideWithValue(GpsApi((stop['la'] as num).toDouble(), (stop['lo'] as num).toDouble())),
@@ -211,7 +211,7 @@ void main() {
     final stop = (_bundle('bus_stops') as List).cast<Map>().firstWhere((s) => s['c'] == code);
 
     await applyCondition(tester, _normal);
-    await tester.pumpWidget(ProviderScope(
+    await tester.pumpWidget(ProviderScope(retry: noRetry,
       overrides: [
         initialFavoritesProvider.overrideWithValue(householdFavorites),
         apiProvider.overrideWithValue(GpsApi((stop['la'] as num).toDouble(), (stop['lo'] as num).toDouble())),
@@ -274,7 +274,7 @@ void main() {
         ],
       }),
     ];
-    await tester.pumpWidget(ProviderScope(
+    await tester.pumpWidget(ProviderScope(retry: noRetry,
       overrides: [
         ...overridesFor(_normal, householdFavorites, tuesdayMorning),
         evSitesProvider.overrideWith((ref) async => sites),
@@ -608,7 +608,7 @@ void main() {
       onboarded: true,
       seenVersion: '1.5.0',
     );
-    await tester.pumpWidget(ProviderScope(
+    await tester.pumpWidget(ProviderScope(retry: noRetry,
       overrides: [
         ...overridesFor(_normal, fav, tuesdayMorning),
         releaseVersionProvider.overrideWithValue('1.6.0'),

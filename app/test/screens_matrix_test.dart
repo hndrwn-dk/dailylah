@@ -89,7 +89,7 @@ void main() {
 
       testWidgets("Today: What's new after an update", (tester) async {
         await applyCondition(tester, c);
-        await tester.pumpWidget(ProviderScope(
+        await tester.pumpWidget(ProviderScope(retry: noRetry,
           overrides: [
             ...overridesFor(c, householdFavorites, tuesdayMorning),
             releaseVersionProvider.overrideWithValue('1.6.0'),

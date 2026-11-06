@@ -28,10 +28,10 @@ class TodayPage extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final fav = ref.watch(favoritesProvider);
     final kind = ref.watch(cardKindProvider);
-    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
+    final now = ref.watch(clockProvider).value ?? DateTime.now();
     final origin = fav.places[originFor(kind, fav, now)];
     // MOE school holidays: no school trip (work trips are not affected).
-    final holiday = schoolHolidayOn(ref.watch(schoolHolidaysProvider).valueOrNull ?? const [], now);
+    final holiday = schoolHolidayOn(ref.watch(schoolHolidaysProvider).value ?? const [], now);
     final schoolOff = holiday != null && commutePlace(fav, now)?.kind == PlaceKind.school;
     final commute = isCommuteDay(fav, now) && !schoolOff;
     final destKind = destinationFor(kind, fav, now);
@@ -168,7 +168,7 @@ class _HeroWeather extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final fav = ref.watch(favoritesProvider);
-    final dest = destinationFor(kind, fav, ref.watch(clockProvider).valueOrNull);
+    final dest = destinationFor(kind, fav, ref.watch(clockProvider).value);
     final destPlace = dest == null ? null : fav.places[dest];
     final body = ref.watch(forecastProvider);
     final t = Theme.of(context).textTheme;
@@ -183,7 +183,7 @@ class _HeroWeather extends ConsumerWidget {
         ],
       ),
       data: (json) {
-        final stale = liveStaleSince(json, ref.watch(clockProvider).valueOrNull ?? DateTime.now());
+        final stale = liveStaleSince(json, ref.watch(clockProvider).value ?? DateTime.now());
         final here = forecastNear(json, origin.lat, origin.lng);
         final there = destPlace == null ? null : forecastNear(json, destPlace.lat, destPlace.lng);
         if (here == null) return Text(s.notAvailable, style: dim);
@@ -270,7 +270,7 @@ class _MrtCard extends ConsumerWidget {
     final starred = ref.watch(favoritesProvider.select((f) => f.lines));
     final alerts = ref.watch(trainAlertsProvider);
     final t = Theme.of(context).textTheme;
-    final resting = transitResting(ref.watch(clockProvider).valueOrNull ?? DateTime.now());
+    final resting = transitResting(ref.watch(clockProvider).value ?? DateTime.now());
 
     void toggle(String line) {
       if (!starred.contains(line) && starred.length >= 3) {
@@ -413,7 +413,7 @@ class BusStopCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final etas = ref.watch(busArrivalProvider(stop.code));
-    final routes = ref.watch(busRoutesProvider).valueOrNull ?? BusRoutes.empty;
+    final routes = ref.watch(busRoutesProvider).value ?? BusRoutes.empty;
     final byCode = ref.watch(busStopsByCodeProvider);
     final t = Theme.of(context).textTheme;
     return Panel(
@@ -429,7 +429,7 @@ class BusStopCard extends ConsumerWidget {
               loading: () => const Padding(padding: EdgeInsets.all(12), child: LinearProgressIndicator()),
               error: (_, __) => EmptyNote(s.busesUnavailable),
               data: (list) => list.isEmpty
-                  ? EmptyNote(transitResting(ref.watch(clockProvider).valueOrNull ?? DateTime.now()) ? s.busesResting : s.noBusesNow)
+                  ? EmptyNote(transitResting(ref.watch(clockProvider).value ?? DateTime.now()) ? s.busesResting : s.noBusesNow)
                   : Column(children: [
                       for (final (i, (e, next)) in groupEtas(list).take(8).indexed)
                         BusRow(
@@ -546,10 +546,10 @@ class _WeatherTiles extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final rain = ref.watch(rainfallProvider).valueOrNull;
-    final uv = ref.watch(uvProvider).valueOrNull;
-    final wbgt = ref.watch(wbgtProvider).valueOrNull;
-    final air = airNear(ref.watch(psiProvider).valueOrNull, ref.watch(pm25Provider).valueOrNull, origin.lat, origin.lng);
+    final rain = ref.watch(rainfallProvider).value;
+    final uv = ref.watch(uvProvider).value;
+    final wbgt = ref.watch(wbgtProvider).value;
+    final air = airNear(ref.watch(psiProvider).value, ref.watch(pm25Provider).value, origin.lat, origin.lng);
     final r = rain == null ? null : rainfallNear(rain, origin.lat, origin.lng);
     final u = uv == null ? null : uvIndex(uv);
     final w = wbgt == null ? null : wbgtNear(wbgt, origin.lat, origin.lng);
@@ -628,10 +628,10 @@ class _WeekendCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    final around = ref.watch(aroundProvider).valueOrNull ?? AroundSet.empty;
-    final pois = ref.watch(poisProvider).valueOrNull ?? PoiSet.empty;
-    final forecast = ref.watch(forecastProvider).valueOrNull;
-    final air = airNear(ref.watch(psiProvider).valueOrNull, ref.watch(pm25Provider).valueOrNull, home.lat, home.lng);
+    final around = ref.watch(aroundProvider).value ?? AroundSet.empty;
+    final pois = ref.watch(poisProvider).value ?? PoiSet.empty;
+    final forecast = ref.watch(forecastProvider).value;
+    final air = airNear(ref.watch(psiProvider).value, ref.watch(pm25Provider).value, home.lat, home.lng);
     final indoor = preferIndoor(forecast == null ? null : forecastNear(forecast, home.lat, home.lng)) ||
         (air != null && air.level.index >= AirLevel.unhealthy.index);
     EPoint fromPoi(Poi p) => EPoint(name: p.name, lat: p.lat, lng: p.lng, detail: p.detail);
@@ -642,8 +642,8 @@ class _WeekendCard extends ConsumerWidget {
       'park': [for (final p in pois.of(PoiKind.park)) fromPoi(p)],
       'library': [for (final p in pois.of(PoiKind.library)) fromPoi(p)],
     }, home.lat, home.lng, indoor: indoor);
-    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
-    final events = eventsNear(ref.watch(eventsProvider).valueOrNull ?? const <PublicEvent>[], home.lat, home.lng, now,
+    final now = ref.watch(clockProvider).value ?? DateTime.now();
+    final events = eventsNear(ref.watch(eventsProvider).value ?? const <PublicEvent>[], home.lat, home.lng, now,
         days: daysToWeekendEnd(now));
     if (picks.isEmpty && events.isEmpty) return const SizedBox.shrink();
     return Column(
@@ -752,8 +752,8 @@ class _SavedParking extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final fav = ref.watch(favoritesProvider);
-    final info = ref.watch(carparkInfoProvider).valueOrNull ?? const <Carpark>[];
-    final lots = ref.watch(carparkLiveProvider).valueOrNull ?? const <String, (int, int)>{};
+    final info = ref.watch(carparkInfoProvider).value ?? const <Carpark>[];
+    final lots = ref.watch(carparkLiveProvider).value ?? const <String, (int, int)>{};
     final saved = info.where((c) => fav.carparks.contains(c.id)).toList();
     if (saved.isEmpty) return const SizedBox.shrink();
     final t = Theme.of(context).textTheme;
@@ -878,10 +878,10 @@ class TaxiSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    final body = ref.watch(taxiProvider).valueOrNull;
+    final body = ref.watch(taxiProvider).value;
     final pts = body == null ? const <(double, double)>[] : taxiPoints(body);
     final (_, n500, n1k) = taxiBands(pts, origin.lat, origin.lng);
-    final stands = ref.watch(taxiStandsProvider).valueOrNull ?? const <EPoint>[];
+    final stands = ref.watch(taxiStandsProvider).value ?? const <EPoint>[];
     final nearStands = nearestPoints(stands, origin.lat, origin.lng, limit: 3, radius: 1500);
     final where = origin.address ?? placeTitle(s.placeLabel, origin);
     final best = nearStands.isEmpty ? null : nearStands.first;

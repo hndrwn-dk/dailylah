@@ -125,15 +125,15 @@ class _TripTimer extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
     final h = ref.watch(habitsProvider);
-    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
+    final now = ref.watch(clockProvider).value ?? DateTime.now();
     // One trip at a time. The running one is in the banner above the tabs; on a page pushed
     // over the tabs (the trip planner) the tabs are hidden, so it shows here instead.
     if (h.tripStart != null) {
       if (ModalRoute.of(context)?.isFirst ?? true) return const SizedBox.shrink();
       return ref.watch(rideProvider) != null ? const RideBanner() : const TripBanner();
     }
-    final rain = ref.watch(rainfallProvider).valueOrNull;
-    final forecast = ref.watch(forecastProvider).valueOrNull;
+    final rain = ref.watch(rainfallProvider).value;
+    final forecast = ref.watch(forecastProvider).value;
     final rainy = (rain != null && (rainfallNear(rain, from.lat, from.lng)?.$2 ?? 0) > 0) ||
         (forecast != null && (forecastNear(forecast, from.lat, from.lng)?.isRainy ?? false));
 
@@ -174,11 +174,11 @@ class _TripTimer extends ConsumerWidget {
 
 /// Weather tips for this trip and mode, from the live NEA readings near the start.
 List<TripAdvice> _advice(WidgetRef ref, TravelMode mode, Place from) {
-  final lightning = ref.watch(lightningProvider).valueOrNull;
-  final wbgt = ref.watch(wbgtProvider).valueOrNull;
-  final forecast = ref.watch(forecastProvider).valueOrNull;
-  final rain = ref.watch(rainfallProvider).valueOrNull;
-  final air = airNear(ref.watch(psiProvider).valueOrNull, ref.watch(pm25Provider).valueOrNull, from.lat, from.lng);
+  final lightning = ref.watch(lightningProvider).value;
+  final wbgt = ref.watch(wbgtProvider).value;
+  final forecast = ref.watch(forecastProvider).value;
+  final rain = ref.watch(rainfallProvider).value;
+  final air = airNear(ref.watch(psiProvider).value, ref.watch(pm25Provider).value, from.lat, from.lng);
   final raining = rain == null ? 0.0 : (rainfallNear(rain, from.lat, from.lng)?.$2 ?? 0);
   return tripAdvice(
     mode: mode,
@@ -207,8 +207,8 @@ class _TransitBlock extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final all = ref.watch(busStopsProvider).valueOrNull ?? const <BusStop>[];
-    final routes = ref.watch(busRoutesProvider).valueOrNull ?? BusRoutes.empty;
+    final all = ref.watch(busStopsProvider).value ?? const <BusStop>[];
+    final routes = ref.watch(busRoutesProvider).value ?? BusRoutes.empty;
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
     final trip = tripStops(usableStops(from), all, routes, from, to);
@@ -235,9 +235,9 @@ class _TransitBlock extends ConsumerWidget {
     ];
     final mrt = _MrtOption(from: from, to: to);
     // Plan B: when the train on this trip is disrupted, buses come first with a note.
-    final stations = ref.watch(mrtStationsProvider).valueOrNull ?? const <MrtStation>[];
+    final stations = ref.watch(mrtStationsProvider).value ?? const <MrtStation>[];
     final plan = stations.isEmpty ? null : mrtPlan(stations, from, to);
-    final bad = planDisruption(plan, ref.watch(trainAlertsProvider).valueOrNull);
+    final bad = planDisruption(plan, ref.watch(trainAlertsProvider).value);
 
     // Already there (e.g. "Here" after the ride): no walk or buses to suggest.
     if (fromKey == null && straight < arrivedMetres) {
@@ -337,7 +337,7 @@ class _MrtOption extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final stations = ref.watch(mrtStationsProvider).valueOrNull ?? const <MrtStation>[];
+    final stations = ref.watch(mrtStationsProvider).value ?? const <MrtStation>[];
     if (stations.isEmpty) return const SizedBox.shrink();
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
@@ -348,11 +348,11 @@ class _MrtOption extends ConsumerWidget {
     final choice = picked == null
         ? null
         : lineMrtChoice(stations, from, to, picked,
-            routes: ref.watch(busRoutesProvider).valueOrNull ?? BusRoutes.empty,
-            stops: ref.watch(busStopsProvider).valueOrNull ?? const <BusStop>[]);
+            routes: ref.watch(busRoutesProvider).value ?? BusRoutes.empty,
+            stops: ref.watch(busStopsProvider).value ?? const <BusStop>[]);
     final plan = choice?.plan ?? usual;
     final feeder = choice?.feeder;
-    final alerts = ref.watch(trainAlertsProvider).valueOrNull;
+    final alerts = ref.watch(trainAlertsProvider).value;
     final lines = {
       for (final c in [...plan.board.codes, ...plan.alight.codes])
           if (lineOfCode(c) case final l?) l,
@@ -360,7 +360,7 @@ class _MrtOption extends ConsumerWidget {
     final disrupted = alerts == null
         ? const <String>[]
         : [for (final l in lineStatuses(alerts, lines)) if (l.disrupted) l.line];
-    final resting = transitResting(ref.watch(clockProvider).valueOrNull ?? DateTime.now());
+    final resting = transitResting(ref.watch(clockProvider).value ?? DateTime.now());
     final ride = choice?.ride ?? mrtRide(stations, plan);
     final riding = ref.watch(rideProvider);
     // How busy the boarding station is now (LTA platform crowd, every 10 min).
@@ -368,7 +368,7 @@ class _MrtOption extends ConsumerWidget {
     final boardCode = [for (final c in plan.board.codes) if (lineOfCode(c) == boardLine) c].firstOrNull;
     final crowd = boardLine == null || boardCode == null || resting
         ? null
-        : ref.watch(stationCrowdProvider(boardLine)).valueOrNull?[boardCode];
+        : ref.watch(stationCrowdProvider(boardLine)).value?[boardCode];
 
     Widget stationRow(IconData icon, String text, MrtStation st) => Padding(
           padding: const EdgeInsets.only(bottom: 8),
@@ -573,10 +573,10 @@ class MrtLineSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    final stations = ref.watch(mrtStationsProvider).valueOrNull ?? const <MrtStation>[];
+    final stations = ref.watch(mrtStationsProvider).value ?? const <MrtStation>[];
     final choices = mrtChoices(stations, from, to,
-        routes: ref.watch(busRoutesProvider).valueOrNull ?? BusRoutes.empty,
-        stops: ref.watch(busStopsProvider).valueOrNull ?? const <BusStop>[]);
+        routes: ref.watch(busRoutesProvider).value ?? BusRoutes.empty,
+        stops: ref.watch(busStopsProvider).value ?? const <BusStop>[]);
     final key = mrtRouteKey(s, from, to);
     final picked = ref.watch(favoritesProvider.select((f) => f.mrtLines[key]));
     final current = choices.any((c) => c.line == picked) ? picked : null;
@@ -681,8 +681,8 @@ class TripBusCard extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
     final etas = ref.watch(busArrivalProvider(stop.code));
-    final routes = ref.watch(busRoutesProvider).valueOrNull ?? BusRoutes.empty;
-    final all = ref.watch(busStopsProvider).valueOrNull ?? const <BusStop>[];
+    final routes = ref.watch(busRoutesProvider).value ?? BusRoutes.empty;
+    final all = ref.watch(busStopsProvider).value ?? const <BusStop>[];
     final names = {for (final x in all) x.code: x.name};
     final byCode = ref.watch(busStopsByCodeProvider);
     String? live(BusEta e) => s.busLive(e, busWhere(e, stop.code, routes, byCode));
@@ -725,7 +725,7 @@ class TripBusCard extends ConsumerWidget {
                 data: (list) {
                   // Nothing at the stop (late at night, or a gap): say so, not "no direct bus".
                   if (list.isEmpty) {
-                    return EmptyNote(transitResting(ref.watch(clockProvider).valueOrNull ?? DateTime.now()) ? s.busesResting : s.noBusesNow);
+                    return EmptyNote(transitResting(ref.watch(clockProvider).value ?? DateTime.now()) ? s.busesResting : s.noBusesNow);
                   }
                   if (rides == null) {
                     // Route data not downloaded yet: show every bus, as before.
@@ -911,7 +911,7 @@ class _DriveBlock extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
     final parking = ref.watch(parkingLiveProvider);
-    final incidents = incidentsOnTrip(ref.watch(incidentsProvider).valueOrNull, from, to);
+    final incidents = incidentsOnTrip(ref.watch(incidentsProvider).value, from, to);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -978,7 +978,7 @@ class _CycleBlock extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final racks = ref.watch(bicycleRacksProvider).valueOrNull ?? const <EPoint>[];
+    final racks = ref.watch(bicycleRacksProvider).value ?? const <EPoint>[];
     final near = within(racks, to.lat, to.lng, 800, latOf: (p) => p.lat, lngOf: (p) => p.lng, limit: 4);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1021,7 +1021,7 @@ class _TaxiBlock extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final body = ref.watch(taxiProvider).valueOrNull;
+    final body = ref.watch(taxiProvider).value;
     final n = body == null ? null : taxiBands(taxiPoints(body), from.lat, from.lng).$2;
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -1094,7 +1094,7 @@ class GoSomewhere extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
     final fav = ref.watch(favoritesProvider);
-    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
+    final now = ref.watch(clockProvider).value ?? DateTime.now();
     final key = ref.watch(goKeyProvider);
     final here = ref.watch(goFromHereProvider);
     final adhoc = ref.watch(goAdhocDestProvider);
@@ -1367,7 +1367,7 @@ class TripBanner extends ConsumerWidget {
     if (start == null || ends == null || ref.watch(rideProvider) != null) return const SizedBox.shrink();
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
+    final now = ref.watch(clockProvider).value ?? DateTime.now();
     final notifier = ref.read(habitsProvider.notifier);
     return Panel(
       margin: const EdgeInsets.only(bottom: 10),

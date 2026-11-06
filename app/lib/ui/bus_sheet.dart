@@ -37,11 +37,11 @@ class _WhereBusSheetState extends ConsumerState<WhereBusSheet> {
   Widget build(BuildContext context) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    final now = ref.watch(clockProvider).valueOrNull ?? DateTime.now();
-    final routes = ref.watch(busRoutesProvider).valueOrNull ?? BusRoutes.empty;
+    final now = ref.watch(clockProvider).value ?? DateTime.now();
+    final routes = ref.watch(busRoutesProvider).value ?? BusRoutes.empty;
     final byCode = ref.watch(busStopsByCodeProvider);
     final etas = ref.watch(busArrivalProvider(widget.stop.code));
-    final buses = [for (final e in etas.valueOrNull ?? const <BusEta>[]) if (e.service == widget.service) e];
+    final buses = [for (final e in etas.value ?? const <BusEta>[]) if (e.service == widget.service) e];
     final bus = buses.isEmpty ? null : buses[_pick.clamp(0, buses.length - 1)];
     final strip = bus == null ? null : busStrip(bus, widget.stop.code, routes, byCode);
 

@@ -22,7 +22,7 @@ class EvChargers extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final plug = ref.watch(favoritesProvider.select((f) => f.evPlug));
     final sites = ref.watch(evSitesProvider);
-    final all = sites.valueOrNull ?? const <EvSite>[];
+    final all = sites.value ?? const <EvSite>[];
     final near = evNear(all, lat, lng, plug);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -57,7 +57,7 @@ class _EvRow extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
     final live = ref.watch(evLiveProvider(site.postal));
-    final counts = live.valueOrNull == null ? null : evFree(site, live.valueOrNull!, plug);
+    final counts = live.value == null ? null : evFree(site, live.value!, plug);
     final plugs = [for (final p in site.plugs) if (evPlugMatches(p.type, plug)) p];
     // A plain row, not a ListTile: ListTile caps the trailing height, and the big number
     // with its label does not fit there at 200% text.
@@ -108,7 +108,7 @@ class _EvDetail extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    final live = ref.watch(evLiveProvider(site.postal)).valueOrNull;
+    final live = ref.watch(evLiveProvider(site.postal)).value;
     final here = live == null ? const <EvLive>[] : evLiveFor(site, live);
     final plugs = here.isNotEmpty ? here.expand((l) => l.plugs).toList() : site.plugs;
     return Padding(

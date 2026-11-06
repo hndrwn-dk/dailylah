@@ -69,7 +69,7 @@ class FakeBundles extends BundleRepository {
   Future<Object?> load(String name) async => null;
 }
 
-Widget app(Favorites fav, DateTime now) => ProviderScope(
+Widget app(Favorites fav, DateTime now) => ProviderScope(retry: noRetry,
       overrides: [
         initialFavoritesProvider.overrideWithValue(fav),
         apiProvider.overrideWithValue(FakeApi()),
@@ -136,7 +136,7 @@ void main() {
     tester.view.physicalSize = const Size(800, 2000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(ProviderScope(
+    await tester.pumpWidget(ProviderScope(retry: noRetry,
       overrides: [initialFavoritesProvider.overrideWithValue(const Favorites())],
       child: const MaterialApp(home: AboutDailyLahPage()),
     ));
