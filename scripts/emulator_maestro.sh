@@ -85,10 +85,11 @@ run_attempt() {
   "${ADB[@]}" uninstall "$PKG" >/dev/null 2>&1 || true
   "${ADB[@]}" install "$APK" >/dev/null
   "${ADB[@]}" logcat -c 2>/dev/null || true
-  # takeScreenshot and startRecording write to the working directory.
+  # Screenshots and recordings go to --test-output-dir (Maestro 2 ignores the working directory).
   (cd "$dir" && maestro --device "$DEVICE" test --config "$ROOT/app/maestro/config.yaml" \
     "$ROOT/app/maestro" -e MAESTRO_ATTEMPT="$1" \
-    --format junit --output "$dir/report.xml" --debug-output "$dir/debug")
+    --format junit --output "$dir/report.xml" --debug-output "$dir/debug" \
+    --test-output-dir "$dir/output")
 }
 
 # flow_lines N: one line per flow in the job summary, from the JUnit report.
@@ -148,7 +149,7 @@ for case in root.iter("testcase"):
 EOF
   echo "::endgroup::"
   echo "::group::Attempt $1: last steps before the failure (debug output)"
-  python3 - "$dir/debug" <<'EOF' || true
+  python3 - "$dir" <<'EOF' || true
 import glob, json, os, sys
 d = sys.argv[1]
 def describe(cmd):
@@ -156,32 +157,42 @@ def describe(cmd):
         return str(cmd)[:200]
     name, body = next(iter(cmd.items()))
     return f"{name} {json.dumps(body, separators=(',', ':'))[:200]}"
+def command_lists(node):
+    # commands*.json is a list of {command, metadata}; find such lists wherever they sit.
+    if isinstance(node, list):
+        if node and all(isinstance(c, dict) and "metadata" in c for c in node):
+            yield node
+        for c in node:
+            yield from command_lists(c)
+    elif isinstance(node, dict):
+        for v in node.values():
+            yield from command_lists(v)
 found = False
-for f in sorted(glob.glob(os.path.join(d, "**", "commands-*.json"), recursive=True)):
+files = glob.glob(os.path.join(d, "**", "commands*.json"), recursive=True)
+for f in sorted(files):
     try:
-        cmds = json.load(open(f))
+        data = json.load(open(f))
     except (OSError, ValueError):
         continue
-    if not isinstance(cmds, list):
-        continue
-    failed = [i for i, c in enumerate(cmds) if (c.get("metadata") or {}).get("status") == "FAILED"]
-    if not failed:
-        continue
-    found = True
-    i = failed[0]
-    print(f"{os.path.basename(f)}:")
-    for c in cmds[max(0, i - 5):i + 1]:
-        print(f"  {(c.get('metadata') or {}).get('status', '?'):9} {describe(c.get('command'))}")
-    err = (cmds[i].get("metadata") or {}).get("error") or {}
-    print(f"  error: {err.get('message') if isinstance(err, dict) else err}")
+    for cmds in command_lists(data):
+        failed = [i for i, c in enumerate(cmds) if (c.get("metadata") or {}).get("status") == "FAILED"]
+        if not failed:
+            continue
+        found = True
+        i = failed[0]
+        print(f"{os.path.relpath(f, d)}:")
+        for c in cmds[max(0, i - 5):i + 1]:
+            print(f"  {(c.get('metadata') or {}).get('status', '?'):9} {describe(c.get('command'))}")
+        err = (cmds[i].get("metadata") or {}).get("error") or {}
+        print(f"  error: {err.get('message') if isinstance(err, dict) else err}")
 if not found:
     logs = sorted(glob.glob(os.path.join(d, "**", "maestro.log"), recursive=True))
+    names = sorted(os.path.relpath(p, d) for p in glob.glob(os.path.join(d, "**", "*"), recursive=True))
+    print(f"No failed step in {len(files)} commands*.json file(s). Files: {', '.join(names[:30]) or 'none'}")
     if logs:
         lines = open(logs[-1], errors="replace").read().splitlines()
-        print(f"No failed step in commands-*.json; last lines of {os.path.relpath(logs[-1], d)}:")
+        print(f"Last lines of {os.path.relpath(logs[-1], d)}:")
         print("\n".join(lines[-40:]))
-    else:
-        print("No debug output.")
 EOF
   echo "::endgroup::"
   echo "::group::Attempt $1: crash buffer (adb logcat -b crash)"
