@@ -38,7 +38,7 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 
 ### `lib/providers.dart`
 - Types: `FavoritesNotifier`, `HabitsNotifier`
-- Functions: `nowOf`
+- Functions: `noRetry`, `nowOf`
 - Providers: 66 (listed below)
 
 ### `lib/share_intake.dart`

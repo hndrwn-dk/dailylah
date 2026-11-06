@@ -14,7 +14,10 @@ relative to `app/` unless they start with a top-level folder. File and symbol in
   listings) are opt-in under More > Extras. Halal places can be starred (`Favorites.halalPlaces`, by `mealPlaceId`) and
   come first in `halalNear`, like favourite hawkers. Halal screens always say "Not affiliated with MUIS.
   Always verify halal status directly" (`S.halalDisclaimer`).
-- `lib/providers.dart` holds all Riverpod providers; widgets in `lib/ui/` only render.
+- `lib/providers.dart` holds all Riverpod providers (Riverpod 3); widgets in `lib/ui/` only render.
+  Every `ProviderScope` and `ProviderContainer` (app and tests) passes `retry: noRetry`: Riverpod 3
+  would otherwise retry failed providers up to 10 times on its own, on top of `_live`'s rules.
+  `StateProvider` comes from `package:flutter_riverpod/legacy.dart`; read async values with `.value`.
 - `AppFrame` (`ui/app_frame.dart`, MaterialApp.builder) keeps every route above the system navigation
   bar (Android draws edge to edge; the 3-button bar hid Setup's Save), so pages need no bottom inset.
 - Keyboard: `KeyboardNavigatorObserver` closes it whenever a page, sheet or dialog opens or closes, and

@@ -64,6 +64,9 @@ emulator e2e, Play upload gate) stay as they are.
 - Firebase Test Lab (`testlab.yml`) was removed: it never ran (its secret was never set), the app
   uses no Firebase, the emulators and Maestro cover API 29/35/36, and Test Lab shuts down on
   30 Sep 2027. Real phones are covered by closed testing.
+- Riverpod 3 (3.4.3): `valueOrNull` became `.value`, `StateProvider` from `legacy.dart`, every
+  ProviderScope/ProviderContainer passes `retry: noRetry` (own retry rules in `_live`). Goldens
+  unchanged. Dependabot follows riverpod majors again.
 
 ### GitHub settings to set by hand (Phase 1)
 Settings > Advanced Security (or Code security):
@@ -92,8 +95,6 @@ No new secrets are needed for Phase 1.
     that dataset were not visible from the sandbox, so `FACILITY_LABELS` in bundles.py may need tuning.
 
 ## Open ideas / not possible
-- Riverpod 3 migration (from 2.6): ~177 analyzer errors (StateProvider moved to `legacy.dart`,
-  AsyncValue API changes). Dependabot ignores riverpod majors until it lands (`.github/dependabot.yml`).
 - Wikimedia photos for big parks: not started.
 - OnePA and NParks events: written permission needed. A short email to PA was drafted, not sent.
 - Return Right machine locations: the website terms forbid reuse; ask BCRS.
