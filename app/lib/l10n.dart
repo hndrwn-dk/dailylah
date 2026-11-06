@@ -881,7 +881,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Sharing directions from Google Maps to DailyLah now opens the trip to that place, not an empty search.",
+        "Your saved places, habits and history stay on this phone only: they are left out of Google backup and phone-to-phone transfer. To move them to a new phone, use Share with family.",
       ];
 
   // about
