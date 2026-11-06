@@ -80,7 +80,12 @@ if "${ADB[@]}" shell dumpsys package "$PKG" | grep -q "DEBUGGABLE"; then
 fi
 # Saved places and habits stay on the phone (docs/legal/privacy.md): no Android backup. A plugin's
 # merged manifest must not turn it back on.
-if "${ADB[@]}" shell dumpsys package "$PKG" | grep "pkgFlags=" | grep -q "ALLOW_BACKUP"; then
+FLAGS=$("${ADB[@]}" shell dumpsys package "$PKG" | grep -m1 "pkgFlags=" | tr -d '\r' || true)
+if [ -z "$FLAGS" ]; then
+  echo "::error::dumpsys package shows no pkgFlags for $PKG; cannot check Android backup."; exit 1
+fi
+echo "Release build $FLAGS"
+if [[ "$FLAGS" == *ALLOW_BACKUP* ]]; then
   echo "::error::The release build allows Android backup; android:allowBackup must stay false."; exit 1
 fi
 echo "- Release build has Android backup off ✅" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
