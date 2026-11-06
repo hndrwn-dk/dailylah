@@ -72,6 +72,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   live in `backend/requirements*.in`; `requirements*.txt` are the full locked trees with hashes,
   made with `uv pip compile --python-version 3.12 --generate-hashes <file>.in -o <file>.txt`
   (Render installs `requirements.txt`). A dependency change updates the lockfile in the same PR.
+- The Gradle wrapper download is pinned with `distributionSha256Sum` in
+  `app/android/gradle/wrapper/gradle-wrapper.properties` (the `-all.zip` checksum from
+  services.gradle.org); a wrapper upgrade updates it in the same PR.
 - Every `uses:` is pinned to a full commit SHA with the version in a comment
   (`actions/checkout@<sha> # v7.0.1`); Dependabot bumps both. Never use a tag or branch.
 - Every workflow sets `permissions:` at the top (read-only or `{}`) and widens it per job only
