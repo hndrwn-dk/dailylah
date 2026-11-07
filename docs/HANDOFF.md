@@ -160,20 +160,20 @@ Turn them on only after PR 4 is on `main`: before that, `app result`, `emulator 
    `app result`, `emulator result`, `backend result`, `web result` (after the where-to-live page
    PR is on `main`), `repo map and AGENTS.md up to date`, `CodeQL (actions)`, `CodeQL (python)`,
    `osv-scanner (dependencies)`, `zizmor (workflows)`.
-4. Bypass list: the daily `data.yml` pushes the data bundles straight to `main` with the job token,
-   which the rules above would refuse. Pick one route:
-   - **Route A (first choice):** Add bypass > **GitHub Actions** (if the picker offers it on this
-     personal repository), mode Always. Nothing else changes.
-   - **Route B (if GitHub Actions is not offered):** a deploy key with bypass. Create an SSH key
-     pair on the laptop (`ssh-keygen -t ed25519 -f dailylah-data-push -N ""`); Settings > Deploy
-     keys > Add: the public key, **Allow write access**; create environment **`data-push`**
-     (Deployment branches: `main` only, no admin bypass) with secret `DATA_PUSH_SSH_KEY` = the
-     private key; delete the local key files; in the ruleset, Add bypass > Deploy keys, mode Always.
-     Then ask a session for the follow-up PR that makes `data.yml` push over SSH with that key in
-     environment `data-push` (not done yet: it needs the key to test).
-   - Check it: Actions > data > Run workflow; the "Commit if changed" step must succeed (or say
-     "No data changes"). `screenshots.yml` never pushes to `main` and `goldens.yml` skips `main`,
-     so only `data.yml` needs the bypass.
+4. Bypass list. **Done (8 Nov 2026): route B.** The `main` ruleset is on, with every check above
+   and one bypass, Deploy keys (Always); GitHub Actions was not offered on this personal repository.
+   `data.yml` and `where-to-live.yml` build in a read-only job, then a `push` job in environment
+   `data-push` applies the patch to the newest `main` and pushes over SSH with
+   `scripts/push_data.sh` (GitHub's host key pinned, key file removed after).
+   - The key, set up by hand once: create a pair (`ssh-keygen -t ed25519 -f dailylah-data-push
+     -N ""`, on a laptop or in Termux); Settings > Deploy keys > Add: the `.pub` file, title
+     `data-push`, **Allow write access**; Settings > Environments > New `data-push`: Deployment
+     branches `main` only, no admin bypass; Add secret `DATA_PUSH_SSH_KEY` = the private key file
+     (all lines, including BEGIN and END); then delete both local key files. Never paste the
+     private key in a chat.
+   - Check it: Actions > data > Run workflow, then Actions > where-to-live > Run workflow; the
+     `push` job must say "Pushed: ..." or the build must say "No data changes".
+     `screenshots.yml` never pushes to `main` and `goldens.yml` skips `main`.
 5. Do not add yourself as a bypass actor: merges go through PRs like everything else.
 
 **`v*` tags** (New tag ruleset; Enforcement: Active; Target: Include by pattern `v*`):

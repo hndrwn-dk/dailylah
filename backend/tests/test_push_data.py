@@ -1,0 +1,164 @@
+"""scripts/push_data.sh against local git repos: only allowed data files reach main."""
+
+import os
+import shutil
+import subprocess
+from pathlib import Path
+
+import pytest
+
+SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "push_data.sh"
+REMOTE = "git@github.com:hndrwn-dk/dailylah.git"
+DATA = ["web/data/", "backend/data/"]
+WHERE_TO_LIVE = ["web/data/where-to-live.json", "backend/data/where_to_live_routes.json"]
+
+pytestmark = pytest.mark.skipif(
+    shutil.which("git") is None or shutil.which("bash") is None, reason="needs git and bash"
+)
+
+
+def git(cwd: Path, *args: str, env: dict | None = None) -> str:
+    return subprocess.run(  # noqa: S603 - fixed git command in a temporary test repo
+        ["git", *args],  # noqa: S607 - git from PATH
+        cwd=cwd,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+
+@pytest.fixture
+def repos(tmp_path: Path):
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "SSH_", "DATA_PUSH"))}
+    env |= {
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_AUTHOR_NAME": "t",
+        "GIT_AUTHOR_EMAIL": "t@example.com",
+        "GIT_COMMITTER_NAME": "t",
+        "GIT_COMMITTER_EMAIL": "t@example.com",
+    }
+    bare = tmp_path / "origin.git"
+    git(tmp_path, "init", "--quiet", "--bare", "-b", "main", str(bare), env=env)
+    seed = tmp_path / "seed"
+    git(tmp_path, "init", "--quiet", "-b", "main", str(seed), env=env)
+    for rel in [
+        "web/data/where-to-live.json",
+        "web/data/other.json",
+        "backend/data/where_to_live_routes.json",
+        ".github/workflows/x.yml",
+        "web/data/run.sh",
+    ]:
+        (seed / rel).parent.mkdir(parents=True, exist_ok=True)
+        (seed / rel).write_text("old\n")
+    git(seed, "add", ".", env=env)
+    git(seed, "commit", "--quiet", "-m", "seed", env=env)
+    git(seed, "push", "--quiet", str(bare), "main", env=env)
+    work = tmp_path / "work"
+    git(tmp_path, "clone", "--quiet", str(bare), str(work), env=env)
+    script_env = env | {
+        "GITHUB_REPOSITORY": "hndrwn-dk/dailylah",
+        "DATA_PUSH_SSH_KEY": "dummy",
+        "GIT_CONFIG_COUNT": "1",
+        "GIT_CONFIG_KEY_0": f"url.{bare}.insteadOf",
+        "GIT_CONFIG_VALUE_0": REMOTE,
+    }
+    return seed, work, bare, env, script_env
+
+
+def make_patch(seed: Path, env: dict, tmp: Path, change) -> Path:
+    change(seed)
+    git(seed, "add", "-A", env=env)
+    patch = tmp / "data.patch"
+    patch.write_text(git(seed, "diff", "--cached", "--binary", "--full-index", env=env))
+    git(seed, "reset", "--quiet", "--hard", env=env)
+    return patch
+
+
+def run_script(work: Path, env: dict, patch: Path, allowed: list[str]):
+    return subprocess.run(  # noqa: S603 - the script under test
+        ["bash", str(SCRIPT), str(patch), "Update data", *allowed],  # noqa: S607
+        cwd=work,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+
+
+def main_head(bare: Path, env: dict) -> str:
+    return git(bare, "rev-parse", "main", env=env).strip()
+
+
+def write(rel: str, text: str = "new\n"):
+    def change(repo: Path):
+        (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / rel).write_text(text)
+
+    return change
+
+
+def test_allowed_data_change_is_pushed(repos, tmp_path):
+    seed, work, bare, env, script_env = repos
+    before = main_head(bare, env)
+    patch = make_patch(seed, env, tmp_path, write("web/data/other.json"))
+    result = run_script(work, script_env, patch, DATA)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert main_head(bare, env) != before
+    assert git(bare, "show", "main:web/data/other.json", env=env) == "new\n"
+
+
+def test_where_to_live_change_is_pushed(repos, tmp_path):
+    seed, work, bare, env, script_env = repos
+    before = main_head(bare, env)
+    patch = make_patch(seed, env, tmp_path, write("web/data/where-to-live.json"))
+    result = run_script(work, script_env, patch, WHERE_TO_LIVE)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert main_head(bare, env) != before
+
+
+def test_workflow_change_is_refused(repos, tmp_path):
+    seed, work, bare, env, script_env = repos
+    before = main_head(bare, env)
+
+    def change(repo: Path):
+        write("web/data/other.json")(repo)
+        write(".github/workflows/x.yml")(repo)
+
+    patch = make_patch(seed, env, tmp_path, change)
+    result = run_script(work, script_env, patch, DATA)
+    assert result.returncode != 0
+    assert ".github/workflows/x.yml" in result.stdout
+    assert main_head(bare, env) == before
+    # Nothing was written outside the allowed paths either.
+    assert (work / ".github/workflows/x.yml").read_text() == "old\n"
+
+
+def test_symlink_is_refused(repos, tmp_path):
+    seed, work, bare, env, script_env = repos
+    before = main_head(bare, env)
+    patch = make_patch(
+        seed, env, tmp_path, lambda r: (r / "web/data/link.json").symlink_to("../../.github")
+    )
+    result = run_script(work, script_env, patch, DATA)
+    assert result.returncode != 0
+    assert main_head(bare, env) == before
+
+
+def test_mode_change_is_refused(repos, tmp_path):
+    seed, work, bare, env, script_env = repos
+    before = main_head(bare, env)
+    patch = make_patch(seed, env, tmp_path, lambda r: (r / "web/data/run.sh").chmod(0o755))
+    result = run_script(work, script_env, patch, DATA)
+    assert result.returncode != 0
+    assert main_head(bare, env) == before
+
+
+def test_where_to_live_refuses_other_data_file(repos, tmp_path):
+    seed, work, bare, env, script_env = repos
+    before = main_head(bare, env)
+    patch = make_patch(seed, env, tmp_path, write("web/data/other.json"))
+    result = run_script(work, script_env, patch, WHERE_TO_LIVE)
+    assert result.returncode != 0
+    assert main_head(bare, env) == before
