@@ -34,6 +34,14 @@ name: 02 Save home and work
 - extendedWaitUntil:
     visible: "(?s).*Singapore 310201.*"
     timeout: 20000
+# Work on every day, so Today shows the commute (flow 03) on weekends too; otherwise Saturday and
+# Sunday show the weekend card instead.
+- scrollUntilVisible:
+    element: "Sat"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Sat"
+- tapOn: "Sun"
 - scrollUntilVisible:
     element: "Save"
     direction: DOWN

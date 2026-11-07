@@ -82,6 +82,10 @@ run_attempt() {
   local dir="$OUT/attempt-$1"
   mkdir -p "$dir"
   wait_for_device
+  # Singapore time, as users have it: the emulator image runs on UTC, which shows night-time cards
+  # (no trains, buses stopped) in the Singapore afternoon.
+  "${ADB[@]}" shell cmd alarm set-timezone Asia/Singapore >/dev/null 2>&1 \
+    || echo "::warning::Could not set the emulator to Singapore time; flows run on its default zone."
   "${ADB[@]}" uninstall "$PKG" >/dev/null 2>&1 || true
   "${ADB[@]}" install "$APK" >/dev/null
   "${ADB[@]}" logcat -c 2>/dev/null || true
