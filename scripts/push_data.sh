@@ -4,13 +4,69 @@
 # which run in environment `data-push` and get the patch from the build job as an artifact, so
 # the key never shares a job with pip or the build's third-party code.
 #
-# Usage: DATA_PUSH_SSH_KEY=<private key> scripts/push_data.sh <patch file> "<commit message>"
+# Usage: DATA_PUSH_SSH_KEY=<private key> scripts/push_data.sh <patch file> "<commit message>" \
+#          <allowed path>...
 # The patch is `git diff --cached --binary` of the build job. It is applied to the newest main
 # (which may have moved while the build ran) and pushed; up to 3 tries.
+# The build job runs third-party code, so the patch is not trusted: every path it touches must be
+# an allowed path (an entry ending in / allows everything under that folder, any other entry
+# allows that one file), and only regular, non-executable files may be added, changed or deleted.
 set -euo pipefail
 
 patch=$(realpath "$1")
 message=$2
+shift 2
+allowed=("$@")
+if [ "${#allowed[@]}" -eq 0 ]; then
+  echo "::error::No allowed paths given."
+  exit 1
+fi
+
+# Fails unless $1 is one of the allowed paths.
+check_path() {
+  local entry
+  for entry in "${allowed[@]}"; do
+    if [[ "$entry" == */ ]]; then
+      [[ "$1" == "$entry"?* ]] && return 0
+    else
+      [[ "$1" == "$entry" ]] && return 0
+    fi
+  done
+  echo "::error::The data update touches a path it may not change: $1"
+  exit 1
+}
+
+# Checks the patch's paths before anything is written to the working tree.
+check_patch_paths() {
+  local stats path
+  while IFS= read -r -d '' stats; do
+    path=${stats#*$'\t'}
+    path=${path#*$'\t'}
+    if [ -z "$path" ]; then
+      # A rename or copy: source and destination follow as separate fields.
+      IFS= read -r -d '' path
+      check_path "$path"
+      IFS= read -r -d '' path
+    fi
+    check_path "$path"
+  done < <(git apply --numstat -z "$patch")
+}
+
+# Checks what the applied patch staged: allowed paths, regular files with mode 100644 only
+# (no symlink, submodule, executable bit or mode change).
+check_staged() {
+  local meta path src dst
+  while IFS= read -r -d '' meta && IFS= read -r -d '' path; do
+    check_path "$path"
+    read -r src dst _ <<< "${meta#:}"
+    if [[ "$src" != 100644 && "$src" != 000000 ]] || [[ "$dst" != 100644 && "$dst" != 000000 ]]; then
+      echo "::error::The data update changes a file type or mode: $path ($src -> $dst)"
+      exit 1
+    fi
+  done < <(git diff --cached --raw --no-renames -z HEAD)
+}
+
+check_patch_paths
 if [ -z "${DATA_PUSH_SSH_KEY:-}" ]; then
   echo "::error::DATA_PUSH_SSH_KEY is not set. Add it to environment data-push (docs/HANDOFF.md, Rulesets)."
   exit 1
@@ -42,6 +98,7 @@ for try in 1 2 3; do
       echo "::error::The data update no longer applies to main (another change touched the same files)."
       exit 1
     fi
+    check_staged
     if git diff --cached --quiet; then
       echo "Nothing left to push: main already has these changes."
       exit 0

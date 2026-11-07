@@ -83,4 +83,6 @@ jobs:
         env:
           DATA_PUSH_SSH_KEY: ${{ secrets.DATA_PUSH_SSH_KEY }}
           PATCH: ${{ runner.temp }}/patch/data.patch
-        run: bash scripts/push_data.sh "$PATCH" "Update where-to-live data"
+        run: |
+          bash scripts/push_data.sh "$PATCH" "Update where-to-live data" \
+            web/data/where-to-live.json backend/data/where_to_live_routes.json
