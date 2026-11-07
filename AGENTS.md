@@ -102,6 +102,8 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   branches" is on), so there is no branch cleanup step.
 - Commits and PR descriptions carry no AI attribution: no `Co-Authored-By: Claude` or
   `Claude-Session` trailers, and no "Generated with/by Claude Code" line.
+- PR descriptions follow `.github/pull_request_template.md` (GitHub fills it in only in the web UI;
+  a PR opened through the API or `gh` copies its sections and checklist). Bot PRs skip it.
 - A PR that changes the structure (adds, moves, renames or removes a file in `app/lib`, a provider,
   a public class or function, or an endpoint) updates the feature map (`app/CLAUDE.md` "Feature map"
   or `backend/CLAUDE.md`) and `docs/REPO_MAP.md` in the same PR.
