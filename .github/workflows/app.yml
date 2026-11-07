@@ -116,60 +116,101 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - name: Build App Bundle for Google Play
+      - name: Build App Bundle for Google Play (unsigned)
         # Only for a release (version bump on main, or a manual run with a track). Pull requests
         # and other pushes stop after analyze and tests; the emulator workflow builds and runs
-        # the debug and release APKs on every pull request.
+        # the debug and release APKs on every pull request. No signing secrets here: Gradle
+        # plugins and pub packages run in this step, so it builds the AAB unsigned and the `sign`
+        # job signs it (docs/QA.md "Release signing").
         if: steps.track.outputs.track != 'none'
         env:
-          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          DAILYLAH_UNSIGNED_RELEASE: "1"
         run: |
           # On failure, put the end of the build output on the commit page (job logs are long).
           exec > >(tee "$RUNNER_TEMP/build.log") 2>&1
           trap 'sleep 2; echo "::error title=Build failed::$(grep -v "^\s*$" "$RUNNER_TEMP/build.log" | tail -25 | sed "s/%/%25/g" | sed ":a;N;\$!ba;s/\n/%0A/g")"' ERR
-          [ -n "$KEYSTORE_B64" ] || { echo "::error::No upload key: set the ANDROID_KEYSTORE_* secrets."; exit 1; }
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "::warning title=Not on main::Signing and upload run only on main; this run builds and tests the unsigned App Bundle."
+          fi
           # versionName from pubspec.yaml (one place to bump); versionCode is the run number.
           APP_VERSION=$(sed -n 's/^version:[[:space:]]*\([^+[:space:]]*\).*/\1/p' pubspec.yaml)
-          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
-          export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/upload.jks"
           flutter build appbundle --release --build-number=${GITHUB_RUN_NUMBER} \
             --dart-define=APP_VERSION=$APP_VERSION --dart-define=GIT_SHA=${GITHUB_SHA::7} --dart-define=BUILD_NUMBER=${GITHUB_RUN_NUMBER}
-          rm -f "$RUNNER_TEMP/upload.jks"
           cp build/app/outputs/bundle/release/app-release.aab build/dailylah.aab
           # R8 map for this AAB, sent to Play with it so crash reports show real class names.
           cp build/app/outputs/mapping/release/mapping.txt build/dailylah-mapping.txt
           echo "::notice title=Version::$APP_VERSION (${GITHUB_RUN_NUMBER})"
-          echo "Release $APP_VERSION, versionCode ${GITHUB_RUN_NUMBER}" >> "$GITHUB_STEP_SUMMARY"
-      - name: Upload App Bundle for Google Play
+          echo "Release $APP_VERSION, versionCode ${GITHUB_RUN_NUMBER} (unsigned build)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep the unsigned App Bundle and its R8 mapping
         if: hashFiles('app/build/dailylah.aab') != ''
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: dailylah-aab
+          name: dailylah-aab-unsigned
           path: |
             app/build/dailylah.aab
             app/build/dailylah-mapping.txt
           retention-days: 30
 
+  # The upload key lives only in environment "signing" (main only) and only this job reads it.
+  # It checks out nothing but scripts/sign_aab.sh and runs no Gradle, pub or cache: only the
+  # JDK's jarsigner and keytool. The signed AAB and the same R8 mapping become `dailylah-aab`,
+  # which e2e, play and release-tag use. This guards the key, not what is inside the AAB.
+  sign:
+    name: sign the App Bundle
+    needs: analyze
+    if: needs.analyze.outputs.track != 'none' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: signing
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/sign_aab.sh
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dailylah-aab-unsigned
+          path: unsigned
+      - name: Sign with the upload key and check its certificate
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          EXPECTED_SHA256: ${{ vars.UPLOAD_CERT_SHA256 }}
+        run: |
+          bash scripts/sign_aab.sh unsigned/dailylah.aab signed/dailylah.aab
+          cp unsigned/dailylah-mapping.txt signed/dailylah-mapping.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dailylah-aab
+          path: |
+            signed/dailylah.aab
+            signed/dailylah-mapping.txt
+          retention-days: 30
+
   # The same commit must pass the on-device tests (app flows on API 29/35/36, upgrade over
   # the last release, the R8 release build, Maestro on this AAB) before anything goes to Google Play.
+  # On main they test the signed AAB that is uploaded; a manual run on another branch (sign skipped)
+  # tests the unsigned one. A failed sign stops here.
   e2e:
     name: on-device tests
-    needs: analyze
-    if: needs.analyze.outputs.track != 'none'
+    needs: [analyze, sign]
+    if: ${{ !failure() && !cancelled() && needs.analyze.outputs.track != 'none' }}
     uses: ./.github/workflows/emulator.yml
     with:
       base_ref: ${{ needs.analyze.outputs.base_ref }}
       # The Maestro job tests the APK made from this very App Bundle.
-      aab_artifact: dailylah-aab
+      aab_artifact: ${{ needs.sign.result == 'success' && 'dailylah-aab' || 'dailylah-aab-unsigned' }}
 
   play:
     name: upload to Google Play (${{ needs.analyze.outputs.track }})
-    needs: [analyze, e2e]
-    if: needs.analyze.outputs.track != 'none'
+    # Only a signed AAB, only after the on-device tests. The Play key lives in environment "play"
+    # (or "play-production", which waits for the owner's approval).
+    needs: [analyze, sign, e2e]
+    if: needs.analyze.outputs.track != 'none' && needs.sign.result == 'success'
     runs-on: ubuntu-latest
+    environment: ${{ needs.analyze.outputs.track == 'production' && 'play-production' || 'play' }}
     # One upload at a time; a second release waits instead of cancelling the first.
     concurrency:
       group: play-upload
@@ -181,7 +222,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        # Missing when the keystore secrets are not set; the next step then says so.
+        # The signed AAB and its mapping from the sign job; the next step fails loudly if missing.
         continue-on-error: true
         with:
           name: dailylah-aab
@@ -195,7 +236,7 @@ jobs:
           [ "$GITHUB_REF" = "refs/heads/main" ] \
             || { echo "::error::Upload to Google Play only from main (this run is on $GITHUB_REF)."; exit 1; }
           [ -f app/build/dailylah.aab ] \
-            || { echo "::error::No signed AAB: the ANDROID_KEYSTORE_* secrets are missing."; exit 1; }
+            || { echo "::error::No signed AAB from the sign job."; exit 1; }
           [ -n "$PLAY_JSON" ] \
             || { echo "::error::Secret PLAY_SERVICE_ACCOUNT_JSON is not set."; exit 1; }
           # Release notes: one whatsnew-<locale> file per store language, max 500 characters.

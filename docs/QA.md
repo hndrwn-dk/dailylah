@@ -47,6 +47,27 @@ Every upload to Google Play tags its commit `v<versionName>` (`app` job `release
   that tag, since run artifacts expire after 30 days. Drafts are visible only to the owner; publish
   it by hand if wanted.
 
+## Release signing
+
+The upload key never reaches a job that runs third-party build code:
+- `analyze` builds the release AAB **unsigned** (`DAILYLAH_UNSIGNED_RELEASE=1` in
+  `android/app/build.gradle.kts`), with no signing secrets, and keeps it with its R8 mapping as
+  artifact `dailylah-aab-unsigned`.
+- `sign` (environment `signing`, main only) checks out only `scripts/sign_aab.sh` and uses only the
+  JDK: it refuses an AAB that already holds a signature (`META-INF/*.RSA|DSA|EC`), signs it with
+  `jarsigner` (passwords through `-storepass:env`/`-keypass:env`), checks the signature, and fails
+  unless the certificate's SHA-256 equals the environment variable `UPLOAD_CERT_SHA256` (compared
+  without colons, upper case). The signed AAB and the same mapping become artifact `dailylah-aab`.
+- `e2e` tests `dailylah-aab` on main, so Maestro runs the very file that goes to Play; a manual run
+  on another branch skips `sign` and tests `dailylah-aab-unsigned`. A failed `sign` stops the run.
+- `play` (environment `play`, or `play-production` with the owner's approval) and `release-tag`
+  (draft Release for production) only ever take `dailylah-aab`, so nothing unsigned is uploaded or
+  archived.
+- This protects the keys. It does not prove what is inside the AAB: Gradle plugins and pub packages
+  still build it; the tests, R8 checks and Maestro are what catch a bad build.
+- `jarsigner -verify -strict` is not used: an upload certificate is self-signed, which `-strict`
+  always rejects. The signature check plus the certificate fingerprint cover it.
+
 ## Security scans
 
 Layer order: deterministic scans (this section) → AI review (planned) → a person decides.

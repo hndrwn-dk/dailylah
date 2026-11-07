@@ -77,10 +77,13 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   services.gradle.org); a wrapper upgrade updates it in the same PR.
 - Every `uses:` is pinned to a full commit SHA with the version in a comment
   (`actions/checkout@<sha> # v7.0.1`); Dependabot bumps both. Never use a tag or branch.
-- Every workflow sets `permissions:` at the top (read-only or `{}`) and widens it per job only
-  where needed. Checkouts use `persist-credentials: false`; a job that pushes passes the token only
-  to that `git push`. In `app.yml` only `release-tag` writes (`contents: write`, the release tag
-  and draft Release); `play`, which holds the Play key, stays read-only. Never use
+- Every workflow sets `permissions:` at the top (read-only or `{}`) and widens it per job only where
+  needed. Checkouts use `persist-credentials: false`; a job that pushes passes the token only to
+  that `git push`. In `app.yml` only `release-tag` writes (`contents: write`, the release tag and
+  draft Release); `play`, which holds the Play key, stays read-only. The upload key is only in the
+  `sign` job (environment `signing`: sparse checkout of `scripts/sign_aab.sh`, JDK only, no Gradle,
+  pub or cache); the Play key only in `play` (environments `play`/`play-production`). This protects
+  the keys, not the contents of the AAB, which third-party build code still makes. Never use
   `pull_request_target`. Expressions from inputs, vars or step outputs go through `env:`, not
   straight into `run:`.
 - `security.yml` (every PR and push to main, weekly on Monday): CodeQL for actions, python and

@@ -33,9 +33,13 @@ android {
         versionName = flutter.versionName
     }
 
-    // Release signing from env vars (CI secrets). Without them, release falls back to the
-    // debug key so `flutter run --release` still works locally. Never commit the keystore.
+    // Release signing from env vars. Without them, release falls back to the debug key so
+    // `flutter run --release` still works locally. Never commit the keystore.
+    // CI builds the release unsigned (DAILYLAH_UNSIGNED_RELEASE=1): the upload key never reaches a
+    // job that runs Gradle or pub code; the `sign` job signs the AAB with jarsigner
+    // (scripts/sign_aab.sh, docs/QA.md "Release signing").
     val keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+    val unsignedRelease = System.getenv("DAILYLAH_UNSIGNED_RELEASE") == "1"
     signingConfigs {
         if (!keystorePath.isNullOrEmpty()) {
             create("release") {
@@ -62,10 +66,10 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = if (keystorePath.isNullOrEmpty()) {
-                signingConfigs.getByName("debug")
-            } else {
-                signingConfigs.getByName("release")
+            signingConfig = when {
+                unsignedRelease -> null
+                keystorePath.isNullOrEmpty() -> signingConfigs.getByName("debug")
+                else -> signingConfigs.getByName("release")
             }
         }
     }
