@@ -38,7 +38,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 ## Repo layout
 - `backend/` — Python 3.12, FastAPI. Deployed to Render (free) via `render.yaml`.
 - `app/` — Flutter app (Riverpod, dio). Platform folders are generated with `flutter create`.
-- `web/` — static site on Vercel: landing page, privacy policy, static data bundles in `web/data/`.
+- `web/` — static site on Vercel, no build step: landing page, the "Where to live?" page
+  (`web/where-to-live/`, docs/WHERE_TO_LIVE.md), the shared Play CTA (`web/shared/cta.js`),
+  vendored Leaflet (`web/vendor/`), static data bundles in `web/data/`, tests in `web/tests/`.
 - `contracts/v1/` — one example per `/v1/*` endpoint, checked by the backend and app tests
   (docs/QA.md "Contract tests").
 - `docs/PRD.md` — product requirements (Bahasa Indonesia).
@@ -53,6 +55,7 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - Trigger a poll locally: `curl -X POST localhost:8000/internal/poll`
 - App: `cd app && flutter pub get && flutter analyze && flutter test`
 - Run app against local API (Android emulator): `flutter run --dart-define=API_URL=http://10.0.2.2:8000`
+- Web: `node --test 'web/tests/*.test.mjs'` (Node 22, no packages)
 - Repo map and agent docs: `python3 scripts/repo_map.py` writes `docs/REPO_MAP.md` and every
   `AGENTS.md`; `--check` fails when either is stale.
 

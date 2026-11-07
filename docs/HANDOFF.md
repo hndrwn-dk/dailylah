@@ -27,7 +27,20 @@ rent/resale. Static page and JSON, no browser API calls, no Render. One PR per p
     temporary `push` trigger was removed before the PR.
   - After merge: run Actions > where-to-live > Run workflow once and check that it commits.
   - Once the `main` ruleset is on, this workflow needs the same bypass as `data.yml`.
-- Phase 2 (page `/where-to-live`), Phase 3 (per-town SEO pages), Phase 4 (launch with production).
+- Phase 2 (page `/where-to-live`, branch `feat/where-to-live-page`): static page in
+  `web/where-to-live/` (vanilla JS, Leaflet 1.9.4 vendored in `web/vendor/`, OneMap Default/Night
+  tiles), CSP for `/where-to-live` in `web/vercel.json`, `web.yml` (`node --test`, check
+  `web result`), website section 5a in `docs/legal/privacy.md`, `scripts/web_check.sh` step 5.
+  - After merge: update the published privacy policy and terms on tursinalabs.com from
+    `docs/legal/privacy.md` (scope now includes dailylah.sg, new section 5a) and
+    `docs/legal/terms.md` (scope, section 5 now lists every source and the Muslim.sg/MUIS halal
+    note that left the site footer), and add `web result` to the ruleset.
+- **When DailyLah production is live: switch the CTA to the public listing.** One small PR that
+  edits only `web/shared/cta.js`: `url` to
+  `https://play.google.com/store/apps/details?id=com.tursinalabs.dailylah`, `label` to
+  "Get DailyLah" (short, fits a 360 px phone), `ariaLabel` to "Get DailyLah on Google Play", `steps`
+  to `[]`. The landing page and `/where-to-live` both use it; update the test in `web/tests/`.
+- Phase 3 (per-town SEO pages), Phase 4 (launch with production).
 
 ## CI/CD hardening (Nov 2026, 8 phases, one PR each)
 Layers: deterministic scans → AI review → a person decides. Existing gates (analyze, test,
@@ -144,8 +157,9 @@ Turn them on only after PR 4 is on `main`: before that, `app result`, `emulator 
    own PR); Allowed merge methods: **Squash** only.
 3. Require status checks to pass, "Require branches to be up to date" **off**. Add these, source
    GitHub Actions (names exactly as GitHub shows them; docs/QA.md "Required checks"):
-   `app result`, `emulator result`, `backend result`, `repo map and AGENTS.md up to date`,
-   `CodeQL (actions)`, `CodeQL (python)`, `osv-scanner (dependencies)`, `zizmor (workflows)`.
+   `app result`, `emulator result`, `backend result`, `web result` (after the where-to-live page
+   PR is on `main`), `repo map and AGENTS.md up to date`, `CodeQL (actions)`, `CodeQL (python)`,
+   `osv-scanner (dependencies)`, `zizmor (workflows)`.
 4. Bypass list: the daily `data.yml` pushes the data bundles straight to `main` with the job token,
    which the rules above would refuse. Pick one route:
    - **Route A (first choice):** Add bypass > **GitHub Actions** (if the picker offers it on this
@@ -198,6 +212,9 @@ No new secrets are needed for Phase 1.
     that dataset were not visible from the sandbox, so `FACILITY_LABELS` in bundles.py may need tuning.
 
 ## Open ideas / not possible
+- App backlog (7 Nov 2026): History: add an optional price field for meals, so the weekly total
+  includes lunch. Today `MealLog` has no cost; History counts meals but adds up only trips and
+  parking. When it lands, the home page History card and timeline can show meal spending.
 - Wikimedia photos for big parks: not started.
 - OnePA and NParks events: written permission needed. A short email to PA was drafted, not sent.
 - Return Right machine locations: the website terms forbid reuse; ask BCRS.

@@ -19,7 +19,8 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
 
 ## Status
 - Fase 0: selesai. Secret `ONEMAP_EMAIL`/`ONEMAP_PASSWORD` sudah ada (dipakai `data.yml`); situs dailylah.sg adalah folder `web/` di repo ini (Vercel).
-- Fase 1: branch `feat/where-to-live-data` (lihat "Fase 1: yang dibangun").
+- Fase 1: selesai (PR #116, 7 Nov 2026); run pertama di `main` commit datanya, run kedua "No data changes".
+- Fase 2: branch `feat/where-to-live-page` (lihat "Fase 2: yang dibangun").
 
 ## Fase 0: langkah untuk Hendrawan (selesai)
 1. Daftar akun OneMap API, lalu tambahkan secret `ONEMAP_EMAIL` dan `ONEMAP_PASSWORD` di repo.
@@ -74,9 +75,70 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
 - Kartu town: "38 min to CBD, 1 transfer, 4-room median rent $X (Q3 2026)".
 - State di URL query supaya hasil bisa dibagikan. CTA "Get DailyLah" ke Play Store.
 - Disclaimer: angka indikatif dari data HDB yang dideklarasikan sendiri; tidak berafiliasi dengan HDB/SLA.
+- **Wajib saat merender `where-to-live.json`:**
+  - Semua teks dari JSON (`name`, `station`, `attribution`, id area, dan teks lain yang datang dari
+    file itu) di-escape: pakai `textContent` / `createTextNode` atau escape HTML; jangan pernah
+    `innerHTML` dengan string dari JSON. Berlaku juga untuk popup/tooltip peta dan atribut
+    (`title`, `aria-label`). Nilai dari URL query (area, tipe flat, budget) divalidasi terhadap
+    daftar yang ada di JSON sebelum dipakai.
+  - Label harga memakai `quarter` per angka (`rent["4-ROOM"].quarter`), bukan `rent_quarter`/
+    `resale_quarter` di level atas: satu town bisa memakai kuartal yang lebih lama karena kuartal
+    terbarunya `na`. `null` ditampilkan sebagai "Not enough data".
+  - Commute `{"same_area": true}` ditampilkan sebagai "In this area"; commute `null` sebagai
+    "No route data".
+
+### Fase 2: yang dibangun
+- Halaman `web/where-to-live/index.html` (dilayani di `/where-to-live`), `app.css`, `app.js` (DOM dan
+  peta), `logic.js` (fungsi murni: baca/tulis URL, `rank`, label). Tanpa build step, tanpa CDN.
+- Daftar ranking bergaya papan LED (seperti papan bus di landing page): satu baris per town
+  (nama, menit, harga tebal: `$3,400/mo` atau `$559,400`). Baris adalah tombol (`aria-expanded`);
+  saat dibuka tampil stasiun, jumlah transfer, kuartal angka itu, dan alasan kalau di luar pilihan.
+  Tiga kelompok: "Fits your choices" (8 teratas, lalu tombol "Show all N"), "No <flat> price data"
+  (hanya kalau budget diisi), "Outside your choices" (dilipat dalam `<details>` selama ada town yang
+  cocok). Urutan: waktu tempuh (same area paling atas), lalu harga.
+- Peta Leaflet 1.9.4 (`web/vendor/leaflet-1.9.4/`, dari npm, checksum di README-nya), tile OneMap
+  Default/Night mengikuti `prefers-color-scheme`, atribusi OneMap (logo
+  `https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png`, OneMap, SLA; logo yang gagal dimuat
+  disembunyikan). Penanda: pil berisi menit (`22′`) lewat `L.divIcon` dengan elemen DOM, warna per
+  waktu tempuh (≤20, 21–35, 36–50, >50; "Here" untuk town = area kantor), garis putus-putus kalau
+  tanpa harga, abu dan kecil kalau di luar pilihan; kantor memakai pin. Ketuk pil membuka barisnya di
+  daftar (menampilkan semua / membuka lipatan kalau perlu); ketuk baris menyorot pil dan membuka
+  popup-nya. Desktop: peta `position: sticky` di kolom kanan. HP: peta di atas daftar (320 px).
+- Form: Rent / Buy resale sebagai segmented control; semua kontrol 46 px supaya baris desktop rata.
+- Kartu ringkasan di atas daftar (`highlights` di `logic.js`): "Fastest" (waktu tempuh terpendek,
+  harga lebih murah kalau seri) dan "Best value" (termurah di antara town dengan waktu tempuh ≤ median
+  kandidat), hanya dari town yang cocok dan punya harga serta rute; disembunyikan kalau tidak ada.
+- Tombol Share: `navigator.share` dengan URL saat ini; kalau tidak ada, "Copy link" lalu "Link
+  copied" (clipboard). Tanpa script pihak ketiga, CSP tidak berubah.
+- Footer pendek: satu baris "Indicative figures from HDB via data.gov.sg (Singapore Open Data Licence).
+  Updated <tanggal dari generated_at>.", lalu `<details>` "About the data" (kuartal, 08:30 dari stasiun
+  MRT utama, perjalanan terjadwal, arti "not enough data", tidak berafiliasi dengan HDB/SLA), lalu
+  DailyLah · Privacy · Terms. OneMap/SLA hanya di atribusi peta. Daftar sumber lengkap dan catatan
+  halal ada di `docs/legal/terms.md` bagian 5.
+- Teks ringan bergaya landing page (subjudul, hasil kosong, judul CTA "Know before you go lah.");
+  disclaimer, atribusi dan label data tetap bahasa Inggris standar.
+- State di URL (`?area=&mode=&flat=&budget=&max=`), nilai di-validasi terhadap JSON; default tidak
+  ditulis.
+- CTA dari `web/shared/cta.js` (satu konstanta untuk landing page dan halaman ini): sekarang alur
+  tester (Google Group lalu opt-in). Ganti ke listing publik saat production live (HANDOFF).
+- CSP khusus `/where-to-live` di `web/vercel.json`: hanya `'self'` untuk script, style, font dan
+  fetch; gambar dari `'self'`, `data:` dan `www.onemap.gov.sg`. Atribusi OneMap memakai kelas
+  `om-logo`, bukan style inline.
+- Tes: `web/tests/logic.test.mjs` (`node --test`, workflow `web.yml`, check `web result`): URL dan
+  nilai liar, label kuartal per angka, `same_area`, budget/waktu, alasan, file JSON asli, tidak ada
+  `innerHTML` di skrip halaman, CTA hanya di `cta.js`, aset hanya lokal. Escaping dicek dengan
+  Playwright memakai JSON berisi HTML/JS: tampil sebagai teks, tidak ada script yang jalan.
+- `scripts/web_check.sh` langkah 5: `/where-to-live` 200 dengan CSP, `where-to-live.json` valid.
+- Privasi: `docs/legal/privacy.md` bagian 5a (situs, OneMap tiles, tanpa cookie/analytics).
 
 ## Fase 3: SEO + bagikan (1 PR)
 - Halaman statis per town (sekitar 26), misalnya "Living in Punggol: commute and HDB prices", dibuat dari JSON yang sama saat build. Sitemap, meta, gambar OG.
+
+- Rencana tambahan (dicatat 7 Nov 2026, belum dibangun): **biaya sebenarnya per bulan** per town =
+  sewa median + ongkos pergi-pulang 22 hari kerja (tarif kartu dewasa untuk jarak rute OneMap, dua
+  arah) + jam di jalan per bulan (menit sekali jalan × 2 × 22 ÷ 60, ditampilkan sebagai jam, bukan
+  diubah ke dolar). Butuh jarak atau tarif per rute di `where-to-live.json` (Fase 1 belum menyimpannya:
+  OneMap mengembalikan `fare` per itinerary, lihat contoh dry run).
 
 ## Fase 4: launch
 - Live bersamaan dengan production DailyLah. Post LinkedIn: app + alat web.

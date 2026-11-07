@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where to live in Singapore? HDB towns by commute and price | DailyLah</title>
+<meta name="description" content="Compare HDB towns by MRT and bus time to your office and by HDB median rent or resale price, on one map. Free, from public HDB and OneMap data.">
+<meta name="theme-color" content="#E8F3F6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B1214" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Where to live? HDB towns by commute and price">
+<meta property="og:description" content="Travel time to your office and HDB median rent or resale price for every HDB town, on one map.">
+<meta property="og:url" content="https://dailylah.sg/where-to-live">
+<meta property="og:image" content="https://dailylah.sg/brand/og.jpg">
+<link rel="canonical" href="https://dailylah.sg/where-to-live">
+<link rel="icon" href="/favicon.png" sizes="32x32">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="preload" href="/fonts/BarlowCondensed-Bold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/vendor/leaflet-1.9.4/leaflet.css">
+<link rel="stylesheet" href="/where-to-live/app.css">
+<script src="/vendor/leaflet-1.9.4/leaflet.js" defer></script>
+<script type="module" src="/where-to-live/app.js"></script>
+<script type="module" src="/shared/cta.js"></script>
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <a class="home" href="/"><img src="/brand/wordmark.png" width="383" height="266" alt="DailyLah home"></a>
+  </header>
+
+  <section class="intro">
+    <h1>Where to live?</h1>
+    <p class="lead">Stay where ah? Pick your office and budget, we rank every HDB town by MRT time lah.</p>
+  </section>
+
+  <form id="choices" class="choices sticker" aria-label="Your choices">
+    <label class="field">
+      <span>Office area</span>
+      <select id="area" name="area"></select>
+    </label>
+    <div class="field">
+      <span id="mode-label">I want to</span>
+      <div class="seg" role="radiogroup" aria-labelledby="mode-label">
+        <label><input type="radio" name="mode" value="rent" checked><span>Rent</span></label>
+        <label><input type="radio" name="mode" value="buy"><span>Buy resale</span></label>
+      </div>
+    </div>
+    <label class="field">
+      <span>Flat type</span>
+      <select id="flat" name="flat"></select>
+    </label>
+    <label class="field">
+      <span id="budget-label">Max rent per month ($)</span>
+      <input id="budget" name="budget" type="text" inputmode="numeric" autocomplete="off" placeholder="Any" pattern="[0-9,]*">
+    </label>
+    <label class="field">
+      <span>Travel time</span>
+      <select id="max" name="max"></select>
+    </label>
+  </form>
+
+  <div class="results">
+    <section class="board-wrap sticker" aria-labelledby="board-title">
+      <div class="board-top">
+        <div>
+          <h2 id="board-title">Loading towns</h2>
+          <p id="board-sub" class="board-sub"></p>
+        </div>
+        <button id="share" class="share" type="button" hidden>Share</button>
+      </div>
+      <p id="share-note" class="share-note" role="status"></p>
+      <dl id="picks" class="picks" aria-live="polite" hidden>
+        <div><dt>Fastest:</dt><dd id="pick-fast"></dd></div>
+        <div><dt>Best value:</dt><dd id="pick-value"></dd></div>
+      </dl>
+      <div id="board-body" class="board"></div>
+    </section>
+    <section class="map-wrap sticker" aria-label="Map of HDB towns">
+      <div id="map" class="map"></div>
+      <ul class="legend" aria-label="Map key">
+        <li><span class="key b1">20′</span>up to 20 min</li>
+        <li><span class="key b2">35′</span>21–35</li>
+        <li><span class="key b3">50′</span>36–50</li>
+        <li><span class="key b4">50+</span>over 50</li>
+        <li><span class="key out">–</span>outside your choices</li>
+        <li><span class="key office-key" aria-hidden="true"></span>office area</li>
+      </ul>
+    </section>
+  </div>
+
+  <section class="app sticker">
+    <h2>Know before you go lah.</h2>
+    <p>DailyLah, our free Android app, shows bus arrivals, MRT delays and the weather for your own trip to work.</p>
+    <div class="cta" data-cta>
+      <noscript><p>Turn on JavaScript to see how to get DailyLah on Google Play.</p></noscript>
+    </div>
+  </section>
+
+  <footer class="notes">
+    <p id="sources">Indicative figures from HDB via data.gov.sg (Singapore Open Data Licence).</p>
+    <details class="about">
+      <summary>About the data</summary>
+      <p id="about-data">HDB median rent and resale prices by quarter; open a town to see the quarter of its figure, and "not enough data" means HDB published no median for it. Travel times are planned OneMap trips, not live ones, on a weekday at 08:30 from each town's main MRT station. DailyLah is not affiliated with HDB or the Singapore Land Authority.</p>
+    </details>
+    <nav aria-label="Legal">
+      <a href="/">DailyLah</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+    </nav>
+  </footer>
+</main>
+<noscript><p class="wrap">This page needs JavaScript to rank the towns.</p></noscript>
+</body>
+</html>
