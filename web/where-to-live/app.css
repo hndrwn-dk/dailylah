@@ -144,9 +144,17 @@ input[type=text]::placeholder { color: var(--mist); }
 .steps li + li { margin-top: 4px; }
 
 /* ---------------- notes */
-.notes { padding: 8px 0 48px; color: var(--mist); font-size: 14px; border-top: 2px solid var(--edge); }
-.notes p { max-width: 80ch; }
-.notes nav { display: flex; flex-wrap: wrap; gap: 6px 18px; font-weight: 600; }
+/* Footer: the credit line, "About the data" and the links flow as one paragraph (about 3 lines on a
+   360 px phone); the opened note takes the full width below. */
+.notes { padding: 14px 0 24px; color: var(--mist); font-size: 12px; line-height: 1.6; border-top: 2px solid var(--edge); }
+.notes #sources { display: inline; margin: 0 10px 0 0; }
+.about { display: inline-block; margin: 0 10px 0 0; }
+.about[open] { display: block; margin: 2px 0 4px; }
+.about summary { cursor: pointer; font-weight: 600; color: var(--ink); width: fit-content; }
+.about summary:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+.about p { margin: 4px 0 0; max-width: 80ch; }
+.notes nav { display: inline; font-weight: 600; white-space: nowrap; }
+.notes nav a + a::before { content: "·"; color: var(--mist); padding: 0 7px; display: inline-block; }
 
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto !important; }

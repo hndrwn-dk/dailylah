@@ -31,12 +31,15 @@ rent/resale. Static page and JSON, no browser API calls, no Render. One PR per p
   `web/where-to-live/` (vanilla JS, Leaflet 1.9.4 vendored in `web/vendor/`, OneMap Default/Night
   tiles), CSP for `/where-to-live` in `web/vercel.json`, `web.yml` (`node --test`, check
   `web result`), website section 5a in `docs/legal/privacy.md`, `scripts/web_check.sh` step 5.
-  - After merge: update the published privacy policy on tursinalabs.com from `docs/legal/privacy.md`
-    (scope now includes dailylah.sg, new section 5a), and add `web result` to the ruleset.
+  - After merge: update the published privacy policy and terms on tursinalabs.com from
+    `docs/legal/privacy.md` (scope now includes dailylah.sg, new section 5a) and
+    `docs/legal/terms.md` (scope, section 5 now lists every source and the Muslim.sg/MUIS halal
+    note that left the site footer), and add `web result` to the ruleset.
 - **When DailyLah production is live: switch the CTA to the public listing.** One small PR that
   edits only `web/shared/cta.js`: `url` to
-  `https://play.google.com/store/apps/details?id=com.tursinalabs.dailylah`, `label` to e.g.
-  "Get DailyLah on Google Play", `steps` to `[]`. The landing page and `/where-to-live` both use it.
+  `https://play.google.com/store/apps/details?id=com.tursinalabs.dailylah`, `label` to
+  "Get DailyLah" (short, fits a 360 px phone), `ariaLabel` to "Get DailyLah on Google Play", `steps`
+  to `[]`. The landing page and `/where-to-live` both use it; update the test in `web/tests/`.
 - Phase 3 (per-town SEO pages), Phase 4 (launch with production).
 
 ## CI/CD hardening (Nov 2026, 8 phases, one PR each)

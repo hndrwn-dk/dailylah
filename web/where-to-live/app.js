@@ -280,12 +280,14 @@ function renderSources(data) {
   const updated = new Date(data.generated_at);
   const when = Number.isNaN(updated.getTime())
     ? ""
-    : ` Updated ${updated.toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric" })}.`;
-  $("sources").textContent =
-    `HDB median rent up to ${quarterLabel(data.rent_quarter)} and median resale price up to ` +
-    `${quarterLabel(data.resale_quarter)}; open a town to see the quarter of its figure. Travel times ` +
-    `from OneMap for a weekday at 08:30, from the town's main MRT station.${when}`;
-  $("attribution").textContent = data.attribution;
+    : ` Updated ${updated.toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Singapore" })}.`;
+  $("sources").textContent = `Indicative figures from HDB via data.gov.sg (Singapore Open Data Licence).${when}`;
+  $("about-data").textContent =
+    `HDB median rent up to ${quarterLabel(data.rent_quarter)} and resale price up to ` +
+    `${quarterLabel(data.resale_quarter)}; open a town to see the quarter of its figure, and ` +
+    `"not enough data" means HDB published no median for it. Travel times are planned OneMap trips, ` +
+    `not live ones, on a weekday at 08:30 from each town's main MRT station. DailyLah is not ` +
+    `affiliated with HDB or the Singapore Land Authority.`;
 }
 
 async function main() {

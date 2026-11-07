@@ -2,13 +2,15 @@
 // Change it here only. While DailyLah is in closed testing it is the tester flow (Google Group,
 // then opt in on Google Play). When production is live, switch to the public listing
 // (docs/HANDOFF.md): url "https://play.google.com/store/apps/details?id=com.tursinalabs.dailylah",
-// a label such as "Get DailyLah on Google Play", and steps [].
+// label "Get DailyLah", ariaLabel "Get DailyLah on Google Play", and steps [].
+// `label` is short so the button fits one line on a 360 px phone; `ariaLabel` is the full name.
 //
 // Every element with data-cta is filled from this object with DOM nodes (textContent), never HTML.
 
 export const CTA = {
   url: "https://play.google.com/apps/testing/com.tursinalabs.dailylah",
-  label: "Join the beta on Google Play",
+  label: "Join the beta",
+  ariaLabel: "Join the beta on Google Play",
   // Each step is a list of parts: plain text, {strong} or {href, text}.
   steps: [
     [
@@ -54,6 +56,7 @@ export function renderCta(el, cta = CTA, doc = document) {
   link.className = "play";
   link.href = cta.url;
   link.rel = "noopener";
+  link.setAttribute("aria-label", cta.ariaLabel ?? cta.label);
   link.append(playIcon(doc), doc.createTextNode(cta.label));
   const nodes = [link];
   if (cta.steps.length) {

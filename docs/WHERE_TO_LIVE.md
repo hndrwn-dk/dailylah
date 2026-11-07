@@ -105,6 +105,13 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
   daftar (menampilkan semua / membuka lipatan kalau perlu); ketuk baris menyorot pil dan membuka
   popup-nya. Desktop: peta `position: sticky` di kolom kanan. HP: peta di atas daftar (320 px).
 - Form: Rent / Buy resale sebagai segmented control; semua kontrol 46 px supaya baris desktop rata.
+- Footer pendek: satu baris "Indicative figures from HDB via data.gov.sg (Singapore Open Data Licence).
+  Updated <tanggal dari generated_at>.", lalu `<details>` "About the data" (kuartal, 08:30 dari stasiun
+  MRT utama, perjalanan terjadwal, arti "not enough data", tidak berafiliasi dengan HDB/SLA), lalu
+  DailyLah · Privacy · Terms. OneMap/SLA hanya di atribusi peta. Daftar sumber lengkap dan catatan
+  halal ada di `docs/legal/terms.md` bagian 5.
+- Teks ringan bergaya landing page (subjudul, hasil kosong, judul CTA "Know before you go lah.");
+  disclaimer, atribusi dan label data tetap bahasa Inggris standar.
 - State di URL (`?area=&mode=&flat=&budget=&max=`), nilai di-validasi terhadap JSON; default tidak
   ditulis.
 - CTA dari `web/shared/cta.js` (satu konstanta untuk landing page dan halaman ini): sekarang alur

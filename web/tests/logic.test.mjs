@@ -198,7 +198,11 @@ test("page scripts never write HTML from strings", () => {
 
 test("the Play link and its steps live only in shared/cta.js", () => {
   assert.match(CTA.url, /^https:\/\/play\.google\.com\//);
-  assert.ok(CTA.label.length > 0);
+  // Short label on the button (fits a 360 px phone), the full name for screen readers.
+  assert.equal(CTA.label, "Join the beta");
+  assert.ok(CTA.label.length <= 16, "button label must stay short");
+  assert.equal(CTA.ariaLabel, "Join the beta on Google Play");
+  assert.ok(CTA.ariaLabel.startsWith(CTA.label));
   for (const page of ["index.html", "where-to-live/index.html"]) {
     const html = read(page);
     assert.doesNotMatch(html, /play\.google\.com|groups\.google\.com/, page);
@@ -226,8 +230,23 @@ test("where-to-live keeps Singlish to the light copy", () => {
   assert.match(html, /Stay where ah\? Pick your office and budget, we rank every HDB town by MRT time lah\./);
   assert.match(html, /<h2>Know before you go lah\.<\/h2>/);
   assert.match(read("where-to-live/app.js"), /Alamak, nothing fits\. Try a bigger budget or longer travel time\./);
-  // Disclaimer stays standard English.
-  assert.match(html, /Figures are indicative\./);
+  // Footer and data notes stay standard English.
+  assert.match(html, /Indicative figures from HDB via data\.gov\.sg \(Singapore Open Data Licence\)\./);
+  assert.match(html, /<summary>About the data<\/summary>/);
+  assert.match(html, /not affiliated with HDB or the Singapore Land Authority/);
+});
+
+test("footers are short and the full sources live in the Terms", () => {
+  const home = read("index.html");
+  const footer = home.slice(home.indexOf("<footer>"), home.indexOf("</footer>"));
+  assert.match(footer, /Open data from data\.gov\.sg, LTA DataMall, OneMap and URA\. Not affiliated with the Singapore Government\./);
+  assert.doesNotMatch(footer, /Muslim\.sg|MUIS/);
+  const terms = readFileSync(new URL("../docs/legal/terms.md", web), "utf8");
+  assert.match(terms, /Muslim\.sg: halal listings\. DailyLah is not affiliated with MUIS/);
+  const wtl = read("where-to-live/index.html");
+  const wtlFooter = wtl.slice(wtl.indexOf('<footer class="notes">'), wtl.indexOf("</footer>"));
+  assert.doesNotMatch(wtlFooter, /OneMap.*Singapore Land Authority.*contributors/);
+  assert.equal((wtlFooter.match(/<a /g) ?? []).length, 3);
 });
 
 test("the page loads Leaflet from the vendored copy only", () => {
