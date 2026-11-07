@@ -87,6 +87,9 @@ order (01 sets up the household the others use) and stops at the first failure.
   `contracts/v1/`; releases keep the live API.
 
 Writing flows:
+- Flows must pass on any day and at any time. The emulator is set to Singapore time; flow 02 makes
+  Work an every-day place (Sat and Sun chips in Setup), so Today shows the commute on weekends too
+  instead of the weekend card. Live data that is empty at night (buses stopped) is accepted as an answer.
 - Flutter merges the texts of a tile or card into one node, so match with `"(?s).*text.*"`, or
   anchor the start (`"(?s)Appearance.*"`) when a longer node also contains the text.
 - Rows off screen are not in the hierarchy: `scrollUntilVisible` first; add `centerElement: true`
