@@ -207,6 +207,29 @@ test("the Play link and its steps live only in shared/cta.js", () => {
   }
 });
 
+test("the landing page hero and tagline stay as they are", () => {
+  const html = read("index.html");
+  assert.match(html, /<h1>Know before you go lah\.<\/h1>/);
+  for (const line of [
+    "Need umbrella meh? Hawker closed ah?",
+    "Haze bad or not? Makan where?",
+    "Bus coming? MRT delay? Alamak...",
+  ]) {
+    assert.ok(html.includes(`<li>${line}</li>`), line);
+  }
+  // The hero still comes first; the Where to live? teaser sits after the tabs.
+  assert.ok(html.indexOf('class="hero"') < html.indexOf('class="tool sticker"'));
+});
+
+test("where-to-live keeps Singlish to the light copy", () => {
+  const html = read("where-to-live/index.html");
+  assert.match(html, /Stay where ah\? Pick your office and budget, we rank every HDB town by MRT time lah\./);
+  assert.match(html, /<h2>Know before you go lah\.<\/h2>/);
+  assert.match(read("where-to-live/app.js"), /Alamak, nothing fits\. Try a bigger budget or longer travel time\./);
+  // Disclaimer stays standard English.
+  assert.match(html, /Figures are indicative\./);
+});
+
 test("the page loads Leaflet from the vendored copy only", () => {
   const html = read("where-to-live/index.html");
   const srcs = [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map((m) => m[1]);

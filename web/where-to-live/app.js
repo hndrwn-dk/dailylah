@@ -149,7 +149,7 @@ function renderBoard(data, view, groups, actions) {
   }`;
   const parts = [
     group("Fits your choices", groups.match, view, actions, {
-      emptyText: "No town fits. Raise the budget or allow a longer trip.",
+      emptyText: "Alamak, nothing fits. Try a bigger budget or longer travel time.",
       top: TOP_ROWS,
     }),
     group(`No ${flatLabel(state.flat)} price data`, groups.noPrice, view, actions),
