@@ -173,3 +173,33 @@ input[type=text]::placeholder { color: var(--mist); }
   * { scroll-behavior: auto !important; }
   .leaflet-fade-anim .leaflet-popup, .leaflet-zoom-anim .leaflet-zoom-animated { transition: none !important; }
 }
+
+/* ---------------- town pages (/where-to-live/<town>, made by backend/app/where_to_live_pages.py) */
+.town-page .lead { color: var(--ink); max-width: 68ch; }
+.go-tool { display: inline-block; font-weight: 700; padding: 10px 16px; border: 2.5px solid var(--edge); border-radius: 12px;
+           background: #0A7068; color: #fff; text-decoration: none; box-shadow: 3px 4px 0 var(--shadow); }
+.go-tool:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
+.facts { padding: 18px; margin-bottom: 24px; }
+.facts h2 { font: 700 clamp(26px, 4vw, 34px)/1.05 var(--display); margin: 0 0 10px; }
+.table-wrap { overflow-x: auto; }
+.facts table { border-collapse: collapse; width: 100%; font-size: 15px; }
+.facts caption { text-align: left; color: var(--mist); font-size: 14px; padding-bottom: 6px; }
+.facts th, .facts td { text-align: left; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--edge); vertical-align: top; }
+.facts thead th { font-size: 13px; color: var(--mist); font-weight: 700; }
+.facts tbody th { font-weight: 700; }
+.facts .note { color: var(--mist); font-size: 13px; margin: 10px 0 0; }
+.nearby { margin-bottom: 28px; }
+.nearby h2 { font: 700 26px/1.1 var(--display); margin: 0 0 6px; }
+.town-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px 24px; }
+@media (min-width: 760px) { .town-list { grid-template-columns: 1fr 1fr; } }
+.town-list li { display: grid; padding: 8px 0; border-bottom: 1px solid var(--edge); }
+.town-list a { font: 700 22px/1.1 var(--display); }
+.town-list span { color: var(--mist); font-size: 14px; }
+/* tool: costs and links to town pages */
+.allin { display: block; font: 600 13px/1.3 var(--body); color: var(--led-dim); margin-top: 2px; }
+.towns-link { margin: 4px 0 12px; font-size: 14px; }
+.towns-link a { color: var(--led); }
+.more .cost { color: var(--led); font-weight: 600; }
+.more .town-link { color: var(--led); font-weight: 700; margin-top: 4px; width: fit-content; }
+.more .town-link:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+.town-page .lead + .lead { margin-top: 12px; }

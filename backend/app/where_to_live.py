@@ -193,8 +193,21 @@ def depart_day(today: date, holidays: set[str]) -> date:
     return d
 
 
+def parse_fare(value: Any) -> int | None:
+    """OneMap's adult card fare for an itinerary ("1.94", dollars) in cents; None if missing."""
+    if isinstance(value, bool):
+        return None
+    try:
+        cents = round(float(str(value).replace("$", "").strip()) * 100)
+    except ValueError:
+        return None
+    # A single MRT/bus trip in Singapore costs well under $10; anything else is not a fare.
+    return cents if 0 < cents < 1000 else None
+
+
 def parse_route(body: Any) -> dict | None:
-    """{"min", "transfers"} of the fastest itinerary in a OneMap routing answer."""
+    """{"min", "transfers", "fare"} of the fastest itinerary in a OneMap routing answer.
+    fare is the adult card fare in cents, or None when OneMap gives none."""
     plan = body.get("plan") if isinstance(body, dict) else None
     its = [i for i in ((plan or {}).get("itineraries") or []) if isinstance(i, dict)]
     its = [i for i in its if isinstance(i.get("duration"), int | float) and i["duration"] > 0]
@@ -205,7 +218,11 @@ def parse_route(body: Any) -> dict | None:
     if not isinstance(transfers, int):
         legs = [leg for leg in best.get("legs") or [] if isinstance(leg, dict)]
         transfers = max(0, sum(1 for leg in legs if leg.get("transitLeg")) - 1)
-    return {"min": int(round(best["duration"] / 60)), "transfers": transfers}
+    return {
+        "min": int(round(best["duration"] / 60)),
+        "transfers": transfers,
+        "fare": parse_fare(best.get("fare")),
+    }
 
 
 def route_sample(body: Any) -> dict:
@@ -283,7 +300,13 @@ def _cached(entry: Any, start: list[float], end: list[float]) -> bool:
         and entry.get("from") == start
         and entry.get("to") == end
         and isinstance(entry.get("min"), int)
+        # Entries cached before fares were kept are asked again once.
+        and "fare" in entry
     )
+
+
+def _route(entry: dict) -> dict:
+    return {"min": entry["min"], "transfers": entry["transfers"], "fare": entry["fare"]}
 
 
 async def build_routes(
@@ -297,7 +320,7 @@ async def build_routes(
     pause: float = 0.25,
     sleep: Sleep = asyncio.sleep,
 ) -> tuple[dict, dict, dict]:
-    """({town id: {area id: {"min", "transfers"} | SAME_AREA | None}}, new cache, notes).
+    """({town id: {area id: {"min", "transfers", "fare"} | SAME_AREA | None}}, new cache, notes).
 
     None means no route is known; SAME_AREA means the town is the office area."""
     day = depart_day(today, holidays)
@@ -305,7 +328,7 @@ async def build_routes(
     new_cache: dict = {}
     out: dict[str, dict] = {}
     notes: dict[str, Any] = {"depart": f"{day.isoformat()} {DEPART_TIME}", "sample": None}
-    counts = {"cached": 0, "fetched": 0, "failed_used_old": 0, "failed": 0}
+    counts = {"cached": 0, "fetched": 0, "failed_used_old": 0, "failed": 0, "no_fare": 0}
     for town in towns:
         out[town["id"]] = {}
         for area in areas:
@@ -318,7 +341,7 @@ async def build_routes(
                 continue
             if _cached(old, start, end) and str(old.get("at", "")) >= fresh_after:
                 new_cache[key] = old
-                out[town["id"]][area["id"]] = {"min": old["min"], "transfers": old["transfers"]}
+                out[town["id"]][area["id"]] = _route(old)
                 counts["cached"] += 1
                 continue
             route, body = await fetch_route(
@@ -331,9 +354,11 @@ async def build_routes(
                 new_cache[key] = {"from": start, "to": end, **route, "at": today.isoformat()}
                 out[town["id"]][area["id"]] = route
                 counts["fetched"] += 1
+                if route["fare"] is None:
+                    counts["no_fare"] += 1
             elif _cached(old, start, end):
                 new_cache[key] = old
-                out[town["id"]][area["id"]] = {"min": old["min"], "transfers": old["transfers"]}
+                out[town["id"]][area["id"]] = _route(old)
                 counts["failed_used_old"] += 1
             else:
                 out[town["id"]][area["id"]] = None

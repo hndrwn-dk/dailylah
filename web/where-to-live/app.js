@@ -11,6 +11,7 @@ import {
   flatLabel,
   flatTypes,
   highlightText,
+  allInText,
   highlights,
   pillText,
   priceDetail,
@@ -109,6 +110,11 @@ function boardRow(row, view, actions) {
   more.hidden = !open;
   if (row.reason) more.append(el("span", "why", reasonText(row, state)));
   more.append(el("span", null, routeDetail(row)), el("span", null, priceDetail(state, row.price)));
+  const cost = allInText(state, row);
+  if (cost) more.append(el("span", "cost", cost));
+  const page = el("a", "town-link", `More about ${row.town.name}`);
+  page.href = `/where-to-live/${encodeURIComponent(row.town.id)}`;
+  more.append(page);
   li.append(more);
   return li;
 }
@@ -171,8 +177,13 @@ function renderPicks(state, groups) {
   const picks = highlights(groups);
   $("picks").hidden = !picks;
   if (!picks) return;
-  $("pick-fast").textContent = highlightText(picks.fastest, state.mode);
-  $("pick-value").textContent = highlightText(picks.value, state.mode);
+  for (const [id, row] of [["pick-fast", picks.fastest], ["pick-value", picks.value]]) {
+    const cost = allInText(state, row);
+    $(id).replaceChildren(
+      document.createTextNode(highlightText(row, state.mode)),
+      ...(cost ? [el("span", "allin", cost)] : []),
+    );
+  }
 }
 
 // ---------------------------------------------------------------- share
@@ -350,7 +361,8 @@ function renderSources(data) {
     `HDB median rent up to ${quarterLabel(data.rent_quarter)} and resale price up to ` +
     `${quarterLabel(data.resale_quarter)}; open a town to see the quarter of its figure, and ` +
     `"not enough data" means HDB published no median for it. Travel times are planned OneMap trips, ` +
-    `not live ones, on a weekday at 08:30 from each town's main MRT station. DailyLah is not ` +
+    `not live ones, on a weekday at 08:30 from each town's main MRT station, with adult card ` +
+    `fares; monthly figures assume 22 working days there and back. DailyLah is not ` +
     `affiliated with HDB or the Singapore Land Authority.`;
 }
 
@@ -434,7 +446,17 @@ async function main() {
   renderSources(data);
   setUpShare();
   fillForm(data, view.state);
+  if (view.state.town) {
+    // Opened from a town page: show that town's row and pill.
+    view.open = view.state.town;
+    view.selected = view.state.town;
+    reveal(view.state.town);
+  }
   draw();
+  if (view.state.town) {
+    m?.markers.get(view.state.town)?.openPopup();
+    $(`row-${view.state.town}`)?.scrollIntoView({ block: "center" });
+  }
   window.history.replaceState(null, "", `${window.location.pathname}${writeQuery(view.state)}`);
 }
 

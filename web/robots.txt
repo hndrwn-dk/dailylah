@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+# Town pages are served at /where-to-live/<town>; this folder holds their files.
+Disallow: /where-to-live-towns/
+
+Sitemap: https://dailylah.sg/sitemap.xml

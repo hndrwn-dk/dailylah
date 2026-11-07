@@ -39,7 +39,8 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - `backend/` — Python 3.12, FastAPI. Deployed to Render (free) via `render.yaml`.
 - `app/` — Flutter app (Riverpod, dio). Platform folders are generated with `flutter create`.
 - `web/` — static site on Vercel, no build step: landing page, the "Where to live?" page
-  (`web/where-to-live/`, docs/WHERE_TO_LIVE.md), the shared Play CTA (`web/shared/cta.js`),
+  (`web/where-to-live/`, docs/WHERE_TO_LIVE.md) and its generated town pages
+  (`web/where-to-live-towns/`, never hand-edited), the shared Play CTA (`web/shared/cta.js`),
   vendored Leaflet (`web/vendor/`), static data bundles in `web/data/`, tests in `web/tests/`.
 - `contracts/v1/` — one example per `/v1/*` endpoint, checked by the backend and app tests
   (docs/QA.md "Contract tests").

@@ -10,6 +10,8 @@ select = ["E", "F", "I", "B", "UP", "S"]
 [tool.ruff.lint.per-file-ignores]
 # Tests use assert (S101) and fake credentials/tokens as fixtures (S105, S106).
 "tests/**" = ["S101", "S105", "S106"]
+# HTML page templates: keeping each tag on one line reads better than splitting it at 100.
+"app/where_to_live_pages.py" = ["E501"]
 
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = ["fastapi.Depends"]

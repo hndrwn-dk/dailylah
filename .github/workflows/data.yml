@@ -111,4 +111,4 @@ jobs:
         env:
           DATA_PUSH_SSH_KEY: ${{ secrets.DATA_PUSH_SSH_KEY }}
           PATCH: ${{ runner.temp }}/patch/data.patch
-        run: bash scripts/push_data.sh "$PATCH" "Update static data bundles" web/data/ backend/data/
+        run: bash scripts/push_data.sh "$PATCH" "Update static data bundles" 'web/data/*.json' 'backend/data/*.json'

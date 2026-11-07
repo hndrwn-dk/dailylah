@@ -9,8 +9,10 @@
 # The patch is `git diff --cached --binary` of the build job. It is applied to the newest main
 # (which may have moved while the build ran) and pushed; up to 3 tries.
 # The build job runs third-party code, so the patch is not trusted: every path it touches must be
-# an allowed path (an entry ending in / allows everything under that folder, any other entry
-# allows that one file), and only regular, non-executable files may be added, changed or deleted.
+# an allowed path, and only regular, non-executable files may be added, changed or deleted.
+# Allowed path forms: `dir/*.ext` (files with that extension directly in dir, not in subfolders),
+# `dir/` (everything under dir) and anything else for exactly that one file. The workflows use the
+# first and third forms, so the build job cannot add scripts or pages the site would serve.
 set -euo pipefail
 
 patch=$(realpath "$1")
@@ -24,9 +26,14 @@ fi
 
 # Fails unless $1 is one of the allowed paths.
 check_path() {
-  local entry
+  local entry dir ext rest
   for entry in "${allowed[@]}"; do
-    if [[ "$entry" == */ ]]; then
+    if [[ "$entry" == */\*.* ]]; then
+      dir=${entry%/*}/
+      ext=.${entry##*.}
+      rest=${1#"$dir"}
+      [[ "$1" == "$dir"?* && "$rest" != */* && "$rest" == ?*"$ext" ]] && return 0
+    elif [[ "$entry" == */ ]]; then
       [[ "$1" == "$entry"?* ]] && return 0
     else
       [[ "$1" == "$entry" ]] && return 0

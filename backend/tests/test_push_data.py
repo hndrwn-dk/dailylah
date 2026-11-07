@@ -9,8 +9,14 @@ import pytest
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "push_data.sh"
 REMOTE = "git@github.com:hndrwn-dk/dailylah.git"
-DATA = ["web/data/", "backend/data/"]
-WHERE_TO_LIVE = ["web/data/where-to-live.json", "backend/data/where_to_live_routes.json"]
+# The allowed paths the workflows pass (data.yml, where-to-live.yml).
+DATA = ["web/data/*.json", "backend/data/*.json"]
+WHERE_TO_LIVE = [
+    "web/data/where-to-live.json",
+    "backend/data/where_to_live_routes.json",
+    "web/where-to-live-towns/*.html",
+    "web/sitemap.xml",
+]
 
 pytestmark = pytest.mark.skipif(
     shutil.which("git") is None or shutil.which("bash") is None, reason="needs git and bash"
@@ -159,6 +165,45 @@ def test_where_to_live_refuses_other_data_file(repos, tmp_path):
     seed, work, bare, env, script_env = repos
     before = main_head(bare, env)
     patch = make_patch(seed, env, tmp_path, write("web/data/other.json"))
+    result = run_script(work, script_env, patch, WHERE_TO_LIVE)
+    assert result.returncode != 0
+    assert main_head(bare, env) == before
+
+
+def test_data_refuses_other_file_types_and_subfolders(repos, tmp_path):
+    seed, work, bare, env, script_env = repos
+    before = main_head(bare, env)
+    for rel in ("web/data/evil.js", "web/data/page.html", "web/data/sub/x.json"):
+        patch = make_patch(seed, env, tmp_path, write(rel))
+        result = run_script(work, script_env, patch, DATA)
+        assert result.returncode != 0, rel
+        assert rel in result.stdout, rel
+        assert main_head(bare, env) == before, rel
+        git(seed, "reset", "--quiet", "--hard", env=env)
+        git(seed, "clean", "--quiet", "-fd", env=env)
+
+
+def test_where_to_live_pushes_town_pages_and_sitemap(repos, tmp_path):
+    seed, work, bare, env, script_env = repos
+    before = main_head(bare, env)
+
+    def change(repo: Path):
+        write("web/where-to-live-towns/punggol.html", "<p>page</p>\n")(repo)
+        write("web/sitemap.xml", "<urlset/>\n")(repo)
+
+    patch = make_patch(seed, env, tmp_path, change)
+    result = run_script(work, script_env, patch, WHERE_TO_LIVE)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert main_head(bare, env) != before
+    assert (
+        git(bare, "show", "main:web/where-to-live-towns/punggol.html", env=env) == "<p>page</p>\n"
+    )
+
+
+def test_where_to_live_refuses_scripts_next_to_town_pages(repos, tmp_path):
+    seed, work, bare, env, script_env = repos
+    before = main_head(bare, env)
+    patch = make_patch(seed, env, tmp_path, write("web/where-to-live-towns/evil.js"))
     result = run_script(work, script_env, patch, WHERE_TO_LIVE)
     assert result.returncode != 0
     assert main_head(bare, env) == before

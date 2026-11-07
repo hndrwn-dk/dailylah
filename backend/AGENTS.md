@@ -46,7 +46,12 @@ relative to `backend/` when they start with `app/`. Endpoint index: `docs/REPO_M
   `backend/data/where_to_live_routes.json`; a town that is itself the office area gets
   `{"min": null, "transfers": null, "same_area": true}`. The file is for the website, not the app, so
   `build_static.py` leaves it out of the manifest (`NOT_IN_MANIFEST`). `generated_at` only changes
-  when the data does; `--dry-run` prints the report and writes nothing.
+  when the data does; `--dry-run` prints the report and writes nothing. Each route keeps OneMap's
+  adult card `fare` in cents (null when OneMap gives none). `app/where_to_live_pages.py` then
+  writes the "Living in <town>" pages to `web/where-to-live-towns/` (served at
+  `/where-to-live/<id>` and `/where-to-live/towns` by rewrites in `web/vercel.json`) and
+  `web/sitemap.xml`; every JSON value goes through `html.escape`, and files are only rewritten when
+  their content changed. The push job may change only those paths (`*.html` in that folder).
 - OneMap needs a token: the backend (`app/onemap.py`) logs in with `ONEMAP_EMAIL` /
   `ONEMAP_PASSWORD` (Render env and GitHub secrets) and renews it; the app searches via
   `/v1/search`. Never put OneMap credentials or tokens in the app.

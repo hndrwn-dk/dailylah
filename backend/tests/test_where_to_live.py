@@ -112,6 +112,7 @@ ROUTE_BODY = {
             {"duration": 3180, "transfers": 1, "legs": [{"mode": "BUS", "transitLeg": True}]},
             {
                 "duration": 2700,
+                "fare": "1.94",
                 "legs": [
                     {"mode": "WALK", "transitLeg": False},
                     {"mode": "SUBWAY", "transitLeg": True},
@@ -124,7 +125,7 @@ ROUTE_BODY = {
 
 
 def test_parse_route_fastest_itinerary_and_counted_transfers():
-    assert w.parse_route(ROUTE_BODY) == {"min": 45, "transfers": 1}
+    assert w.parse_route(ROUTE_BODY) == {"min": 45, "transfers": 1, "fare": 194}
     assert w.parse_route({"plan": {"itineraries": []}}) is None
     assert w.parse_route({"error": "x"}) is None
     assert w.parse_route([]) is None
@@ -162,7 +163,7 @@ async def test_fetch_route_retries_then_succeeds():
         om, (1.4, 103.9), (1.28, 103.85), date(2026, 11, 10), sleep=no_sleep
     )
     await client.aclose()
-    assert route == {"min": 45, "transfers": 1}
+    assert route == {"min": 45, "transfers": 1, "fare": 194}
     assert len(calls) == 3
     p = calls[-1].url.params
     assert (p["routeType"], p["mode"], p["time"], p["date"]) == (
@@ -235,6 +236,7 @@ async def test_build_routes_uses_fresh_cache_refetches_old_and_keeps_old_on_fail
             "to": [1.28, 103.85],
             "min": 50,
             "transfers": 1,
+            "fare": 211,
             "at": "2026-11-01",
         },
         # 60 days old: asked again, OneMap fails, the old value stays
@@ -243,6 +245,7 @@ async def test_build_routes_uses_fresh_cache_refetches_old_and_keeps_old_on_fail
             "to": [1.28, 103.85],
             "min": 25,
             "transfers": 0,
+            "fare": None,
             "at": "2026-09-08",
         },
     }
@@ -258,8 +261,8 @@ async def test_build_routes_uses_fresh_cache_refetches_old_and_keeps_old_on_fail
     )
     await client.aclose()
     assert out == {
-        "punggol": {"cbd": {"min": 50, "transfers": 1}},
-        "bishan": {"cbd": {"min": 25, "transfers": 0}},
+        "punggol": {"cbd": {"min": 50, "transfers": 1, "fare": 211}},
+        "bishan": {"cbd": {"min": 25, "transfers": 0, "fare": None}},
     }
     assert new_cache == cache
     assert (notes["cached"], notes["failed_used_old"], notes["failed"]) == (1, 1, 0)
@@ -286,7 +289,7 @@ async def test_build_routes_moved_point_is_not_taken_from_cache():
         om, TOWNS[:1], AREAS, cache, today, set(), sleep=no_sleep
     )
     await client.aclose()
-    assert out["punggol"]["cbd"] == {"min": 45, "transfers": 1}
+    assert out["punggol"]["cbd"] == {"min": 45, "transfers": 1, "fare": 194}
     assert new_cache["punggol|cbd"]["at"] == "2026-11-07"
     assert notes["fetched"] == 1
     assert notes["sample"]["pair"] == "punggol|cbd"
@@ -413,10 +416,10 @@ async def test_build_end_to_end(tmp_path, monkeypatch):
     assert len(data["towns"]) == 26
     punggol = next(t for t in data["towns"] if t["id"] == "punggol")
     assert punggol["resale"]["4-ROOM"] == {"median": 610000, "quarter": "2026-Q2"}
-    assert punggol["commute"]["cbd"] == {"min": 45, "transfers": 1}
+    assert punggol["commute"]["cbd"] == {"min": 45, "transfers": 1, "fare": 194}
     jurong = next(t for t in data["towns"] if t["id"] == "jurong-east")
     assert jurong["commute"]["jurong-east"] == {"min": None, "transfers": None, "same_area": True}
-    assert jurong["commute"]["cbd"] == {"min": 45, "transfers": 1}
+    assert jurong["commute"]["cbd"] == {"min": 45, "transfers": 1, "fare": 194}
     woodlands = next(t for t in data["towns"] if t["id"] == "woodlands")
     assert woodlands["commute"]["woodlands"]["same_area"] is True
     assert woodlands["commute"]["woodlands"]["min"] is None
@@ -571,3 +574,45 @@ def test_flat_types_from_both_datasets_share_one_key():
         "5-room",
     ):
         assert w.norm_flat(raw) == f"{raw[0]}-ROOM"
+
+
+def test_parse_fare():
+    assert w.parse_fare("1.94") == 194
+    assert w.parse_fare("$2.10") == 210
+    assert w.parse_fare(1.5) == 150
+    for bad in (None, "", "free", "0", "-1", "12.50", True):
+        assert w.parse_fare(bad) is None, bad
+
+
+def test_parse_route_fare_of_the_fastest_itinerary_or_none():
+    assert w.parse_route(ROUTE_BODY)["fare"] == 194
+    body = {"plan": {"itineraries": [{"duration": 600, "transfers": 0}]}}
+    assert w.parse_route(body) == {"min": 10, "transfers": 0, "fare": None}
+
+
+async def test_build_routes_asks_again_for_cached_routes_without_a_fare():
+    today = date(2026, 11, 8)
+    cache = {
+        "punggol|cbd": {
+            "from": [1.4, 103.9],
+            "to": [1.28, 103.85],
+            "min": 50,
+            "transfers": 1,
+            "at": "2026-11-07",
+        }
+    }
+    calls = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        calls.append(req)
+        return httpx.Response(200, json=ROUTE_BODY)
+
+    om, client = onemap(handler)
+    out, new_cache, notes = await w.build_routes(
+        om, TOWNS[:1], AREAS, cache, today, set(), sleep=no_sleep
+    )
+    await client.aclose()
+    assert len(calls) == 1
+    assert out["punggol"]["cbd"] == {"min": 45, "transfers": 1, "fare": 194}
+    assert new_cache["punggol|cbd"]["fare"] == 194
+    assert (notes["fetched"], notes["no_fare"]) == (1, 0)

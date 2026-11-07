@@ -30,6 +30,27 @@
           "value": "geolocation=(), camera=(), microphone=()"
         }
       ]
+    },
+    {
+      "source": "/where-to-live-towns(/.*)?",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: https://www.onemap.gov.sg; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "geolocation=(), camera=(), microphone=()"
+        }
+      ]
     }
   ],
   "redirects": [
@@ -42,6 +63,16 @@
       "source": "/terms",
       "destination": "https://www.tursinalabs.com/dailylah/terms",
       "permanent": false
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/where-to-live/towns",
+      "destination": "/where-to-live-towns/index"
+    },
+    {
+      "source": "/where-to-live/:town([a-z0-9-]+)",
+      "destination": "/where-to-live-towns/:town"
     }
   ]
 }
