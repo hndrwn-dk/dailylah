@@ -9,7 +9,7 @@
   "emergency": 11452,
   "ev": 2820,
   "events": 17,
-  "halal": 3704,
+  "halal": 3701,
   "hawkers": 108,
   "hdb_blocks": 10684,
   "hdb_rent": 26,
@@ -18,7 +18,7 @@
   "mrt_stations": 180,
   "poi": 5709,
   "prayer": 365,
-  "private_homes": 4792,
+  "private_homes": 4786,
   "taxi_stands": 316
  },
  "datagov_key_rejected": false,
