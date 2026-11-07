@@ -17,6 +17,18 @@ Start here, then read `CLAUDE.md` (root rules and where everything else lives), 
   - Merged branches are deleted automatically on GitHub ("Automatically delete head branches" is on
     since 25 Oct 2026). Do not send branch delete commands after a merge.
 
+## Where to live? (Nov 2026, plan: docs/WHERE_TO_LIVE.md)
+Web tool on dailylah.sg: HDB towns ranked by transit time to an office area and HDB median
+rent/resale. Static page and JSON, no browser API calls, no Render. One PR per phase.
+- Phase 1 (data pipeline, branch `feat/where-to-live-data`): `backend/app/where_to_live.py`,
+  weekly `.github/workflows/where-to-live.yml`, output `web/data/where-to-live.json`, route cache
+  `backend/data/where_to_live_routes.json`.
+  - A dry run on the branch (7 Nov) read the real dataset columns and 154 OneMap routes; its
+    temporary `push` trigger was removed before the PR.
+  - After merge: run Actions > where-to-live > Run workflow once and check that it commits.
+  - Once the `main` ruleset is on, this workflow needs the same bypass as `data.yml`.
+- Phase 2 (page `/where-to-live`), Phase 3 (per-town SEO pages), Phase 4 (launch with production).
+
 ## CI/CD hardening (Nov 2026, 8 phases, one PR each)
 Layers: deterministic scans → AI review → a person decides. Existing gates (analyze, test,
 emulator e2e, Play upload gate) stay as they are.

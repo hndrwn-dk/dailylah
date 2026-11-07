@@ -1,0 +1,39 @@
+{
+  "_note": "Where to live? Town centres (main MRT station of each HDB town) and office areas. Coordinates are the station points from web/data/mrt_stations.json; check by hand when this file changes. Town names match the HDB datasets.",
+  "towns": [
+    {"id": "ang-mo-kio", "town": "ANG MO KIO", "name": "Ang Mo Kio", "station": "Ang Mo Kio", "lat": 1.36962, "lng": 103.84968},
+    {"id": "bedok", "town": "BEDOK", "name": "Bedok", "station": "Bedok", "lat": 1.32397, "lng": 103.92941},
+    {"id": "bishan", "town": "BISHAN", "name": "Bishan", "station": "Bishan", "lat": 1.35086, "lng": 103.84869},
+    {"id": "bukit-batok", "town": "BUKIT BATOK", "name": "Bukit Batok", "station": "Bukit Batok", "lat": 1.34922, "lng": 103.7497},
+    {"id": "bukit-merah", "town": "BUKIT MERAH", "name": "Bukit Merah", "station": "Redhill", "lat": 1.28943, "lng": 103.81712},
+    {"id": "bukit-panjang", "town": "BUKIT PANJANG", "name": "Bukit Panjang", "station": "Bukit Panjang", "lat": 1.37862, "lng": 103.76214},
+    {"id": "bukit-timah", "town": "BUKIT TIMAH", "name": "Bukit Timah", "station": "Beauty World", "lat": 1.34109, "lng": 103.77573},
+    {"id": "central", "town": "CENTRAL AREA", "name": "Central Area", "station": "Tanjong Pagar", "lat": 1.27651, "lng": 103.84643},
+    {"id": "choa-chu-kang", "town": "CHOA CHU KANG", "name": "Choa Chu Kang", "station": "Choa Chu Kang", "lat": 1.38533, "lng": 103.74446},
+    {"id": "clementi", "town": "CLEMENTI", "name": "Clementi", "station": "Clementi", "lat": 1.31477, "lng": 103.76537},
+    {"id": "geylang", "town": "GEYLANG", "name": "Geylang", "station": "Aljunied", "lat": 1.31636, "lng": 103.88248},
+    {"id": "hougang", "town": "HOUGANG", "name": "Hougang", "station": "Hougang", "lat": 1.37143, "lng": 103.89246},
+    {"id": "jurong-east", "town": "JURONG EAST", "name": "Jurong East", "station": "Jurong East", "lat": 1.33321, "lng": 103.74237},
+    {"id": "jurong-west", "town": "JURONG WEST", "name": "Jurong West", "station": "Boon Lay", "lat": 1.33848, "lng": 103.70572},
+    {"id": "kallang-whampoa", "town": "KALLANG/WHAMPOA", "name": "Kallang/Whampoa", "station": "Boon Keng", "lat": 1.31909, "lng": 103.86137},
+    {"id": "marine-parade", "town": "MARINE PARADE", "name": "Marine Parade", "station": "Marine Parade", "lat": 1.30378, "lng": 103.90684},
+    {"id": "pasir-ris", "town": "PASIR RIS", "name": "Pasir Ris", "station": "Pasir Ris", "lat": 1.37286, "lng": 103.94924},
+    {"id": "punggol", "town": "PUNGGOL", "name": "Punggol", "station": "Punggol", "lat": 1.40482, "lng": 103.9022},
+    {"id": "queenstown", "town": "QUEENSTOWN", "name": "Queenstown", "station": "Queenstown", "lat": 1.29485, "lng": 103.80589},
+    {"id": "sembawang", "town": "SEMBAWANG", "name": "Sembawang", "station": "Sembawang", "lat": 1.44892, "lng": 103.82002},
+    {"id": "sengkang", "town": "SENGKANG", "name": "Sengkang", "station": "Sengkang", "lat": 1.39172, "lng": 103.89549},
+    {"id": "serangoon", "town": "SERANGOON", "name": "Serangoon", "station": "Serangoon", "lat": 1.35026, "lng": 103.8733},
+    {"id": "tampines", "town": "TAMPINES", "name": "Tampines", "station": "Tampines", "lat": 1.35432, "lng": 103.94378},
+    {"id": "toa-payoh", "town": "TOA PAYOH", "name": "Toa Payoh", "station": "Toa Payoh", "lat": 1.33274, "lng": 103.84728},
+    {"id": "woodlands", "town": "WOODLANDS", "name": "Woodlands", "station": "Woodlands", "lat": 1.43619, "lng": 103.78763},
+    {"id": "yishun", "town": "YISHUN", "name": "Yishun", "station": "Yishun", "lat": 1.42938, "lng": 103.83505}
+  ],
+  "areas": [
+    {"id": "cbd", "name": "CBD (Raffles Place)", "station": "Raffles Place", "lat": 1.2837, "lng": 103.85141},
+    {"id": "one-north", "name": "one-north", "station": "One-North", "lat": 1.29979, "lng": 103.78755},
+    {"id": "jurong-east", "name": "Jurong East", "station": "Jurong East", "lat": 1.33321, "lng": 103.74237},
+    {"id": "changi-business-park", "name": "Changi Business Park", "station": "Expo", "lat": 1.33518, "lng": 103.96239},
+    {"id": "woodlands", "name": "Woodlands", "station": "Woodlands", "lat": 1.43619, "lng": 103.78763},
+    {"id": "paya-lebar", "name": "Paya Lebar", "station": "Paya Lebar", "lat": 1.31772, "lng": 103.89244}
+  ]
+}

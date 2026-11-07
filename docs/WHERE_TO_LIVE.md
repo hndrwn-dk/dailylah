@@ -17,7 +17,11 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
 - Area kantor v1: CBD (Raffles Place), one-north, Jurong East, Changi Business Park, Woodlands, Paya Lebar. Kode pos bebas ditunda ke v2.
 - Lisensi: Singapore Open Data Licence (cantumkan atribusi HDB/data.gov.sg) + atribusi OneMap/SLA di peta.
 
-## Fase 0: langkah untuk Hendrawan
+## Status
+- Fase 0: selesai. Secret `ONEMAP_EMAIL`/`ONEMAP_PASSWORD` sudah ada (dipakai `data.yml`); situs dailylah.sg adalah folder `web/` di repo ini (Vercel).
+- Fase 1: branch `feat/where-to-live-data` (lihat "Fase 1: yang dibangun").
+
+## Fase 0: langkah untuk Hendrawan (selesai)
 1. Daftar akun OneMap API, lalu tambahkan secret `ONEMAP_EMAIL` dan `ONEMAP_PASSWORD` di repo.
 2. Pastikan di mana kode situs dailylah.sg berada (folder di repo dailylah atau repo/proyek Vercel lain). Cek dulu sebelum merencanakan Fase 2.
 
@@ -26,6 +30,43 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
 - Retry + backoff untuk OneMap, cache hasil rute (rute jarang berubah; hitung ulang bulanan, harga dicek mingguan).
 - Workflow terjadwal mingguan (pin SHA, permissions minimal, lolos zizmor) yang membuka PR atau commit hanya kalau JSON berubah. Repo public, jadi menit runner standar aman, tapi tetap ukur durasinya.
 - Unit test untuk parser (`na`, kuartal hilang, town tanpa data).
+
+### Fase 1: yang dibangun (beda dari rencana awal)
+- Kode di `backend/app/where_to_live.py` (bukan `scripts/`), supaya kena ruff `S`, pip-audit dan
+  `pytest` backend, dan memakai `DataGov` (`app/bundles.py`) serta `OneMap` (`app/onemap.py`).
+  Tes: `backend/tests/test_where_to_live.py`.
+- Hanya dataset median kuartal; tidak ada fallback ke `hdb_rent.json`.
+- Titik town dan area kantor: `backend/data/where_to_live_points.json` (26 town, 6 area), koordinat
+  stasiun dari `web/data/mrt_stations.json` (dicek oleh tes). Town "CENTRAL" di data HDB = Central
+  Area (titik Tanjong Pagar).
+- Per town dan tipe flat: median dari kuartal terbaru yang punya angka, paling jauh 4 kuartal ke
+  belakang (`QUARTERS_KEPT`), disimpan sebagai `{"median", "quarter"}`; `null` = "not enough data".
+  Tipe flat yang ada di dataset tapi tidak di town itu juga `null`.
+- Rute: OneMap `routeType=pt`, `mode=TRANSIT`, hari kerja berikutnya (lewati libur dari
+  `web/data/holidays.json`) jam 08:30, itinerary tercepat. Retry 3x dengan backoff untuk 429/5xx/
+  error jaringan. Cache `backend/data/where_to_live_routes.json`, dihitung ulang setelah 30 hari
+  atau kalau titiknya pindah; rute yang gagal memakai nilai lama. Town yang sama dengan area kantor
+  (Jurong East, Woodlands) tidak ditanya ke OneMap dan dicatat
+  `{"min": null, "transfers": null, "same_area": true}`; halaman menampilkannya sebagai "In this area".
+- Keluaran `web/data/where-to-live.json` (compact): `generated_at`, `rent_quarter`,
+  `resale_quarter`, `commute_depart`, `areas[]`, `towns[]` (`id`, `name`, `station`, `lat`, `lng`,
+  `rent`, `resale`, `commute: {area id: {"min", "transfers"} | {"same_area": true, ...} | null}`),
+  `attribution`. Tipe flat dari kedua dataset (`4-RM`, `4-room`) dinormalisasi ke `4-ROOM`. Tidak masuk
+  `manifest.json` app (`NOT_IN_MANIFEST` di `build_static.py`).
+- `generated_at` hanya diperbarui kalau datanya berubah, jadi minggu tanpa perubahan tidak membuat
+  commit. Cache rute juga hanya ditulis kalau berubah.
+- Run dianggap rusak dan tidak menulis apa pun kalau kurang dari 20 town punya harga atau kurang
+  dari 75% waktu tempuh diketahui.
+- Workflow `.github/workflows/where-to-live.yml`: Senin 03:41 SGT + `workflow_dispatch`, job `build`
+  hanya di `main`, commit langsung ke `main` seperti `data.yml` (pull --rebase lalu push, 3 kali).
+  Saat ruleset `main` aktif, workflow ini butuh bypass yang sama dengan `data.yml` (HANDOFF,
+  "Rulesets").
+- Uji di branch: trigger sementara `push` dengan job `dry-run` (`--dry-run`) jalan sekali pada
+  7 Nov 2026 (154 rute OK, sekitar 3,6 menit; kolom asli: sewa `quarter`/`town`/`flat_type` `4-RM`/
+  `median_rent`, resale `quarter`/`town` huruf campur/`flat_type` `4-room`/`price`, nilai `na` dan
+  `-`). Trigger itu sudah dihapus sebelum merge.
+- Lokal: `cd backend && python -m app.where_to_live ../web/data --dry-run` (butuh `.env` dengan
+  akun OneMap).
 
 ## Fase 2: halaman web (1 PR)
 - Rute `/where-to-live` di dailylah.sg, mobile-first, dark mode, aksesibel (kontras, label, keyboard).

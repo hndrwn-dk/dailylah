@@ -39,6 +39,14 @@ relative to `backend/` when they start with `app/`. Endpoint index: `docs/REPO_M
   Optional bundles are best effort: a failing upstream keeps yesterday's file.
   On the phone `BundleRepository.load` runs one load per bundle at a time, saves a download only when
   it is valid JSON (temp file + rename) and re-downloads a saved copy that does not decode.
+- "Where to live?" (dailylah.sg page, docs/WHERE_TO_LIVE.md): `app/where_to_live.py` builds
+  `web/data/where-to-live.json` weekly in `.github/workflows/where-to-live.yml` from the HDB quarterly
+  median rent and resale datasets and OneMap transit routes (weekday 08:30) from 26 town centres to
+  6 office areas (`backend/data/where_to_live_points.json`). Routes are cached for 30 days in
+  `backend/data/where_to_live_routes.json`; a town that is itself the office area gets
+  `{"min": null, "transfers": null, "same_area": true}`. The file is for the website, not the app, so
+  `build_static.py` leaves it out of the manifest (`NOT_IN_MANIFEST`). `generated_at` only changes
+  when the data does; `--dry-run` prints the report and writes nothing.
 - OneMap needs a token: the backend (`app/onemap.py`) logs in with `ONEMAP_EMAIL` /
   `ONEMAP_PASSWORD` (Render env and GitHub secrets) and renews it; the app searches via
   `/v1/search`. Never put OneMap credentials or tokens in the app.

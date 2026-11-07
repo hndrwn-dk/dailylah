@@ -1,0 +1,64 @@
+name: where-to-live
+# Rebuilds web/data/where-to-live.json (HDB median rent and resale per town + OneMap transit
+# times to office areas) once a week and commits it to main only when its data changed.
+# Vercel redeploys web/ on push. backend/data/where_to_live_routes.json caches the routes
+# (asked again after 30 days). Secrets: ONEMAP_EMAIL, ONEMAP_PASSWORD; DATAGOV_API_KEY optional.
+# docs/WHERE_TO_LIVE.md
+on:
+  schedule:
+    - cron: "41 19 * * 0" # Monday 03:41 SGT
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: where-to-live
+  cancel-in-progress: false
+jobs:
+  build:
+    name: where-to-live (build and commit)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # Commits the rebuilt file to main.
+    permissions:
+      contents: write
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The token is passed only to the push below, never stored in .git/config.
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r backend/requirements.txt
+      - name: Build
+        working-directory: backend
+        env:
+          DATAGOV_API_KEY: ${{ secrets.DATAGOV_API_KEY }}
+          ONEMAP_EMAIL: ${{ secrets.ONEMAP_EMAIL }}
+          ONEMAP_PASSWORD: ${{ secrets.ONEMAP_PASSWORD }}
+        run: python -m app.where_to_live ../web/data
+      - name: Commit if changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Stage first: plain `git diff` ignores new (untracked) files.
+          git add web/data/where-to-live.json backend/data/where_to_live_routes.json
+          if git diff --cached --quiet; then
+            echo "No data changes"; exit 0
+          fi
+          git config user.name "dailylah-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update where-to-live data"
+          # Push with the job token in a one-off header (checkout does not persist it).
+          b64=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          echo "::add-mask::$b64"
+          auth="AUTHORIZATION: basic $b64"
+          # main may have moved while the build ran (the daily data job pushes too).
+          for i in 1 2 3; do
+            git -c http.extraheader="$auth" pull --rebase origin main \
+              && git -c http.extraheader="$auth" push && exit 0
+            sleep 10
+          done
+          exit 1
