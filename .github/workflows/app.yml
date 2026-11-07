@@ -24,6 +24,7 @@ jobs:
       run: ${{ steps.diff.outputs.run }}
     steps:
       # The PR merge commit's first parent is the base branch, so two commits are enough.
+      # --no-renames lists both paths of a moved file (a move out of app/ still counts).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 2
@@ -35,7 +36,7 @@ jobs:
         run: |
           run=true
           if [ "$EVENT" = pull_request ]; then
-            files=$(git diff --name-only HEAD^1 HEAD)
+            files=$(git diff --name-only --no-renames HEAD^1 HEAD)
             printf 'Changed files:\n%s\n' "$files"
             grep -qE '^(app/|contracts/|\.github/workflows/app\.yml$)' <<<"$files" || run=false
           fi
