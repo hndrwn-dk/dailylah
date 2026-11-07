@@ -71,6 +71,36 @@ The upload key never reaches a job that runs third-party build code:
 - `jarsigner -verify -strict` is not used: an upload certificate is self-signed, which `-strict`
   always rejects. The signature check plus the certificate fingerprint cover it.
 
+## Required checks
+
+The `main` ruleset (set up by hand, docs/HANDOFF.md "Rulesets") requires these checks on every
+pull request, by the names GitHub shows:
+
+| Check | Workflow | What it stands for |
+| --- | --- | --- |
+| `app result` | `app.yml` | `analyze` (analyze, tests, unsigned AAB) when `app/`, `contracts/` or `app.yml` change |
+| `emulator result` | `emulator.yml` | `flows (API 29/35/36)`, `upgrade (previous version → this build)`, `release build (R8) starts and runs`, `Maestro flows (release APK)` when `app/`, `scripts/emulator_*.sh` or `emulator.yml` change |
+| `backend result` | `backend.yml` | `test` (ruff, pytest, pip-audit) when `backend/`, `contracts/` or `backend.yml` change |
+| `repo map and AGENTS.md up to date` | `docs.yml` | `scripts/repo_map.py --check` |
+| `CodeQL (actions)`, `CodeQL (python)` | `security.yml` | CodeQL on workflows and Python |
+| `osv-scanner (dependencies)` | `security.yml` | known vulnerabilities in the lockfiles |
+| `zizmor (workflows)` | `security.yml` | workflow security |
+
+- A required check must report on every PR, or GitHub waits for it forever ("Expected"). So `app`,
+  `emulator` and `backend` run on every pull request (no `paths:` filter on `pull_request`); their
+  first job, `what changed (<name>)`, compares the PR merge commit with its first parent (the base)
+  and the real jobs run only when their paths changed. The last job, `<name> result`
+  (`if: always()`), fails if any job failed or was cancelled and passes when they passed or were
+  skipped. A job skipped by its `if:` counts as passed; a workflow that never started does not.
+- Pushes keep their `paths:` filters, and a release (push to main or a manual run) always runs
+  every job, so nothing changes for the release gate.
+- Not required: `CodeQL (java-kotlin)` (a matrix entry that exists only when `app/android/`
+  changes), the code scanning checks `CodeQL`, `osv-scanner` and `zizmor` (SARIF uploads, already
+  covered by their jobs), `web-check` (only when its script changes), and the main-only jobs
+  `sign the App Bundle`, `upload to Google Play (…)` and `tag the release`.
+- A new workflow whose result should be required follows the same pattern and is added to the
+  ruleset by hand.
+
 ## Security scans
 
 Layer order: deterministic scans (this section) → AI review (see "AI review") → a person decides.
@@ -209,7 +239,8 @@ Claude plan: no secret in GitHub Actions, no workflow, no laptop.
   `dailylah/dailylah---flagged-vulnerabilities.json`).
 - The PR template (`.github/pull_request_template.md`) asks for both on the current head commit:
   the review comment's marker sha, and `Security gate: pass at <short sha>.` when `app/`,
-  `backend/`, `.github/` or `.claude/` change. It is a reminder, not a check: before merging,
+  `backend/`, `.github/` or `.claude/` change. Both count only when posted by `hndrwn-dk` (the repo
+  is public, so anyone can write the same text). It is a reminder, not a check: before merging,
   compare those shas with the PR's head (a push after the gate needs a new gate).
 - Advisory only: it never approves, blocks, merges or pushes. A review can be wrong; a person
   decides. It does not replace any gate above.
