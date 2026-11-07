@@ -1,6 +1,6 @@
 # DailyLah Terms of Service
 
-**Last updated: 20 October 2026**
+**Last updated: 7 November 2026**
 App: DailyLah (Android, package `com.tursinalabs.dailylah`)
 Published at: https://www.tursinalabs.com/dailylah/terms
 
@@ -11,7 +11,7 @@ Published at: https://www.tursinalabs.com/dailylah/terms
 ## English
 
 ### 1. Scope
-These terms cover only the DailyLah app by Tursina Labs. Other Tursina Labs products are covered by the studio Terms of Service. How data is handled is described in the separate [DailyLah Privacy Policy](https://www.tursinalabs.com/dailylah/privacy). By installing or using DailyLah, you accept these terms.
+These terms cover only the DailyLah app by Tursina Labs and its website, dailylah.sg (including the Where to live? page). Other Tursina Labs products are covered by the studio Terms of Service. How data is handled is described in the separate [DailyLah Privacy Policy](https://www.tursinalabs.com/dailylah/privacy). By installing or using DailyLah, you accept these terms.
 
 ### 2. The app
 DailyLah is a free app that shows bus arrivals, MRT/LRT service status, platform crowd levels and weather forecasts for Singapore, and can notify you about MRT disruptions and rain before you leave. There is no account. Features may be added, changed or removed at any time.
@@ -26,6 +26,13 @@ DailyLah is an independent app by Tursina Labs. It is not made, endorsed or oper
 
 ### 5. Data attribution
 DailyLah contains information from LTA DataMall and from datasets accessed via data.gov.sg, made available under the [Singapore Open Data Licence](https://data.gov.sg/open-data-licence) and the LTA DataMall terms of use. Those sources and their providers are not responsible for how DailyLah presents the data.
+
+Sources, each used under its own open data terms:
+- data.gov.sg: datasets from NEA (weather, hawker centres, dengue), HDB (blocks, resale and rental figures, including the quarterly median rent and resale price on the Where to live? page), CEA and other agencies.
+- LTA DataMall: bus arrivals, bus stops and routes, train service alerts, taxis and EV chargers.
+- OneMap (Singapore Land Authority): address search, places, map tiles and transit travel times.
+- URA: private property transactions and rentals.
+- Muslim.sg: halal listings. DailyLah is not affiliated with MUIS or Muslim.sg; always verify halal status directly with the outlet or MUIS.
 
 ### 6. Acceptable use
 You may not:
@@ -57,7 +64,7 @@ support@tursinalabs.com
 ## Bahasa Indonesia
 
 ### 1. Cakupan
-Ketentuan ini hanya berlaku untuk aplikasi DailyLah dari Tursina Labs. Produk Tursina Labs lainnya diatur oleh Ketentuan Layanan studio. Cara penanganan data dijelaskan terpisah di [Kebijakan Privasi DailyLah](https://www.tursinalabs.com/dailylah/privacy). Dengan menginstal atau memakai DailyLah, Anda menyetujui ketentuan ini.
+Ketentuan ini hanya berlaku untuk aplikasi DailyLah dari Tursina Labs dan situsnya, dailylah.sg (termasuk halaman Where to live?). Produk Tursina Labs lainnya diatur oleh Ketentuan Layanan studio. Cara penanganan data dijelaskan terpisah di [Kebijakan Privasi DailyLah](https://www.tursinalabs.com/dailylah/privacy). Dengan menginstal atau memakai DailyLah, Anda menyetujui ketentuan ini.
 
 ### 2. Tentang aplikasi
 DailyLah adalah aplikasi gratis yang menampilkan kedatangan bus, status layanan MRT/LRT, tingkat kepadatan peron, dan prakiraan cuaca di Singapura, serta dapat memberi notifikasi gangguan MRT dan hujan sebelum Anda berangkat. Tidak ada akun. Fitur dapat ditambah, diubah, atau dihapus kapan saja.
@@ -72,6 +79,13 @@ DailyLah adalah aplikasi independen dari Tursina Labs. Aplikasi ini tidak dibuat
 
 ### 5. Atribusi data
 DailyLah memuat informasi dari LTA DataMall dan dataset yang diakses melalui data.gov.sg, yang tersedia berdasarkan [Singapore Open Data Licence](https://data.gov.sg/open-data-licence) dan ketentuan penggunaan LTA DataMall. Sumber data dan penyedianya tidak bertanggung jawab atas cara DailyLah menyajikan data tersebut.
+
+Sumber data, masing-masing dipakai sesuai ketentuan data terbukanya:
+- data.gov.sg: dataset dari NEA (cuaca, hawker centre, demam berdarah), HDB (blok, data jual-beli dan sewa, termasuk median sewa dan harga jual kembali per kuartal di halaman Where to live?), CEA, dan lembaga lain.
+- LTA DataMall: kedatangan bus, halte dan rute bus, gangguan kereta, taksi, dan pengisian daya EV.
+- OneMap (Singapore Land Authority): pencarian alamat, tempat, tile peta, dan waktu tempuh angkutan umum.
+- URA: transaksi dan sewa properti swasta.
+- Muslim.sg: daftar halal. DailyLah tidak berafiliasi dengan MUIS maupun Muslim.sg; selalu pastikan status halal langsung ke gerai atau MUIS.
 
 ### 6. Penggunaan yang diizinkan
 Anda tidak boleh:

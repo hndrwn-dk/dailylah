@@ -81,13 +81,14 @@ pull request, by the names GitHub shows:
 | `app result` | `app.yml` | `analyze` (analyze, tests, unsigned AAB) when `app/`, `contracts/` or `app.yml` change |
 | `emulator result` | `emulator.yml` | `flows (API 29/35/36)`, `upgrade (previous version → this build)`, `release build (R8) starts and runs`, `Maestro flows (release APK)` when `app/`, `scripts/emulator_*.sh` or `emulator.yml` change |
 | `backend result` | `backend.yml` | `test` (ruff, pytest, pip-audit) when `backend/`, `contracts/` or `backend.yml` change |
+| `web result` | `web.yml` | `page logic (node --test)` when `web/` (not `web/data/`) or `web.yml` change |
 | `repo map and AGENTS.md up to date` | `docs.yml` | `scripts/repo_map.py --check` |
 | `CodeQL (actions)`, `CodeQL (python)` | `security.yml` | CodeQL on workflows and Python |
 | `osv-scanner (dependencies)` | `security.yml` | known vulnerabilities in the lockfiles |
 | `zizmor (workflows)` | `security.yml` | workflow security |
 
 - A required check must report on every PR, or GitHub waits for it forever ("Expected"). So `app`,
-  `emulator` and `backend` run on every pull request (no `paths:` filter on `pull_request`); their
+  `emulator`, `backend` and `web` run on every pull request (no `paths:` filter on `pull_request`); their
   first job, `what changed (<name>)`, compares the PR merge commit with its first parent (the base)
   and the real jobs run only when their paths changed. The last job, `<name> result`
   (`if: always()`), fails if any job failed or was cancelled and passes when they passed or were

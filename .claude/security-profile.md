@@ -20,6 +20,7 @@
   - Neon Postgres: `DATABASE_URL` is configured but not used by any code yet; any new SQL must be parameterised
   - Secrets in Render / Vercel config and GitHub Actions: Android upload keystore (4 secrets), Play service account, upstream keys; `permissions`, `persist-credentials: false`, no `pull_request_target`, actions pinned by SHA
   - Personal data: locations and favourites stay on the phone; the server sees search text (may be a home address or postal code), EV postal codes, bus stop codes and CEA registration numbers, and must not log them
+  - Website `/where-to-live` (`web/where-to-live/`): renders `web/data/where-to-live.json` and URL query values; every JSON string goes in through textContent/DOM nodes (never innerHTML), query values are checked against the data, and `web/vercel.json` sets a strict CSP (scripts, styles, fetch only from 'self'; images also from www.onemap.gov.sg). Leaflet is vendored in `web/vendor/`; the Play CTA lives only in `web/shared/cta.js`
   - Android: exported components, intent and deep-link parsing, WorkManager background job, cleartext traffic (none expected), R8 keep rules that widen what is reachable
 - **Sensitive data handled:** upstream API keys and logins, Android upload keystore, Play Console service account, Upstash Redis and QStash credentials, Neon URL (unused), user search text and saved places (on the phone), user location (on the phone only)
 - **Private dependencies not in this repo:** none known
