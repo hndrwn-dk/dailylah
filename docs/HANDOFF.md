@@ -44,6 +44,15 @@ rent/resale. Static page and JSON, no browser API calls, no Render. One PR per p
   see docs/WHERE_TO_LIVE.md "Fase 3". After merge: Actions > where-to-live > Run workflow once
   (it asks OneMap again for every route to get fares, about 4 minutes) and check that the push job
   pushes the JSON, the route cache and the regenerated town pages.
+- Next for the town pages (web backlog, 8 Nov 2026, not started):
+  - OG image per town. Today every page uses the shared `/brand/og.jpg`. Generate one image per
+    town (name, minutes to the CBD, 4-room rent) without a Vercel build step, and keep it within
+    the CSP (`img-src 'self'`).
+  - Merge the two "no median" sentences into one. A town with neither a rent nor a resale figure
+    (Bukit Timah today) reads "HDB published no median rent for Bukit Timah in the last four
+    quarters. HDB published no median resale price for Bukit Timah in the last four quarters."
+    Make it one sentence ("no median rent or resale price") in `summary_sentences` of
+    `backend/app/where_to_live_pages.py`, and regenerate the committed pages.
 - Phase 4 (launch with production).
 
 ## CI/CD hardening (Nov 2026, 8 phases, one PR each)
