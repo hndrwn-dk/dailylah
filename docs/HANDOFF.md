@@ -86,7 +86,7 @@ Seven findings from a second review of the pipeline, one PR per group. Gates sta
   secrets; the new `sign` job (environment `signing`, main only, sparse checkout of
   `scripts/sign_aab.sh`, JDK only) signs it with jarsigner and checks the upload certificate
   against `UPLOAD_CERT_SHA256`; e2e, play and release-tag use that signed AAB; `play` runs in
-  environment `play` or `play-production`. Rules: docs/QA.md "Release signing"; manual setup below.
+  environment `play` or `play-production`. Rules: docs/QA.md "Release signing"; environments below.
 - PR 3 (PR template for the AI review) follows.
 
 ### Release tags
@@ -96,21 +96,23 @@ on `main`): 1.9.0 a9f29be, 1.8.0 cf5dc80, 1.7.0 52a8481, 1.6.2 5fb50a2, 1.6.1 37
 1.5.0 43059ee, 1.4.0 eb09d8e, 1.3.0 f5192fe, 1.2.3 f0109c8, 1.2.2 6efc234, 1.2.1 ec06643,
 1.2.0 dc7ca69. A tag ruleset must let GitHub Actions create `v*` tags.
 
-### Release signing: set up by hand before the next release (PR 2)
-Settings > Environments (each: Deployment branches and tags > Selected > `main` only):
-1. **`signing`**: add secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
-   `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` (same values as the repo secrets), and the
-   **environment variable** `UPLOAD_CERT_SHA256`: Play Console > Test and release > App integrity >
-   App signing > Upload key certificate > SHA-256 (colons are fine).
-2. **`play`**: secret `PLAY_SERVICE_ACCOUNT_JSON`.
-3. **`play-production`**: the same secret, plus Required reviewers = Hendrawan.
-4. Keep the old repo-level secrets (`ANDROID_KEYSTORE_*`, `PLAY_SERVICE_ACCOUNT_JSON`) until the
-   first release with the new setup reached Google Play (sign summary "signed with the upload key",
-   upload to alpha green). Then delete them under Settings > Secrets and variables > Actions, so a
-   revert in between still works.
-On that first release, check: `sign the App Bundle` green with the fingerprint line, `on-device
-tests / Maestro flows (release APK)` green on the signed AAB, `upload to Google Play (alpha)` green.
-If Play rejects the signature, revert PR 2; the repo secrets are still there.
+### Release signing environments (PR 2): done (7 Nov 2026)
+Set up by the owner under Settings > Environments, each limited to `main` with no admin bypass:
+- `signing`: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
+  `ANDROID_KEY_PASSWORD`, and the environment variable `UPLOAD_CERT_SHA256` (checked against
+  keytool and Play Console). Its source in Play Console: Protected with Play > Play Store
+  protection > Manage Play app signing > Upload key certificate > SHA-256. Do not use the
+  "App signing key certificate" on the same page: that is Google's key, and every sign would fail.
+- `play`: `PLAY_SERVICE_ACCOUNT_JSON`.
+- `play-production`: `PLAY_SERVICE_ACCOUNT_JSON`, required reviewer Hendrawan (prevent
+  self-review off).
+
+Still to do: after the first release with the new setup reaches Google Play (`sign the App
+Bundle` green with "App Bundle signed with the upload key" in the summary, `on-device tests /
+Maestro flows (release APK)` green, `upload to Google Play (alpha)` green), delete the old
+repo-level secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
+`ANDROID_KEY_PASSWORD` and `PLAY_SERVICE_ACCOUNT_JSON` under Settings > Secrets and variables >
+Actions. Until then they keep a revert of PR 2 working. If Play rejects the signature, revert PR 2.
 
 ### GitHub settings to set by hand (Phase 1)
 Settings > Advanced Security (or Code security):

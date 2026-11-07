@@ -58,6 +58,9 @@ The upload key never reaches a job that runs third-party build code:
   `jarsigner` (passwords through `-storepass:env`/`-keypass:env`), checks the signature, and fails
   unless the certificate's SHA-256 equals the environment variable `UPLOAD_CERT_SHA256` (compared
   without colons, upper case). The signed AAB and the same mapping become artifact `dailylah-aab`.
+  `UPLOAD_CERT_SHA256` comes from Play Console > Protected with Play > Play Store protection >
+  Manage Play app signing > Upload key certificate > SHA-256. Not the "App signing key
+  certificate" on the same page: that is Google's key, so every sign would fail.
 - `e2e` tests `dailylah-aab` on main, so Maestro runs the very file that goes to Play; a manual run
   on another branch skips `sign` and tests `dailylah-aab-unsigned`. A failed `sign` stops the run.
 - `play` (environment `play`, or `play-production` with the owner's approval) and `release-tag`
