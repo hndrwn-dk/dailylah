@@ -1,22 +1,16 @@
 # DailyLah Privacy Policy
 
-**Last updated: 7 November 2026**
+**Last updated: 8 November 2026**
 App: DailyLah (Android, package `com.tursinalabs.dailylah`)
 Published at: https://www.tursinalabs.com/dailylah/privacy
 
-[English](#english) · [Bahasa Indonesia](#bahasa-indonesia)
-
----
-
-## English
-
-### 1. Scope
+## 1. Scope
 This policy covers only the DailyLah app by Tursina Labs and its website, dailylah.sg. Other Tursina Labs products are covered by the studio privacy policy. Use of the app is also governed by the [DailyLah Terms of Service](https://www.tursinalabs.com/dailylah/terms).
 
-### 2. What DailyLah is
+## 2. What DailyLah is
 DailyLah is a free daily companion for people in Singapore. It shows bus arrivals at your saved stops, MRT/LRT service status, platform crowd levels and the 2-hour weather forecast, using public data from LTA DataMall and data.gov.sg. There is no DailyLah account and no sign-in.
 
-### 3. Data stored only on your phone
+## 3. Data stored only on your phone
 - Your saved places (Home, Work, School): the address you chose (label, postal code and coordinates) and the bus stops you picked for it
 - The MRT/LRT lines you selected, your usual departure times, your alert settings, the days and times you go to work or school, starred MRT lines, and how you usually travel to each place (bus/MRT, car, motorbike, bicycle or taxi), and optional extras
 - Favourite hawker centres, saved car parks, and HDB blocks you watch or compare
@@ -29,13 +23,13 @@ This data never leaves your phone. It is not backed up to Tursina Labs, and Dail
 
 **Share with family** creates a QR code or text code on your phone containing your saved bus stops, MRT lines and departure times. It is not sent to Tursina Labs; it only leaves your phone if you show it or send it yourself (for example through a chat app). Importing a code works by pasting it, without the camera.
 
-### 4. Location
+## 4. Location
 DailyLah asks for location permission only when you tap **"Nearest stops to my location"**, **"Use my current location"** or **"Here"** in the Nearby tab. Once you have allowed it, the Nearby tab also reads your position when you open it, so it can show what is around you. Your position is used on the phone to find the nearest bus stops, food, car parks, taxis and help, and is then discarded. It is not stored and is not sent to Tursina Labs or anyone else; for live bus arrivals the app sends only the bus stop codes. DailyLah does not otherwise use your location in the background. The exceptions are **"Wake me at my stop"** and **"I'm on the train"**: when you start one during a bus or MRT ride, and you have allowed location, the app follows your position until the ride ends (shown as an ongoing notification, so it keeps working with the screen off), then stops. Your position is compared with the stop or the stations on the phone and is never stored or sent. During an MRT ride the app also asks our server for LTA train alerts every 2 minutes; that request carries no location. You can deny the permission and still pick a saved place or search an address.
 
-### 4a. Address search
+## 4a. Address search
 When you set an address or search a postal code, the text you type is sent to our server, which passes it on to **OneMap**, the map service of the Singapore Land Authority, with our OneMap account token (OneMap requires one). Our server does not log the search text; it keeps the answer in memory for up to a day so the same search is not repeated, and it never knows who searched. If our server is unavailable, the phone asks OneMap directly. The address you pick is saved only on your phone. You can also choose **"Use my current location"**, which reads your position once and saves it as the address. You can also share a place to DailyLah from another app, such as Google Maps (Share > DailyLah). The shared text is read on your phone and not kept: DailyLah takes the place's name and its postal code (or its coordinates, for a dropped pin), searches only the postal code as above, and uses the place as a trip destination in memory. When only a Google Maps link is shared (for example directions), the phone opens that short link once with Google, which created it, to read the destination's name and pin from the address it leads to; nothing else is sent with it, and the name and the link are never sent to Tursina Labs.
 
-### 5. What our server receives
+## 5. What our server receives
 To show live information, the app sends requests to the DailyLah API operated by Tursina Labs:
 - The 5-digit **bus stop code** you are viewing, to get bus arrival times
 - If you turned on **My car is electric**, the 6-digit **postal code of an EV charging location** shown in a list, to get how many chargers are free there. This is the car park's postal code from the public LTA list, not yours; which locations are near you is worked out on your phone
@@ -53,19 +47,19 @@ If you turn on **Halal food nearby** (More > Extras), the app shows halal places
 
 The **Emergency** tab lists AEDs, A&E hospitals, CHAS clinics, fire stations and Civil Defence shelters near the place you pick, computed on your phone. Tapping a phone number opens your dialer; tapping directions opens Google Maps with the destination only. The "MRT route in Google Maps" button on a trip is the one exception: it opens Google Maps with both ends of that trip (for example your home and your office), and only when you tap it. The taxi view shows free taxis and LTA taxi stands around your place, also computed on your phone. The ride and food delivery buttons (Grab, Gojek, CDG Zig, TADA, GrabFood, foodpanda) only open that app on your phone, or its Play Store page; DailyLah sends nothing to them and takes no orders. Tapping an event opens its page on Eventfinda in your browser; the event list itself is downloaded by our daily build, so Eventfinda never sees who uses DailyLah. When you open a place (a hawker centre, car park, school and so on), the app loads a small map picture of that place from OneMap (Singapore Land Authority); only the place's coordinates are sent, not your location.
 
-### 5a. The dailylah.sg website
+## 5a. The dailylah.sg website
 The website, including the **Where to live?** page, has no account, no cookies, no analytics and no advertising. On Where to live? your choices (office area, rent or buy, flat type, budget, travel time) are worked out in your browser from a public data file and kept in the page address, so a link you share carries them. When that address is opened or reloaded, it reaches our hosting provider like any page request and appears in its short-lived technical request logs (section 5); we do not use it for anything else and nothing else about your choices is sent. The map on that page loads map tiles and the OneMap logo from **OneMap** (Singapore Land Authority), so OneMap receives your IP address and which map area is shown, as with any website you visit; it does not receive your choices. Our hosting provider keeps the same technical request logs as for the data bundles above.
 
-### 6. Notifications
+## 6. Notifications
 Alerts for MRT disruptions, rain before your usual departure, favourite hawker centres closing tomorrow, dengue clusters near home or school, high heat stress or lightning, new resale transactions at blocks you watch, when to leave for your bus (to work or school, or to a saved place you gave a usual time), the Sunday "This week around you" summary and your parking time are decided **on your phone**. Every 15 minutes or so, the app checks the latest public alerts and forecast and, if they match your settings, shows a local notification. No push token or device identifier is sent to Tursina Labs. You can turn alerts off in the app settings or in Android settings.
 
-### 7. What we do not do
+## 7. What we do not do
 - No DailyLah account and no sign-in
 - No analytics, tracking or advertising SDKs, and no ads
 - No sale or sharing of personal information
 - No access to your contacts, photos, microphone or camera
 
-### 8. Service providers
+## 8. Service providers
 - **Render** (Singapore region) hosts the DailyLah API
 - **Upstash** caches public weather and transport data (no personal data)
 - **Vercel** hosts the public bus stop list and our web pages
@@ -73,99 +67,17 @@ Alerts for MRT disruptions, rain before your usual departure, favourite hawker c
 
 Public data comes from **LTA DataMall** and **data.gov.sg**. The app does not send your data to these government sources; our server requests public data on behalf of all users.
 
-### 9. Retention and deletion
+## 9. Retention and deletion
 Data on your phone stays until you clear the app's storage or uninstall DailyLah. Because there is no account, there is nothing to delete on our side and no account-deletion page. Server request logs expire automatically.
 
-### 10. Your rights
+## 10. Your rights
 Under Singapore's Personal Data Protection Act (PDPA) you may ask about personal data we hold. Because DailyLah has no accounts and does not link logs to people, we generally cannot identify any request as yours, but you can still contact us with questions.
 
-### 11. Children
+## 11. Children
 DailyLah is not directed at children under 13.
 
-### 12. Changes
+## 12. Changes
 We may update this policy. When we do, we change the "Last updated" date above. The current version is always at https://www.tursinalabs.com/dailylah/privacy.
 
-### 13. Contact
-support@tursinalabs.com
-
----
-
-## Bahasa Indonesia
-
-### 1. Cakupan
-Kebijakan ini hanya berlaku untuk aplikasi DailyLah dari Tursina Labs dan situsnya, dailylah.sg. Produk Tursina Labs lainnya diatur oleh kebijakan privasi studio. Penggunaan aplikasi juga diatur oleh [Ketentuan Layanan DailyLah](https://www.tursinalabs.com/dailylah/terms).
-
-### 2. Tentang DailyLah
-DailyLah adalah teman harian gratis untuk warga Singapura. Aplikasi ini menampilkan kedatangan bus di halte favorit, status layanan MRT/LRT, tingkat kepadatan peron, dan prakiraan cuaca 2 jam, memakai data publik dari LTA DataMall dan data.gov.sg. Tidak ada akun DailyLah dan tidak perlu login.
-
-### 3. Data yang hanya tersimpan di HP Anda
-- Tempat yang Anda simpan (Rumah, Kantor, Sekolah): alamat yang Anda pilih (label, kode pos, dan koordinat) serta halte bus yang Anda pilih
-- Jalur MRT/LRT pilihan, jam berangkat biasa, pengaturan notifikasi, hari dan jam ke kantor atau sekolah, jalur MRT berbintang, dan cara Anda biasanya bepergian ke setiap tempat (bus/MRT, mobil, motor, sepeda, atau taksi), serta fitur tambahan opsional
-- Hawker favorit, parkir yang disimpan, serta blok HDB yang Anda pantau atau bandingkan
-- Apakah mobil Anda listrik dan jenis colokannya, jika Anda menyalakan **My car is electric**
-- Catatan singkat notifikasi yang sudah tampil, supaya notifikasi yang sama tidak dikirim dua kali
-- Yang Anda catat sendiri lewat **Learn my habits**: perjalanan yang Anda mulai dan akhiri dengan "I'm leaving" dan "Arrived" (rute, jam mulai, durasi, apakah sedang hujan, moda perjalanan, dan jarak garis lurus), hawker dan tempat makan halal (nama dan lokasi) yang Anda tandai dengan "Ate here", serta lokasi parkir, level, dan nomor lot yang Anda simpan dengan "I parked here" (dan, setelah mobil diambil, berapa lama parkirnya serta apakah itu tempat parkir HDB, untuk perkiraan biaya), serta biaya perjalanan atau parkir yang Anda isi sendiri. Semua ini tampil di tab History, tempat Anda bisa menghapus entri satu per satu. Fitur ini bisa dimatikan dan seluruh datanya dihapus kapan saja di More > Extras. Data ini tidak ikut dalam kode berbagi keluarga.
-- Salinan bundel data publik (halte bus, hawker, cluster dengue, sekolah, taman beserta fasilitasnya, supermarket, parkir, blok HDB, statistik harga resale dan sewa, jadwal sholat, hari libur nasional dan libur sekolah MOE, serta event publik dari Eventfinda), dan teks yang tampil di widget layar utama
-
-Data ini tidak pernah keluar dari HP Anda dan tidak dicadangkan ke Tursina Labs. DailyLah juga mematikan backup Android dan transfer antar-HP untuk data ini, jadi data tidak tersalin ke akun Google Anda atau ke HP baru. Untuk memindahkan pengaturan ke HP lain, pakai **Share with family**.
-
-**Bagikan ke keluarga** membuat kode QR atau kode teks di HP Anda yang berisi halte bus, jalur MRT, dan jam berangkat yang Anda simpan. Kode ini tidak dikirim ke Tursina Labs; kode hanya keluar dari HP jika Anda sendiri menunjukkan atau mengirimkannya (misalnya lewat aplikasi chat). Impor kode dilakukan dengan menempelkan teks, tanpa kamera.
-
-### 4. Lokasi
-DailyLah hanya meminta izin lokasi saat Anda menekan **"Halte terdekat dari lokasi saya"**, **"Gunakan lokasi saya saat ini"**, atau **"Here"** di tab Nearby. Setelah Anda mengizinkan, tab Nearby juga membaca posisi Anda saat dibuka agar bisa menampilkan apa yang ada di sekitar Anda. Posisi Anda dipakai di HP untuk mencari halte, makanan, parkir, taksi, dan bantuan terdekat, lalu dibuang. Posisi tidak disimpan dan tidak dikirim ke Tursina Labs atau pihak lain; untuk jadwal bus, aplikasi hanya mengirim kode halte. Selain itu DailyLah tidak memakai lokasi di latar belakang. Pengecualiannya adalah **"Wake me at my stop"** dan **"I'm on the train"**: saat Anda menyalakan salah satunya di dalam bus atau MRT dan sudah mengizinkan lokasi, aplikasi mengikuti posisi Anda sampai perjalanan selesai (tampil sebagai notifikasi yang berjalan, supaya tetap bekerja saat layar mati), lalu berhenti. Posisi dibandingkan dengan halte atau stasiun di HP dan tidak pernah disimpan atau dikirim. Selama perjalanan MRT, aplikasi juga menanyakan gangguan kereta LTA ke server kami setiap 2 menit; permintaan itu tidak membawa lokasi. Anda boleh menolak izin ini dan tetap bisa memilih tempat tersimpan atau mencari alamat.
-
-### 4a. Pencarian alamat
-Saat Anda mengatur alamat atau mencari kode pos, teks yang Anda ketik dikirim ke server kami, yang meneruskannya ke **OneMap**, layanan peta Singapore Land Authority, dengan token akun OneMap kami (OneMap mewajibkannya). Server kami tidak mencatat teks pencarian; jawabannya disimpan di memori paling lama sehari agar pencarian yang sama tidak diulang, dan server tidak tahu siapa yang mencari. Jika server kami tidak tersedia, HP bertanya langsung ke OneMap. Alamat yang Anda pilih hanya disimpan di HP. Anda juga bisa memilih **"Pakai lokasi saya sekarang"**, yang membaca posisi Anda sekali lalu menyimpannya sebagai alamat. Anda juga bisa membagikan tempat ke DailyLah dari aplikasi lain, misalnya Google Maps (Bagikan > DailyLah). Teks yang dibagikan dibaca di HP dan tidak disimpan: DailyLah mengambil nama tempat dan kode posnya (atau koordinatnya, untuk pin yang dijatuhkan), hanya kode pos yang dicari seperti di atas, dan tempat itu dipakai sebagai tujuan perjalanan di memori. Jika yang dibagikan hanya tautan Google Maps (misalnya petunjuk arah), HP membuka tautan pendek itu sekali ke Google, pembuatnya, untuk membaca nama dan pin tujuan dari alamat yang dituju; tidak ada data lain yang ikut dikirim, dan nama serta tautannya tidak pernah dikirim ke Tursina Labs.
-
-### 5. Data yang diterima server kami
-Untuk menampilkan informasi real-time, aplikasi mengirim permintaan ke API DailyLah yang dioperasikan Tursina Labs:
-- **Kode halte bus** 5 digit yang sedang Anda lihat, untuk mendapatkan jadwal kedatangan bus
-- Jika Anda menyalakan **My car is electric**, **kode pos 6 digit lokasi pengisian EV** yang tampil di daftar, untuk mengetahui berapa charger yang kosong di sana. Ini kode pos tempat parkir dari daftar publik LTA, bukan kode pos Anda; lokasi mana yang dekat dengan Anda dihitung di HP
-- **Kode jalur MRT/LRT** (misalnya `NSL`), untuk mendapatkan tingkat kepadatan peron
-- **Nomor registrasi CEA** yang Anda ketik di "Cek agen properti", untuk dicocokkan dengan register CEA publik. Nomor ini mengidentifikasi agen, bukan Anda
-- Permintaan prakiraan cuaca, kabut asap (PSI dan PM2.5), tingkat panas, petir, status layanan kereta, ketersediaan parkir HDB, ketersediaan parkir LTA, URA, dan HDB, insiden lalu lintas, dan ketersediaan taksi, yang tidak berisi data pribadi
-
-Bus mana yang menuju tujuan Anda, parkir di dekatnya, dan insiden di jalan dihitung di HP Anda; server hanya mengirim daftar publik lengkap. Pencarian blok HDB, perbandingan blok, hawker terdekat, cluster dengue, dan ide akhir pekan dihitung di HP Anda dari bundel data publik, sehingga server tidak tahu tempat mana yang Anda lihat.
-
-Aplikasi juga mengunduh bundel data publik tersebut dari situs kami. Seperti layanan web pada umumnya, penyedia hosting kami mencatat log teknis (alamat IP, waktu, path yang diminta, dan versi aplikasi) untuk operasional dan keamanan, dan menyimpannya untuk jangka waktu terbatas. Kami tidak menggabungkan log ini dengan data lain dan tidak memakainya untuk mengidentifikasi Anda. Server tidak pernah menerima tempat yang Anda simpan, lokasi rumah atau kantor, maupun koordinat GPS.
-
-Tab **Home** menampilkan blok Anda (atau, untuk rumah swasta, data jual dan sewa URA untuk proyek di alamat Anda), pekerjaan upgrading dan konstruksi, sekolah, layanan kesehatan dan komunitas, titik daur ulang, taman, dan parkir di sekitar rumah yang Anda simpan. Semuanya berasal dari bundle data publik (OneMap, URA, dan data.gov.sg) yang diunduh ke HP, dan jaraknya dihitung di HP; alamat rumah Anda tidak dikirim ke mana pun untuk fitur ini.
-
-Jika Anda menyalakan **Halal food nearby** (More > Extras), app menampilkan tempat halal yang terdaftar di Muslim.sg dari bundle yang diunduh ke HP; pencarian dan jarak dihitung di HP. DailyLah tidak berafiliasi dengan MUIS.
-
-Tab **Darurat** menampilkan AED, IGD rumah sakit, klinik CHAS, pos pemadam kebakaran, dan shelter Civil Defence di sekitar tempat yang Anda pilih, dihitung di HP Anda. Menekan nomor telepon membuka aplikasi telepon; menekan rute membuka Google Maps dengan tujuan saja. Satu-satunya pengecualian adalah tombol "MRT route in Google Maps" pada perjalanan: tombol itu membuka Google Maps dengan kedua ujung perjalanan (misalnya rumah dan kantor Anda), dan hanya saat Anda menekannya. Tampilan taksi menunjukkan taksi kosong dan pangkalan taksi LTA di sekitar tempat Anda, juga dihitung di HP Anda. Saat Anda membuka sebuah tempat (hawker, parkir, sekolah, dan lain-lain), app memuat gambar peta kecil tempat itu dari OneMap (Singapore Land Authority); yang dikirim hanya koordinat tempat tersebut, bukan lokasi Anda. Tombol ride dan pesan antar makanan (Grab, Gojek, CDG Zig, TADA, GrabFood, foodpanda) hanya membuka aplikasi tersebut di HP Anda, atau halaman Play Store-nya; DailyLah tidak mengirim apa pun ke aplikasi itu dan tidak menerima pesanan. Menekan sebuah event membuka halamannya di Eventfinda di browser; daftar event diunduh oleh proses harian kami, jadi Eventfinda tidak tahu siapa yang memakai DailyLah.
-
-### 5a. Situs dailylah.sg
-Situs ini, termasuk halaman **Where to live?**, tidak memakai akun, cookie, analytics, maupun iklan. Di halaman Where to live?, pilihan Anda (area kantor, sewa atau beli, tipe flat, budget, waktu tempuh) diolah di browser dari file data publik dan disimpan di alamat halaman, sehingga tautan yang Anda bagikan ikut membawanya. Saat alamat itu dibuka atau dimuat ulang, alamat tersebut sampai ke penyedia hosting kami seperti permintaan halaman biasa dan tercatat di log teknis yang disimpan sebentar (lihat bagian 5); kami tidak memakainya untuk hal lain dan tidak ada data lain tentang pilihan Anda yang dikirim. Peta di halaman itu memuat tile peta dan logo OneMap dari **OneMap** (Singapore Land Authority), sehingga OneMap menerima alamat IP Anda dan area peta yang ditampilkan, seperti situs lain yang Anda kunjungi; OneMap tidak menerima pilihan Anda. Penyedia hosting kami menyimpan log teknis yang sama seperti untuk bundel data di atas.
-
-### 6. Notifikasi
-Notifikasi gangguan MRT, hujan sebelum jam berangkat, hawker favorit yang tutup besok, cluster dengue dekat rumah atau sekolah, panas tinggi atau petir, transaksi resale baru di blok yang Anda pantau, kapan berangkat untuk mengejar bus (ke kantor, sekolah, atau tempat tersimpan yang Anda beri jam biasa), ringkasan Minggu "This week around you", dan waktu parkir Anda diputuskan **di HP Anda**. Kira-kira setiap 15 menit, aplikasi mengecek status dan prakiraan publik terbaru, lalu menampilkan notifikasi lokal jika sesuai dengan pengaturan Anda. Tidak ada token push atau pengenal perangkat yang dikirim ke Tursina Labs. Notifikasi bisa dimatikan di pengaturan aplikasi atau pengaturan Android.
-
-### 7. Yang tidak kami lakukan
-- Tidak ada akun DailyLah dan tidak ada login
-- Tidak ada SDK analitik, pelacakan, atau iklan, dan tidak ada iklan
-- Tidak menjual atau membagikan informasi pribadi
-- Tidak mengakses kontak, foto, mikrofon, atau kamera
-
-### 8. Penyedia layanan
-- **Render** (region Singapura) menjalankan API DailyLah
-- **Upstash** menyimpan cache data cuaca dan transportasi publik (tanpa data pribadi)
-- **Vercel** menyajikan daftar halte bus publik dan halaman web kami
-- **Google Play** mendistribusikan aplikasi dan dapat memproses data instalasi, pembaruan, dan crash sesuai kebijakan Google
-
-Data publik berasal dari **LTA DataMall** dan **data.gov.sg**. Aplikasi tidak mengirim data Anda ke sumber pemerintah tersebut; server kami yang meminta data publik atas nama semua pengguna.
-
-### 9. Penyimpanan dan penghapusan
-Data di HP Anda tersimpan sampai Anda menghapus penyimpanan aplikasi atau meng-uninstall DailyLah. Karena tidak ada akun, tidak ada data yang perlu dihapus di sisi kami dan tidak ada halaman penghapusan akun. Log permintaan di server terhapus otomatis.
-
-### 10. Hak Anda
-Berdasarkan Personal Data Protection Act (PDPA) Singapura, Anda dapat menanyakan data pribadi yang kami simpan. Karena DailyLah tidak memiliki akun dan tidak mengaitkan log dengan orang tertentu, umumnya kami tidak dapat mengenali permintaan mana yang berasal dari Anda, tetapi Anda tetap dapat menghubungi kami.
-
-### 11. Anak-anak
-DailyLah tidak ditujukan untuk anak di bawah 13 tahun.
-
-### 12. Perubahan
-Kami dapat memperbarui kebijakan ini. Jika diperbarui, tanggal "Last updated" di atas akan berubah. Versi terbaru selalu ada di https://www.tursinalabs.com/dailylah/privacy.
-
-### 13. Kontak
+## 13. Contact
 support@tursinalabs.com

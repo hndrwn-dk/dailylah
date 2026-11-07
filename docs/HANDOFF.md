@@ -240,7 +240,9 @@ No new secrets are needed for Phase 1.
   - Copy the output into `web/data/` and push.
 
 ## How Hendrawan works
-- Chats in Indonesian. The app is English only.
+- Chats in Indonesian. The app is English only, and so are the privacy policy and terms
+  (`docs/legal/`, English only since 8 Nov 2026; the published pages at tursinalabs.com/dailylah
+  match them, same URLs as in Play Console).
 - "diskusi dulu" = discuss only, do not build.
 - One PR and one APK per batch. Ask before merging unless he already said merge.
 - Track every to-do so nothing is missed.
