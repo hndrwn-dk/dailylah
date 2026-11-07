@@ -9,6 +9,8 @@ import {
   commuteText,
   flatLabel,
   flatTypes,
+  highlightText,
+  highlights,
   pillText,
   priceDetail,
   priceLine,
@@ -144,7 +146,7 @@ function renderBoard(data, view, groups, actions) {
   const { state } = view;
   const area = data.areas.find((a) => a.id === state.area);
   $("board-title").textContent = `To ${area.name}`;
-  $("board-sub").textContent = `Weekday 08:30 by MRT and bus · ${flatLabel(state.flat)} ${
+  $("board-sub").textContent = `Weekday 08:30 by MRT and bus, ${flatLabel(state.flat)} ${
     state.mode === "buy" ? "resale" : "rent"
   }`;
   const parts = [
@@ -160,6 +162,58 @@ function renderBoard(data, view, groups, actions) {
     }),
   ].filter(Boolean);
   $("board-body").replaceChildren(...parts);
+  renderPicks(state, groups);
+}
+
+/** "Fastest" and "Best value" above the board; hidden when no town fits with a price. */
+function renderPicks(state, groups) {
+  const picks = highlights(groups);
+  $("picks").hidden = !picks;
+  if (!picks) return;
+  $("pick-fast").textContent = highlightText(picks.fastest, state.mode);
+  $("pick-value").textContent = highlightText(picks.value, state.mode);
+}
+
+// ---------------------------------------------------------------- share
+
+/** Share the current URL with the phone's share sheet, or copy it where that is not offered. */
+function setUpShare() {
+  const button = $("share");
+  const note = $("share-note");
+  const canShare = typeof navigator.share === "function";
+  const canCopy = Boolean(navigator.clipboard?.writeText);
+  if (!canShare && !canCopy) return;
+  button.textContent = canShare ? "Share" : "Copy link";
+  button.hidden = false;
+  let timer;
+  const say = (text) => {
+    note.textContent = text;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      note.textContent = "";
+    }, 2500);
+  };
+  button.addEventListener("click", async () => {
+    const url = window.location.href;
+    if (canShare) {
+      try {
+        await navigator.share({ title: document.title, text: "Where to live? HDB towns by commute and price", url });
+      } catch {
+        // Closed the share sheet, or sharing failed: nothing to report.
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      button.textContent = "Link copied";
+      say("Link copied. Paste it anywhere to share these choices.");
+      setTimeout(() => {
+        button.textContent = "Copy link";
+      }, 2500);
+    } catch {
+      say("Copy did not work. Copy the address from the browser bar instead.");
+    }
+  });
 }
 
 // ---------------------------------------------------------------- map
@@ -367,6 +421,7 @@ async function main() {
     update();
   });
   renderSources(data);
+  setUpShare();
   fillForm(data, view.state);
   draw();
   window.history.replaceState(null, "", `${window.location.pathname}${writeQuery(view.state)}`);

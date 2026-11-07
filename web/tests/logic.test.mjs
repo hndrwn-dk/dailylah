@@ -1,4 +1,4 @@
-// Run: node --test web/tests/   (CI: .github/workflows/web.yml)
+// Run: node --test 'web/tests/*.test.mjs'   (CI: .github/workflows/web.yml)
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
@@ -7,6 +7,8 @@ import { CTA } from "../shared/cta.js";
 import {
   commuteText,
   flatTypes,
+  highlightText,
+  highlights,
   pillText,
   priceDetail,
   priceLine,
@@ -121,6 +123,30 @@ test("board row: short price, details with station, transfers and the figure's o
   const je = DATA.towns[2];
   assert.equal(routeDetail({ town: je, commute: je.commute["jurong-east"] }), "In this area (Jurong East MRT)");
   assert.equal(routeDetail({ town: je, commute: null }), "No route data");
+});
+
+test("summary card: fastest and best value among towns that fit", () => {
+  // CBD, 4-room rent, no limits: Bishan 20 min $3,700; Jurong East 35 min (no price); Punggol 45 min $3,300.
+  const g = rank(DATA, state());
+  const p = highlights(g);
+  assert.equal(p.fastest.town.id, "bishan");
+  assert.equal(highlightText(p.fastest, "rent"), "Bishan — 20 min, $3,700/mo");
+  // Priced candidates: Bishan 20, Punggol 45 -> median 32.5, so only Bishan is at or under it.
+  assert.equal(p.value.town.id, "bishan");
+  // 3-room rent: Bishan 20 $3,000, Jurong East 35 $2,700, Punggol 45 $2,850 -> median 35:
+  // Bishan and Jurong East qualify; Jurong East is cheaper.
+  const p3 = highlights(rank(DATA, state({ flat: "3-ROOM" })));
+  assert.equal(p3.fastest.town.id, "bishan");
+  assert.equal(highlightText(p3.value, "rent"), "Jurong East — 35 min, $2,700/mo");
+});
+
+test("summary card: same area, resale wording, and hidden when nothing fits", () => {
+  const p = highlights(rank(DATA, state({ area: "jurong-east", flat: "3-ROOM" })));
+  assert.equal(highlightText(p.fastest, "rent"), "Jurong East — in this area, $2,700/mo");
+  const buy = highlights(rank(DATA, state({ mode: "buy" })));
+  assert.equal(highlightText(buy.fastest, "buy"), "Bishan — 20 min, $700,000");
+  assert.equal(highlights(rank(DATA, state({ budget: 1000 }))), null);
+  assert.equal(highlights(rank(DATA, state({ max: 30, flat: "4-ROOM", area: "jurong-east" })))?.fastest.town.id, "central");
 });
 
 test("map pills: minutes, bands by travel time", () => {
@@ -247,6 +273,25 @@ test("footers are short and the full sources live in the Terms", () => {
   const wtlFooter = wtl.slice(wtl.indexOf('<footer class="notes">'), wtl.indexOf("</footer>"));
   assert.doesNotMatch(wtlFooter, /OneMap.*Singapore Land Authority.*contributors/);
   assert.equal((wtlFooter.match(/<a /g) ?? []).length, 3);
+});
+
+test("home: real screenshots with size and alt, the day timeline and three questions", () => {
+  const html = read("index.html");
+  const imgs = [...html.matchAll(/<img src="\/brand\/screens\/([a-z-]+\.webp)"([^>]*)>/g)];
+  assert.deepEqual(imgs.map((m) => m[1]), ["today.webp", "wake-me.webp", "plan-b.webp", "nearby.webp"]);
+  for (const [, file, attrs] of imgs) {
+    assert.match(attrs, /width="540" height="960"/, file);
+    assert.match(attrs, /alt="[^"]{20,}"/, file);
+    const bytes = readFileSync(new URL(`brand/screens/${file}`, web));
+    assert.equal(bytes.subarray(8, 12).toString(), "WEBP", file);
+  }
+  const day = html.slice(html.indexOf('class="timeline"'), html.indexOf("</ol>", html.indexOf('class="timeline"')));
+  assert.equal((day.match(/<li>/g) ?? []).length, 8);
+  const faq = html.slice(html.indexOf('class="faq"'));
+  assert.equal((faq.match(/<details>/g) ?? []).length, 3);
+  // History card: only categories the app has (trips, parking, meals counted, not priced).
+  assert.match(html, /<span>Meals<\/span><b>5 logged<\/b>/);
+  assert.doesNotMatch(html, /<span>MRT<\/span>|<span>Bus<\/span>/);
 });
 
 test("the page loads Leaflet from the vendored copy only", () => {

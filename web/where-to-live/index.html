@@ -61,9 +61,19 @@
   </form>
 
   <div class="results">
-    <section class="board-wrap sticker" aria-labelledby="board-title" aria-live="polite">
-      <h2 id="board-title">Loading towns</h2>
-      <p id="board-sub" class="board-sub"></p>
+    <section class="board-wrap sticker" aria-labelledby="board-title">
+      <div class="board-top">
+        <div>
+          <h2 id="board-title">Loading towns</h2>
+          <p id="board-sub" class="board-sub"></p>
+        </div>
+        <button id="share" class="share" type="button" hidden>Share</button>
+      </div>
+      <p id="share-note" class="share-note" role="status"></p>
+      <dl id="picks" class="picks" aria-live="polite" hidden>
+        <div><dt>Fastest:</dt><dd id="pick-fast"></dd></div>
+        <div><dt>Best value:</dt><dd id="pick-value"></dd></div>
+      </dl>
       <div id="board-body" class="board"></div>
     </section>
     <section class="map-wrap sticker" aria-label="Map of HDB towns">

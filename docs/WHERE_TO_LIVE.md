@@ -105,6 +105,11 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
   daftar (menampilkan semua / membuka lipatan kalau perlu); ketuk baris menyorot pil dan membuka
   popup-nya. Desktop: peta `position: sticky` di kolom kanan. HP: peta di atas daftar (320 px).
 - Form: Rent / Buy resale sebagai segmented control; semua kontrol 46 px supaya baris desktop rata.
+- Kartu ringkasan di atas daftar (`highlights` di `logic.js`): "Fastest" (waktu tempuh terpendek,
+  harga lebih murah kalau seri) dan "Best value" (termurah di antara town dengan waktu tempuh ≤ median
+  kandidat), hanya dari town yang cocok dan punya harga serta rute; disembunyikan kalau tidak ada.
+- Tombol Share: `navigator.share` dengan URL saat ini; kalau tidak ada, "Copy link" lalu "Link
+  copied" (clipboard). Tanpa script pihak ketiga, CSP tidak berubah.
 - Footer pendek: satu baris "Indicative figures from HDB via data.gov.sg (Singapore Open Data Licence).
   Updated <tanggal dari generated_at>.", lalu `<details>` "About the data" (kuartal, 08:30 dari stasiun
   MRT utama, perjalanan terjadwal, arti "not enough data", tidak berafiliasi dengan HDB/SLA), lalu
@@ -128,6 +133,12 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
 
 ## Fase 3: SEO + bagikan (1 PR)
 - Halaman statis per town (sekitar 26), misalnya "Living in Punggol: commute and HDB prices", dibuat dari JSON yang sama saat build. Sitemap, meta, gambar OG.
+
+- Rencana tambahan (dicatat 7 Nov 2026, belum dibangun): **biaya sebenarnya per bulan** per town =
+  sewa median + ongkos pergi-pulang 22 hari kerja (tarif kartu dewasa untuk jarak rute OneMap, dua
+  arah) + jam di jalan per bulan (menit sekali jalan × 2 × 22 ÷ 60, ditampilkan sebagai jam, bukan
+  diubah ke dolar). Butuh jarak atau tarif per rute di `where-to-live.json` (Fase 1 belum menyimpannya:
+  OneMap mengembalikan `fare` per itinerary, lihat contoh dry run).
 
 ## Fase 4: launch
 - Live bersamaan dengan production DailyLah. Post LinkedIn: app + alat web.

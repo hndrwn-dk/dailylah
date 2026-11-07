@@ -71,6 +71,31 @@ export function quarterLabel(q) {
 
 const money = new Intl.NumberFormat("en-SG", { maximumFractionDigits: 0 });
 
+/**
+ * The two picks for the summary card, from the towns that fit the choices and have both a travel
+ * time and a price: the fastest (cheaper wins a tie) and the best value (the cheapest among those
+ * with a travel time at or under the median of the candidates; faster wins a tie). null when no
+ * town qualifies.
+ */
+export function highlights(groups) {
+  const pool = groups.match.filter((r) => r.commute && r.price);
+  if (!pool.length) return null;
+  const byFast = [...pool].sort((a, b) => a.minutes - b.minutes || a.price.median - b.price.median);
+  const mins = pool.map((r) => r.minutes).sort((a, b) => a - b);
+  const mid = mins.length >> 1;
+  const median = mins.length % 2 ? mins[mid] : (mins[mid - 1] + mins[mid]) / 2;
+  const value = pool
+    .filter((r) => r.minutes <= median)
+    .sort((a, b) => a.price.median - b.price.median || a.minutes - b.minutes)[0];
+  return { fastest: byFast[0], value };
+}
+
+/** "Bishan — 18 min, $3,700/mo" (or "Woodlands — in this area, $3,100/mo"). */
+export function highlightText(row, mode) {
+  const time = row.commute.same_area ? "in this area" : `${row.commute.min} min`;
+  return `${row.town.name} — ${time}, ${shortPrice(mode, row.price)}`;
+}
+
 /** Short price for a board row: "$3,400/mo" (rent), "$559,400" (resale) or "No data". */
 export function shortPrice(mode, cell) {
   if (!cell) return "No data";

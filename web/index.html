@@ -107,6 +107,28 @@
   .spend-row b { font-family: var(--display); font-size: 19px; }
   .order span { text-align: center; padding: 8px; border-radius: 10px; border: 2px solid var(--edge); background: var(--sky); font-weight: 700; font-size: 15px; color: var(--ink); }
 
+  /* ---------------- see it on your phone: real store screenshots, swipe sideways on a phone */
+  .phone { margin-bottom: 48px; }
+  .screens { list-style: none; margin: 18px 0 0; padding: 4px 4px 12px; display: grid; grid-auto-flow: column;
+             grid-auto-columns: min(62vw, 240px); gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory;
+             overscroll-behavior-x: contain; }
+  @media (min-width: 1000px) { .screens { grid-auto-flow: row; grid-template-columns: repeat(4, 1fr); overflow: visible; } }
+  .screens li { scroll-snap-align: start; }
+  .screens img { display: block; width: 100%; height: auto; border: 2.5px solid var(--edge); border-radius: 18px;
+                 box-shadow: 4px 5px 0 var(--shadow); background: var(--card); }
+  /* ---------------- a day with DailyLah */
+  .day { margin-bottom: 56px; }
+  .timeline { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 10px; max-width: 760px; }
+  .timeline li { display: grid; grid-template-columns: 56px 1fr; column-gap: 12px; font-size: 15px; line-height: 1.45; }
+  .timeline time { grid-row: span 2; font: 700 22px/1.1 var(--display); color: var(--teal-text); }
+  .timeline b { display: block; }
+  /* ---------------- questions */
+  .faq { margin: -40px 0 56px; max-width: 760px; }
+  .faq details { border-top: 2px solid var(--edge); padding: 10px 0; }
+  .faq details:last-child { border-bottom: 2px solid var(--edge); }
+  .faq summary { font-weight: 700; cursor: pointer; }
+  .faq summary:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
+  .faq p { margin: 6px 0 0; color: var(--mist); }
   /* ---------------- where to live */
   .tool { padding: 24px; margin-bottom: 40px; display: grid; gap: 12px; justify-items: start; background: var(--sky); }
   .tool p { margin: 0; max-width: 60ch; }
@@ -168,6 +190,16 @@
     </figure>
   </section>
 
+  <section class="phone" aria-labelledby="phone-title">
+    <h2 id="phone-title">See it on your phone</h2>
+    <ul class="screens">
+      <li><img src="/brand/screens/today.webp" width="540" height="960" loading="lazy" decoding="async" alt="Today tab: your morning in one card, with buses to work, leave in 6 min and the I'm leaving button."></li>
+      <li><img src="/brand/screens/wake-me.webp" width="540" height="960" loading="lazy" decoding="async" alt="Wake me at my stop: on bus 858 to Fullerton Sq, 2.3 km to go, with a Stop button."></li>
+      <li><img src="/brand/screens/plan-b.webp" width="540" height="960" loading="lazy" decoding="async" alt="Plan B: East-West Line disrupted on your way, with a direct bus to take instead."></li>
+      <li><img src="/brand/screens/nearby.webp" width="540" height="960" loading="lazy" decoding="async" alt="Nearby tab: parks near you with their facilities, and showers expected today."></li>
+    </ul>
+  </section>
+
   <h2>Four tabs for your day</h2>
   <p class="lead">Each tab answers one question, so you can check it in a few seconds and get going.</p>
   <section class="tabs">
@@ -200,12 +232,26 @@
       <p>Where your transport money goes: the trips you logged, your parking and your meals, by week or month.</p>
       <div class="spend" aria-label="Example week of transport costs">
         <div class="spend-total">&asymp; $24.60<small>This week, estimated</small></div>
-        <div class="spend-row"><span>MRT</span><b>&asymp; $11.20</b></div>
-        <div class="spend-row"><span>Bus</span><b>&asymp; $6.40</b></div>
+        <div class="spend-row"><span>Trips by bus and MRT</span><b>&asymp; $17.60</b></div>
         <div class="spend-row"><span>HDB parking</span><b>&asymp; $7.00</b></div>
+        <div class="spend-row"><span>Meals</span><b>5 logged</b></div>
       </div>
-      <p>Estimated from distance and published fares and parking rates. Tap a trip to enter what it really cost. Kept on your phone only.</p>
+      <p>Trips and parking are estimated from distance and published fares and parking rates; meals are counted. Tap a trip to enter what it really cost. Kept on your phone only.</p>
     </article>
+  </section>
+
+  <section class="day" aria-labelledby="day-title">
+    <h2 id="day-title">A day with DailyLah</h2>
+    <ol class="timeline">
+      <li><time>7:00</time><b>Rain before you leave.</b> Rain near your office from 6 pm. Bring an umbrella.</li>
+      <li><time>7:05</time><b>Haze bad or not?</b> When the PSI is unhealthy, Today says so, with when to wear an N95 mask.</li>
+      <li><time>7:40</time><b>I'm leaving.</b> Tap it, and DailyLah learns how long your trip really takes.</li>
+      <li><time>7:55</time><b>MRT delay? Plan B.</b> Buses first when your line is disrupted on your way.</li>
+      <li><time>8:20</time><b>Wake me at my stop.</b> Buzzes before your stop, even with the screen off.</li>
+      <li><time>12:30</time><b>Makan where?</b> Your favourite hawker closed? You hear the day before, and Nearby shows what is open today.</li>
+      <li><time>15:00</time><b>Heat stress high.</b> Bring water and take the sheltered way. UV is on Today too.</li>
+      <li><time>Sun</time><b>Your week.</b> Hawker closures, works at your block and holidays ahead; History adds up your trips and parking and counts your meals.</li>
+    </ol>
   </section>
 
   <section class="tool sticker">
@@ -222,6 +268,13 @@
       <li>Alerts are worked out on your phone: rain before you leave, MRT disruptions, your favourite hawker closed tomorrow.</li>
       <li>No ads and no tracking.</li>
     </ul>
+  </section>
+
+  <section class="faq" aria-labelledby="faq-title">
+    <h2 id="faq-title">Questions</h2>
+    <details><summary>Is there an iPhone version?</summary><p>Not yet: DailyLah is for Android 10 and newer.</p></details>
+    <details><summary>Why is it a beta?</summary><p>DailyLah is in closed testing on Google Play before its public release, so you join the testers group first.</p></details>
+    <details><summary>Is it free?</summary><p>Yes, DailyLah is free, with no ads and no account.</p></details>
   </section>
 </main>
 
