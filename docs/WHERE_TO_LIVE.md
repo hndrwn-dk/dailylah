@@ -90,14 +90,21 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
 ### Fase 2: yang dibangun
 - Halaman `web/where-to-live/index.html` (dilayani di `/where-to-live`), `app.css`, `app.js` (DOM dan
   peta), `logic.js` (fungsi murni: baca/tulis URL, `rank`, label). Tanpa build step, tanpa CDN.
-- Daftar ranking bergaya papan LED (seperti papan bus di landing page) dalam tiga kelompok: "Fits your
-  choices", "No <flat> price data" (hanya kalau budget diisi), "Outside your choices" (dilipat dalam
-  `<details>` selama ada town yang cocok; tiap baris menyebut alasannya: over budget, over N min,
-  no route data). Urutan: waktu tempuh (same area paling atas), lalu harga.
+- Daftar ranking bergaya papan LED (seperti papan bus di landing page): satu baris per town
+  (nama, menit, harga tebal: `$3,400/mo` atau `$559,400`). Baris adalah tombol (`aria-expanded`);
+  saat dibuka tampil stasiun, jumlah transfer, kuartal angka itu, dan alasan kalau di luar pilihan.
+  Tiga kelompok: "Fits your choices" (8 teratas, lalu tombol "Show all N"), "No <flat> price data"
+  (hanya kalau budget diisi), "Outside your choices" (dilipat dalam `<details>` selama ada town yang
+  cocok). Urutan: waktu tempuh (same area paling atas), lalu harga.
 - Peta Leaflet 1.9.4 (`web/vendor/leaflet-1.9.4/`, dari npm, checksum di README-nya), tile OneMap
-  Default/Night mengikuti `prefers-color-scheme`, atribusi OneMap (logo, OneMap, SLA). Marker:
-  teal = cocok, amber = tanpa harga, abu = di luar pilihan, putih = area kantor. Di HP peta di atas
-  daftar (320 px). Klik nama town membuka popup di peta.
+  Default/Night mengikuti `prefers-color-scheme`, atribusi OneMap (logo
+  `https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png`, OneMap, SLA; logo yang gagal dimuat
+  disembunyikan). Penanda: pil berisi menit (`22′`) lewat `L.divIcon` dengan elemen DOM, warna per
+  waktu tempuh (≤20, 21–35, 36–50, >50; "Here" untuk town = area kantor), garis putus-putus kalau
+  tanpa harga, abu dan kecil kalau di luar pilihan; kantor memakai pin. Ketuk pil membuka barisnya di
+  daftar (menampilkan semua / membuka lipatan kalau perlu); ketuk baris menyorot pil dan membuka
+  popup-nya. Desktop: peta `position: sticky` di kolom kanan. HP: peta di atas daftar (320 px).
+- Form: Rent / Buy resale sebagai segmented control; semua kontrol 46 px supaya baris desktop rata.
 - State di URL (`?area=&mode=&flat=&budget=&max=`), nilai di-validasi terhadap JSON; default tidak
   ditulis.
 - CTA dari `web/shared/cta.js` (satu konstanta untuk landing page dan halaman ini): sekarang alur

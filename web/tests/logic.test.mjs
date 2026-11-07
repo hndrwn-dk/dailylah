@@ -7,11 +7,16 @@ import { CTA } from "../shared/cta.js";
 import {
   commuteText,
   flatTypes,
+  pillText,
+  priceDetail,
   priceLine,
   quarterLabel,
   rank,
   reasonText,
   readQuery,
+  routeDetail,
+  shortPrice,
+  timeBand,
   writeQuery,
 } from "../where-to-live/logic.js";
 
@@ -102,6 +107,30 @@ test("price labels use the quarter of each figure", () => {
   assert.equal(priceLine(state(), null), "4-room median rent: not enough data");
   assert.equal(quarterLabel("2026-Q3"), "Q3 2026");
   assert.equal(quarterLabel("junk"), "");
+});
+
+test("board row: short price, details with station, transfers and the figure's own quarter", () => {
+  const punggol = DATA.towns[1];
+  assert.equal(shortPrice("rent", punggol.rent["4-ROOM"]), "$3,300/mo");
+  assert.equal(shortPrice("buy", punggol.resale["4-ROOM"]), "$610,000");
+  assert.equal(shortPrice("rent", null), "No data");
+  const row = { town: punggol, commute: punggol.commute.cbd };
+  assert.equal(routeDetail(row), "From Punggol MRT, 1 transfer");
+  assert.equal(priceDetail(state(), punggol.rent["4-ROOM"]), "4-room median rent, Q1 2026");
+  assert.equal(priceDetail(state({ mode: "buy" }), null), "4-room median resale price: not enough data");
+  const je = DATA.towns[2];
+  assert.equal(routeDetail({ town: je, commute: je.commute["jurong-east"] }), "In this area (Jurong East MRT)");
+  assert.equal(routeDetail({ town: je, commute: null }), "No route data");
+});
+
+test("map pills: minutes, bands by travel time", () => {
+  assert.equal(pillText({ min: 22, transfers: 0 }), "22′");
+  assert.equal(pillText({ min: null, transfers: null, same_area: true }), "Here");
+  assert.equal(pillText(null), "–");
+  const band = (min) => timeBand({ min, transfers: 0 });
+  assert.deepEqual([band(5), band(20), band(21), band(35), band(36), band(50), band(51), band(90)], [1, 1, 2, 2, 3, 3, 4, 4]);
+  assert.equal(timeBand({ min: null, transfers: null, same_area: true }), 0);
+  assert.equal(timeBand(null), null);
 });
 
 test("commute labels", () => {

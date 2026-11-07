@@ -41,14 +41,18 @@ h1 { font: 700 clamp(48px, 9vw, 84px)/0.92 var(--display); margin: 0 0 14px; let
 .field > span, .field legend { font-weight: 700; font-size: 15px; padding: 0; }
 select, input[type=text] {
   font: 600 16px/1.2 var(--body); color: var(--ink); background: var(--paper); width: 100%;
-  border: 2px solid var(--edge); border-radius: 10px; padding: 10px 12px; min-height: 46px; }
+  border: 2px solid var(--edge); border-radius: 10px; padding: 0 12px; height: 46px; }
 input[type=text]::placeholder { color: var(--mist); }
-.mode { display: flex; flex-wrap: wrap; gap: 8px; }
-.mode legend { margin-bottom: 6px; width: 100%; }
-.mode label { flex: 1 1 auto; display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 12px;
-              border: 2px solid var(--edge); border-radius: 10px; font-weight: 600; cursor: pointer; background: var(--paper); }
-.mode label:has(input:checked) { background: var(--mint); }
-.mode input { accent-color: var(--teal); width: 18px; height: 18px; margin: 0; }
+/* Rent / Buy resale: two segments side by side, same height as the selects. */
+.seg { display: grid; grid-template-columns: 1fr 1fr; border: 2px solid var(--edge); border-radius: 10px; overflow: hidden;
+       background: var(--paper); }
+.seg label { position: relative; cursor: pointer; }
+.seg label + label { border-left: 2px solid var(--edge); }
+.seg input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.seg span { display: flex; align-items: center; justify-content: center; min-height: 42px; padding: 0 10px;
+            font: 700 16px/1.1 var(--body); text-align: center; white-space: nowrap; }
+.seg input:checked + span { background: var(--amber); color: #0F1618; }
+.seg input:focus-visible + span { outline: 3px solid var(--teal); outline-offset: -5px; }
 
 /* ---------------- results */
 .results { display: grid; gap: 24px; margin-bottom: 32px; }
@@ -63,20 +67,29 @@ input[type=text]::placeholder { color: var(--mist); }
 .board-sub { margin: 4px 0 8px; color: var(--led-dim); font-size: 14px; }
 .group summary { font: 600 15px/1.3 var(--body); color: var(--led-dim); margin: 16px 0 6px; cursor: pointer; }
 .group summary:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
-.why { color: var(--led); font-weight: 600; }
 .group h3 { font: 600 14px/1.3 var(--body); color: var(--led-dim); margin: 16px 0 2px; }
 .rows { list-style: none; margin: 0; padding: 0; }
-.row { padding: 10px 0 12px; border-top: 1px solid rgba(255, 182, 39, 0.22); }
-.row-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.town { font: 700 28px/1.05 var(--display); color: var(--led); background: none; border: 0; padding: 0; margin: 0;
-        text-align: left; cursor: pointer; }
-.town:hover { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; }
-.eta { font: 700 34px/1 var(--display); white-space: nowrap; }
-.eta small { font-size: 17px; margin-left: 3px; }
-.detail { margin: 4px 0 0; display: grid; gap: 1px; font-size: 14px; line-height: 1.45; color: var(--led-dim); }
-.muted { color: var(--led-off); }
-.row.noPrice .town, .row.noPrice .eta { color: var(--led-dim); }
-.row.other .town, .row.other .eta { color: var(--led-off); }
+.row { border-top: 1px solid rgba(255, 182, 39, 0.22); }
+/* One line per town: name, minutes, price. The whole line is the button that opens the details. */
+.line { display: grid; grid-template-columns: minmax(0, 1fr) auto 6.4em; align-items: baseline; gap: 10px; width: 100%;
+        padding: 10px 4px; margin: 0; background: none; border: 0; border-radius: 6px; color: var(--led);
+        font: 700 16px/1.1 var(--display); text-align: left; cursor: pointer; }
+.line:hover .town { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; }
+.line:focus-visible { outline: 3px solid var(--amber); outline-offset: -2px; }
+.town { font-size: 25px; line-height: 1.05; overflow-wrap: anywhere; }
+.eta { font-size: 27px; white-space: nowrap; text-align: right; }
+.eta small { font-size: 15px; }
+.price { font-size: 22px; white-space: nowrap; text-align: right; }
+.price.none { font: 600 14px/1.2 var(--body); color: var(--led-off); }
+.row.on .line { background: rgba(255, 182, 39, 0.1); }
+.more { display: grid; gap: 1px; padding: 0 4px 12px; font-size: 14px; line-height: 1.45; color: var(--led-dim); }
+.more[hidden] { display: none; }
+.why { color: var(--led); font-weight: 700; }
+.row.noPrice .line { color: var(--led-dim); }
+.row.other .line { color: var(--led-off); }
+.show-all { margin: 6px 0 10px; padding: 8px 14px; background: none; color: var(--led); border: 2px solid var(--led);
+            border-radius: 10px; font: 700 15px/1.2 var(--body); cursor: pointer; }
+.show-all:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
 .empty { color: var(--led-dim); margin: 6px 0 12px; font-size: 15px; }
 
 /* ---------------- map */
@@ -88,11 +101,30 @@ input[type=text]::placeholder { color: var(--mist); }
 .legend { list-style: none; margin: 0; padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px;
           border-top: 2px solid var(--edge); }
 .legend li { display: flex; align-items: center; gap: 6px; }
-.dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #0F1618; display: inline-block; }
-.dot.match { background: #0E9488; }
-.dot.noPrice { background: #EDAD2B; }
-.dot.other { background: #8A9BA0; }
-.dot.office { background: #FFFFFF; width: 16px; height: 16px; border-width: 3px; }
+
+/* Map pills: minutes to the office, coloured by travel time. Leaflet places the icon's corner on
+   the point; the transform centres the pill on it. */
+.pill-icon { background: none; border: 0; }
+.pill, .key { display: inline-block; padding: 2px 7px; border: 2px solid #0F1618; border-radius: 999px;
+              font: 700 15px/1.15 var(--display); white-space: nowrap; color: #0F1618; box-shadow: 2px 2px 0 #0F1618; }
+.pill { transform: translate(-50%, -50%); cursor: pointer; }
+.b0 { background: #0F1618; color: #FFB627; }
+.b1 { background: #0A7068; color: #FFFFFF; }
+.b2 { background: #0E9488; }
+.b3 { background: #EDAD2B; }
+.b4 { background: #DC4A37; }
+.pill.out, .key.out { background: #C9D3D6; color: #50646A; font-size: 12px; padding: 0 5px; border-width: 1.5px;
+                      box-shadow: none; }
+.pill.noprice { border-style: dashed; }
+.pill.on { outline: 3px solid #FFB627; outline-offset: 1px; transform: translate(-50%, -50%) scale(1.2); }
+.key { transform: none; font-size: 13px; padding: 0 6px; box-shadow: none; }
+.office { display: block; transform: translate(-50%, -100%); }
+.office svg { display: block; }
+.office .pin { fill: #FFFFFF; stroke: #0F1618; stroke-width: 2.5; }
+.office .bag { fill: #0F1618; }
+.office-key { width: 14px; height: 18px; padding: 0; border: 2px solid #0F1618; border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+              background: #FFFFFF; box-shadow: none; }
+.om-logo.gone { display: none; }
 .pop { display: grid; gap: 2px; font: 500 14px/1.4 var(--body); }
 .pop strong { font: 700 20px/1.1 var(--display); }
 .leaflet-container { font-family: var(--body); }

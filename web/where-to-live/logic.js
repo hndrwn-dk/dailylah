@@ -71,6 +71,46 @@ export function quarterLabel(q) {
 
 const money = new Intl.NumberFormat("en-SG", { maximumFractionDigits: 0 });
 
+/** Short price for a board row: "$3,400/mo" (rent), "$559,400" (resale) or "No data". */
+export function shortPrice(mode, cell) {
+  if (!cell) return "No data";
+  const amount = `$${money.format(cell.median)}`;
+  return mode === "buy" ? amount : `${amount}/mo`;
+}
+
+/** Travel time band for colour: 1 (up to 20 min) .. 4 (over 50 min); 0 = same area. */
+export const BANDS = [20, 35, 50];
+export function timeBand(commute) {
+  if (!commute) return null;
+  if (commute.same_area) return 0;
+  const i = BANDS.findIndex((limit) => commute.min <= limit);
+  return i === -1 ? BANDS.length + 1 : i + 1;
+}
+
+/** Text in a map pill: "22′", or "Here" for the office area's own town. */
+export function pillText(commute) {
+  if (!commute) return "–";
+  return commute.same_area ? "Here" : `${commute.min}′`;
+}
+
+function transfersText(n) {
+  return n === 0 ? "no transfer" : n === 1 ? "1 transfer" : `${n} transfers`;
+}
+
+/** Second line of an opened row: station and transfers. */
+export function routeDetail(row) {
+  const c = row.commute;
+  if (!c) return "No route data";
+  if (c.same_area) return `In this area (${row.town.station} MRT)`;
+  return `From ${row.town.station} MRT, ${transfersText(c.transfers)}`;
+}
+
+/** Third line of an opened row: what the price is and its own quarter. */
+export function priceDetail(state, cell) {
+  const what = `${flatLabel(state.flat)} median ${state.mode === "buy" ? "resale price" : "rent"}`;
+  return cell ? `${what}, ${quarterLabel(cell.quarter)}` : `${what}: not enough data`;
+}
+
 export function priceText(mode, cell) {
   if (!cell) return "Not enough data";
   const amount = `$${money.format(cell.median)}`;

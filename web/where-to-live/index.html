@@ -39,11 +39,13 @@
       <span>Office area</span>
       <select id="area" name="area"></select>
     </label>
-    <fieldset class="field mode">
-      <legend>I want to</legend>
-      <label><input type="radio" name="mode" value="rent" checked> Rent</label>
-      <label><input type="radio" name="mode" value="buy"> Buy resale</label>
-    </fieldset>
+    <div class="field">
+      <span id="mode-label">I want to</span>
+      <div class="seg" role="radiogroup" aria-labelledby="mode-label">
+        <label><input type="radio" name="mode" value="rent" checked><span>Rent</span></label>
+        <label><input type="radio" name="mode" value="buy"><span>Buy resale</span></label>
+      </div>
+    </div>
     <label class="field">
       <span>Flat type</span>
       <select id="flat" name="flat"></select>
@@ -66,11 +68,13 @@
     </section>
     <section class="map-wrap sticker" aria-label="Map of HDB towns">
       <div id="map" class="map"></div>
-      <ul class="legend">
-        <li><span class="dot match"></span>Fits your choices</li>
-        <li><span class="dot noPrice"></span>No price data</li>
-        <li><span class="dot other"></span>Outside your choices</li>
-        <li><span class="dot office"></span>Office area</li>
+      <ul class="legend" aria-label="Map key">
+        <li><span class="key b1">20′</span>up to 20 min</li>
+        <li><span class="key b2">35′</span>21–35</li>
+        <li><span class="key b3">50′</span>36–50</li>
+        <li><span class="key b4">50+</span>over 50</li>
+        <li><span class="key out">–</span>outside your choices</li>
+        <li><span class="key office-key" aria-hidden="true"></span>office area</li>
       </ul>
     </section>
   </div>
