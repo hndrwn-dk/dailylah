@@ -39,6 +39,9 @@ emulator e2e, Play upload gate) stay as they are.
   `app/maestro/` (7/7 pass in about 4.5 min). How to write and run them: docs/QA.md "Maestro".
   - Not yet seen in CI: the release path (`aab_artifact`, bundletool). It first runs on the next
     release; if the `maestro` job fails there, read its log before re-running.
+  - Since #109 a failed run prints why and runs all flows once more ("Maestro flaky" warning).
+    Flows must pass on any day: the emulator runs on Singapore time and flow 02 makes Work an
+    every-day place (flow 03 failed on the first Saturday, 7 Nov, when Today showed the weekend card).
 - Phase 4 (contract tests, branch `test/phase4-contracts`): `contracts/v1/*.json` (17 examples:
   request, upstream, response), `backend/tests/test_contracts.py` (structure, with
   `UPDATE_CONTRACTS=1` to rewrite) and `app/test/contract_test.dart` (parsers read the same files).
