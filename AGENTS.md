@@ -102,8 +102,13 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   branches" is on), so there is no branch cleanup step.
 - Commits and PR descriptions carry no AI attribution: no `Co-Authored-By: Claude` or
   `Claude-Session` trailers, and no "Generated with/by Claude Code" line.
-- PR descriptions follow `.github/pull_request_template.md` (GitHub fills it in only in the web UI;
-  a PR opened through the API or `gh` copies its sections and checklist). Bot PRs skip it.
+- In `hndrwn-dk/dailylah`, PR descriptions follow `.github/pull_request_template.md`. The AI review
+  is the `review-pr` skill in `.claude/skills/review-pr/SKILL.md` (rules in
+  `.github/prompts/review.md`); its PR comment by `hndrwn-dk` starts with
+  `<!-- dailylah-ai-review sha=<head sha> -->`. The security gate ("security gate for PR #N", same
+  skill) posts `Security gate: pass at <short sha>.`; a later commit needs a new gate. GitHub fills
+  the template in only in the web UI: a PR opened through the GitHub API or `gh` copies its sections
+  and checklist. PRs by `dependabot[bot]` and `dailylah-bot` skip it.
 - A PR that changes the structure (adds, moves, renames or removes a file in `app/lib`, a provider,
   a public class or function, or an endpoint) updates the feature map (`app/CLAUDE.md` "Feature map"
   or `backend/CLAUDE.md`) and `docs/REPO_MAP.md` in the same PR.

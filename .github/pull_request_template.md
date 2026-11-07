@@ -13,7 +13,7 @@
 ## Checklist
 <!-- Tick what is done; write "n/a" after an item that does not apply. -->
 - [ ] AI review ("review PR #N") ran on the current head commit (its comment marker has the head sha).
-- [ ] Security gate posted `Security gate: pass at <head sha>` (needed when `app/`, `backend/`, `.github/` or `.claude/` change).
+- [ ] Security gate posted `Security gate: pass at <short sha>.` for the head commit (needed when `app/`, `backend/`, `.github/` or `.claude/` change).
 - [ ] `docs/legal/privacy.md` updated if data handling changed (permission, SDK, endpoint, log field).
 - [ ] Release only: `version:` bumped, `docs/store/whatsnew/whatsnew-en-US` and `S.whatsNewNotes` updated; other PRs leave all three alone.
 - [ ] Structure changed: feature map (`app/CLAUDE.md` / `backend/CLAUDE.md`) and `docs/REPO_MAP.md` updated.
