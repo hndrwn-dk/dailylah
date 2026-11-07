@@ -635,3 +635,15 @@ async def test_build_routes_keeps_a_route_without_a_fare_when_onemap_fails():
     assert out["punggol"]["cbd"] == {"min": 50, "transfers": 1, "fare": None}
     assert new_cache["punggol|cbd"] == old
     assert (notes["failed_used_old"], notes["failed"]) == (1, 0)
+
+
+async def test_build_routes_does_not_fall_back_on_a_cached_route_without_transfers():
+    old = {"from": [1.4, 103.9], "to": [1.28, 103.85], "min": 50, "at": "2026-11-07"}
+    om, client = onemap(lambda req: httpx.Response(500))
+    out, new_cache, notes = await w.build_routes(
+        om, TOWNS[:1], AREAS, {"punggol|cbd": old}, date(2026, 11, 8), set(), sleep=no_sleep
+    )
+    await client.aclose()
+    assert out["punggol"]["cbd"] is None
+    assert "punggol|cbd" not in new_cache
+    assert notes["failed"] == 1

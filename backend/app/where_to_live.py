@@ -301,6 +301,7 @@ def _usable(entry: Any, start: list[float], end: list[float]) -> bool:
         and entry.get("from") == start
         and entry.get("to") == end
         and isinstance(entry.get("min"), int)
+        and isinstance(entry.get("transfers"), int)
     )
 
 
@@ -310,7 +311,7 @@ def _cached(entry: Any, start: list[float], end: list[float]) -> bool:
 
 
 def _route(entry: dict) -> dict:
-    return {"min": entry["min"], "transfers": entry.get("transfers"), "fare": entry.get("fare")}
+    return {"min": entry["min"], "transfers": entry["transfers"], "fare": entry.get("fare")}
 
 
 async def build_routes(

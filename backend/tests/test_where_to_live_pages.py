@@ -6,6 +6,8 @@ import re
 import xml.etree.ElementTree as ET  # noqa: S405 - parses the sitemap we just wrote
 from pathlib import Path
 
+import pytest
+
 from app import where_to_live_pages as p
 
 WEB = Path(__file__).resolve().parents[2] / "web"
@@ -128,3 +130,12 @@ def test_dates_are_singapore_dates():
     assert "Updated 8 Nov 2026." in p.tail(data)
     assert "<lastmod>2026-11-08</lastmod>" in p.sitemap(data)
     assert "Updated" not in p.tail({**REAL, "generated_at": "not a date"})
+
+
+def test_bad_town_ids_write_nothing(tmp_path):
+    for bad in ["../evil", "/abs/x", "Punggol", "index", "a.b", 7]:
+        data = copy.deepcopy(REAL)
+        data["towns"][0]["id"] = bad
+        with pytest.raises(ValueError, match="bad town id"):
+            p.build(data, tmp_path)
+        assert not any(tmp_path.rglob("*"))

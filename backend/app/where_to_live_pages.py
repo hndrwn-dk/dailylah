@@ -10,13 +10,16 @@ Writes, only when the content changed:
     web/sitemap.xml
 The rewrites from /where-to-live/... live in web/vercel.json, so the pages share the tool's CSP.
 The folder holds generated HTML only: the build job's patch may not touch it or the sitemap
-(scripts/push_data.sh allowlist); only this generator, run in the push job, writes them. Every value from the JSON goes through html.escape,
-and no page has a script of its own (only /shared/cta.js).
+(scripts/push_data.sh allowlist); only this generator, run in the push job, writes them. Every
+value from the JSON goes through html.escape, town ids must match the vercel.json rewrite
+pattern ([a-z0-9-]+) before they name a file, and no page has a script of its own (only
+/shared/cta.js).
 """
 
 import html
 import json
 import math
+import re
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -24,6 +27,7 @@ from typing import Any
 
 SITE = "https://dailylah.sg"
 TOWNS_DIR = "where-to-live-towns"
+TOWN_ID = re.compile(r"[a-z0-9-]+")  # the /where-to-live/:town rewrite in web/vercel.json
 WORKDAYS = 22  # working days in a month, there and back each day
 FLAT_ORDER = ["1-ROOM", "2-ROOM", "3-ROOM", "4-ROOM", "5-ROOM", "EXECUTIVE"]
 FLAT_LABEL = {
@@ -528,6 +532,10 @@ def _write(path: Path, text: str) -> bool:
 
 def build(data: dict, web_dir: Path) -> dict[str, int]:
     """Writes the pages and the sitemap; returns counts of written, unchanged and removed files."""
+    for t in data["towns"]:
+        # The id names a file and a URL: only what the /where-to-live/:town rewrite serves.
+        if not (isinstance(t.get("id"), str) and TOWN_ID.fullmatch(t["id"])) or t["id"] == "index":
+            raise ValueError(f"bad town id: {t.get('id')!r}")
     out_dir = web_dir / TOWNS_DIR
     files = {out_dir / f"{t['id']}.html": town_page(data, t) for t in data["towns"]}
     files[out_dir / "index.html"] = index_page(data)

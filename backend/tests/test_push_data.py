@@ -284,3 +284,15 @@ def test_generate_command_never_sees_the_key(repos, tmp_path):
     show = lambda rel: git(bare, "show", f"main:web/where-to-live-towns/{rel}", env=env)  # noqa: E731
     assert show("file.html") == "gone\n"
     assert show("env.html") == "env:unset\n"
+
+
+def test_a_generated_path_the_generator_did_not_write_is_skipped(repos, tmp_path):
+    seed, work, bare, env, script_env = repos
+    gen = "mkdir -p web/where-to-live-towns && echo '<p>a</p>' > web/where-to-live-towns/a.html"
+    patch = make_patch(seed, env, tmp_path, write("web/data/where-to-live.json"))
+    # web/sitemap.xml is neither on main nor written: git add must not fail on it.
+    result = run_script(work, script_env, patch, WHERE_TO_LIVE, ["--generate", gen, *GENERATED])
+    assert result.returncode == 0, result.stdout + result.stderr
+    files = git(bare, "ls-tree", "-r", "--name-only", "main", env=env).split()
+    assert "web/where-to-live-towns/a.html" in files
+    assert "web/sitemap.xml" not in files

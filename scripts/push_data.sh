@@ -89,7 +89,7 @@ check_patch_paths() {
 check_staged() {
   local meta path src dst
   while IFS= read -r -d '' meta && IFS= read -r -d '' path; do
-    if ! matches "$path" "${generated[@]}"; then
+    if ! matches "$path" ${generated[@]+"${generated[@]}"}; then
       check_path "$path"
     fi
     read -r src dst _ <<< "${meta#:}"
@@ -127,9 +127,12 @@ run_generate() {
     else
       spec=":(literal)$entry"
     fi
-    specs+=("$spec")
+    # Only pathspecs that match something: git add fails on one that matches nothing.
+    if [ -n "$(git ls-files --cached --others --exclude-standard -- "$spec")" ]; then
+      specs+=("$spec")
+    fi
   done
-  git add -A -- "${specs[@]}"
+  [ "${#specs[@]}" -eq 0 ] || git add -A -- "${specs[@]}"
 }
 
 check_patch_paths
