@@ -6,6 +6,7 @@
 
 import {
   MAX_MINUTES,
+  changeChoices,
   commuteText,
   flatLabel,
   flatTypes,
@@ -221,12 +222,21 @@ function setUpShare() {
 function makeMap(data) {
   const L = window.L;
   if (!L) return null;
-  const map = L.map("map", { maxBounds: SG_BOUNDS, minZoom: 11, maxZoom: 18, scrollWheelZoom: false });
+  // OneMap tiles start at zoom 11. A phone map is narrower than Singapore at zoom 11, so the map may
+  // zoom out to 10.5 in quarter steps and scales the zoom 11 tiles down (minNativeZoom).
+  const map = L.map("map", {
+    maxBounds: SG_BOUNDS,
+    minZoom: 10.5,
+    maxZoom: 18,
+    zoomSnap: 0.25,
+    scrollWheelZoom: false,
+  });
   const dark = window.matchMedia("(prefers-color-scheme: dark)");
   const tiles = L.tileLayer(TILE_URL, {
     style: dark.matches ? "Night" : "Default",
     maxZoom: 18,
-    minZoom: 11,
+    minZoom: 10.5,
+    minNativeZoom: 11,
     attribution: ONEMAP_ATTRIBUTION,
   }).addTo(map);
   dark.addEventListener("change", (e) => {
@@ -406,7 +416,8 @@ async function main() {
     },
   };
   const update = () => {
-    view.state = readQuery(formQuery(), data);
+    // changeChoices drops the budget when the mode changes; fillForm then clears the field.
+    view.state = changeChoices(view.state, formQuery(), data);
     view.open = null;
     view.selected = null;
     view.showAll = false;

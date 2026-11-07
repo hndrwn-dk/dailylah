@@ -52,6 +52,15 @@ export function readQuery(search, data) {
   return { area, mode, flat, budget, max };
 }
 
+/**
+ * New choices from the form. A budget is a monthly rent or a total price, so it is dropped when
+ * the mode changes (a rent of 3500 must not become a resale budget of $3,500).
+ */
+export function changeChoices(prev, search, data) {
+  const next = readQuery(search, data);
+  return next.mode !== prev.mode ? { ...next, budget: null } : next;
+}
+
 /** The query string for a state, leaving out defaults so shared links stay short. */
 export function writeQuery(state) {
   const q = new URLSearchParams();

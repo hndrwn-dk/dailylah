@@ -118,6 +118,10 @@ csp=$(curl -sS -L --max-time 30 -A "dailylah-web-check" -o /dev/null -D - "$SITE
   | grep -i '^content-security-policy:' | tail -1)
 if [ "$code" = 200 ] && grep -q 'id="board-body"' "$TMP/wtl.html" && [ -n "$csp" ]; then
   ok "$SITE/where-to-live opens (200) with a Content-Security-Policy"
+elif [ "${GITHUB_EVENT_NAME:-}" = pull_request ] && [ "$code" = 404 ]; then
+  # The live site serves main: a pull request that adds or moves the page cannot pass this yet.
+  echo "::warning::$SITE/where-to-live answered 404; expected before the page is on main"
+  echo "- ⚠️ $SITE/where-to-live answered 404 (not on main yet)" >> "$SUMMARY"
 else
   fail "$SITE/where-to-live answered $code at $(clean "$final"), board missing or no CSP header"
 fi

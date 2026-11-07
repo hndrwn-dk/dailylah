@@ -5,6 +5,7 @@ import { test } from "node:test";
 
 import { CTA } from "../shared/cta.js";
 import {
+  changeChoices,
   commuteText,
   flatTypes,
   highlightText,
@@ -88,6 +89,14 @@ test("readQuery picks a flat type that has prices for the mode", () => {
   assert.equal(readQuery("?mode=buy&flat=3-ROOM", DATA).flat, "4-ROOM");
   assert.deepEqual(flatTypes(DATA, "rent"), ["3-ROOM", "4-ROOM"]);
   assert.deepEqual(flatTypes(DATA, "buy"), ["4-ROOM"]);
+});
+
+test("changing rent/buy drops the budget; other changes keep it", () => {
+  const rent = state({ budget: 3500 });
+  assert.equal(changeChoices(rent, "?mode=buy&flat=4-ROOM&budget=3500", DATA).budget, null);
+  assert.equal(changeChoices(rent, "?mode=rent&flat=3-ROOM&budget=3500", DATA).budget, 3500);
+  const buy = state({ mode: "buy", budget: 650000 });
+  assert.equal(changeChoices(buy, "?mode=rent&budget=650000", DATA).budget, null);
 });
 
 test("writeQuery leaves defaults out and round-trips", () => {
