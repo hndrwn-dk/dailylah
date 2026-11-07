@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       track: ${{ steps.track.outputs.track }}
+      base_ref: ${{ steps.base.outputs.ref }}
     env:
       # A push to main is a release only when it bumps `version:` in pubspec.yaml (new feature or
       # bug fix); it then goes to closed testing (alpha) once the on-device tests pass (jobs e2e
@@ -54,6 +55,24 @@ jobs:
             fi
           fi
           echo "track=$track" >> "$GITHUB_OUTPUT"
+      - id: base
+        name: Previous release for the upgrade test
+        # Users upgrade from the last version that reached Google Play, not from the commit before
+        # this one (that may never have shipped). Release tags v<versionName> are made by the
+        # release-tag job below. HEAD^ so a manual run on a tagged commit compares with the release
+        # before it, not with itself.
+        if: steps.track.outputs.track != 'none'
+        working-directory: .
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if ref=$(git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD^ 2>/dev/null); then
+            echo "::notice title=Upgrade test::from $ref ($(git rev-parse --short "$ref^{commit}")), the last release"
+          else
+            if [ "$GITHUB_EVENT_NAME" = push ] && [ -n "$BEFORE" ]; then ref=$BEFORE; else ref=HEAD~1; fi
+            echo "::warning title=No release tag::No v* tag below this commit: the upgrade test runs from $ref, which may never have shipped. Create the tag of the last release (docs/HANDOFF.md)."
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
       - name: Check app id is com.tursinalabs.dailylah
         working-directory: .
         run: ./scripts/check-app-id.sh
@@ -129,14 +148,14 @@ jobs:
           retention-days: 30
 
   # The same commit must pass the on-device tests (app flows on API 29/35/36, upgrade over
-  # the previous main, the R8 release build, Maestro on this AAB) before anything goes to Google Play.
+  # the last release, the R8 release build, Maestro on this AAB) before anything goes to Google Play.
   e2e:
     name: on-device tests
     needs: analyze
     if: needs.analyze.outputs.track != 'none'
     uses: ./.github/workflows/emulator.yml
     with:
-      base_ref: ${{ github.event_name == 'push' && github.event.before || 'HEAD~1' }}
+      base_ref: ${{ needs.analyze.outputs.base_ref }}
       # The Maestro job tests the APK made from this very App Bundle.
       aab_artifact: dailylah-aab
 
@@ -145,6 +164,10 @@ jobs:
     needs: [analyze, e2e]
     if: needs.analyze.outputs.track != 'none'
     runs-on: ubuntu-latest
+    # One upload at a time; a second release waits instead of cancelling the first.
+    concurrency:
+      group: play-upload
+      cancel-in-progress: false
     env:
       PLAY_TRACK: ${{ needs.analyze.outputs.track }}
     steps:
@@ -190,3 +213,61 @@ jobs:
           whatsNewDirectory: docs/store/whatsnew
           tracks: ${{ env.PLAY_TRACK }}
           status: ${{ env.PLAY_TRACK == 'production' && 'draft' || 'completed' }}
+
+  # After a successful upload: tag the commit v<versionName> (the base of the next release's
+  # upgrade test) and, for production, keep the AAB and R8 mapping in a draft GitHub Release
+  # (the run artifact expires after 30 days). The only job here that writes to the repo; the
+  # token goes only to the step that needs it.
+  release-tag:
+    name: tag the release
+    needs: [analyze, play]
+    if: needs.analyze.outputs.track != 'none'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      PLAY_TRACK: ${{ needs.analyze.outputs.track }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: tag
+        name: Tag v<versionName>
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          ver=$(sed -n 's/^version:[[:space:]]*\([^+[:space:]]*\).*/\1/p' app/pubspec.yaml)
+          tag="v$ver"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if at=$(git rev-parse -q --verify "refs/tags/$tag^{commit}"); then
+            if [ "$at" = "$GITHUB_SHA" ]; then
+              echo "$tag is already on this commit."
+            else
+              echo "::warning title=Tag not moved::$tag already points to ${at::7}; this upload (${GITHUB_SHA::7}) is not tagged. Bump version: for a new release."
+              echo "moved=no" >> "$GITHUB_OUTPUT"
+            fi
+            exit 0
+          fi
+          git tag "$tag" "$GITHUB_SHA"
+          git push "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "refs/tags/$tag"
+          echo "::notice title=Release tag::$tag on ${GITHUB_SHA::7}"
+          echo "- Tagged $tag on ${GITHUB_SHA::7}" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: env.PLAY_TRACK == 'production' && steps.tag.outputs.moved != 'no'
+        with:
+          name: dailylah-aab
+          path: app/build
+      - name: Draft GitHub Release with the AAB and mapping (production)
+        if: env.PLAY_TRACK == 'production' && steps.tag.outputs.moved != 'no'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" app/build/dailylah.aab app/build/dailylah-mapping.txt --clobber
+          else
+            gh release create "$TAG" app/build/dailylah.aab app/build/dailylah-mapping.txt \
+              --draft --verify-tag --title "DailyLah ${TAG#v}" --notes-file docs/store/whatsnew/whatsnew-en-US
+          fi
+          echo "- Draft release $TAG with dailylah.aab and dailylah-mapping.txt" >> "$GITHUB_STEP_SUMMARY"

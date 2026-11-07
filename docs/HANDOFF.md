@@ -68,6 +68,35 @@ emulator e2e, Play upload gate) stay as they are.
   ProviderScope/ProviderContainer passes `retry: noRetry` (own retry rules in `_live`). Goldens
   unchanged. Dependabot follows riverpod majors again.
 
+## CI/CD review follow-ups (Nov 2026)
+Seven findings from a second review of the pipeline, one PR per group. Gates stay as they are.
+- PR 1 (release tags, branch `claude/practical-meitner-rz230k`): `app.yml` tests a release's
+  upgrade from the last release tag `v*` (job output `base_ref`, warning when there is none),
+  the new `release-tag` job (the only one with `contents: write`) tags each uploaded commit
+  `v<versionName>` and, for production, keeps the AAB and mapping in a draft GitHub Release; `play`
+  runs one at a time (`concurrency: play-upload`); `scripts/emulator_upgrade.sh` builds the old
+  version with its own `pubspec.lock`. Rules: docs/QA.md "Release tags".
+  - Not yet seen in CI: `release-tag`, the draft Release and the tag lookup on a real release push.
+    On the next release check: the `analyze` notice "Upgrade test: from v1.9.2", the `e2e` upgrade
+    job installing v1.9.2 first, then tag `v<new version>` on the release commit.
+- PR 2 (signing key out of the build job) and PR 3 (PR template for the AI review) follow.
+
+### Release tags to create by hand (once)
+Claude sessions cannot push tags (the session's git proxy refuses them), so create the first two
+from the laptop clone (`C:\Users\hendr\Deployment\dailylah`):
+```
+git pull
+git tag v1.9.1 06c6e7376bcb77ace8fc36d41d9c07381c6cb207
+git tag v1.9.2 45dd485efdaacd432b1c6ffe307832f9590484c2
+git push origin v1.9.1 v1.9.2
+```
+Or without a clone: `gh api repos/hndrwn-dk/dailylah/git/refs -f ref=refs/tags/v1.9.2 -f sha=<sha>`
+(same for v1.9.1). Older releases, only if a full archive is wanted (version bump commits on
+`main`): 1.9.0 a9f29be, 1.8.0 cf5dc80, 1.7.0 52a8481, 1.6.2 5fb50a2, 1.6.1 3740839, 1.6.0 86dbd79,
+1.5.0 43059ee, 1.4.0 eb09d8e, 1.3.0 f5192fe, 1.2.3 f0109c8, 1.2.2 6efc234, 1.2.1 ec06643,
+1.2.0 dc7ca69. Later tags are made by the `release-tag` job; a tag ruleset (see the next PRs)
+must let GitHub Actions create `v*` tags.
+
 ### GitHub settings to set by hand (Phase 1)
 Settings > Advanced Security (or Code security):
 1. **Secret scanning**: Enable. Then **Push protection**: Enable.

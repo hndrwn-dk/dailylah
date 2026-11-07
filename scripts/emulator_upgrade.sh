@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Upgrade test (docs/QA.md section 5), run inside the Android emulator job.
-# 1. Build and install the previous version (BASE_REF, default origin/main).
+# 1. Build and install the previous version (BASE_REF: the last release tag v* on a release,
+#    origin/main on a pull request), with its committed pubspec.lock.
 # 2. Give it the data a real user would have: a set-up household with a changed toggle.
 # 3. Install the new build over it with `adb install -r` (no uninstall, data kept).
 # 4. Run app/integration_test/upgrade_check_test.dart, which must find that data.
@@ -16,7 +17,15 @@ OLD=/tmp/dailylah-old
 
 echo "Previous version: $BASE_REF ($(git -C "$ROOT" rev-parse --short "$BASE_REF"))"
 git -C "$ROOT" worktree add --force "$OLD" "$BASE_REF"
-(cd "$OLD/app" && flutter pub get && flutter build apk --debug)
+# Same exact dependencies the old version shipped with; a ref from before the lockfile was
+# committed resolves fresh, with a warning.
+if [ -f "$OLD/app/pubspec.lock" ]; then
+  (cd "$OLD/app" && flutter pub get --enforce-lockfile)
+else
+  echo "::warning title=Upgrade test::$BASE_REF has no app/pubspec.lock; its dependencies are resolved fresh, not as shipped."
+  (cd "$OLD/app" && flutter pub get)
+fi
+(cd "$OLD/app" && flutter build apk --debug)
 OLD_APK="$OLD/app/build/app/outputs/flutter-apk/app-debug.apk"
 
 adb -s "$DEVICE" uninstall "$PKG" >/dev/null 2>&1 || true
