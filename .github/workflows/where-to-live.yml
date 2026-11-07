@@ -8,45 +8,14 @@ on:
   schedule:
     - cron: "41 19 * * 0" # Monday 03:41 SGT
   workflow_dispatch:
-  # TEMPORARY (remove before merge): dry run on the feature branch, so the real dataset
-  # columns and OneMap answers can be checked in the log. It writes and pushes nothing.
-  push:
-    branches: [feat/where-to-live-data]
 permissions: {}
 concurrency:
-  group: where-to-live-${{ github.ref }}
+  group: where-to-live
   cancel-in-progress: false
 jobs:
-  # TEMPORARY (remove before merge), with the push trigger above.
-  dry-run:
-    name: where-to-live (dry run)
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    # Reads the repository only; writes and pushes nothing.
-    permissions:
-      contents: read
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: backend/requirements.txt
-      - run: pip install -r backend/requirements.txt
-      - name: Build (dry run)
-        working-directory: backend
-        env:
-          DATAGOV_API_KEY: ${{ secrets.DATAGOV_API_KEY }}
-          ONEMAP_EMAIL: ${{ secrets.ONEMAP_EMAIL }}
-          ONEMAP_PASSWORD: ${{ secrets.ONEMAP_PASSWORD }}
-        run: python -m app.where_to_live ../web/data --dry-run
-
   build:
     name: where-to-live (build and commit)
-    if: github.event_name != 'push' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     # Commits the rebuilt file to main.
     permissions:

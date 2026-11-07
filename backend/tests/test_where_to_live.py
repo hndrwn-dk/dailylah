@@ -415,7 +415,16 @@ async def test_build_end_to_end(tmp_path, monkeypatch):
     assert punggol["resale"]["4-ROOM"] == {"median": 610000, "quarter": "2026-Q2"}
     assert punggol["commute"]["cbd"] == {"min": 45, "transfers": 1}
     jurong = next(t for t in data["towns"] if t["id"] == "jurong-east")
-    assert jurong["commute"]["jurong-east"] == {"min": 0, "transfers": 0}
+    assert jurong["commute"]["jurong-east"] == {"min": None, "transfers": None, "same_area": True}
+    assert jurong["commute"]["cbd"] == {"min": 45, "transfers": 1}
+    woodlands = next(t for t in data["towns"] if t["id"] == "woodlands")
+    assert woodlands["commute"]["woodlands"]["same_area"] is True
+    assert woodlands["commute"]["woodlands"]["min"] is None
+    # Only the two same-area pairs carry the flag.
+    flagged = [
+        (t["id"], a) for t in data["towns"] for a, v in t["commute"].items() if v.get("same_area")
+    ]
+    assert sorted(flagged) == [("jurong-east", "jurong-east"), ("woodlands", "woodlands")]
     assert report["rent"]["points_without_data"] == []
     assert report["routes"]["fetched"] == 26 * 6 - 2  # two towns are office areas too
     assert len(cache) == 26 * 6 - 2
@@ -468,3 +477,97 @@ def test_parse_medians_real_row_shapes():
     assert s[amk]["2-ROOM"] is None
     assert s[amk]["3-ROOM"] == {"median": 425000, "quarter": "2026-Q2"}
     assert s[w.town_key("CENTRAL AREA")]["4-ROOM"]["median"] == 900000
+
+
+async def test_build_routes_same_area_is_flagged_and_not_asked():
+    calls = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        calls.append(req)
+        return httpx.Response(200, json=ROUTE_BODY)
+
+    om, client = onemap(handler)
+    town = {
+        "id": "woodlands",
+        "town": "WOODLANDS",
+        "name": "Woodlands",
+        "station": "Woodlands",
+        "lat": 1.43619,
+        "lng": 103.78763,
+    }
+    area = {
+        "id": "woodlands",
+        "name": "Woodlands",
+        "station": "Woodlands",
+        "lat": 1.43619,
+        "lng": 103.78763,
+    }
+    out, new_cache, notes = await w.build_routes(
+        om, [town], [area], {}, date(2026, 11, 7), set(), sleep=no_sleep
+    )
+    await client.aclose()
+    assert out == {"woodlands": {"woodlands": {"min": None, "transfers": None, "same_area": True}}}
+    assert calls == [] and new_cache == {}
+    assert notes["fetched"] == notes["failed"] == 0
+
+
+def test_assemble_counts_same_area_as_known():
+    commute = {f"t{i}": {"cbd": dict(w.SAME_AREA) if i < 6 else None} for i in range(22)}
+    commute.update({f"t{i}": {"cbd": {"min": 30, "transfers": 1}} for i in range(6, 22)})
+    data = w.assemble(points(22), ("2026-Q3", priced(22)), ("2026-Q3", {}), commute)
+    assert data["towns"][0]["commute"]["cbd"]["same_area"] is True
+
+
+def test_flat_types_from_both_datasets_share_one_key():
+    # Real spellings: rent "4-RM", resale "4-room" (dry run, 7 Nov 2026).
+    rent = [
+        {
+            "_id": 1,
+            "quarter": "2026-Q3",
+            "town": "PUNGGOL",
+            "flat_type": "4-RM",
+            "median_rent": "3300",
+        },
+        {
+            "_id": 2,
+            "quarter": "2026-Q3",
+            "town": "PUNGGOL",
+            "flat_type": "EXECUTIVE",
+            "median_rent": "3600",
+        },
+    ]
+    resale = [
+        {
+            "_id": 1,
+            "quarter": "2026-Q2",
+            "town": "Punggol",
+            "flat_type": "4-room",
+            "price": "610000",
+        },
+        {
+            "_id": 2,
+            "quarter": "2026-Q2",
+            "town": "Punggol",
+            "flat_type": "Executive",
+            "price": "800000",
+        },
+    ]
+    _, r, _ = w.parse_medians(rent)
+    _, s, _ = w.parse_medians(resale)
+    key = w.town_key("PUNGGOL")
+    assert w.town_key("Punggol") == key
+    assert list(r[key]) == list(s[key]) == ["4-ROOM", "EXECUTIVE"]
+    assert r[key]["4-ROOM"]["median"] == 3300 and s[key]["4-ROOM"]["median"] == 610000
+    for raw in (
+        "1-RM",
+        "2-RM",
+        "3-RM",
+        "4-RM",
+        "5-RM",
+        "1-room",
+        "2-room",
+        "3-room",
+        "4-room",
+        "5-room",
+    ):
+        assert w.norm_flat(raw) == f"{raw[0]}-ROOM"

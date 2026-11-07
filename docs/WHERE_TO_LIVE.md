@@ -45,11 +45,13 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
 - Rute: OneMap `routeType=pt`, `mode=TRANSIT`, hari kerja berikutnya (lewati libur dari
   `web/data/holidays.json`) jam 08:30, itinerary tercepat. Retry 3x dengan backoff untuk 429/5xx/
   error jaringan. Cache `backend/data/where_to_live_routes.json`, dihitung ulang setelah 30 hari
-  atau kalau titiknya pindah; rute yang gagal memakai nilai lama. Town = area kantor (Jurong East,
-  Woodlands) dicatat 0 menit.
+  atau kalau titiknya pindah; rute yang gagal memakai nilai lama. Town yang sama dengan area kantor
+  (Jurong East, Woodlands) tidak ditanya ke OneMap dan dicatat
+  `{"min": null, "transfers": null, "same_area": true}`; halaman menampilkannya sebagai "In this area".
 - Keluaran `web/data/where-to-live.json` (compact): `generated_at`, `rent_quarter`,
   `resale_quarter`, `commute_depart`, `areas[]`, `towns[]` (`id`, `name`, `station`, `lat`, `lng`,
-  `rent`, `resale`, `commute: {area id: {"min", "transfers"} | null}`), `attribution`. Tidak masuk
+  `rent`, `resale`, `commute: {area id: {"min", "transfers"} | {"same_area": true, ...} | null}`),
+  `attribution`. Tipe flat dari kedua dataset (`4-RM`, `4-room`) dinormalisasi ke `4-ROOM`. Tidak masuk
   `manifest.json` app (`NOT_IN_MANIFEST` di `build_static.py`).
 - `generated_at` hanya diperbarui kalau datanya berubah, jadi minggu tanpa perubahan tidak membuat
   commit. Cache rute juga hanya ditulis kalau berubah.
@@ -59,9 +61,10 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
   hanya di `main`, commit langsung ke `main` seperti `data.yml` (pull --rebase lalu push, 3 kali).
   Saat ruleset `main` aktif, workflow ini butuh bypass yang sama dengan `data.yml` (HANDOFF,
   "Rulesets").
-- Selama PR terbuka ada trigger sementara `push` ke `feat/where-to-live-data` dengan job `dry-run`
-  (`--dry-run`: cetak laporan, contoh baris dataset, contoh jawaban OneMap dan potongan JSON; tidak
-  menulis atau push). Dihapus sebelum merge.
+- Uji di branch: trigger sementara `push` dengan job `dry-run` (`--dry-run`) jalan sekali pada
+  7 Nov 2026 (154 rute OK, sekitar 3,6 menit; kolom asli: sewa `quarter`/`town`/`flat_type` `4-RM`/
+  `median_rent`, resale `quarter`/`town` huruf campur/`flat_type` `4-room`/`price`, nilai `na` dan
+  `-`). Trigger itu sudah dihapus sebelum merge.
 - Lokal: `cd backend && python -m app.where_to_live ../web/data --dry-run` (butuh `.env` dengan
   akun OneMap).
 

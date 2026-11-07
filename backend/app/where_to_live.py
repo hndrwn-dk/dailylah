@@ -228,6 +228,9 @@ def route_sample(body: Any) -> dict:
     }
 
 
+# Commute value for a town that is itself the office area (Jurong East, Woodlands).
+SAME_AREA = {"min": None, "transfers": None, "same_area": True}
+
 Sleep = Callable[[float], Awaitable[None]]
 
 
@@ -294,7 +297,9 @@ async def build_routes(
     pause: float = 0.25,
     sleep: Sleep = asyncio.sleep,
 ) -> tuple[dict, dict, dict]:
-    """({town id: {area id: {"min", "transfers"} | None}}, new cache, notes)."""
+    """({town id: {area id: {"min", "transfers"} | SAME_AREA | None}}, new cache, notes).
+
+    None means no route is known; SAME_AREA means the town is the office area."""
     day = depart_day(today, holidays)
     fresh_after = (today - timedelta(days=ROUTE_MAX_AGE_DAYS)).isoformat()
     new_cache: dict = {}
@@ -307,8 +312,9 @@ async def build_routes(
             key = f"{town['id']}|{area['id']}"
             start, end = [town["lat"], town["lng"]], [area["lat"], area["lng"]]
             old = cache.get(key)
-            if town["id"] == area["id"] or (start == end):
-                out[town["id"]][area["id"]] = {"min": 0, "transfers": 0}
+            if town["id"] == area["id"] or start == end:
+                # The town is the office area: the page shows "In this area", not a time.
+                out[town["id"]][area["id"]] = dict(SAME_AREA)
                 continue
             if _cached(old, start, end) and str(old.get("at", "")) >= fresh_after:
                 new_cache[key] = old
@@ -370,7 +376,7 @@ def assemble(
     if priced < MIN_TOWNS_WITH_PRICES:
         raise BuildError(f"only {priced} towns have prices")
     pairs = [v for c in commute.values() for v in c.values()]
-    share = sum(1 for v in pairs if v) / len(pairs) if pairs else 0.0
+    share = sum(1 for v in pairs if v is not None) / len(pairs) if pairs else 0.0
     if share < MIN_COMMUTE_SHARE:
         raise BuildError(f"only {share:.0%} of commutes are known")
     return {

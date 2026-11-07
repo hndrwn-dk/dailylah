@@ -23,8 +23,8 @@ rent/resale. Static page and JSON, no browser API calls, no Render. One PR per p
 - Phase 1 (data pipeline, branch `feat/where-to-live-data`): `backend/app/where_to_live.py`,
   weekly `.github/workflows/where-to-live.yml`, output `web/data/where-to-live.json`, route cache
   `backend/data/where_to_live_routes.json`.
-  - Before merge: the temporary `push` trigger and `dry-run` job in `where-to-live.yml` must be
-    removed (they only exist to check the real dataset columns and OneMap answers in the log).
+  - A dry run on the branch (7 Nov) read the real dataset columns and 154 OneMap routes; its
+    temporary `push` trigger was removed before the PR.
   - After merge: run Actions > where-to-live > Run workflow once and check that it commits.
   - Once the `main` ruleset is on, this workflow needs the same bypass as `data.yml`.
 - Phase 2 (page `/where-to-live`), Phase 3 (per-town SEO pages), Phase 4 (launch with production).
