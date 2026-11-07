@@ -212,6 +212,9 @@ No new secrets are needed for Phase 1.
     that dataset were not visible from the sandbox, so `FACILITY_LABELS` in bundles.py may need tuning.
 
 ## Open ideas / not possible
+- App backlog (7 Nov 2026): History: add an optional price field for meals, so the weekly total
+  includes lunch. Today `MealLog` has no cost; History counts meals but adds up only trips and
+  parking. When it lands, the home page History card and timeline can show meal spending.
 - Wikimedia photos for big parks: not started.
 - OnePA and NParks events: written permission needed. A short email to PA was drafted, not sent.
 - Return Right machine locations: the website terms forbid reuse; ask BCRS.
