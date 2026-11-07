@@ -60,6 +60,7 @@
   .play svg { flex: none; }
   .steps { margin: 16px 0 0; padding-left: 22px; font-size: 15px; max-width: 46ch; }
   .steps li + li { margin-top: 4px; }
+  .cta { min-height: 150px; }
   .fine { margin: 14px 0 0; color: var(--mist); font-size: 15px; }
 
   /* ---------------- LED bus board (the one loud thing) */
@@ -106,6 +107,12 @@
   .spend-row b { font-family: var(--display); font-size: 19px; }
   .order span { text-align: center; padding: 8px; border-radius: 10px; border: 2px solid var(--edge); background: var(--sky); font-weight: 700; font-size: 15px; color: var(--ink); }
 
+  /* ---------------- where to live */
+  .tool { padding: 24px; margin-bottom: 40px; display: grid; gap: 12px; justify-items: start; background: var(--sky); }
+  .tool p { margin: 0; max-width: 60ch; }
+  .go-tool { font-weight: 700; padding: 10px 16px; border: 2.5px solid var(--edge); border-radius: 12px; background: #0A7068;
+             color: #fff; text-decoration: none; box-shadow: 3px 4px 0 var(--shadow); }
+  .go-tool:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
   /* ---------------- privacy */
   .private { padding: 28px 24px; margin-bottom: 72px; background: var(--mint); display: grid; gap: 18px; }
   @media (min-width: 760px) { .private { grid-template-columns: 1fr 1.4fr; padding: 36px; } }
@@ -117,6 +124,7 @@
   footer p { margin: 0 0 8px; max-width: 70ch; }
   footer nav { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; font-weight: 600; }
 </style>
+<script type="module" src="/shared/cta.js"></script>
 </head>
 <body>
 <main class="wrap">
@@ -129,14 +137,10 @@
         <li>Haze bad or not? Makan where?</li>
         <li>Bus coming? MRT delay? Alamak...</li>
       </ul>
-      <a class="play" href="https://play.google.com/apps/testing/com.tursinalabs.dailylah" rel="noopener">
-        <svg width="22" height="24" viewBox="0 0 22 24" aria-hidden="true"><path d="M2 1.5v21L20.5 12z" fill="#0F1618"/></svg>
-        Join the beta on Google Play
-      </a>
-      <ol class="steps">
-        <li><a href="https://groups.google.com/g/tursinalabs-testers" rel="noopener">Join the testers group</a> with the Google account on your phone.</li>
-        <li>Tap <b>Join the beta</b> above, accept, then install DailyLah from Google Play.</li>
-      </ol>
+      <!-- Filled by /shared/cta.js (one place for the Play link, label and steps). -->
+      <div class="cta" data-cta>
+        <noscript><p class="fine">Turn on JavaScript to see how to get DailyLah on Google Play.</p></noscript>
+      </div>
       <p class="fine">Free for Android. No account, no ads, and your places stay on your phone.</p>
     </div>
 
@@ -199,6 +203,12 @@
       </div>
       <p>Estimated from distance and published fares and parking rates. Tap a trip to enter what it really cost. Kept on your phone only.</p>
     </article>
+  </section>
+
+  <section class="tool sticker">
+    <h2>Where to live?</h2>
+    <p>Compare HDB towns by MRT and bus time to your office and by HDB median rent or resale price, on one map.</p>
+    <a class="go-tool" href="/where-to-live">Compare towns</a>
   </section>
 
   <section class="private sticker">

@@ -1,6 +1,6 @@
 # DailyLah Privacy Policy
 
-**Last updated: 6 November 2026**
+**Last updated: 7 November 2026**
 App: DailyLah (Android, package `com.tursinalabs.dailylah`)
 Published at: https://www.tursinalabs.com/dailylah/privacy
 
@@ -11,7 +11,7 @@ Published at: https://www.tursinalabs.com/dailylah/privacy
 ## English
 
 ### 1. Scope
-This policy covers only the DailyLah app by Tursina Labs. Other Tursina Labs products are covered by the studio privacy policy. Use of the app is also governed by the [DailyLah Terms of Service](https://www.tursinalabs.com/dailylah/terms).
+This policy covers only the DailyLah app by Tursina Labs and its website, dailylah.sg. Other Tursina Labs products are covered by the studio privacy policy. Use of the app is also governed by the [DailyLah Terms of Service](https://www.tursinalabs.com/dailylah/terms).
 
 ### 2. What DailyLah is
 DailyLah is a free daily companion for people in Singapore. It shows bus arrivals at your saved stops, MRT/LRT service status, platform crowd levels and the 2-hour weather forecast, using public data from LTA DataMall and data.gov.sg. There is no DailyLah account and no sign-in.
@@ -53,6 +53,9 @@ If you turn on **Halal food nearby** (More > Extras), the app shows halal places
 
 The **Emergency** tab lists AEDs, A&E hospitals, CHAS clinics, fire stations and Civil Defence shelters near the place you pick, computed on your phone. Tapping a phone number opens your dialer; tapping directions opens Google Maps with the destination only. The "MRT route in Google Maps" button on a trip is the one exception: it opens Google Maps with both ends of that trip (for example your home and your office), and only when you tap it. The taxi view shows free taxis and LTA taxi stands around your place, also computed on your phone. The ride and food delivery buttons (Grab, Gojek, CDG Zig, TADA, GrabFood, foodpanda) only open that app on your phone, or its Play Store page; DailyLah sends nothing to them and takes no orders. Tapping an event opens its page on Eventfinda in your browser; the event list itself is downloaded by our daily build, so Eventfinda never sees who uses DailyLah. When you open a place (a hawker centre, car park, school and so on), the app loads a small map picture of that place from OneMap (Singapore Land Authority); only the place's coordinates are sent, not your location.
 
+### 5a. The dailylah.sg website
+The website, including the **Where to live?** page, has no account, no cookies, no analytics and no advertising. On Where to live? your choices (office area, rent or buy, flat type, budget, travel time) are worked out in your browser from a public data file and kept only in the page address, so a link you share carries them; they are not sent to Tursina Labs. The map on that page loads map tiles and the OneMap logo from **OneMap** (Singapore Land Authority), so OneMap receives your IP address and which map area is shown, as with any website you visit; it does not receive your choices. Our hosting provider keeps the same technical request logs as for the data bundles above.
+
 ### 6. Notifications
 Alerts for MRT disruptions, rain before your usual departure, favourite hawker centres closing tomorrow, dengue clusters near home or school, high heat stress or lightning, new resale transactions at blocks you watch, when to leave for your bus (to work or school, or to a saved place you gave a usual time), the Sunday "This week around you" summary and your parking time are decided **on your phone**. Every 15 minutes or so, the app checks the latest public alerts and forecast and, if they match your settings, shows a local notification. No push token or device identifier is sent to Tursina Labs. You can turn alerts off in the app settings or in Android settings.
 
@@ -90,7 +93,7 @@ support@tursinalabs.com
 ## Bahasa Indonesia
 
 ### 1. Cakupan
-Kebijakan ini hanya berlaku untuk aplikasi DailyLah dari Tursina Labs. Produk Tursina Labs lainnya diatur oleh kebijakan privasi studio. Penggunaan aplikasi juga diatur oleh [Ketentuan Layanan DailyLah](https://www.tursinalabs.com/dailylah/terms).
+Kebijakan ini hanya berlaku untuk aplikasi DailyLah dari Tursina Labs dan situsnya, dailylah.sg. Produk Tursina Labs lainnya diatur oleh kebijakan privasi studio. Penggunaan aplikasi juga diatur oleh [Ketentuan Layanan DailyLah](https://www.tursinalabs.com/dailylah/terms).
 
 ### 2. Tentang DailyLah
 DailyLah adalah teman harian gratis untuk warga Singapura. Aplikasi ini menampilkan kedatangan bus di halte favorit, status layanan MRT/LRT, tingkat kepadatan peron, dan prakiraan cuaca 2 jam, memakai data publik dari LTA DataMall dan data.gov.sg. Tidak ada akun DailyLah dan tidak perlu login.
@@ -131,6 +134,9 @@ Tab **Home** menampilkan blok Anda (atau, untuk rumah swasta, data jual dan sewa
 Jika Anda menyalakan **Halal food nearby** (More > Extras), app menampilkan tempat halal yang terdaftar di Muslim.sg dari bundle yang diunduh ke HP; pencarian dan jarak dihitung di HP. DailyLah tidak berafiliasi dengan MUIS.
 
 Tab **Darurat** menampilkan AED, IGD rumah sakit, klinik CHAS, pos pemadam kebakaran, dan shelter Civil Defence di sekitar tempat yang Anda pilih, dihitung di HP Anda. Menekan nomor telepon membuka aplikasi telepon; menekan rute membuka Google Maps dengan tujuan saja. Satu-satunya pengecualian adalah tombol "MRT route in Google Maps" pada perjalanan: tombol itu membuka Google Maps dengan kedua ujung perjalanan (misalnya rumah dan kantor Anda), dan hanya saat Anda menekannya. Tampilan taksi menunjukkan taksi kosong dan pangkalan taksi LTA di sekitar tempat Anda, juga dihitung di HP Anda. Saat Anda membuka sebuah tempat (hawker, parkir, sekolah, dan lain-lain), app memuat gambar peta kecil tempat itu dari OneMap (Singapore Land Authority); yang dikirim hanya koordinat tempat tersebut, bukan lokasi Anda. Tombol ride dan pesan antar makanan (Grab, Gojek, CDG Zig, TADA, GrabFood, foodpanda) hanya membuka aplikasi tersebut di HP Anda, atau halaman Play Store-nya; DailyLah tidak mengirim apa pun ke aplikasi itu dan tidak menerima pesanan. Menekan sebuah event membuka halamannya di Eventfinda di browser; daftar event diunduh oleh proses harian kami, jadi Eventfinda tidak tahu siapa yang memakai DailyLah.
+
+### 5a. Situs dailylah.sg
+Situs ini, termasuk halaman **Where to live?**, tidak memakai akun, cookie, analytics, maupun iklan. Di halaman Where to live?, pilihan Anda (area kantor, sewa atau beli, tipe flat, budget, waktu tempuh) diolah di browser dari file data publik dan hanya disimpan di alamat halaman, sehingga tautan yang Anda bagikan ikut membawanya; pilihan itu tidak dikirim ke Tursina Labs. Peta di halaman itu memuat tile peta dan logo OneMap dari **OneMap** (Singapore Land Authority), sehingga OneMap menerima alamat IP Anda dan area peta yang ditampilkan, seperti situs lain yang Anda kunjungi; OneMap tidak menerima pilihan Anda. Penyedia hosting kami menyimpan log teknis yang sama seperti untuk bundel data di atas.
 
 ### 6. Notifikasi
 Notifikasi gangguan MRT, hujan sebelum jam berangkat, hawker favorit yang tutup besok, cluster dengue dekat rumah atau sekolah, panas tinggi atau petir, transaksi resale baru di blok yang Anda pantau, kapan berangkat untuk mengejar bus (ke kantor, sekolah, atau tempat tersimpan yang Anda beri jam biasa), ringkasan Minggu "This week around you", dan waktu parkir Anda diputuskan **di HP Anda**. Kira-kira setiap 15 menit, aplikasi mengecek status dan prakiraan publik terbaru, lalu menampilkan notifikasi lokal jika sesuai dengan pengaturan Anda. Tidak ada token push atau pengenal perangkat yang dikirim ke Tursina Labs. Notifikasi bisa dimatikan di pengaturan aplikasi atau pengaturan Android.

@@ -1,0 +1,122 @@
+/* /where-to-live. Tokens are the landing page's (web/index.html), which match the app
+   (app/lib/ui/theme.dart, class DL). The ranked board is the loud part; the rest stays quiet. */
+@font-face { font-family: "Barlow Condensed"; src: url(/fonts/BarlowCondensed-Bold.woff2) format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Plus Jakarta Sans"; src: url(/fonts/PlusJakartaSans.woff2) format("woff2"); font-weight: 200 800; font-display: swap; }
+
+:root {
+  --paper: #E8F3F6; --card: #F4FBFE; --ink: #0F1618; --mist: #50646A;
+  --teal: #0E9488; --teal-text: #0A7068; --amber: #EDAD2B;
+  --mint: #CFEDEA; --sky: #BFE4F1;
+  --board: #101719; --led: #FFB627; --led-dim: #B9C7CB; --led-off: #6E7F84;
+  --edge: var(--ink); --shadow: var(--ink);
+  --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --body: "Plus Jakarta Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --paper: #0B1214; --card: #152024; --ink: #E8F3F6; --mist: #A9BCC2; --teal-text: #3CC4B6;
+          --mint: #17322F; --sky: #16303A; --edge: #5E7880; --shadow: #000; --led-off: #7F9196; }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.6 var(--body); }
+a { color: var(--teal-text); text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 3px solid var(--amber); outline-offset: 2px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+.sticker { background: var(--card); border: 2.5px solid var(--edge); border-radius: 16px; box-shadow: 4px 5px 0 var(--shadow); }
+
+/* ---------------- top and intro */
+.top { padding: 20px 0 8px; }
+.home img { width: 104px; height: auto; display: block; }
+.intro { padding: 8px 0 22px; }
+h1 { font: 700 clamp(48px, 9vw, 84px)/0.92 var(--display); margin: 0 0 14px; letter-spacing: -0.01em; }
+.lead { margin: 0; color: var(--mist); max-width: 62ch; font-size: 18px; }
+
+/* ---------------- choices */
+.choices { display: grid; gap: 14px 18px; padding: 18px; margin-bottom: 24px; }
+@media (min-width: 640px) { .choices { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 1000px) { .choices { grid-template-columns: 1.3fr 1.1fr 0.9fr 1fr 1fr; align-items: end; } }
+.field { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.field > span, .field legend { font-weight: 700; font-size: 15px; padding: 0; }
+select, input[type=text] {
+  font: 600 16px/1.2 var(--body); color: var(--ink); background: var(--paper); width: 100%;
+  border: 2px solid var(--edge); border-radius: 10px; padding: 10px 12px; min-height: 46px; }
+input[type=text]::placeholder { color: var(--mist); }
+.mode { display: flex; flex-wrap: wrap; gap: 8px; }
+.mode legend { margin-bottom: 6px; width: 100%; }
+.mode label { flex: 1 1 auto; display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 12px;
+              border: 2px solid var(--edge); border-radius: 10px; font-weight: 600; cursor: pointer; background: var(--paper); }
+.mode label:has(input:checked) { background: var(--mint); }
+.mode input { accent-color: var(--teal); width: 18px; height: 18px; margin: 0; }
+
+/* ---------------- results */
+.results { display: grid; gap: 24px; margin-bottom: 32px; }
+@media (min-width: 960px) {
+  .results { grid-template-columns: 1.1fr 1fr; align-items: start; }
+  .map-wrap { position: sticky; top: 16px; }
+}
+
+/* The board: like the bus arrival board on the landing page. */
+.board-wrap { background: var(--board); border-color: var(--edge); color: var(--led); padding: 18px 18px 8px; }
+.board-wrap h2 { font: 700 clamp(32px, 5vw, 44px)/1 var(--display); margin: 0; color: var(--led); }
+.board-sub { margin: 4px 0 8px; color: var(--led-dim); font-size: 14px; }
+.group summary { font: 600 15px/1.3 var(--body); color: var(--led-dim); margin: 16px 0 6px; cursor: pointer; }
+.group summary:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+.why { color: var(--led); font-weight: 600; }
+.group h3 { font: 600 14px/1.3 var(--body); color: var(--led-dim); margin: 16px 0 2px; }
+.rows { list-style: none; margin: 0; padding: 0; }
+.row { padding: 10px 0 12px; border-top: 1px solid rgba(255, 182, 39, 0.22); }
+.row-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.town { font: 700 28px/1.05 var(--display); color: var(--led); background: none; border: 0; padding: 0; margin: 0;
+        text-align: left; cursor: pointer; }
+.town:hover { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; }
+.eta { font: 700 34px/1 var(--display); white-space: nowrap; }
+.eta small { font-size: 17px; margin-left: 3px; }
+.detail { margin: 4px 0 0; display: grid; gap: 1px; font-size: 14px; line-height: 1.45; color: var(--led-dim); }
+.muted { color: var(--led-off); }
+.row.noPrice .town, .row.noPrice .eta { color: var(--led-dim); }
+.row.other .town, .row.other .eta { color: var(--led-off); }
+.empty { color: var(--led-dim); margin: 6px 0 12px; font-size: 15px; }
+
+/* ---------------- map */
+.map-wrap { overflow: hidden; }
+.map { height: 320px; background: var(--sky); }
+/* Phones: the map first (short), then the board. */
+@media (max-width: 959px) { .map-wrap { order: -1; } }
+@media (min-width: 960px) { .map { height: min(72vh, 640px); } }
+.legend { list-style: none; margin: 0; padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px;
+          border-top: 2px solid var(--edge); }
+.legend li { display: flex; align-items: center; gap: 6px; }
+.dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #0F1618; display: inline-block; }
+.dot.match { background: #0E9488; }
+.dot.noPrice { background: #EDAD2B; }
+.dot.other { background: #8A9BA0; }
+.dot.office { background: #FFFFFF; width: 16px; height: 16px; border-width: 3px; }
+.pop { display: grid; gap: 2px; font: 500 14px/1.4 var(--body); }
+.pop strong { font: 700 20px/1.1 var(--display); }
+.leaflet-container { font-family: var(--body); }
+.leaflet-control-attribution { font-size: 11px; }
+.om-logo { width: 20px; height: 20px; vertical-align: middle; }
+
+/* ---------------- app */
+.app { padding: 22px; margin-bottom: 32px; background: var(--mint); }
+.app h2 { font: 700 clamp(30px, 4.5vw, 40px)/1 var(--display); margin: 0 0 8px; }
+.app > p { margin: 0 0 16px; max-width: 60ch; }
+.play { display: inline-flex; align-items: center; gap: 12px; padding: 12px 18px; background: var(--amber); color: #0F1618;
+        border: 2.5px solid var(--edge); border-radius: 14px; box-shadow: 3px 4px 0 var(--shadow); font-weight: 700;
+        text-decoration: none; }
+.play:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
+.play svg { flex: none; }
+.steps { margin: 16px 0 0; padding-left: 22px; font-size: 15px; max-width: 52ch; }
+.steps li + li { margin-top: 4px; }
+
+/* ---------------- notes */
+.notes { padding: 8px 0 48px; color: var(--mist); font-size: 14px; border-top: 2px solid var(--edge); }
+.notes p { max-width: 80ch; }
+.notes nav { display: flex; flex-wrap: wrap; gap: 6px 18px; font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; }
+  .leaflet-fade-anim .leaflet-popup, .leaflet-zoom-anim .leaflet-zoom-animated { transition: none !important; }
+}

@@ -5,6 +5,8 @@
 # - Redirects are followed; a host that answers through a redirect (dailylah.sg -> www) is a warning.
 # - data/manifest.json loads from every host in webUrls (app/lib/api.dart) and is valid: a version,
 #   a non-empty list of files, each with a path and a sha256; one small bundle matches its sha256.
+# - /where-to-live opens with its Content-Security-Policy, and data/where-to-live.json is valid
+#   (26 towns, a commute for every office area).
 # Every problem is printed as an error; the script fails at the end if there was any.
 set -uo pipefail
 
@@ -108,6 +110,30 @@ PY
   else
     fail "${HOSTS[0]}/data/$(clean "$path") answered $code with sha256 $got, manifest says $(clean "$want")"
   fi
+fi
+
+# 5. The Where to live? page opens with its CSP, and its data file is valid.
+read -r code final _ <<< "$(fetch "$SITE/where-to-live" "$TMP/wtl.html")"
+csp=$(curl -sS -L --max-time 30 -A "dailylah-web-check" -o /dev/null -D - "$SITE/where-to-live" 2>/dev/null \
+  | grep -i '^content-security-policy:' | tail -1)
+if [ "$code" = 200 ] && grep -q 'id="board-body"' "$TMP/wtl.html" && [ -n "$csp" ]; then
+  ok "$SITE/where-to-live opens (200) with a Content-Security-Policy"
+else
+  fail "$SITE/where-to-live answered $code at $(clean "$final"), board missing or no CSP header"
+fi
+read -r code _ _ <<< "$(fetch "$SITE/data/where-to-live.json" "$TMP/wtl.json")"
+if [ "$code" = 200 ] && python3 - "$TMP/wtl.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+areas = [a["id"] for a in d["areas"]]
+assert len(d["towns"]) == 26 and len(areas) == 6
+for t in d["towns"]:
+    assert set(areas) <= set(t["commute"]), t["id"]
+PY
+then
+  ok "$SITE/data/where-to-live.json is valid (26 towns, 6 office areas)"
+else
+  fail "$SITE/data/where-to-live.json answered $code or is not valid"
 fi
 
 rm -rf "$TMP"

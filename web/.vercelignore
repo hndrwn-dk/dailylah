@@ -1,0 +1,2 @@
+# Not served: tests run in CI (web.yml), not on the site.
+tests/

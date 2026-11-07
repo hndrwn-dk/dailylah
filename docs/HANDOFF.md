@@ -27,7 +27,17 @@ rent/resale. Static page and JSON, no browser API calls, no Render. One PR per p
     temporary `push` trigger was removed before the PR.
   - After merge: run Actions > where-to-live > Run workflow once and check that it commits.
   - Once the `main` ruleset is on, this workflow needs the same bypass as `data.yml`.
-- Phase 2 (page `/where-to-live`), Phase 3 (per-town SEO pages), Phase 4 (launch with production).
+- Phase 2 (page `/where-to-live`, branch `feat/where-to-live-page`): static page in
+  `web/where-to-live/` (vanilla JS, Leaflet 1.9.4 vendored in `web/vendor/`, OneMap Default/Night
+  tiles), CSP for `/where-to-live` in `web/vercel.json`, `web.yml` (`node --test`, check
+  `web result`), website section 5a in `docs/legal/privacy.md`, `scripts/web_check.sh` step 5.
+  - After merge: update the published privacy policy on tursinalabs.com from `docs/legal/privacy.md`
+    (scope now includes dailylah.sg, new section 5a), and add `web result` to the ruleset.
+- **When DailyLah production is live: switch the CTA to the public listing.** One small PR that
+  edits only `web/shared/cta.js`: `url` to
+  `https://play.google.com/store/apps/details?id=com.tursinalabs.dailylah`, `label` to e.g.
+  "Get DailyLah on Google Play", `steps` to `[]`. The landing page and `/where-to-live` both use it.
+- Phase 3 (per-town SEO pages), Phase 4 (launch with production).
 
 ## CI/CD hardening (Nov 2026, 8 phases, one PR each)
 Layers: deterministic scans → AI review → a person decides. Existing gates (analyze, test,
@@ -144,8 +154,9 @@ Turn them on only after PR 4 is on `main`: before that, `app result`, `emulator 
    own PR); Allowed merge methods: **Squash** only.
 3. Require status checks to pass, "Require branches to be up to date" **off**. Add these, source
    GitHub Actions (names exactly as GitHub shows them; docs/QA.md "Required checks"):
-   `app result`, `emulator result`, `backend result`, `repo map and AGENTS.md up to date`,
-   `CodeQL (actions)`, `CodeQL (python)`, `osv-scanner (dependencies)`, `zizmor (workflows)`.
+   `app result`, `emulator result`, `backend result`, `web result` (after the where-to-live page
+   PR is on `main`), `repo map and AGENTS.md up to date`, `CodeQL (actions)`, `CodeQL (python)`,
+   `osv-scanner (dependencies)`, `zizmor (workflows)`.
 4. Bypass list: the daily `data.yml` pushes the data bundles straight to `main` with the job token,
    which the rules above would refuse. Pick one route:
    - **Route A (first choice):** Add bypass > **GitHub Actions** (if the picker offers it on this

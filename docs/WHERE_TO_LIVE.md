@@ -19,7 +19,8 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
 
 ## Status
 - Fase 0: selesai. Secret `ONEMAP_EMAIL`/`ONEMAP_PASSWORD` sudah ada (dipakai `data.yml`); situs dailylah.sg adalah folder `web/` di repo ini (Vercel).
-- Fase 1: branch `feat/where-to-live-data` (lihat "Fase 1: yang dibangun").
+- Fase 1: selesai (PR #116, 7 Nov 2026); run pertama di `main` commit datanya, run kedua "No data changes".
+- Fase 2: branch `feat/where-to-live-page` (lihat "Fase 2: yang dibangun").
 
 ## Fase 0: langkah untuk Hendrawan (selesai)
 1. Daftar akun OneMap API, lalu tambahkan secret `ONEMAP_EMAIL` dan `ONEMAP_PASSWORD` di repo.
@@ -85,6 +86,31 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
     terbarunya `na`. `null` ditampilkan sebagai "Not enough data".
   - Commute `{"same_area": true}` ditampilkan sebagai "In this area"; commute `null` sebagai
     "No route data".
+
+### Fase 2: yang dibangun
+- Halaman `web/where-to-live/index.html` (dilayani di `/where-to-live`), `app.css`, `app.js` (DOM dan
+  peta), `logic.js` (fungsi murni: baca/tulis URL, `rank`, label). Tanpa build step, tanpa CDN.
+- Daftar ranking bergaya papan LED (seperti papan bus di landing page) dalam tiga kelompok: "Fits your
+  choices", "No <flat> price data" (hanya kalau budget diisi), "Outside your choices" (dilipat dalam
+  `<details>` selama ada town yang cocok; tiap baris menyebut alasannya: over budget, over N min,
+  no route data). Urutan: waktu tempuh (same area paling atas), lalu harga.
+- Peta Leaflet 1.9.4 (`web/vendor/leaflet-1.9.4/`, dari npm, checksum di README-nya), tile OneMap
+  Default/Night mengikuti `prefers-color-scheme`, atribusi OneMap (logo, OneMap, SLA). Marker:
+  teal = cocok, amber = tanpa harga, abu = di luar pilihan, putih = area kantor. Di HP peta di atas
+  daftar (320 px). Klik nama town membuka popup di peta.
+- State di URL (`?area=&mode=&flat=&budget=&max=`), nilai di-validasi terhadap JSON; default tidak
+  ditulis.
+- CTA dari `web/shared/cta.js` (satu konstanta untuk landing page dan halaman ini): sekarang alur
+  tester (Google Group lalu opt-in). Ganti ke listing publik saat production live (HANDOFF).
+- CSP khusus `/where-to-live` di `web/vercel.json`: hanya `'self'` untuk script, style, font dan
+  fetch; gambar dari `'self'`, `data:` dan `www.onemap.gov.sg`. Atribusi OneMap memakai kelas
+  `om-logo`, bukan style inline.
+- Tes: `web/tests/logic.test.mjs` (`node --test`, workflow `web.yml`, check `web result`): URL dan
+  nilai liar, label kuartal per angka, `same_area`, budget/waktu, alasan, file JSON asli, tidak ada
+  `innerHTML` di skrip halaman, CTA hanya di `cta.js`, aset hanya lokal. Escaping dicek dengan
+  Playwright memakai JSON berisi HTML/JS: tampil sebagai teks, tidak ada script yang jalan.
+- `scripts/web_check.sh` langkah 5: `/where-to-live` 200 dengan CSP, `where-to-live.json` valid.
+- Privasi: `docs/legal/privacy.md` bagian 5a (situs, OneMap tiles, tanpa cookie/analytics).
 
 ## Fase 3: SEO + bagikan (1 PR)
 - Halaman statis per town (sekitar 26), misalnya "Living in Punggol: commute and HDB prices", dibuat dari JSON yang sama saat build. Sitemap, meta, gambar OG.
