@@ -87,7 +87,12 @@ Seven findings from a second review of the pipeline, one PR per group. Gates sta
   `scripts/sign_aab.sh`, JDK only) signs it with jarsigner and checks the upload certificate
   against `UPLOAD_CERT_SHA256`; e2e, play and release-tag use that signed AAB; `play` runs in
   environment `play` or `play-production`. Rules: docs/QA.md "Release signing"; environments below.
-- PR 3 (PR template for the AI review) follows.
+- PR 3 (PR template, branch `ci/pr-template`): `.github/pull_request_template.md` with What / Why /
+  How tested / Not testable before the next release / Settings by hand, and a one-line-per-item
+  checklist: AI review and security gate on the head sha, privacy.md, release-only version and
+  whatsnew, structure docs, no security details or AI attribution. No workflow, no required check;
+  CLAUDE.md "Git workflow" points agent PRs at it. Rules: docs/QA.md "AI review".
+- Next: the `main` and `v*` ruleset guide (required check names) in this file.
 
 ### Release tags
 `v1.9.1` (06c6e73) and `v1.9.2` (45dd485) were pushed by hand on 7 Nov 2026; later tags come from

@@ -73,7 +73,7 @@ The upload key never reaches a job that runs third-party build code:
 
 ## Security scans
 
-Layer order: deterministic scans (this section) → AI review (planned) → a person decides.
+Layer order: deterministic scans (this section) → AI review (see "AI review") → a person decides.
 None of these block the Google Play upload; a red `security` run is fixed before merging.
 
 | Tool | Scans | Fails the run on | Baseline |
@@ -87,7 +87,7 @@ None of these block the Google Play upload; a red `security` run is fixed before
 | Dependabot | pub, gradle, pip, github-actions | opens update PRs weekly (Monday), minor/patch grouped | — |
 
 - **Dart is not supported by CodeQL.** The app's Dart code is covered by `dart analyze`
-  (infos are fatal) in the `app` workflow and, from Phase 6, by the AI review.
+  (infos are fatal) in the `app` workflow and by the AI review.
 - The java-kotlin build takes about 10 minutes, so on PRs it only runs when `app/android/`
   or `security.yml` changes; the Monday run and manual runs always include it.
 - A baseline takes **Low findings only**, each with a reason (and for osv a date to look
@@ -207,6 +207,10 @@ Claude plan: no secret in GitHub Actions, no workflow, no laptop.
 - The repository is public, so a security finding shows only as a count in the PR. Its details go
   to the private repository `hndrwn-dk/security-memory` (`dailylah/reports/` and
   `dailylah/dailylah---flagged-vulnerabilities.json`).
+- The PR template (`.github/pull_request_template.md`) asks for both on the current head commit:
+  the review comment's marker sha, and `Security gate: pass at <short sha>.` when `app/`,
+  `backend/`, `.github/` or `.claude/` change. It is a reminder, not a check: before merging,
+  compare those shas with the PR's head (a push after the gate needs a new gate).
 - Advisory only: it never approves, blocks, merges or pushes. A review can be wrong; a person
   decides. It does not replace any gate above.
 
