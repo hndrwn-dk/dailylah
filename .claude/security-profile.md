@@ -11,7 +11,7 @@
   - Network attacker (MITM) between app and backend, and between app and the static bundle hosts
   - Compromised or malformed upstream data from data.gov.sg / LTA DataMall / OneMap / URA / Eventfinda
   - Compromised static bundle host or data workflow (the app trusts JSON from dailylah.sg, dailylah.tursinalabs.com, dailylah-web.vercel.app)
-  - GitHub Actions supply chain: third-party actions, Dependabot updates, workflows that push to the repo (data, screenshots, goldens)
+  - GitHub Actions supply chain: third-party actions, Dependabot updates, workflows that push to the repo (data and where-to-live push to `main` with the deploy key `DATA_PUSH_SSH_KEY` from a separate job in environment `data-push`; screenshots, goldens)
 - **Extra attack surfaces to prioritise:**
   - Upstream credentials (LTA AccountKey, data.gov.sg key, OneMap email/password and token, URA access key, Eventfinda login): backend or CI only, never in the APK, the bundles or logs
   - Backend `/v1/*` endpoints: input validation (stop code, postal code, CEA registration, train line, search text), upstream URLs never built from free user input (SSRF), errors that do not echo upstream responses

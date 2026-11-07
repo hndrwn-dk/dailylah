@@ -11,6 +11,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/data.yml"
+      - "scripts/push_data.sh"
       - "backend/app/build_static.py"
       - "backend/app/sources.py"
       - "backend/app/bundles.py"
@@ -22,15 +23,17 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Commits the rebuilt bundles to main.
+    # Builds the bundles and hands any change to the push job as a patch. No write access here:
+    # this job runs pip and the build's third-party code.
     permissions:
-      contents: write
+      contents: read
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
     # The first run geocodes ~13,000 HDB blocks through OneMap (cached afterwards).
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # The token is passed only to the push below, never stored in .git/config.
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
@@ -51,30 +54,23 @@ jobs:
           EVENTFINDA_USER: ${{ secrets.EVENTFINDA_USER }}
           EVENTFINDA_PASSWORD: ${{ secrets.EVENTFINDA_PASSWORD }}
         run: python -m app.build_static ../web/data
-      - name: Commit if changed
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Collect changes
+        id: diff
         run: |
           # Stage first: plain `git diff` ignores new (untracked) files.
           git add web/data backend/data
           if git diff --cached --quiet -- web/data backend/data; then
-            echo "No data changes"; exit 0
+            echo "No data changes"; echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          git config user.name "dailylah-bot"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Update static data bundles"
-          # Push with the job token in a one-off header (checkout does not persist it).
-          b64=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
-          echo "::add-mask::$b64"
-          auth="AUTHORIZATION: basic $b64"
-          # main may have moved while the build ran (it can take ~40 min).
-          for i in 1 2 3; do
-            git -c http.extraheader="$auth" pull --rebase origin main \
-              && git -c http.extraheader="$auth" push && exit 0
-            sleep 10
-          done
-          exit 1
-      # Runs after the commit, so fresh bundles are published either way.
+          git diff --cached --binary --full-index -- web/data backend/data > "$RUNNER_TEMP/data.patch"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+      - if: steps.diff.outputs.changed == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: data-patch
+          path: ${{ runner.temp }}/data.patch
+          retention-days: 3
+      # Runs after the patch is collected, so fresh bundles are published either way.
       - name: Check data.gov.sg key
         run: |
           python - <<'PY'
@@ -89,3 +85,30 @@ jobs:
                     "secret DATAGOV_API_KEY and the Render env var.")
               sys.exit(1)
           PY
+
+  # Pushes the patch to main with the deploy key that the main ruleset lets bypass its rules
+  # (docs/HANDOFF.md, "Rulesets", route B). Environment data-push holds DATA_PUSH_SSH_KEY and is
+  # limited to main. Only GitHub's own actions and scripts/push_data.sh run in this job.
+  push:
+    needs: build
+    # Also when only the last build step (the data.gov.sg key check) failed: the bundles are
+    # published either way, as before.
+    if: ${{ !cancelled() && needs.build.outputs.changed == 'true' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    environment: data-push
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: data-patch
+          path: ${{ runner.temp }}/patch
+      - name: Push to main
+        env:
+          DATA_PUSH_SSH_KEY: ${{ secrets.DATA_PUSH_SSH_KEY }}
+          PATCH: ${{ runner.temp }}/patch/data.patch
+        run: bash scripts/push_data.sh "$PATCH" "Update static data bundles"
