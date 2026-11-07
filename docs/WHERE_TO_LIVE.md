@@ -74,6 +74,17 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
 - Kartu town: "38 min to CBD, 1 transfer, 4-room median rent $X (Q3 2026)".
 - State di URL query supaya hasil bisa dibagikan. CTA "Get DailyLah" ke Play Store.
 - Disclaimer: angka indikatif dari data HDB yang dideklarasikan sendiri; tidak berafiliasi dengan HDB/SLA.
+- **Wajib saat merender `where-to-live.json`:**
+  - Semua teks dari JSON (`name`, `station`, `attribution`, id area, dan teks lain yang datang dari
+    file itu) di-escape: pakai `textContent` / `createTextNode` atau escape HTML; jangan pernah
+    `innerHTML` dengan string dari JSON. Berlaku juga untuk popup/tooltip peta dan atribut
+    (`title`, `aria-label`). Nilai dari URL query (area, tipe flat, budget) divalidasi terhadap
+    daftar yang ada di JSON sebelum dipakai.
+  - Label harga memakai `quarter` per angka (`rent["4-ROOM"].quarter`), bukan `rent_quarter`/
+    `resale_quarter` di level atas: satu town bisa memakai kuartal yang lebih lama karena kuartal
+    terbarunya `na`. `null` ditampilkan sebagai "Not enough data".
+  - Commute `{"same_area": true}` ditampilkan sebagai "In this area"; commute `null` sebagai
+    "No route data".
 
 ## Fase 3: SEO + bagikan (1 PR)
 - Halaman statis per town (sekitar 26), misalnya "Living in Punggol: commute and HDB prices", dibuat dari JSON yang sama saat build. Sitemap, meta, gambar OG.
