@@ -3,7 +3,6 @@ on:
   push:
     paths: ["app/**", "contracts/**", ".github/workflows/app.yml"]
   pull_request:
-    paths: ["app/**", "contracts/**"]
   workflow_dispatch:
     inputs:
       play_track:
@@ -15,7 +14,37 @@ on:
 permissions:
   contents: read
 jobs:
+  # Pull requests run this workflow every time, so the "app result" check below always
+  # reports and can be a required check in the main ruleset (docs/QA.md "Required checks").
+  # On a push the path filter above decides; on a pull request, this job does.
+  changes:
+    name: what changed (app)
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.diff.outputs.run }}
+    steps:
+      # The PR merge commit's first parent is the base branch, so two commits are enough.
+      # --no-renames lists both paths of a moved file (a move out of a watched folder still counts).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+          sparse-checkout: .github
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          run=true
+          if [ "$EVENT" = pull_request ]; then
+            files=$(git diff --name-only --no-renames HEAD^1 HEAD)
+            printf 'Changed files:\n%s\n' "$files"
+            grep -qE '^(app/|contracts/|\.github/workflows/app\.yml$)' <<<"$files" || run=false
+          fi
+          echo "run=$run" | tee -a "$GITHUB_OUTPUT"
+
   analyze:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-latest
     outputs:
       track: ${{ steps.track.outputs.track }}
@@ -196,7 +225,7 @@ jobs:
   e2e:
     name: on-device tests
     needs: [analyze, sign]
-    if: ${{ !failure() && !cancelled() && needs.analyze.outputs.track != 'none' }}
+    if: ${{ !failure() && !cancelled() && needs.analyze.result == 'success' && needs.analyze.outputs.track != 'none' }}
     uses: ./.github/workflows/emulator.yml
     with:
       base_ref: ${{ needs.analyze.outputs.base_ref }}
@@ -318,3 +347,20 @@ jobs:
               --draft --verify-tag --title "DailyLah ${TAG#v}" --notes-file docs/store/whatsnew/whatsnew-en-US
           fi
           echo "- Draft release $TAG with dailylah.aab and dailylah-mapping.txt" >> "$GITHUB_STEP_SUMMARY"
+
+  # The one check to require for this workflow: fails if any job failed or was cancelled,
+  # passes when they passed or were skipped (no app change).
+  result:
+    name: app result
+    needs: [changes, analyze, sign, e2e, play, release-tag]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          case " $RESULTS " in
+            *" failure "*|*" cancelled "*) echo "::error::A job in the app workflow failed or was cancelled."; exit 1 ;;
+          esac

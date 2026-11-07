@@ -86,6 +86,10 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   the keys, not the contents of the AAB, which third-party build code still makes. Never use
   `pull_request_target`. Expressions from inputs, vars or step outputs go through `env:`, not
   straight into `run:`.
+- Required checks (docs/QA.md "Required checks"): a workflow that may skip work on a pull request
+  runs on every PR, decides in a `what changed (<name>)` job, and ends with a `<name> result` job
+  (`if: always()`, fails on any failed or cancelled job). Never add a workflow-level `paths:` filter
+  to `pull_request` for a workflow whose result is required: the check would never report.
 - `security.yml` (every PR and push to main, weekly on Monday): CodeQL for actions, python and
   java-kotlin (Kotlin only when `app/android/` changes, plus the weekly run), osv-scanner and
   zizmor. osv-scanner and zizmor fail on High/Critical; Medium/Low are warnings. Dart is not
@@ -106,7 +110,8 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   is the `review-pr` skill in `.claude/skills/review-pr/SKILL.md` (rules in
   `.github/prompts/review.md`); its PR comment by `hndrwn-dk` starts with
   `<!-- dailylah-ai-review sha=<head sha> -->`. The security gate ("security gate for PR #N", same
-  skill) posts `Security gate: pass at <short sha>.`; a later commit needs a new gate. GitHub fills
+  skill) posts `Security gate: pass at <short sha>.`; only that comment by `hndrwn-dk` counts (the
+  repo is public: anyone can write the text), and a later commit needs a new gate. GitHub fills
   the template in only in the web UI: a PR opened through the GitHub API or `gh` copies its sections
   and checklist. PRs by `dependabot[bot]` and `dailylah-bot` skip it.
 - A PR that changes the structure (adds, moves, renames or removes a file in `app/lib`, a provider,

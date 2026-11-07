@@ -92,7 +92,10 @@ Seven findings from a second review of the pipeline, one PR per group. Gates sta
   checklist: AI review and security gate on the head sha, privacy.md, release-only version and
   whatsnew, structure docs, no security details or AI attribution. No workflow, no required check;
   CLAUDE.md "Git workflow" points agent PRs at it. Rules: docs/QA.md "AI review".
-- Next: the `main` and `v*` ruleset guide (required check names) in this file.
+- PR 4 (rulesets, branch `ci/rulesets`): `app`, `emulator` and `backend` run on every PR with a
+  `what changed (<name>)` job and a final `<name> result` check, so they can be required; the
+  gate comment counts only by `hndrwn-dk`. Rules: docs/QA.md "Required checks"; the ruleset steps
+  below ("Rulesets: set up by hand").
 
 ### Release tags
 `v1.9.1` (06c6e73) and `v1.9.2` (45dd485) were pushed by hand on 7 Nov 2026; later tags come from
@@ -118,6 +121,43 @@ Maestro flows (release APK)` green, `upload to Google Play (alpha)` green), dele
 repo-level secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
 `ANDROID_KEY_PASSWORD` and `PLAY_SERVICE_ACCOUNT_JSON` under Settings > Secrets and variables >
 Actions. Until then they keep a revert of PR 2 working. If Play rejects the signature, revert PR 2.
+
+### Rulesets: set up by hand (PR 4), after it is merged
+Turn them on only after PR 4 is on `main`: before that, `app result`, `emulator result` and
+`backend result` do not exist and every PR would wait for them. Settings > Rules > Rulesets > New.
+
+**`main`** (New branch ruleset; Enforcement: Active; Target: Include default branch):
+1. Restrict deletions; Block force pushes.
+2. Require a pull request before merging: required approvals **0** (the owner cannot approve their
+   own PR); Allowed merge methods: **Squash** only.
+3. Require status checks to pass, "Require branches to be up to date" **off**. Add these, source
+   GitHub Actions (names exactly as GitHub shows them; docs/QA.md "Required checks"):
+   `app result`, `emulator result`, `backend result`, `repo map and AGENTS.md up to date`,
+   `CodeQL (actions)`, `CodeQL (python)`, `osv-scanner (dependencies)`, `zizmor (workflows)`.
+4. Bypass list: the daily `data.yml` pushes the data bundles straight to `main` with the job token,
+   which the rules above would refuse. Pick one route:
+   - **Route A (first choice):** Add bypass > **GitHub Actions** (if the picker offers it on this
+     personal repository), mode Always. Nothing else changes.
+   - **Route B (if GitHub Actions is not offered):** a deploy key with bypass. Create an SSH key
+     pair on the laptop (`ssh-keygen -t ed25519 -f dailylah-data-push -N ""`); Settings > Deploy
+     keys > Add: the public key, **Allow write access**; create environment **`data-push`**
+     (Deployment branches: `main` only, no admin bypass) with secret `DATA_PUSH_SSH_KEY` = the
+     private key; delete the local key files; in the ruleset, Add bypass > Deploy keys, mode Always.
+     Then ask a session for the follow-up PR that makes `data.yml` push over SSH with that key in
+     environment `data-push` (not done yet: it needs the key to test).
+   - Check it: Actions > data > Run workflow; the "Commit if changed" step must succeed (or say
+     "No data changes"). `screenshots.yml` never pushes to `main` and `goldens.yml` skips `main`,
+     so only `data.yml` needs the bypass.
+5. Do not add yourself as a bypass actor: merges go through PRs like everything else.
+
+**`v*` tags** (New tag ruleset; Enforcement: Active; Target: Include by pattern `v*`):
+1. Restrict updates (a release tag never moves); Restrict deletions; Block force pushes.
+2. Restrict creations: **only** if GitHub Actions could be added as a bypass actor (route A
+   above), with GitHub Actions as bypass (Always), because `release-tag` creates the tags. If not,
+   leave Restrict creations off: only the owner and Actions can write to this repository.
+
+After both are on, check: a docs-only PR shows all eight checks green and can be squash-merged;
+`git push --force` to `main` and `git push --delete origin v1.9.2` are refused.
 
 ### GitHub settings to set by hand (Phase 1)
 Settings > Advanced Security (or Code security):

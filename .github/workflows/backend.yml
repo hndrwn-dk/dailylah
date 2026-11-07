@@ -3,11 +3,40 @@ on:
   push:
     paths: ["backend/**", "contracts/**", ".github/workflows/backend.yml"]
   pull_request:
-    paths: ["backend/**", "contracts/**", ".github/workflows/backend.yml"]
 permissions:
   contents: read
 jobs:
+  # Pull requests run this workflow every time, so the "backend result" check below always
+  # reports and can be a required check in the main ruleset (docs/QA.md "Required checks").
+  # On a push the path filter above decides; on a pull request, this job does.
+  changes:
+    name: what changed (backend)
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.diff.outputs.run }}
+    steps:
+      # The PR merge commit's first parent is the base branch, so two commits are enough.
+      # --no-renames lists both paths of a moved file (a move out of a watched folder still counts).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+          sparse-checkout: .github
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          run=true
+          if [ "$EVENT" = pull_request ]; then
+            files=$(git diff --name-only --no-renames HEAD^1 HEAD)
+            printf 'Changed files:\n%s\n' "$files"
+            grep -qE '^(backend/|contracts/|\.github/workflows/backend\.yml$)' <<<"$files" || run=false
+          fi
+          echo "run=$run" | tee -a "$GITHUB_OUTPUT"
+
   test:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -31,3 +60,20 @@ jobs:
       # with a comment saying why.
       - name: pip-audit
         run: pip-audit -r requirements.txt --require-hashes --disable-pip --strict --progress-spinner off
+
+  # The one check to require for this workflow: fails if any job failed or was cancelled,
+  # passes when they passed or were skipped (no backend change).
+  result:
+    name: backend result
+    needs: [changes, test]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          case " $RESULTS " in
+            *" failure "*|*" cancelled "*) echo "::error::A job in the backend workflow failed or was cancelled."; exit 1 ;;
+          esac

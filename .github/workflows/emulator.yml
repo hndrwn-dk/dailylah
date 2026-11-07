@@ -4,7 +4,6 @@ name: emulator
 # uses standard GitHub-hosted runners.
 on:
   pull_request:
-    paths: ["app/**", "scripts/emulator_*.sh", ".github/workflows/emulator.yml"]
   workflow_dispatch:
     inputs:
       base_ref:
@@ -30,8 +29,38 @@ concurrency:
   group: emulator-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  # Pull requests run this workflow every time, so the "emulator result" check below always
+  # reports and can be a required check in the main ruleset (docs/QA.md "Required checks").
+  # Called from the app workflow (push or manual run), it always runs every job.
+  changes:
+    name: what changed (emulator)
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.diff.outputs.run }}
+    steps:
+      # The PR merge commit's first parent is the base branch, so two commits are enough.
+      # --no-renames lists both paths of a moved file (a move out of a watched folder still counts).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+          sparse-checkout: .github
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          run=true
+          if [ "$EVENT" = pull_request ]; then
+            files=$(git diff --name-only --no-renames HEAD^1 HEAD)
+            printf 'Changed files:\n%s\n' "$files"
+            grep -qE '^(app/|scripts/emulator_[^/]*\.sh$|\.github/workflows/emulator\.yml$)' <<<"$files" || run=false
+          fi
+          echo "run=$run" | tee -a "$GITHUB_OUTPUT"
+
   flows:
     name: flows (API ${{ matrix.api }})
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     strategy:
@@ -87,6 +116,8 @@ jobs:
 
   upgrade:
     name: upgrade (previous version → this build)
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -121,6 +152,8 @@ jobs:
 
   release:
     name: release build (R8) starts and runs
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -155,6 +188,8 @@ jobs:
 
   maestro:
     name: Maestro flows (release APK)
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -223,3 +258,20 @@ jobs:
           path: ${{ runner.temp }}/maestro-out/attempt-*
           if-no-files-found: ignore
           retention-days: 14
+
+  # The one check to require for this workflow: fails if any job failed or was cancelled,
+  # passes when they passed or were skipped (no emulator change).
+  result:
+    name: emulator result
+    needs: [changes, flows, upgrade, release, maestro]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          case " $RESULTS " in
+            *" failure "*|*" cancelled "*) echo "::error::A job in the emulator workflow failed or was cancelled."; exit 1 ;;
+          esac
