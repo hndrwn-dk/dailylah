@@ -59,18 +59,24 @@ jobs:
         name: Previous release for the upgrade test
         # Users upgrade from the last version that reached Google Play, not from the commit before
         # this one (that may never have shipped). Release tags v<versionName> are made by the
-        # release-tag job below. HEAD^ so a manual run on a tagged commit compares with the release
-        # before it, not with itself.
-        if: steps.track.outputs.track != 'none'
+        # release-tag job below; fetch-depth: 0 above brings them. HEAD^ so a manual run on a tagged
+        # commit compares with the release before it, not with itself. Runs on every push and PR so
+        # the lookup shows in the log; only a release uses the result.
         working-directory: .
         env:
           BEFORE: ${{ github.event.before }}
+          TRACK: ${{ steps.track.outputs.track }}
         run: |
+          echo "Release tags fetched: $(git tag -l 'v[0-9]*' | wc -l) ($(git tag -l 'v[0-9]*' --sort=-v:refname | head -3 | tr '\n' ' '))"
           if ref=$(git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD^ 2>/dev/null); then
             echo "::notice title=Upgrade test::from $ref ($(git rev-parse --short "$ref^{commit}")), the last release"
           else
             if [ "$GITHUB_EVENT_NAME" = push ] && [ -n "$BEFORE" ]; then ref=$BEFORE; else ref=HEAD~1; fi
-            echo "::warning title=No release tag::No v* tag below this commit: the upgrade test runs from $ref, which may never have shipped. Create the tag of the last release (docs/HANDOFF.md)."
+            if [ "$TRACK" != none ]; then
+              echo "::warning title=No release tag::No v* tag below this commit: the upgrade test runs from $ref, which may never have shipped. Create the tag of the last release (docs/HANDOFF.md)."
+            else
+              echo "No v* tag below this commit; a release from here would test the upgrade from $ref."
+            fi
           fi
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
       - name: Check app id is com.tursinalabs.dailylah
