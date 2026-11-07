@@ -82,23 +82,37 @@ Seven findings from a second review of the pipeline, one PR per group. Gates sta
   - Not yet seen in CI: `release-tag`, the draft Release and the tag lookup on a real release push.
     On the next release check: the `analyze` notice "Upgrade test: from v1.9.2", the `e2e` upgrade
     job installing v1.9.2 first, then tag `v<new version>` on the release commit.
-- PR 2 (signing key out of the build job) and PR 3 (PR template for the AI review) follow.
+- PR 2 (release signing, branch `ci/release-signing`): `analyze` builds the AAB unsigned with no
+  secrets; the new `sign` job (environment `signing`, main only, sparse checkout of
+  `scripts/sign_aab.sh`, JDK only) signs it with jarsigner and checks the upload certificate
+  against `UPLOAD_CERT_SHA256`; e2e, play and release-tag use that signed AAB; `play` runs in
+  environment `play` or `play-production`. Rules: docs/QA.md "Release signing"; environments below.
+- PR 3 (PR template for the AI review) follows.
 
-### Release tags to create by hand (once)
-Claude sessions cannot push tags (the session's git proxy refuses them), so create the first two
-from the laptop clone (`C:\Users\hendr\Deployment\dailylah`):
-```
-git pull
-git tag v1.9.1 06c6e7376bcb77ace8fc36d41d9c07381c6cb207
-git tag v1.9.2 45dd485efdaacd432b1c6ffe307832f9590484c2
-git push origin v1.9.1 v1.9.2
-```
-Or without a clone: `gh api repos/hndrwn-dk/dailylah/git/refs -f ref=refs/tags/v1.9.2 -f sha=<sha>`
-(same for v1.9.1). Older releases, only if a full archive is wanted (version bump commits on
-`main`): 1.9.0 a9f29be, 1.8.0 cf5dc80, 1.7.0 52a8481, 1.6.2 5fb50a2, 1.6.1 3740839, 1.6.0 86dbd79,
+### Release tags
+`v1.9.1` (06c6e73) and `v1.9.2` (45dd485) were pushed by hand on 7 Nov 2026; later tags come from
+the `release-tag` job. Older releases, only if a full archive is ever wanted (version bump commits
+on `main`): 1.9.0 a9f29be, 1.8.0 cf5dc80, 1.7.0 52a8481, 1.6.2 5fb50a2, 1.6.1 3740839, 1.6.0 86dbd79,
 1.5.0 43059ee, 1.4.0 eb09d8e, 1.3.0 f5192fe, 1.2.3 f0109c8, 1.2.2 6efc234, 1.2.1 ec06643,
-1.2.0 dc7ca69. Later tags are made by the `release-tag` job; a tag ruleset (see the next PRs)
-must let GitHub Actions create `v*` tags.
+1.2.0 dc7ca69. A tag ruleset must let GitHub Actions create `v*` tags.
+
+### Release signing environments (PR 2): done (7 Nov 2026)
+Set up by the owner under Settings > Environments, each limited to `main` with no admin bypass:
+- `signing`: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
+  `ANDROID_KEY_PASSWORD`, and the environment variable `UPLOAD_CERT_SHA256` (checked against
+  keytool and Play Console). Its source in Play Console: Protected with Play > Play Store
+  protection > Manage Play app signing > Upload key certificate > SHA-256. Do not use the
+  "App signing key certificate" on the same page: that is Google's key, and every sign would fail.
+- `play`: `PLAY_SERVICE_ACCOUNT_JSON`.
+- `play-production`: `PLAY_SERVICE_ACCOUNT_JSON`, required reviewer Hendrawan (prevent
+  self-review off).
+
+Still to do: after the first release with the new setup reaches Google Play (`sign the App
+Bundle` green with "App Bundle signed with the upload key" in the summary, `on-device tests /
+Maestro flows (release APK)` green, `upload to Google Play (alpha)` green), delete the old
+repo-level secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
+`ANDROID_KEY_PASSWORD` and `PLAY_SERVICE_ACCOUNT_JSON` under Settings > Secrets and variables >
+Actions. Until then they keep a revert of PR 2 working. If Play rejects the signature, revert PR 2.
 
 ### GitHub settings to set by hand (Phase 1)
 Settings > Advanced Security (or Code security):

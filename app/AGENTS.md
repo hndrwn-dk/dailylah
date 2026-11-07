@@ -174,9 +174,11 @@ feature, screen, provider or rule moves, appears or goes away.
 
 ## Build, CI and release
 - The `app` workflow runs analyze and tests on every push and pull request; failures are emitted as
-  annotations on the commit. It builds no APK: only a release builds the signed App Bundle (upload key
-  from secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
-  `ANDROID_KEY_PASSWORD`). Native changes (manifest, Kotlin widget, `dailylah/apps` channel) are
+  annotations on the commit. It builds no APK: only a release builds the App Bundle, unsigned
+  (`DAILYLAH_UNSIGNED_RELEASE=1`), and the `sign` job signs it with the upload key (secrets
+  `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`
+  and variable `UPLOAD_CERT_SHA256` in environment `signing`; `scripts/sign_aab.sh`, docs/QA.md
+  "Release signing"). Locally the release still signs from `ANDROID_KEYSTORE_PATH` or the debug key. Native changes (manifest, Kotlin widget, `dailylah/apps` channel) are
   compile-checked by the `emulator` workflow, which builds and runs the debug and release APKs on every
   pull request; its `release` job also checks targetSdk 36+ for Google Play and that Android backup stays off
   (`allowBackup="false"`, privacy). Testers get builds from
@@ -201,8 +203,8 @@ feature, screen, provider or rule moves, appears or goes away.
   "Before promoting a release to production" (security green, real-phone check in closed testing, /vuln-scan) is done. A manual run of `app` on `main` can pick
   another `play_track` (internal, beta, production as draft); it runs the same tests first. A flaky emulator
   job blocks the upload: re-run failed jobs and `play` follows. The upload sends the AAB, mapping file
-  and release notes with the service account in secret `PLAY_SERVICE_ACCOUNT_JSON` (upload action pinned
-  by commit). The emulator `release` job (`scripts/emulator_release.sh`)
+  and release notes with the service account in secret `PLAY_SERVICE_ACCOUNT_JSON` (environment `play`,
+  or `play-production`, which waits for the owner's approval; upload action pinned by commit). The emulator `release` job (`scripts/emulator_release.sh`)
   starts the release build with saved data, runs the WorkManager job and widget, and fails on
   missing classes or plugins. A new plugin with native code may need a keep rule.
 
