@@ -86,11 +86,11 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   separate `push` job (environment `data-push`, deploy key `DATA_PUSH_SSH_KEY`, the `main` ruleset's
   only bypass) that runs `scripts/push_data.sh` and nothing from pip. In `app.yml` only
   `release-tag` writes (`contents: write`, the release tag and draft Release); `play`, which holds
-  the Play key, stays read-only. The upload key is only in the `sign` job (environment `signing`: sparse checkout of `scripts/sign_aab.sh`, JDK only, no Gradle,
-  pub or cache); the Play key only in `play` (environments `play`/`play-production`). This protects
-  the keys, not the contents of the AAB, which third-party build code still makes. Never use
-  `pull_request_target`. Expressions from inputs, vars or step outputs go through `env:`, not
-  straight into `run:`.
+  the Play key, stays read-only. The upload key is only in the `sign` job (environment `signing`:
+  sparse checkout of `scripts/sign_aab.sh`, JDK only, no Gradle, pub or cache); the Play key only in
+  `play` (environments `play`/`play-production`). This protects the keys, not the contents of the
+  AAB, which third-party build code still makes. Never use `pull_request_target`. Expressions from
+  inputs, vars or step outputs go through `env:`, not straight into `run:`.
 - Required checks (docs/QA.md "Required checks"): a workflow that may skip work on a pull request
   runs on every PR, decides in a `what changed (<name>)` job, and ends with a `<name> result` job
   (`if: always()`, fails on any failed or cancelled job). Never add a workflow-level `paths:` filter
