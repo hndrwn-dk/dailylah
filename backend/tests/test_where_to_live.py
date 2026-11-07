@@ -423,3 +423,48 @@ async def test_build_end_to_end(tmp_path, monkeypatch):
 
 def test_where_to_live_is_not_in_the_app_manifest():
     assert "where-to-live" in build_static.NOT_IN_MANIFEST
+
+
+def test_parse_medians_real_row_shapes():
+    # As seen in the first dry run (7 Nov 2026): rent uses "1-RM" and upper-case towns,
+    # resale uses "1-room", title-case towns and both "na" and "-".
+    rent = [
+        {
+            "_id": 1,
+            "quarter": "2026-Q3",
+            "town": "ANG MO KIO",
+            "flat_type": "1-RM",
+            "median_rent": "na",
+        },
+        {
+            "_id": 2,
+            "quarter": "2026-Q3",
+            "town": "ANG MO KIO",
+            "flat_type": "3-RM",
+            "median_rent": "2800",
+        },
+    ]
+    resale = [
+        {"_id": 1, "quarter": "2026-Q2", "town": "Ang Mo Kio", "flat_type": "2-room", "price": "-"},
+        {
+            "_id": 2,
+            "quarter": "2026-Q2",
+            "town": "Ang Mo Kio",
+            "flat_type": "3-room",
+            "price": "425000",
+        },
+        {
+            "_id": 3,
+            "quarter": "2026-Q2",
+            "town": "Central",
+            "flat_type": "4-room",
+            "price": "900000",
+        },
+    ]
+    _, r, _ = w.parse_medians(rent)
+    _, s, _ = w.parse_medians(resale)
+    amk = w.town_key("ANG MO KIO")
+    assert r[amk] == {"1-ROOM": None, "3-ROOM": {"median": 2800, "quarter": "2026-Q3"}}
+    assert s[amk]["2-ROOM"] is None
+    assert s[amk]["3-ROOM"] == {"median": 425000, "quarter": "2026-Q2"}
+    assert s[w.town_key("CENTRAL AREA")]["4-ROOM"]["median"] == 900000
