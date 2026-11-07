@@ -12,7 +12,7 @@ This file maps that plan to the automated tests in this repo and lists what is s
 | Alert rules `app/test/background_rules_test.dart` | GitHub Actions `app` | every push | 2 Notifications, 3B: runs the real `runChecks` pass |
 | Upgrade formats `app/test/upgrade_test.dart` | GitHub Actions `app` | every push | 5: old stored data still loads |
 | On-device flows `app/integration_test/app_test.dart` | GitHub Actions `emulator` (API 29 = minSdk / Android 10, API 35, API 36 = Play's required target) | every PR touching `app/` | 1, 3A, 3B, 3C: real SharedPreferences, notification read back from Android's active notifications, widget provider in the package, location revoked |
-| Upgrade on device `scripts/emulator_upgrade.sh` | GitHub Actions `emulator` | every PR, or by hand with a `base_ref` | 5: previous build installed, data seeded, new build installed with `adb install -r` |
+| Upgrade on device `scripts/emulator_upgrade.sh` | GitHub Actions `emulator` | every PR (from `origin/main`), every release (from the last release tag `v*`), or by hand with a `base_ref` | 5: previous build installed (with its own `pubspec.lock`), data seeded, new build installed with `adb install -r`; see "Release tags" below |
 | Release build (R8) `scripts/emulator_release.sh` | GitHub Actions `emulator` (API 35) | every PR touching `app/` | release build with R8 starts with saved data, runs the WorkManager job and widget; fails on missing classes/plugins in logcat |
 | Maestro flows `app/maestro/` (`scripts/emulator_maestro.sh`) | GitHub Actions `emulator` job `maestro` (API 35) | every PR touching `app/`, and every release before the upload | 1, 3A, 3C as a person uses the release build: onboarding, Setup saved over a restart, Today bus arrivals, Nearby sections, Home block, location denied then allowed, Appearance; see "Maestro" below |
 | Contract tests `contracts/v1/` | GitHub Actions `backend` (`tests/test_contracts.py`) and `app` (`test/contract_test.dart`) | every push touching `backend/`, `app/` or `contracts/` | the app and the server agree on every `/v1/*` response; see "Contract tests" below |
@@ -20,13 +20,32 @@ This file maps that plan to the automated tests in this repo and lists what is s
 | AI review (advisory) `.claude/skills/review-pr` | a Claude Code session, on request | "review PR #N" or "security gate for PR #N" before a merge | bugs, CLAUDE.md rules and security on a PR; one comment, never blocks; see "AI review" below |
 | Web check `scripts/web_check.sh` | GitHub Actions `web-check` | daily 07:23 Singapore time, and by hand | dailylah.sg opens, /privacy and /terms redirect to the policy pages, `data/manifest.json` valid on all three hosts, one bundle matches its sha256; see "Web check" below |
 | Feature tests `app/test/features_test.dart` | GitHub Actions `app` (flutter test) | every PR | each feature through the real widgets: Ate here at halal places, meal time in History, live bus position |
-| Release gate | GitHub Actions `app` jobs `e2e` + `play` | every push to `main` and manual releases | the whole `emulator` workflow must pass on the commit before the AAB goes to Google Play (closed testing by default) |
+| Release gate | GitHub Actions `app` jobs `e2e` + `play` + `release-tag` | every push to `main` and manual releases | the whole `emulator` workflow must pass on the commit before the AAB goes to Google Play (closed testing by default); one upload at a time; the uploaded commit is tagged `v<versionName>` |
 | Security scans `security.yml` | GitHub Actions `security` | every PR, push to `main`, Mondays | CodeQL (actions, python, java-kotlin), osv-scanner (dependencies), zizmor (workflows); see below |
 | Backend security `backend.yml` | GitHub Actions `backend` | every push touching `backend/` | ruff bandit rules (`S`), `pip-audit` on the installed dependency tree |
 | Agent docs `docs.yml` | GitHub Actions `docs` | every PR and push to `main` | `docs/REPO_MAP.md` and every `AGENTS.md` match the code and CLAUDE.md (`scripts/repo_map.py --check`) |
 
 The screen matrix uses the bundles committed in `web/data/`, so screens render with real data.
 The API, location and storage are faked. A test fails on any exception or layout overflow.
+
+## Release tags
+
+Every upload to Google Play tags its commit `v<versionName>` (`app` job `release-tag`, after
+`play`). The tags mark what users really run:
+- A release tests the upgrade from the nearest tag below its commit (`git describe` on `HEAD^`),
+  not from the commit before it, which may never have shipped. With no tag yet, it falls back to
+  that commit with a `No release tag` warning.
+- Pull requests still test the upgrade from `origin/main`: that catches a broken format before
+  it reaches a release.
+- The tag is the last upload to any track, closed testing included. Users on production can be a
+  version behind until it is promoted.
+- The old version is built with its own `pubspec.lock` (`--enforce-lockfile`); a tag from before
+  the lockfile was committed (v1.9.1 and older) resolves its dependencies fresh, with a warning.
+- A tag is never moved. Uploading again without a new `version:` (a manual run on another track)
+  keeps the tag on the first commit and says so in a warning.
+- A production upload also keeps the AAB and `dailylah-mapping.txt` in a draft GitHub Release of
+  that tag, since run artifacts expire after 30 days. Drafts are visible only to the owner; publish
+  it by hand if wanted.
 
 ## Security scans
 
