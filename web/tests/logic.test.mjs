@@ -303,6 +303,15 @@ test("home: real screenshots with size and alt, the day timeline and three quest
   assert.doesNotMatch(html, /<span>MRT<\/span>|<span>Bus<\/span>/);
 });
 
+test("privacy and terms are English only, like the app", () => {
+  for (const name of ["privacy", "terms"]) {
+    const doc = readFileSync(new URL(`../docs/legal/${name}.md`, web), "utf8");
+    assert.match(doc, /^\*\*Last updated: \d{1,2} [A-Z][a-z]+ \d{4}\*\*$/m, name);
+    assert.doesNotMatch(doc, /Bahasa Indonesia|#bahasa-indonesia|Kebijakan|Ketentuan|Cakupan/, name);
+    assert.match(doc, /^## 1\. Scope$/m, name);
+  }
+});
+
 test("the page loads Leaflet from the vendored copy only", () => {
   const html = read("where-to-live/index.html");
   const srcs = [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map((m) => m[1]);
