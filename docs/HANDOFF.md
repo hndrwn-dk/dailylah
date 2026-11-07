@@ -40,7 +40,11 @@ rent/resale. Static page and JSON, no browser API calls, no Render. One PR per p
   `https://play.google.com/store/apps/details?id=com.tursinalabs.dailylah`, `label` to
   "Get DailyLah" (short, fits a 360 px phone), `ariaLabel` to "Get DailyLah on Google Play", `steps`
   to `[]`. The landing page and `/where-to-live` both use it; update the test in `web/tests/`.
-- Phase 3 (per-town SEO pages), Phase 4 (launch with production).
+- Phase 3 (fares, true monthly cost, 26 town pages, sitemap; branch `feat/where-to-live-seo`):
+  see docs/WHERE_TO_LIVE.md "Fase 3". After merge: Actions > where-to-live > Run workflow once
+  (it asks OneMap again for every route to get fares, about 4 minutes) and check that the push job
+  pushes the JSON, the route cache and the regenerated town pages.
+- Phase 4 (launch with production).
 
 ## CI/CD hardening (Nov 2026, 8 phases, one PR each)
 Layers: deterministic scans → AI review → a person decides. Existing gates (analyze, test,

@@ -4,7 +4,10 @@
 
 export const MODES = ["rent", "buy"];
 export const MAX_MINUTES = [30, 45, 60, 75, 90];
-export const DEFAULTS = { area: "cbd", mode: "rent", flat: "4-ROOM", budget: null, max: null };
+export const DEFAULTS = { area: "cbd", mode: "rent", flat: "4-ROOM", budget: null, max: null, town: null };
+
+/** Working days in a month: the commute is there and back on each. */
+export const WORKDAYS = 22;
 
 const FLAT_LABELS = {
   "1-ROOM": "1-room",
@@ -49,7 +52,9 @@ export function readQuery(search, data) {
   const budget = positiveInt(q.get("budget"), mode === "buy" ? 10_000_000 : 100_000);
   const maxRaw = positiveInt(q.get("max"), 999);
   const max = MAX_MINUTES.includes(maxRaw) ? maxRaw : null;
-  return { area, mode, flat, budget, max };
+  // A town to open on load (links from the town pages); only ids from the data.
+  const town = data.towns.some((t) => t.id === q.get("town")) ? q.get("town") : null;
+  return { area, mode, flat, budget, max, town };
 }
 
 /**
@@ -64,7 +69,7 @@ export function changeChoices(prev, search, data) {
 /** The query string for a state, leaving out defaults so shared links stay short. */
 export function writeQuery(state) {
   const q = new URLSearchParams();
-  for (const key of ["area", "mode", "flat", "budget", "max"]) {
+  for (const key of ["area", "mode", "flat", "budget", "max", "town"]) {
     const v = state[key];
     if (v != null && v !== DEFAULTS[key]) q.set(key, String(v));
   }
@@ -97,6 +102,33 @@ export function highlights(groups) {
     .filter((r) => r.minutes <= median)
     .sort((a, b) => a.price.median - b.price.median || a.minutes - b.minutes)[0];
   return { fastest: byFast[0], value };
+}
+
+/**
+ * Estimated monthly commute for a row: fares (dollars, adult card fare there and back on WORKDAYS
+ * days, null when OneMap gave no fare), hours on the road, and for rent the all-in total (rent +
+ * fares). The town of the office area itself counts as no commute. null without a route.
+ */
+export function monthlyCost(state, row) {
+  const c = row.commute;
+  if (!c) return null;
+  const same = Boolean(c.same_area);
+  const fares = same ? 0 : Number.isInteger(c.fare) ? Math.round((c.fare * 2 * WORKDAYS) / 100) : null;
+  const hours = same ? 0 : Math.round((c.min * 2 * WORKDAYS) / 60);
+  const total = state.mode === "rent" && row.price && fares != null ? row.price.median + fares : null;
+  return { fares, hours, total, same };
+}
+
+/** "≈ $3,535/mo all-in with fares, 26 h on the road a month (estimate)", or the known parts. */
+export function allInText(state, row) {
+  const m = monthlyCost(state, row);
+  if (!m) return "";
+  if (m.same) return "In this area: no commute to pay for (estimate)";
+  const parts = [];
+  if (m.total != null) parts.push(`≈ $${money.format(m.total)}/mo all-in with fares`);
+  else if (m.fares != null) parts.push(`≈ $${money.format(m.fares)}/mo in fares`);
+  parts.push(`${m.hours} h on the road a month`);
+  return `${parts.join(", ")} (estimate)`;
 }
 
 /** "Bishan — 18 min, $3,700/mo" (or "Woodlands — in this area, $3,100/mo"). */

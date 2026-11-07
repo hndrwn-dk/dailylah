@@ -8,7 +8,9 @@ import {
   changeChoices,
   commuteText,
   flatTypes,
+  allInText,
   highlightText,
+  monthlyCost,
   highlights,
   pillText,
   priceDetail,
@@ -62,15 +64,24 @@ const DATA = {
     },
   ],
 };
-const state = (over = {}) => ({ area: "cbd", mode: "rent", flat: "4-ROOM", budget: null, max: null, ...over });
+const state = (over = {}) => ({
+  area: "cbd", mode: "rent", flat: "4-ROOM", budget: null, max: null, town: null, ...over,
+});
 const ids = (rows) => rows.map((r) => r.town.id);
 
 // ---------------------------------------------------------------- URL
 
 test("readQuery keeps known values", () => {
   assert.deepEqual(readQuery("?area=jurong-east&mode=buy&flat=4-ROOM&budget=650000&max=45", DATA), {
-    area: "jurong-east", mode: "buy", flat: "4-ROOM", budget: 650000, max: 45,
+    area: "jurong-east", mode: "buy", flat: "4-ROOM", budget: 650000, max: 45, town: null,
   });
+});
+
+test("?town= opens a town from the data only", () => {
+  assert.equal(readQuery("?town=punggol", DATA).town, "punggol");
+  assert.equal(readQuery("?town=nowhere", DATA).town, null);
+  assert.equal(readQuery("?town=<img>", DATA).town, null);
+  assert.equal(writeQuery(state({ town: "punggol" })), "?town=punggol");
 });
 
 test("readQuery replaces unknown or hostile values with defaults", () => {
@@ -78,7 +89,7 @@ test("readQuery replaces unknown or hostile values with defaults", () => {
     "?area=<script>&mode=steal&flat=9-ROOM&budget=-5&max=44&extra=1",
     DATA,
   );
-  assert.deepEqual(s, { area: "cbd", mode: "rent", flat: "4-ROOM", budget: null, max: null });
+  assert.deepEqual(s, { area: "cbd", mode: "rent", flat: "4-ROOM", budget: null, max: null, town: null });
   assert.equal(readQuery("?budget=1e9", DATA).budget, null);
   assert.equal(readQuery("?budget=3500abc", DATA).budget, null);
   assert.equal(readQuery("?budget=999999999", DATA).budget, null); // over the rent limit
@@ -156,6 +167,24 @@ test("summary card: same area, resale wording, and hidden when nothing fits", ()
   assert.equal(highlightText(buy.fastest, "buy"), "Bishan — 20 min, $700,000");
   assert.equal(highlights(rank(DATA, state({ budget: 1000 }))), null);
   assert.equal(highlights(rank(DATA, state({ max: 30, flat: "4-ROOM", area: "jurong-east" })))?.fastest.town.id, "central");
+});
+
+test("monthly cost: rent plus fares there and back on 22 working days, and hours", () => {
+  const row = { commute: { min: 36, transfers: 1, fare: 194 }, price: cell(3250) };
+  // 194 cents x 2 x 22 = $85.36 -> $85; 36 min x 2 x 22 / 60 = 26.4 -> 26 h
+  assert.deepEqual(monthlyCost(state(), row), { fares: 85, hours: 26, total: 3335, same: false });
+  assert.equal(allInText(state(), row), "≈ $3,335/mo all-in with fares, 26 h on the road a month (estimate)");
+  // Buy: fares and hours only.
+  assert.equal(monthlyCost(state({ mode: "buy" }), row).total, null);
+  assert.equal(allInText(state({ mode: "buy" }), row), "≈ $85/mo in fares, 26 h on the road a month (estimate)");
+  // No fare from OneMap: hours only; no route: nothing.
+  const noFare = { commute: { min: 30, transfers: 0, fare: null }, price: cell(3000) };
+  assert.equal(allInText(state(), noFare), "22 h on the road a month (estimate)");
+  assert.equal(allInText(state(), { commute: null, price: cell(3000) }), "");
+  // Same area: no commute.
+  const same = { commute: { min: null, transfers: null, same_area: true }, price: cell(3500) };
+  assert.deepEqual(monthlyCost(state(), same), { fares: 0, hours: 0, total: 3500, same: true });
+  assert.equal(allInText(state(), same), "In this area: no commute to pay for (estimate)");
 });
 
 test("map pills: minutes, bands by travel time", () => {

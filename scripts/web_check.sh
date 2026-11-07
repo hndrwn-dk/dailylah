@@ -6,6 +6,7 @@
 # - data/manifest.json loads from every host in webUrls (app/lib/api.dart) and is valid: a version,
 #   a non-empty list of files, each with a path and a sha256; one small bundle matches its sha256.
 # - /where-to-live opens with its Content-Security-Policy, and data/where-to-live.json is valid
+# - a town page (/where-to-live/punggol) and sitemap.xml open
 #   (26 towns, a commute for every office area).
 # Every problem is printed as an error; the script fails at the end if there was any.
 set -uo pipefail
@@ -138,6 +139,24 @@ then
   ok "$SITE/data/where-to-live.json is valid (26 towns, 6 office areas)"
 else
   fail "$SITE/data/where-to-live.json answered $code or is not valid"
+fi
+
+# 6. A town page and the sitemap (where-to-live.yml makes both).
+read -r code final _ <<< "$(fetch "$SITE/where-to-live/punggol" "$TMP/town.html")"
+if [ "$code" = 200 ] && grep -q "Living in Punggol" "$TMP/town.html"; then
+  ok "$SITE/where-to-live/punggol opens (200)"
+elif [ "${GITHUB_EVENT_NAME:-}" = pull_request ] && [ "$code" = 404 ]; then
+  echo "::warning::$SITE/where-to-live/punggol answered 404; expected before the town pages are on main"
+else
+  fail "$SITE/where-to-live/punggol answered $code at $(clean "$final") or is not the town page"
+fi
+read -r code _ _ <<< "$(fetch "$SITE/sitemap.xml" "$TMP/sitemap.xml")"
+if [ "$code" = 200 ] && grep -q "/where-to-live/punggol</loc>" "$TMP/sitemap.xml"; then
+  ok "$SITE/sitemap.xml lists the town pages"
+elif [ "${GITHUB_EVENT_NAME:-}" = pull_request ] && [ "$code" = 404 ]; then
+  echo "::warning::$SITE/sitemap.xml answered 404; expected before it is on main"
+else
+  fail "$SITE/sitemap.xml answered $code or does not list the town pages"
 fi
 
 rm -rf "$TMP"

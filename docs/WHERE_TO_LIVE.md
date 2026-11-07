@@ -131,14 +131,40 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
 - `scripts/web_check.sh` langkah 5: `/where-to-live` 200 dengan CSP, `where-to-live.json` valid.
 - Privasi: `docs/legal/privacy.md` bagian 5a (situs, OneMap tiles, tanpa cookie/analytics).
 
-## Fase 3: SEO + bagikan (1 PR)
-- Halaman statis per town (sekitar 26), misalnya "Living in Punggol: commute and HDB prices", dibuat dari JSON yang sama saat build. Sitemap, meta, gambar OG.
-
-- Rencana tambahan (dicatat 7 Nov 2026, belum dibangun): **biaya sebenarnya per bulan** per town =
-  sewa median + ongkos pergi-pulang 22 hari kerja (tarif kartu dewasa untuk jarak rute OneMap, dua
-  arah) + jam di jalan per bulan (menit sekali jalan × 2 × 22 ÷ 60, ditampilkan sebagai jam, bukan
-  diubah ke dolar). Butuh jarak atau tarif per rute di `where-to-live.json` (Fase 1 belum menyimpannya:
-  OneMap mengembalikan `fare` per itinerary, lihat contoh dry run).
+## Fase 3: SEO, ongkos, halaman town (dibangun 8 Nov 2026)
+- **Ongkos:** tiap rute OneMap menyimpan `fare` (tarif kartu dewasa, sen; `null` kalau OneMap tidak
+  memberi) di cache dan di `commute.<area>.fare`. Entri cache lama tanpa `fare` diambil ulang sekali
+  (run pertama setelah merge: sekitar 154 panggilan, 4 menit). Laporan run mencatat `no_fare`.
+- **Biaya sebenarnya per bulan** (`monthlyCost`, `allInText` di `logic.js`): sewa + ongkos
+  pergi-pulang 22 hari kerja, plus jam di jalan (menit x 2 x 22 / 60). Tampil di baris yang dibuka
+  dan di kartu ringkasan, berlabel "estimate". Mode beli: ongkos dan jam saja. Town = area kantor:
+  tanpa ongkos dan jam.
+- **Halaman town:** `backend/app/where_to_live_pages.py` menulis `web/where-to-live-towns/<id>.html`
+  (26) dan `index.html`, disajikan di `/where-to-live/<id>` dan `/where-to-live/towns` lewat rewrite
+  di `web/vercel.json`; CSP yang sama juga dipasang untuk `/where-to-live-towns/*`, dan
+  `robots.txt` melarang path folder itu (canonical menunjuk ke `/where-to-live/<id>`). Isi: dua
+  paragraf dari data town itu (peringkat ke CBD, area kantor terdekat, jam per bulan, sewa
+  terendah, perbandingan dengan town terdekat, median vs median 26 town), tabel 6 area kantor
+  (waktu, transfer, ongkos, jam dan ongkos per bulan), tabel harga per tipe flat dengan kuartalnya,
+  3 town terdekat, dan tautan ke tool (`?town=<id>` membuka barisnya). Semua nilai lewat
+  `html.escape`; tidak ada script selain `cta.js`. Jaccard 5-kata antar halaman maksimal sekitar 0,31
+  (tes: < 0,5).
+- **SEO:** `web/sitemap.xml` (dibuat generator, `lastmod` dari `generated_at`), `web/robots.txt`
+  (tetap), canonical, meta description dan OG per town (gambar OG bersama). Tool dan Home menautkan
+  ke `/where-to-live/towns`.
+- **Workflow:** patch dari job build `where-to-live.yml` hanya boleh mengubah JSON-nya dan cache
+  rute (allowlist `push_data.sh`, yang mendukung `dir/*.ext`; `data.yml` dibatasi ke `*.json`), dan
+  setiap `*.json` harus berupa objek atau array JSON yang valid. Halaman town dan `web/sitemap.xml`
+  dibuat di job push oleh generator milik `main` sendiri (`push_data.sh --generate`, `python3`
+  runner, stdlib, tanpa pip) setelah patch diterapkan; hanya `web/where-to-live-towns/*.html` dan
+  sitemap yang di-commit dari hasilnya. Jadi job build tidak bisa menambah script atau halaman yang
+  disajikan situs. `web/vercel.json` memasang `X-Content-Type-Options: nosniff` untuk `/data/*`,
+  jadi bundle JSON tidak bisa dijalankan sebagai script.
+- **Tes:** `backend/tests/test_where_to_live.py` (fare), `test_where_to_live_pages.py` (generator,
+  escaping, sitemap, halaman lama dihapus, tidak ada duplikat, file yang di-commit = hasil generator),
+  `test_push_data.py` (pola `*.ext`, halaman di patch ditolak, JSON tidak valid ditolak, halaman
+  dibuat saat push, `nosniff` untuk `/data/`), `web/tests/logic.test.mjs` (biaya, `?town=`).
+- **Belum:** gambar OG per town.
 
 ## Fase 4: launch
 - Live bersamaan dengan production DailyLah. Post LinkedIn: app + alat web.
