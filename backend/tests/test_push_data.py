@@ -1,5 +1,6 @@
 """scripts/push_data.sh against local git repos: only allowed data files reach main."""
 
+import json
 import os
 import shutil
 import subprocess
@@ -7,16 +8,16 @@ from pathlib import Path
 
 import pytest
 
-SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "push_data.sh"
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "scripts" / "push_data.sh"
 REMOTE = "git@github.com:hndrwn-dk/dailylah.git"
 # The allowed paths the workflows pass (data.yml, where-to-live.yml).
 DATA = ["web/data/*.json", "backend/data/*.json"]
-WHERE_TO_LIVE = [
-    "web/data/where-to-live.json",
-    "backend/data/where_to_live_routes.json",
-    "web/where-to-live-towns/*.html",
-    "web/sitemap.xml",
-]
+WHERE_TO_LIVE = ["web/data/where-to-live.json", "backend/data/where_to_live_routes.json"]
+# The town pages and sitemap come only from main's own generator, run by the push job.
+PAGES = "cd backend && python3 -E -s -m app.where_to_live_pages ../web"
+GENERATED = ["--generated", "web/where-to-live-towns/*.html", "--generated", "web/sitemap.xml"]
+NEW = '{"v": "new"}\n'
 
 pytestmark = pytest.mark.skipif(
     shutil.which("git") is None or shutil.which("bash") is None, reason="needs git and bash"
@@ -57,7 +58,11 @@ def repos(tmp_path: Path):
         "web/data/run.sh",
     ]:
         (seed / rel).parent.mkdir(parents=True, exist_ok=True)
-        (seed / rel).write_text("old\n")
+        (seed / rel).write_text('{"v": "old"}\n' if rel.endswith(".json") else "old\n")
+    # main's generator for the town pages, as the push job runs it.
+    for rel in ("backend/app/__init__.py", "backend/app/where_to_live_pages.py"):
+        (seed / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(ROOT / rel, seed / rel)
     git(seed, "add", ".", env=env)
     git(seed, "commit", "--quiet", "-m", "seed", env=env)
     git(seed, "push", "--quiet", str(bare), "main", env=env)
@@ -82,9 +87,9 @@ def make_patch(seed: Path, env: dict, tmp: Path, change) -> Path:
     return patch
 
 
-def run_script(work: Path, env: dict, patch: Path, allowed: list[str]):
+def run_script(work: Path, env: dict, patch: Path, allowed: list[str], options=()):
     return subprocess.run(  # noqa: S603 - the script under test
-        ["bash", str(SCRIPT), str(patch), "Update data", *allowed],  # noqa: S607
+        ["bash", str(SCRIPT), *options, str(patch), "Update data", *allowed],  # noqa: S607
         cwd=work,
         env=env,
         capture_output=True,
@@ -97,7 +102,7 @@ def main_head(bare: Path, env: dict) -> str:
     return git(bare, "rev-parse", "main", env=env).strip()
 
 
-def write(rel: str, text: str = "new\n"):
+def write(rel: str, text: str = NEW):
     def change(repo: Path):
         (repo / rel).parent.mkdir(parents=True, exist_ok=True)
         (repo / rel).write_text(text)
@@ -112,7 +117,7 @@ def test_allowed_data_change_is_pushed(repos, tmp_path):
     result = run_script(work, script_env, patch, DATA)
     assert result.returncode == 0, result.stdout + result.stderr
     assert main_head(bare, env) != before
-    assert git(bare, "show", "main:web/data/other.json", env=env) == "new\n"
+    assert git(bare, "show", "main:web/data/other.json", env=env) == NEW
 
 
 def test_where_to_live_change_is_pushed(repos, tmp_path):
@@ -183,21 +188,74 @@ def test_data_refuses_other_file_types_and_subfolders(repos, tmp_path):
         git(seed, "clean", "--quiet", "-fd", env=env)
 
 
-def test_where_to_live_pushes_town_pages_and_sitemap(repos, tmp_path):
+def test_where_to_live_refuses_town_pages_and_sitemap_in_the_patch(repos, tmp_path):
     seed, work, bare, env, script_env = repos
     before = main_head(bare, env)
+    for rel in (
+        "web/where-to-live-towns/punggol.html",
+        "web/where-to-live-towns/index.html",
+        "web/sitemap.xml",
+    ):
+        patch = make_patch(seed, env, tmp_path, write(rel, "<p>page</p>\n"))
+        result = run_script(
+            work, script_env, patch, WHERE_TO_LIVE, ["--generate", PAGES, *GENERATED]
+        )
+        assert result.returncode != 0, rel
+        assert rel in result.stdout, rel
+        assert main_head(bare, env) == before, rel
+        assert not (work / rel).exists(), rel
+        git(seed, "reset", "--quiet", "--hard", env=env)
+        git(seed, "clean", "--quiet", "-fd", env=env)
 
-    def change(repo: Path):
-        write("web/where-to-live-towns/punggol.html", "<p>page</p>\n")(repo)
-        write("web/sitemap.xml", "<urlset/>\n")(repo)
 
-    patch = make_patch(seed, env, tmp_path, change)
-    result = run_script(work, script_env, patch, WHERE_TO_LIVE)
+@pytest.mark.parametrize("text", ["<script>x()</script>\n", '"text"\n', "1\n", ""])
+def test_json_that_is_not_an_object_or_array_is_refused(repos, tmp_path, text):
+    seed, work, bare, env, script_env = repos
+    before = main_head(bare, env)
+    patch = make_patch(seed, env, tmp_path, write("web/data/where-to-live.json", text))
+    result = run_script(work, script_env, patch, WHERE_TO_LIVE, ["--generate", PAGES, *GENERATED])
+    assert result.returncode != 0
+    assert "web/data/where-to-live.json" in result.stdout
+    assert main_head(bare, env) == before
+
+
+def test_where_to_live_generates_town_pages_on_push(repos, tmp_path):
+    """The push job writes the pages with main's generator from the pushed JSON."""
+    seed, work, bare, env, script_env = repos
+    before = main_head(bare, env)
+    data = (ROOT / "web/data/where-to-live.json").read_text()
+    patch = make_patch(seed, env, tmp_path, write("web/data/where-to-live.json", data))
+    result = run_script(work, script_env, patch, WHERE_TO_LIVE, ["--generate", PAGES, *GENERATED])
     assert result.returncode == 0, result.stdout + result.stderr
     assert main_head(bare, env) != before
-    assert (
-        git(bare, "show", "main:web/where-to-live-towns/punggol.html", env=env) == "<p>page</p>\n"
+    towns = json.loads(data)["towns"]
+    pushed = git(bare, "ls-tree", "--name-only", "main", "web/where-to-live-towns/", env=env)
+    assert len(pushed.split()) == len(towns) + 1
+    for rel in ("web/where-to-live-towns/index.html", "web/sitemap.xml"):
+        assert git(bare, "show", f"main:{rel}", env=env) == (ROOT / rel).read_text(), rel
+
+
+def test_generated_files_outside_the_generated_paths_are_not_pushed(repos, tmp_path):
+    seed, work, bare, env, script_env = repos
+    gen = (
+        "mkdir -p web/where-to-live-towns && echo '<p>a</p>' > web/where-to-live-towns/a.html"
+        " && echo x > web/where-to-live-towns/evil.js && echo x > web/data/other.json"
+        " && echo '<urlset/>' > web/sitemap.xml"
     )
+    patch = make_patch(seed, env, tmp_path, write("web/data/where-to-live.json"))
+    result = run_script(work, script_env, patch, WHERE_TO_LIVE, ["--generate", gen, *GENERATED])
+    assert result.returncode == 0, result.stdout + result.stderr
+    files = git(bare, "ls-tree", "-r", "--name-only", "main", env=env).split()
+    assert "web/where-to-live-towns/a.html" in files
+    assert "web/where-to-live-towns/evil.js" not in files
+    assert git(bare, "show", "main:web/data/other.json", env=env) == '{"v": "old"}\n'
+
+
+def test_vercel_serves_data_bundles_with_nosniff():
+    """A JSON bundle must never run as a script on the site (CSP script-src 'self')."""
+    config = json.loads((ROOT / "web/vercel.json").read_text())
+    headers = next(h["headers"] for h in config["headers"] if h["source"] == "/data/(.*)")
+    assert {"key": "X-Content-Type-Options", "value": "nosniff"} in headers
 
 
 def test_where_to_live_refuses_scripts_next_to_town_pages(repos, tmp_path):

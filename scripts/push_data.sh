@@ -4,17 +4,31 @@
 # which run in environment `data-push` and get the patch from the build job as an artifact, so
 # the key never shares a job with pip or the build's third-party code.
 #
-# Usage: DATA_PUSH_SSH_KEY=<private key> scripts/push_data.sh <patch file> "<commit message>" \
+# Usage: DATA_PUSH_SSH_KEY=<private key> scripts/push_data.sh \
+#          [--generate "<command>" --generated <path>...] <patch file> "<commit message>" \
 #          <allowed path>...
 # The patch is `git diff --cached --binary` of the build job. It is applied to the newest main
 # (which may have moved while the build ran) and pushed; up to 3 tries.
 # The build job runs third-party code, so the patch is not trusted: every path it touches must be
-# an allowed path, and only regular, non-executable files may be added, changed or deleted.
+# an allowed path, only regular, non-executable files may be added, changed or deleted, and every
+# `*.json` file it leaves must parse as a JSON object or array.
 # Allowed path forms: `dir/*.ext` (files with that extension directly in dir, not in subfolders),
-# `dir/` (everything under dir) and anything else for exactly that one file. The workflows use the
-# first and third forms, so the build job cannot add scripts or pages the site would serve.
+# `dir/` (everything under dir) and anything else for exactly that one file. The workflows allow
+# only JSON files in the patch, so the build job cannot add scripts or pages the site would serve.
+# --generate runs <command> (with bash, from the repository root) after the patch is applied, so it
+# is main's own code; it may write only the --generated paths (same forms), which are staged from
+# its output. Generated paths are never accepted from the patch.
 set -euo pipefail
 
+generate=""
+generated=()
+while [ $# -gt 0 ]; do
+  case $1 in
+    --generate) generate=$2; shift 2 ;;
+    --generated) generated+=("$2"); shift 2 ;;
+    *) break ;;
+  esac
+done
 patch=$(realpath "$1")
 message=$2
 shift 2
@@ -23,22 +37,33 @@ if [ "${#allowed[@]}" -eq 0 ]; then
   echo "::error::No allowed paths given."
   exit 1
 fi
+if [ -n "$generate" ] && [ "${#generated[@]}" -eq 0 ]; then
+  echo "::error::--generate needs at least one --generated path."
+  exit 1
+fi
 
-# Fails unless $1 is one of the allowed paths.
-check_path() {
-  local entry dir ext rest
-  for entry in "${allowed[@]}"; do
+# Succeeds if $1 matches one of the paths that follow it.
+matches() {
+  local path=$1 entry dir ext rest
+  shift
+  for entry in "$@"; do
     if [[ "$entry" == */\*.* ]]; then
       dir=${entry%/*}/
       ext=.${entry##*.}
-      rest=${1#"$dir"}
-      [[ "$1" == "$dir"?* && "$rest" != */* && "$rest" == ?*"$ext" ]] && return 0
+      rest=${path#"$dir"}
+      [[ "$path" == "$dir"?* && "$rest" != */* && "$rest" == ?*"$ext" ]] && return 0
     elif [[ "$entry" == */ ]]; then
-      [[ "$1" == "$entry"?* ]] && return 0
+      [[ "$path" == "$entry"?* ]] && return 0
     else
-      [[ "$1" == "$entry" ]] && return 0
+      [[ "$path" == "$entry" ]] && return 0
     fi
   done
+  return 1
+}
+
+# Fails unless $1 is one of the allowed paths (the patch may change only these).
+check_path() {
+  matches "$1" "${allowed[@]}" && return 0
   echo "::error::The data update touches a path it may not change: $1"
   exit 1
 }
@@ -59,18 +84,49 @@ check_patch_paths() {
   done < <(git apply --numstat -z "$patch")
 }
 
-# Checks what the applied patch staged: allowed paths, regular files with mode 100644 only
-# (no symlink, submodule, executable bit or mode change).
+# Checks what is staged for the commit: allowed or generated paths, regular files with mode
+# 100644 only (no symlink, submodule, executable bit or mode change), JSON that parses.
 check_staged() {
   local meta path src dst
   while IFS= read -r -d '' meta && IFS= read -r -d '' path; do
-    check_path "$path"
+    if ! matches "$path" "${generated[@]}"; then
+      check_path "$path"
+    fi
     read -r src dst _ <<< "${meta#:}"
     if [[ "$src" != 100644 && "$src" != 000000 ]] || [[ "$dst" != 100644 && "$dst" != 000000 ]]; then
       echo "::error::The data update changes a file type or mode: $path ($src -> $dst)"
       exit 1
     fi
+    if [[ "$path" == *.json && "$dst" != 000000 ]] && ! check_json "$path"; then
+      echo "::error::The data update has a JSON file that is not a JSON object or array: $path"
+      exit 1
+    fi
   done < <(git diff --cached --raw --no-renames -z HEAD)
+}
+
+# Succeeds if the staged file $1 parses as a JSON object or array (the runner's python3, stdlib).
+check_json() {
+  git show ":$1" | python3 -E -s -c '
+import json, sys
+sys.exit(0 if isinstance(json.load(sys.stdin), (dict, list)) else 1)' 2>/dev/null
+}
+
+# Runs the --generate command on the patched main and stages what it wrote at the generated paths.
+run_generate() {
+  local entry spec specs=()
+  [ -n "$generate" ] || return 0
+  env -u DATA_PUSH_SSH_KEY bash -c "$generate"
+  for entry in "${generated[@]}"; do
+    if [[ "$entry" == */\*.* ]]; then
+      spec=":(glob)$entry"
+    elif [[ "$entry" == */ ]]; then
+      spec=":(glob)$entry**"
+    else
+      spec=":(literal)$entry"
+    fi
+    specs+=("$spec")
+  done
+  git add -A -- "${specs[@]}"
 }
 
 check_patch_paths
@@ -105,6 +161,8 @@ for try in 1 2 3; do
       echo "::error::The data update no longer applies to main (another change touched the same files)."
       exit 1
     fi
+    check_staged
+    run_generate
     check_staged
     if git diff --cached --quiet; then
       echo "Nothing left to push: main already has these changes."

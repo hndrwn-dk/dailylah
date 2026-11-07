@@ -1,15 +1,16 @@
 """Static "Living in <town>" pages for dailylah.sg, from web/data/where-to-live.json.
 
-Run weekly by .github/workflows/where-to-live.yml after app.where_to_live:
-    cd backend && python -m app.where_to_live_pages ../web
+Run weekly by the push job of .github/workflows/where-to-live.yml (scripts/push_data.sh
+--generate, main's own copy of this file, the runner's python3: stdlib only, keep it so):
+    cd backend && python3 -m app.where_to_live_pages ../web
 
 Writes, only when the content changed:
     web/where-to-live-towns/<town id>.html   one page per HDB town (served at /where-to-live/<id>)
     web/where-to-live-towns/index.html       all towns (served at /where-to-live/towns)
     web/sitemap.xml
 The rewrites from /where-to-live/... live in web/vercel.json, so the pages share the tool's CSP.
-The folder holds generated HTML only: the push job may change nothing else under web/ but
-web/data/ (scripts/push_data.sh allowlist). Every value from the JSON goes through html.escape,
+The folder holds generated HTML only: the build job's patch may not touch it or the sitemap
+(scripts/push_data.sh allowlist); only this generator, run in the push job, writes them. Every value from the JSON goes through html.escape,
 and no page has a script of its own (only /shared/cta.js).
 """
 

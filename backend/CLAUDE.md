@@ -51,7 +51,10 @@ relative to `backend/` when they start with `app/`. Endpoint index: `docs/REPO_M
   writes the "Living in <town>" pages to `web/where-to-live-towns/` (served at
   `/where-to-live/<id>` and `/where-to-live/towns` by rewrites in `web/vercel.json`) and
   `web/sitemap.xml`; every JSON value goes through `html.escape`, and files are only rewritten when
-  their content changed. The push job may change only those paths (`*.html` in that folder).
+  their content changed. The build job's patch may change only the two JSON files (each must parse
+  as a JSON object or array); the push job runs main's own `where_to_live_pages.py` with the
+  runner's `python3` (stdlib, no pip) on the patched main and commits only `*.html` in that folder
+  and the sitemap (`scripts/push_data.sh --generate/--generated`).
 - OneMap needs a token: the backend (`app/onemap.py`) logs in with `ONEMAP_EMAIL` /
   `ONEMAP_PASSWORD` (Render env and GitHub secrets) and renews it; the app searches via
   `/v1/search`. Never put OneMap credentials or tokens in the app.

@@ -42,16 +42,11 @@ jobs:
           ONEMAP_EMAIL: ${{ secrets.ONEMAP_EMAIL }}
           ONEMAP_PASSWORD: ${{ secrets.ONEMAP_PASSWORD }}
         run: python -m app.where_to_live ../web/data
-      # The "Living in <town>" pages and the sitemap, from the same JSON (docs/WHERE_TO_LIVE.md).
-      - name: Town pages
-        working-directory: backend
-        run: python -m app.where_to_live_pages ../web
       - name: Collect changes
         id: diff
         run: |
           # Stage first: plain `git diff` ignores new (untracked) files.
-          git add web/data/where-to-live.json backend/data/where_to_live_routes.json \
-            web/where-to-live-towns web/sitemap.xml
+          git add web/data/where-to-live.json backend/data/where_to_live_routes.json
           if git diff --cached --quiet; then
             echo "No data changes"; echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
@@ -66,7 +61,10 @@ jobs:
 
   # Pushes the patch to main with the deploy key that the main ruleset lets bypass its rules
   # (docs/HANDOFF.md, "Rulesets", route B). Environment data-push holds DATA_PUSH_SSH_KEY and is
-  # limited to main. Only GitHub's own actions and scripts/push_data.sh run in this job.
+  # limited to main. Only GitHub's own actions and scripts/push_data.sh run in this job, plus main's
+  # own backend/app/where_to_live_pages.py (stdlib only, the runner's python3, no pip), which
+  # push_data.sh runs on the patched main to write the "Living in <town>" pages and the sitemap
+  # (docs/WHERE_TO_LIVE.md). The patch itself may carry only the two JSON files.
   push:
     name: where-to-live (push)
     needs: build
@@ -89,6 +87,8 @@ jobs:
           DATA_PUSH_SSH_KEY: ${{ secrets.DATA_PUSH_SSH_KEY }}
           PATCH: ${{ runner.temp }}/patch/data.patch
         run: |
-          bash scripts/push_data.sh "$PATCH" "Update where-to-live data" \
-            web/data/where-to-live.json backend/data/where_to_live_routes.json \
-            'web/where-to-live-towns/*.html' web/sitemap.xml
+          bash scripts/push_data.sh \
+            --generate 'cd backend && python3 -E -s -m app.where_to_live_pages ../web' \
+            --generated 'web/where-to-live-towns/*.html' --generated web/sitemap.xml \
+            "$PATCH" "Update where-to-live data" \
+            web/data/where-to-live.json backend/data/where_to_live_routes.json

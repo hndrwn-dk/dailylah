@@ -85,7 +85,10 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   needed. Checkouts use `persist-credentials: false`; a job that pushes passes the token only to
   that `git push`. `data.yml` and `where-to-live.yml` build in a read-only job and hand a patch to a
   separate `push` job (environment `data-push`, deploy key `DATA_PUSH_SSH_KEY`, the `main` ruleset's
-  only bypass) that runs `scripts/push_data.sh` and nothing from pip. In `app.yml` only
+  only bypass) that runs `scripts/push_data.sh` and nothing from pip. The patch may carry only
+  JSON files that parse; files the site serves as pages (the where-to-live town pages, the sitemap)
+  are made in the push job by main's own stdlib generator (`push_data.sh --generate`), never taken
+  from the patch. `web/vercel.json` sends `nosniff` for `/data/*`. In `app.yml` only
   `release-tag` writes (`contents: write`, the release tag and draft Release); `play`, which holds
   the Play key, stays read-only. The upload key is only in the `sign` job (environment `signing`:
   sparse checkout of `scripts/sign_aab.sh`, JDK only, no Gradle, pub or cache); the Play key only in

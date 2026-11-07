@@ -152,13 +152,18 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
 - **SEO:** `web/sitemap.xml` (dibuat generator, `lastmod` dari `generated_at`), `web/robots.txt`
   (tetap), canonical, meta description dan OG per town (gambar OG bersama). Tool dan Home menautkan
   ke `/where-to-live/towns`.
-- **Workflow:** `where-to-live.yml` menjalankan generator setelah JSON; patch hanya boleh mengubah
-  JSON-nya, cache rute, `web/where-to-live-towns/*.html` dan `web/sitemap.xml` (allowlist
-  `push_data.sh`, yang kini mendukung `dir/*.ext`; `data.yml` dibatasi ke `*.json`). Jadi job build
-  tidak bisa menambah script atau halaman lain yang disajikan situs.
+- **Workflow:** patch dari job build `where-to-live.yml` hanya boleh mengubah JSON-nya dan cache
+  rute (allowlist `push_data.sh`, yang mendukung `dir/*.ext`; `data.yml` dibatasi ke `*.json`), dan
+  setiap `*.json` harus berupa objek atau array JSON yang valid. Halaman town dan `web/sitemap.xml`
+  dibuat di job push oleh generator milik `main` sendiri (`push_data.sh --generate`, `python3`
+  runner, stdlib, tanpa pip) setelah patch diterapkan; hanya `web/where-to-live-towns/*.html` dan
+  sitemap yang di-commit dari hasilnya. Jadi job build tidak bisa menambah script atau halaman yang
+  disajikan situs. `web/vercel.json` memasang `X-Content-Type-Options: nosniff` untuk `/data/*`,
+  jadi bundle JSON tidak bisa dijalankan sebagai script.
 - **Tes:** `backend/tests/test_where_to_live.py` (fare), `test_where_to_live_pages.py` (generator,
   escaping, sitemap, halaman lama dihapus, tidak ada duplikat, file yang di-commit = hasil generator),
-  `test_push_data.py` (pola `*.ext`), `web/tests/logic.test.mjs` (biaya, `?town=`).
+  `test_push_data.py` (pola `*.ext`, halaman di patch ditolak, JSON tidak valid ditolak, halaman
+  dibuat saat push, `nosniff` untuk `/data/`), `web/tests/logic.test.mjs` (biaya, `?town=`).
 - **Belum:** gambar OG per town.
 
 ## Fase 4: launch
