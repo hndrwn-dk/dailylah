@@ -113,3 +113,18 @@ def test_committed_pages_match_the_committed_json():
         assert committed == p.town_page(REAL, t), t["id"]
     assert (WEB / p.TOWNS_DIR / "index.html").read_text() == p.index_page(REAL)
     assert (WEB / "sitemap.xml").read_text() == p.sitemap(REAL)
+
+
+def test_town_without_any_price_says_so():
+    town = {"rent": {"3-ROOM": None}, "resale": {}}
+    rows = p.price_rows(town)
+    assert rows.count("<tr>") == 1
+    assert 'colspan="3"' in rows and "no median rent or resale price" in rows
+
+
+def test_dates_are_singapore_dates():
+    # 20:00 UTC on 7 Nov is 04:00 on 8 Nov in Singapore.
+    data = {**REAL, "generated_at": "2026-11-07T20:00:00Z"}
+    assert "Updated 8 Nov 2026." in p.tail(data)
+    assert "<lastmod>2026-11-08</lastmod>" in p.sitemap(data)
+    assert "Updated" not in p.tail({**REAL, "generated_at": "not a date"})

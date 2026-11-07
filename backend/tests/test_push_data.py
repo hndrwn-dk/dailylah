@@ -265,3 +265,22 @@ def test_where_to_live_refuses_scripts_next_to_town_pages(repos, tmp_path):
     result = run_script(work, script_env, patch, WHERE_TO_LIVE)
     assert result.returncode != 0
     assert main_head(bare, env) == before
+
+
+def test_generate_command_never_sees_the_key(repos, tmp_path):
+    """Neither the environment nor the key file is there while the --generate command runs."""
+    seed, work, bare, env, script_env = repos
+    gen = (
+        "mkdir -p web/where-to-live-towns"
+        ' && key=$(printf %s "$GIT_SSH_COMMAND" | sed -n "s/.* -i \\([^ ]*\\) .*/\\1/p")'
+        ' && { [ -n "$key" ] && [ ! -e "$key" ] && echo gone || echo there; }'
+        "    > web/where-to-live-towns/file.html"
+        ' && echo "env:${DATA_PUSH_SSH_KEY:-unset}" > web/where-to-live-towns/env.html'
+        " && echo '<urlset/>' > web/sitemap.xml"
+    )
+    patch = make_patch(seed, env, tmp_path, write("web/data/where-to-live.json"))
+    result = run_script(work, script_env, patch, WHERE_TO_LIVE, ["--generate", gen, *GENERATED])
+    assert result.returncode == 0, result.stdout + result.stderr  # the key is back for the push
+    show = lambda rel: git(bare, "show", f"main:web/where-to-live-towns/{rel}", env=env)  # noqa: E731
+    assert show("file.html") == "gone\n"
+    assert show("env.html") == "env:unset\n"

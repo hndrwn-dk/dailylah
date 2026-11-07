@@ -18,7 +18,7 @@ import html
 import json
 import math
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -285,13 +285,24 @@ def head(title: str, description: str, path: str) -> str:
 """
 
 
-def tail(data: dict) -> str:
-    updated = ""
+# Singapore has no daylight saving time; a fixed offset needs no tz database on the runner.
+SGT = timezone(timedelta(hours=8))
+
+
+def sg_date(data: dict) -> datetime | None:
+    """generated_at as a Singapore date and time, or None."""
     try:
         when = datetime.fromisoformat(str(data["generated_at"]).replace("Z", "+00:00"))
-        updated = f" Updated {when.day} {when.strftime('%b %Y')}."
     except (KeyError, ValueError):
-        pass
+        return None
+    return when.astimezone(SGT) if when.tzinfo else when
+
+
+def tail(data: dict) -> str:
+    updated = ""
+    when = sg_date(data)
+    if when:
+        updated = f" Updated {when.day} {when.strftime('%b %Y')}."
     return f"""  <section class="app sticker">
     <h2>Know before you go lah.</h2>
     <p>DailyLah, our free Android app, shows bus arrivals, MRT delays and the weather for your own trip to work.</p>
@@ -352,6 +363,11 @@ def price_rows(town: dict) -> str:
         rows.append(
             f'        <tr><th scope="row">{e(FLAT_LABEL[flat])}</th>'
             f"<td>{e(cell(rent, '/month'))}</td><td>{e(cell(resale))}</td></tr>"
+        )
+    if not rows:
+        rows.append(
+            '        <tr><td colspan="3">HDB published no median rent or resale price for this town'
+            " in the last four quarters.</td></tr>"
         )
     return "\n".join(rows)
 
@@ -482,10 +498,8 @@ def index_page(data: dict) -> str:
 
 
 def sitemap(data: dict) -> str:
-    try:
-        lastmod = str(data["generated_at"])[:10]
-    except KeyError:
-        lastmod = ""
+    when = sg_date(data)
+    lastmod = when.date().isoformat() if when else ""
     paths = ["/", "/where-to-live", "/where-to-live/towns"] + [
         f"/where-to-live/{t['id']}" for t in sorted(data["towns"], key=lambda t: t["id"])
     ]

@@ -115,7 +115,10 @@ sys.exit(0 if isinstance(json.load(sys.stdin), (dict, list)) else 1)' 2>/dev/nul
 run_generate() {
   local entry spec specs=()
   [ -n "$generate" ] || return 0
+  # The command never sees the key: not in its environment, not on disk while it runs.
+  rm -f "$dir/key"
   env -u DATA_PUSH_SSH_KEY bash -c "$generate"
+  write_key
   for entry in "${generated[@]}"; do
     if [[ "$entry" == */\*.* ]]; then
       spec=":(glob)$entry"
@@ -138,7 +141,8 @@ fi
 dir=$(mktemp -d)
 trap 'rm -rf "$dir"' EXIT
 umask 077
-printf '%s\n' "$DATA_PUSH_SSH_KEY" > "$dir/key"
+write_key() { printf '%s\n' "$DATA_PUSH_SSH_KEY" > "$dir/key"; }
+write_key
 # GitHub's published SSH host key (docs.github.com, "GitHub's SSH key fingerprints"), pinned so the
 # push never trusts a host key it has not seen before.
 echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" \

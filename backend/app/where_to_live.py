@@ -294,19 +294,23 @@ async def fetch_route(
     return None, None
 
 
-def _cached(entry: Any, start: list[float], end: list[float]) -> bool:
+def _usable(entry: Any, start: list[float], end: list[float]) -> bool:
+    """A cached route for these points, good enough to fall back on when OneMap fails."""
     return (
         isinstance(entry, dict)
         and entry.get("from") == start
         and entry.get("to") == end
         and isinstance(entry.get("min"), int)
-        # Entries cached before fares were kept are asked again once.
-        and "fare" in entry
     )
 
 
+def _cached(entry: Any, start: list[float], end: list[float]) -> bool:
+    # Entries cached before fares were kept are asked again once.
+    return _usable(entry, start, end) and "fare" in entry
+
+
 def _route(entry: dict) -> dict:
-    return {"min": entry["min"], "transfers": entry["transfers"], "fare": entry["fare"]}
+    return {"min": entry["min"], "transfers": entry.get("transfers"), "fare": entry.get("fare")}
 
 
 async def build_routes(
@@ -356,7 +360,7 @@ async def build_routes(
                 counts["fetched"] += 1
                 if route["fare"] is None:
                     counts["no_fare"] += 1
-            elif _cached(old, start, end):
+            elif _usable(old, start, end):
                 new_cache[key] = old
                 out[town["id"]][area["id"]] = _route(old)
                 counts["failed_used_old"] += 1
