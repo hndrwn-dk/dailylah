@@ -189,59 +189,19 @@ jobs:
             signed/dailylah-mapping.txt
           retention-days: 30
 
-  # THROWAWAY (verification, removed before the PR): sign with a throwaway key on any branch.
-  sign-test:
-    name: sign test (throwaway key)
-    needs: analyze
-    if: needs.analyze.outputs.track != 'none'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          sparse-checkout: scripts/sign_aab.sh
-          sparse-checkout-cone-mode: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: dailylah-aab-unsigned
-          path: unsigned
-      - name: Sign with a throwaway key; wrong fingerprint and double signing must fail
-        run: |
-          ls -la . scripts unsigned
-          keytool -genkeypair -keystore t.jks -storepass throwaway1 -keypass throwaway1 -alias up \
-            -keyalg RSA -keysize 2048 -validity 2 -dname CN=Throwaway >/dev/null 2>&1
-          fp=$(keytool -list -v -keystore t.jks -storepass throwaway1 -alias up | sed -n 's/.*SHA256: //p')
-          export KEYSTORE_B64=$(base64 -w0 t.jks) KS_PASS=throwaway1 KEY_ALIAS=up KEY_PASS=throwaway1
-          echo "== 1. wrong fingerprint (must fail)"
-          if EXPECTED_SHA256=00:11:22 bash scripts/sign_aab.sh unsigned/dailylah.aab bad/dailylah.aab; then echo "::error::signed with a wrong fingerprint"; exit 1; fi
-          [ ! -e bad/dailylah.aab ] || { echo "::error::a failed sign left a file"; exit 1; }
-          echo "== 2. right fingerprint, lower case with colons (must pass)"
-          EXPECTED_SHA256=$(echo "$fp" | tr A-F a-f) bash scripts/sign_aab.sh unsigned/dailylah.aab signed/dailylah.aab
-          echo "== 3. already signed input (must fail)"
-          if EXPECTED_SHA256=$fp bash scripts/sign_aab.sh signed/dailylah.aab twice/dailylah.aab; then echo "::error::signed twice"; exit 1; fi
-          cp unsigned/dailylah-mapping.txt signed/
-          unzip -Z1 signed/dailylah.aab | grep -E '^META-INF/' 
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: dailylah-aab-test-signed
-          path: |
-            signed/dailylah.aab
-            signed/dailylah-mapping.txt
-          retention-days: 3
-
   # The same commit must pass the on-device tests (app flows on API 29/35/36, upgrade over
   # the last release, the R8 release build, Maestro on this AAB) before anything goes to Google Play.
   # On main they test the signed AAB that is uploaded; a manual run on another branch (sign skipped)
   # tests the unsigned one. A failed sign stops here.
   e2e:
     name: on-device tests
-    needs: [analyze, sign, sign-test]
+    needs: [analyze, sign]
     if: ${{ !failure() && !cancelled() && needs.analyze.outputs.track != 'none' }}
     uses: ./.github/workflows/emulator.yml
     with:
       base_ref: ${{ needs.analyze.outputs.base_ref }}
       # The Maestro job tests the APK made from this very App Bundle.
-      aab_artifact: ${{ needs.sign-test.result == 'success' && 'dailylah-aab-test-signed' || needs.sign.result == 'success' && 'dailylah-aab' || 'dailylah-aab-unsigned' }}
+      aab_artifact: ${{ needs.sign.result == 'success' && 'dailylah-aab' || 'dailylah-aab-unsigned' }}
 
   play:
     name: upload to Google Play (${{ needs.analyze.outputs.track }})
