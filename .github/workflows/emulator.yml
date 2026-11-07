@@ -39,7 +39,7 @@ jobs:
       run: ${{ steps.diff.outputs.run }}
     steps:
       # The PR merge commit's first parent is the base branch, so two commits are enough.
-      # --no-renames lists both paths of a moved file (a move out of app/ still counts).
+      # --no-renames lists both paths of a moved file (a move out of a watched folder still counts).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 2
