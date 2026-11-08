@@ -44,6 +44,11 @@ rent/resale. Static page and JSON, no browser API calls, no Render. One PR per p
   see docs/WHERE_TO_LIVE.md "Fase 3". After merge: Actions > where-to-live > Run workflow once
   (it asks OneMap again for every route to get fares, about 4 minutes) and check that the push job
   pushes the JSON, the route cache and the regenerated town pages.
+  - Done 8 Nov (merged as #120): where-to-live run #6 pushed through the ruleset bypass (153 of
+    154 routes have a fare; OneMap gives none for Punggol to Changi Business Park, shown as "–"),
+    and its push job wrote all 28 pages and the sitemap. Run #7: "No data changes". data run #60
+    pushed with the new `*.json` allowlist. dailylah.sg/where-to-live/punggol and /sitemap.xml
+    answer 200 with fares.
 - Next for the town pages (web backlog, 8 Nov 2026, not started):
   - OG image per town. Today every page uses the shared `/brand/og.jpg`. Generate one image per
     town (name, minutes to the CBD, 4-room rent) without a Vercel build step, and keep it within
