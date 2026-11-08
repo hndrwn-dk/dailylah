@@ -178,7 +178,9 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
 - Tiap baris papan punya tombol "+ Compare" (maksimal 3 town; tombol lain nonaktif kalau penuh). Di
   HP tombolnya di baris kecil di bawah nama town, supaya nama tidak terpotong; di layar lebar di
   sampingnya. Bar yang menempel di bawah menampilkan town terpilih (ketuk untuk menghapus) dan
-  tombol "Compare"; dengan satu town tertulis "Add a town to compare".
+  tombol "Compare" (saat tabel terbuka: "See comparison", kembali ke tabel); dengan satu town
+  tertulis "Add a town to compare". Ruang di bawah halaman mengikuti tinggi bar (chip bisa dua-tiga
+  baris di HP), dan fokus keyboard pindah ke chip/kolom berikutnya saat town dihapus.
 - Tabel perbandingan di atas papan: kolom per town, baris waktu tempuh ke area kantor terpilih,
   transfer, tarif per perjalanan, harga tipe flat terpilih dengan kuartalnya, all-in per bulan
   (sewa + tarif; mode beli: tarif per bulan) dan jam di jalan per bulan. Nilai terendah di tiap

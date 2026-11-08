@@ -166,9 +166,22 @@ function renderCompareBar(data, view, actions) {
     ids.length === 1 ? "Add a town to compare" : ids.length >= MAX_COMPARE ? `Up to ${MAX_COMPARE} towns` : "";
   const go = $("compare-go");
   go.disabled = ids.length < 2;
-  // While the table is open it follows the list, so the button would do nothing.
-  go.hidden = view.comparing;
+  // While the table is open it follows the list; the button then takes you back to it.
+  go.textContent = view.comparing ? "See comparison" : "Compare";
   if (ids.length) bar.setAttribute("aria-label", `Towns to compare: ${compareBarText(names)}`);
+}
+
+/**
+ * Keep the end of the page clear of the fixed bar, whatever its height (one to three lines of
+ * chips on a phone). Sets padding through the CSSOM, which the page's CSP allows.
+ */
+function watchBarHeight() {
+  const bar = $("compare-bar");
+  const fit = () => {
+    document.body.style.paddingBottom = bar.hidden ? "" : `${Math.ceil(bar.getBoundingClientRect().height) + 16}px`;
+  };
+  if (typeof ResizeObserver === "function") new ResizeObserver(fit).observe(bar);
+  return fit;
 }
 
 /** The side-by-side table: a column per town, the best value in each line marked. */
@@ -487,12 +500,14 @@ async function main() {
   const m = makeMap(data);
   let groups = rank(data, view.state);
 
+  const fitBar = watchBarHeight();
   const syncUrl = () =>
     window.history.replaceState(null, "", `${window.location.pathname}${writeQuery(view.state)}`);
   const draw = () => {
     renderBoard(data, view, groups, actions);
     renderMap(m, data, view, groups, actions);
     renderCompareBar(data, view, actions);
+    fitBar();
     renderCompare(data, view, actions);
   };
   const showCompare = () => {
@@ -536,13 +551,29 @@ async function main() {
       draw();
     },
     compare(id) {
-      const focusRow = document.activeElement?.closest?.(".row")?.id;
+      // draw() rebuilds the buttons, so remember where the keyboard was and put it back.
+      const from = document.activeElement;
+      const focusRow = from?.closest?.(".row")?.id;
+      const chips = [...document.querySelectorAll("#compare-chips .chip")];
+      const cols = [...document.querySelectorAll("#compare-table .col-x")];
+      const chipAt = chips.indexOf(from);
+      const colAt = cols.indexOf(from);
       view.state = { ...view.state, compare: toggleCompare(view.state.compare, id) };
       if (view.state.compare.length < 2) view.comparing = false;
       draw();
       syncUrl();
-      // Keep the keyboard where it was: the row's button is rebuilt by draw().
       if (focusRow) $(focusRow)?.querySelector(".cmp")?.focus();
+      else if (chipAt >= 0) {
+        // The next chip, else the Compare button, else the board.
+        const left = document.querySelectorAll("#compare-chips .chip");
+        const go = $("compare-go");
+        (left[Math.min(chipAt, left.length - 1)] ?? (go.disabled ? $("board-title") : go)).focus();
+      } else if (colAt >= 0) {
+        // The next column's ×, else (the table closed) the board.
+        const left = document.querySelectorAll("#compare-table .col-x");
+        const next = view.comparing ? left[Math.min(colAt, left.length - 1)] : null;
+        (next ?? $("board-title")).focus();
+      }
     },
   };
   $("compare-go").addEventListener("click", showCompare);

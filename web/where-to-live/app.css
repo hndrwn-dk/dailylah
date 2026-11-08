@@ -221,7 +221,8 @@ input[type=text]::placeholder { color: var(--mist); }
   .cmp { margin: 0; min-height: 36px; min-width: 108px; justify-content: center; }
 }
 
-body.has-bar { padding-bottom: 92px; }
+/* A first guess; app.js sets the real bar height (it grows when the chips wrap). */
+body.has-bar { padding-bottom: 160px; }
 .compare-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1000; background: var(--board); color: var(--led);
                border-top: 2.5px solid var(--edge); box-shadow: 0 -4px 0 rgba(0, 0, 0, 0.25);
                padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); }
