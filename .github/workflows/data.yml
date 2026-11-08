@@ -32,9 +32,19 @@ jobs:
     # The first run geocodes ~13,000 HDB blocks through OneMap (cached afterwards).
     timeout-minutes: 120
     steps:
+      # On main, build from the newest main, not from the commit the run was queued at: a run that
+      # waited in the `data` concurrency group would otherwise build a patch on top of bundles an
+      # earlier run already replaced, and push_data.sh would refuse it (data run #61, 8 Nov 2026).
+      # The workflow file (secrets, allowlist) still comes from the queued commit: a run queued
+      # before a merge that changes the build's outputs or the allowlist may fail once (closed);
+      # run it again. A run on another branch builds that branch (its push job is skipped).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.ref == 'refs/heads/main' && 'main' || github.sha }}
           persist-credentials: false
+      - name: Show what is built
+        run: |
+          echo "Built from $(git rev-parse HEAD) (run queued at $GITHUB_SHA)" | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
