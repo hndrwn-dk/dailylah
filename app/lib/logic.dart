@@ -1935,7 +1935,8 @@ List<TripBoardRow> tripBoard(List<(BusEta, int?)> direct, LeaveBy? lb, int? walk
 /// Keys of the trip planner's ends: "here", "home", "work", "school", "extra:<i>" or "adhoc"
 /// (a searched address; each end has its own). Picking [key] for one end when the other end
 /// already has it swaps the two, so a trip never goes from a place to itself; when the
-/// destination was not picked yet, the start moves to [fallback] instead.
+/// destination was not picked yet, the start moves to [fallback] instead. Tapping the picked
+/// destination again clears it, except "adhoc": a new search on the same end replaces it.
 ({String from, String? to}) pickTripEnd({
   required bool isFrom,
   required String key,
@@ -1945,7 +1946,8 @@ List<TripBoardRow> tripBoard(List<(BusEta, int?)> direct, LeaveBy? lb, int? walk
 }) {
   final clash = key != 'adhoc' && key == (isFrom ? to : from);
   if (isFrom) return (from: key, to: clash ? from : to);
-  if (to == key) return (from: from, to: null); // tapping the picked destination again clears it
+  // Tapping the picked destination again clears it; a searched address is picked anew each time.
+  if (to == key && key != 'adhoc') return (from: from, to: null);
   return (from: clash ? (to ?? fallback) : from, to: key);
 }
 

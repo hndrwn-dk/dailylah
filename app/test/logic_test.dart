@@ -790,6 +790,8 @@ void main() {
     expect(pickTripEnd(isFrom: false, key: 'home', from: 'home', to: null, fallback: 'here'), (from: 'here', to: 'home'));
     // Tapping the picked destination again clears it.
     expect(pickTripEnd(isFrom: false, key: 'work', from: 'home', to: 'work', fallback: 'here'), (from: 'home', to: null));
+    // A new search on the destination picks it again, never clears it.
+    expect(pickTripEnd(isFrom: false, key: 'adhoc', from: 'home', to: 'adhoc', fallback: 'here'), (from: 'home', to: 'adhoc'));
     // Two searched addresses are different places: no swap.
     expect(pickTripEnd(isFrom: true, key: 'adhoc', from: 'home', to: 'adhoc', fallback: 'here'), (from: 'adhoc', to: 'adhoc'));
   });

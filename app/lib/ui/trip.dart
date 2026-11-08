@@ -1129,8 +1129,9 @@ class GoSomewhere extends ConsumerWidget {
     }
   }
 
-  /// The address search for one end; the hit becomes that end's one-off place.
-  Future<void> _search(BuildContext context, WidgetRef ref, {required bool isFrom}) async {
+  /// The address search for one end; the hit becomes that end's one-off place and is picked
+  /// there, also when that end already had a searched place.
+  Future<void> _search(BuildContext context, WidgetRef ref, {required bool isFrom, required String from}) async {
     final s = ref.read(stringsProvider);
     final hit = await Navigator.of(context).push<AddressHit>(
       MaterialPageRoute(builder: (_) => AddressPickerPage(title: s.searchPlace)),
@@ -1144,14 +1145,16 @@ class GoSomewhere extends ConsumerWidget {
       addrLat: hit.lat,
       addrLng: hit.lng,
     );
-    _pick(ref, isFrom: isFrom, key: 'adhoc');
+    _pick(ref, isFrom: isFrom, key: 'adhoc', from: from);
   }
 
-  void _pick(WidgetRef ref, {required bool isFrom, required String key, String fallback = 'here'}) {
+  /// [from] is the start as shown, which may be a saved place standing in for "Here" while the
+  /// location is unknown, so a pick works on what the user sees.
+  void _pick(WidgetRef ref, {required bool isFrom, required String key, required String from, String fallback = 'here'}) {
     final next = pickTripEnd(
       isFrom: isFrom,
       key: key,
-      from: ref.read(goFromKeyProvider),
+      from: from,
       to: ref.read(goKeyProvider),
       fallback: fallback,
     );
@@ -1220,7 +1223,7 @@ class GoSomewhere extends ConsumerWidget {
             items: options,
             selected: selected ?? '',
             onTap: (k) {
-              _pick(ref, isFrom: isFrom, key: k, fallback: fallback(k));
+              _pick(ref, isFrom: isFrom, key: k, from: fromKey, fallback: fallback(k));
               if (k == 'here' && here == null) _useHere(context, ref);
             },
           ),
@@ -1229,8 +1232,10 @@ class GoSomewhere extends ConsumerWidget {
             label: selected == 'adhoc' ? adhoc?.name : null,
             hint: s.searchAddressHint,
             clearLabel: s.clearSearch,
-            onTap: () => _search(context, ref, isFrom: isFrom),
-            onClear: () => _pick(ref, isFrom: isFrom, key: isFrom ? fallback(key ?? '') : 'adhoc'),
+            onTap: () => _search(context, ref, isFrom: isFrom, from: fromKey),
+            onClear: () => isFrom
+                ? _pick(ref, isFrom: true, key: fallback(key ?? ''), from: fromKey)
+                : ref.read(goKeyProvider.notifier).state = null,
           ),
         ],
       );
@@ -1399,7 +1404,8 @@ class _TripPlannerPageState extends ConsumerState<TripPlannerPage> {
         if (!mounted) return;
         ref.read(goFromHereProvider.notifier).state =
             Place(kind: PlaceKind.other, name: ref.read(stringsProvider).hereNow, addrLat: pos.latitude, addrLng: pos.longitude);
-        ref.read(goFromKeyProvider.notifier).state = 'here';
+        // Here may already be the destination (a return trip kept from last time): keep that.
+        if (ref.read(goKeyProvider) != 'here') ref.read(goFromKeyProvider.notifier).state = 'here';
       } on Object {
         // No location: the planner starts from a saved place.
       }

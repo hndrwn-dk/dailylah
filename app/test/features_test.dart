@@ -24,6 +24,7 @@ import 'package:dailylah/ui/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:geolocator/geolocator.dart' show LocationPermission;
 
 import 'support/harness.dart';
 
@@ -727,6 +728,93 @@ void main() {
     expect(box.read(goAdhocDestProvider)!.postal, '189630');
     expect(find.text('Work → $name'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Plan a trip: a second search for To replaces it, and Clear empties it', (tester) async {
+    await applyCondition(tester, _normal);
+    final oneMap = _OneMap();
+    await tester.pumpWidget(_appWithOneMap(oneMap));
+    await settle(tester);
+    final box = containerOf(tester);
+    const s = S();
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    Future<void> searchTo() async {
+      await tester.tap(find.text(s.searchAddressHint).last); // the To field
+      await settle(tester);
+      await tester.enterText(find.descendant(of: find.byType(AddressPickerPage), matching: find.byType(TextField)), '189630');
+      await tester.pump(const Duration(milliseconds: 500));
+      await settle(tester);
+      await tester.tap(find.textContaining('51 Bencoolen Street'));
+      await settle(tester);
+    }
+
+    await searchTo();
+    expect(box.read(goKeyProvider), 'adhoc');
+    final name = box.read(goAdhocDestProvider)!.name!;
+    // Searching again on the same end (the field now shows the place) keeps a destination.
+    await tester.tap(find.text(name).last);
+    await settle(tester);
+    expect(find.byType(AddressPickerPage), findsOneWidget);
+    await tester.enterText(find.descendant(of: find.byType(AddressPickerPage), matching: find.byType(TextField)), '189630');
+    await tester.pump(const Duration(milliseconds: 500));
+    await settle(tester);
+    await tester.tap(find.textContaining('51 Bencoolen Street'));
+    await settle(tester);
+    expect(box.read(goKeyProvider), 'adhoc');
+    expect(find.text('Here → $name'), findsOneWidget);
+
+    await tester.tap(find.byTooltip(s.clearSearch));
+    await settle(tester);
+    expect(box.read(goKeyProvider), isNull);
+    expect(find.text(s.goSomewhereHint), findsOneWidget);
+  });
+
+  testWidgets('Plan a trip: a return trip to Here is kept when the planner opens again', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    const s = S();
+    final nav = Navigator.of(tester.element(find.byType(TodayPage)));
+    nav.push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    await tester.tap(find.text('Work').at(1));
+    await settle(tester);
+    await tester.tap(find.byTooltip(s.swapEnds));
+    await settle(tester);
+    expect(find.text('Work → Here'), findsOneWidget);
+    nav.pop();
+    await settle(tester);
+
+    nav.push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    expect(box.read(goFromKeyProvider), 'work');
+    expect(box.read(goKeyProvider), 'here');
+    expect(find.text('Work → Here'), findsOneWidget);
+    expect(find.text('Here → Here'), findsNothing);
+  });
+
+  testWidgets('Plan a trip: without location, picks work on the start shown on screen', (tester) async {
+    const denied = Condition('denied', location: LocationPermission.deniedForever);
+    await applyCondition(tester, denied);
+    await tester.pumpWidget(appUnder(denied, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    // Here was the last start, but there is no location: the screen starts from Home.
+    box.read(goFromKeyProvider.notifier).state = 'here';
+    await settle(tester);
+    await tester.tap(find.text('Work').at(1));
+    await settle(tester);
+    expect(find.text('Home → Work'), findsOneWidget);
+    // Picking Work as the start swaps with what is shown: Work → Home.
+    await tester.tap(find.text('Work').first);
+    await settle(tester);
+    expect(box.read(goFromKeyProvider), 'work');
+    expect(box.read(goKeyProvider), 'home');
+    expect(find.text('Work → Home'), findsOneWidget);
   });
 
   testWidgets('Plan a trip: the tip about saving places shows only while none beyond Home and Work is saved',
