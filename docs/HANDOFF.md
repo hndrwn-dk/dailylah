@@ -49,6 +49,11 @@ rent/resale. Static page and JSON, no browser API calls, no Render. One PR per p
     and its push job wrote all 28 pages and the sitemap. Run #7: "No data changes". data run #60
     pushed with the new `*.json` allowlist. dailylah.sg/where-to-live/punggol and /sitemap.xml
     answer 200 with fares.
+- Data workflows build from the newest main (8 Nov): data run #61 failed in its push job because
+  it waited behind run #60 in the `data` concurrency group and then built its patch from the
+  commit it was queued at, whose bundles #60 had already replaced. The build jobs of `data.yml`
+  and `where-to-live.yml` now check out `ref: main` (data.yml: only when run on main) and log
+  "Built from <sha>". The workflow file itself still comes from the queued commit.
 - Next for the town pages (web backlog, 8 Nov 2026, not started):
   - OG image per town. Today every page uses the shared `/brand/og.jpg`. Generate one image per
     town (name, minutes to the CBD, 4-room rent) without a Vercel build step, and keep it within

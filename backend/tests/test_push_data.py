@@ -296,3 +296,19 @@ def test_a_generated_path_the_generator_did_not_write_is_skipped(repos, tmp_path
     files = git(bare, "ls-tree", "-r", "--name-only", "main", env=env).split()
     assert "web/where-to-live-towns/a.html" in files
     assert "web/sitemap.xml" not in files
+
+
+@pytest.mark.parametrize(
+    ("workflow", "ref"),
+    [
+        ("data.yml", "${{ github.ref == 'refs/heads/main' && 'main' || github.sha }}"),
+        ("where-to-live.yml", "main"),
+    ],
+)
+def test_build_job_checks_out_the_newest_main(workflow, ref):
+    """A queued run must not build its patch on data an earlier run already replaced (data #61)."""
+    text = (ROOT / ".github" / "workflows" / workflow).read_text()
+    build = text.split("\n  build:\n", 1)[1].split("\n  push:\n", 1)[0]
+    checkout = build.split("actions/checkout@", 1)[1].split("\n      - ", 1)[0]
+    assert f"ref: {ref}\n" in checkout
+    assert "persist-credentials: false" in checkout
