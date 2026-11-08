@@ -46,8 +46,16 @@ feature, screen, provider or rule moves, appears or goes away.
   `bus_routes.json` bundle (`directRides` in logic.dart; trip start stops are filtered to the
   side of the road with a direct bus, or nearby stops with one are suggested, `tripStops`;
   loop services that go the long way are dropped, `tripRides`). Bus/MRT also shows the nearest MRT
-  station at each end from the `mrt_stations.json` bundle (`mrtPlan`). "Go somewhere" picks a
-  start (home/work/school/here) and a destination (saved places or a searched address); driving uses `/v1/parking`
+  station at each end from the `mrt_stations.json` bundle (`mrtPlan`). "Plan a trip" (`TripPlannerPage`,
+  `GoSomewhere`) is one route card: From on top, To below, both with the same choices (Here, Home, Work,
+  School, saved places, and an address search field, `goAdhocFromProvider`/`goAdhocDestProvider`) and a
+  swap button between; picking on one end what the other has swaps them (`pickTripEnd`). The tip about
+  saving places sits small at the end, only while none beyond Home/Work/School is saved. On each bus card
+  ("From stop: <name>") the bus to leave for is a mint card on top ("Leave in 7 min to catch 36"), then
+  the board (`tripBoard`): that bus first, buses that come before the walk is done dimmed with "Too
+  soon" at the end (`BoardRow.dim`/`tag`). Strings that wrap keep their last words together with
+  no-break spaces (`noOrphan`, `busWhereLine`). The I'm leaving how-to is small under the button and
+  gone once the trip is learned. Maestro: `maestro/09_plan_trip.yaml`. Driving uses `/v1/parking`
   (lot type C/Y) and `/v1/traffic-incidents`.
 - EV charging (opt-in, `Favorites.evPlug`: '' none, 'any', 'Type 2', 'CCS2', 'CHAdeMO'; More > Extras
   "My car is electric" with plug chips, or "Electric car? Show EV chargers" in Nearby > Park): `EvChargers`
@@ -260,7 +268,7 @@ feature, screen, provider or rule moves, appears or goes away.
   and section in light and dark. Text on the page or a card uses `DL.goText`, `DL.muted`, `DL.stopText`
   (theme-aware), never the light-only `DL.tealText`/`DL.mist`/`DL.stop`; those stay for sticker surfaces.
 - `maestro/` drives the release build through the screen like a person (onboarding, Setup over a restart,
-  Today buses, Nearby, Home, location, Appearance), run by the emulator `maestro` job. A change to a
+  Today buses, Nearby, Home, location, Appearance, Where to live, Plan a trip), run by the emulator `maestro` job. A change to a
   string, tab or screen those flows tap on updates the flow in the same PR; how to write and run them
   is in docs/QA.md "Maestro". Every `launchApp` denies notifications. A failed run prints why and runs all
   flows once more; a pass on that retry is a "Maestro flaky" warning to read, not to ignore.

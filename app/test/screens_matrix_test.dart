@@ -67,6 +67,8 @@ final Map<String, Widget Function()> _pages = {
   'Stop picker': () => const StopPickerPage(title: 'Pick a stop near Home'),
   'Stop arrivals': () => const StopArrivalsPage(stop: tampinesInt),
   'Plan a trip': () => const TripPlannerPage(),
+  'Plan a trip (Home → Work by bus)': () => const _PlannerWith(from: 'home', to: 'work'),
+  'Plan a trip (searched address → Gym)': () => const _PlannerWith(from: 'adhoc', to: 'extra:0'),
   'Address search (shared, no address)': () =>
       AddressPickerPage(title: 'Search', note: const S().sharedNoAddress('Putra Minang Restaurant Bencoolen')),
   'Wake me': () => const WakeMePage(service: '10', alight: fullertonSq),
@@ -86,6 +88,39 @@ final Map<String, Widget Function()> _pages = {
         ),
       ),
 };
+
+/// The trip planner with both ends already picked, as after a few taps.
+class _PlannerWith extends ConsumerStatefulWidget {
+  const _PlannerWith({required this.from, required this.to});
+  final String from;
+  final String to;
+
+  @override
+  ConsumerState<_PlannerWith> createState() => _PlannerWithState();
+}
+
+class _PlannerWithState extends ConsumerState<_PlannerWith> {
+  @override
+  void initState() {
+    super.initState();
+    // After the planner's own start (Here, once the location comes in).
+    Future<void>.delayed(const Duration(milliseconds: 600), () {
+      if (!mounted) return;
+      ref.read(goAdhocFromProvider.notifier).state = const Place(
+        kind: PlaceKind.other,
+        name: 'Marine Parade Central Hawker Centre And Market',
+        address: '84 MARINE PARADE CENTRAL',
+        addrLat: 1.3025,
+        addrLng: 103.9071,
+      );
+      ref.read(goFromKeyProvider.notifier).state = widget.from;
+      ref.read(goKeyProvider.notifier).state = widget.to;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const TripPlannerPage();
+}
 
 void main() {
   for (final c in conditions) {

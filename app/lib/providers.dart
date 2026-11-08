@@ -363,7 +363,11 @@ final mrtStationsProvider =
 /// One-off destination for "Go somewhere" (a searched address), memory only.
 final goAdhocDestProvider = StateProvider<Place?>((ref) => null);
 
-/// Start of a "Go somewhere" trip: "home", "work", "school" or "here".
+/// One-off start for "Go somewhere" (a searched address), memory only.
+final goAdhocFromProvider = StateProvider<Place?>((ref) => null);
+
+/// Start of a "Go somewhere" trip: "here", "home", "work", "school", "extra:<i>" or "adhoc"
+/// (`pickTripEnd`).
 final goFromKeyProvider = StateProvider<String>((ref) => 'home');
 
 final bicycleRacksProvider =
@@ -377,10 +381,10 @@ final incidentsProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvi
 /// Today's mode override per trip key (e.g. "work", "extra:0"); in memory only.
 final modeOverrideProvider = StateProvider<Map<String, TravelMode>>((ref) => const {});
 
-/// Destination picked in the "Go somewhere" card: "home", "work", "school", "extra:<i>" or null.
+/// Destination picked in the "Go somewhere" card: the same keys as [goFromKeyProvider], or null.
 final goKeyProvider = StateProvider<String?>((ref) => null);
 
-/// Start of a "Go somewhere" trip: null = Home, otherwise the phone's location (memory only).
+/// The phone's location for a "Here" end of a "Go somewhere" trip, null until known (memory only).
 final goFromHereProvider = StateProvider<Place?>((ref) => null);
 
 final taxiStandsProvider =

@@ -1,0 +1,73 @@
+# Plan a trip: one route card, From on top and To below with the same choices and the swap
+# between; the bus to leave for and the I'm leaving how-to; a searched address as the start; the
+# tip about saving places (flow 01 saves none beyond Home and Work). Ang Mo Kio, near the home.
+appId: com.tursinalabs.dailylah
+name: 09 Plan a trip
+---
+- setLocation:
+    latitude: 1.3691
+    longitude: 103.8454
+- launchApp:
+    stopApp: true
+    permissions:
+      location: allow
+      notifications: deny
+- startRecording: 09_plan_trip
+- tapOn: "(?s)Today.*"
+- scrollUntilVisible:
+    element: "(?s)Plan a trip.*"
+    direction: DOWN
+    centerElement: true
+    timeout: 30000
+- tapOn: "(?s)Plan a trip.*"
+- extendedWaitUntil:
+    visible: "From"
+    timeout: 20000
+- assertVisible: "To"
+- assertVisible: "Swap From and To"
+# The same choices on both ends: Work is there twice, the second one is To.
+- tapOn:
+    text: "Work"
+    index: 1
+# From starts on Here once the location is in, else on Home.
+- extendedWaitUntil:
+    visible: "(Here|Home) → Work"
+    timeout: 30000
+# Buses (the bus to leave for first), the train, or a note when nothing runs now.
+- scrollUntilVisible:
+    element: "(?s).*(Leave (now|in \\d+ min) to catch|Buses to Work|No direct bus|No buses right now|Buses have stopped|By MRT).*"
+    direction: DOWN
+    timeout: 60000
+    centerElement: true
+- assertNotVisible: "(?s).*Bus times not available.*"
+# The how-to sits under I'm leaving until this trip has been timed a few times.
+- scrollUntilVisible:
+    element: "(?s).*Tap I'm leaving and Arrived.*"
+    direction: UP
+    centerElement: true
+- assertVisible: "(?s)I'm leaving.*"
+- scrollUntilVisible:
+    element: "Swap From and To"
+    direction: UP
+- tapOn: "Swap From and To"
+- extendedWaitUntil:
+    visible: "Work → (Here|Home)"
+    timeout: 20000
+# Start from a searched address instead: the first search field is the From one.
+- tapOn:
+    text: "(?s).*Search an address or postal code.*"
+    index: 0
+- runFlow:
+    file: common/search_address.yaml
+    env:
+      POSTAL: "310201"
+- extendedWaitUntil:
+    visible: "(?s).+ → (Here|Home)"
+    timeout: 20000
+- assertNotVisible: "Work → (Here|Home)"
+- scrollUntilVisible:
+    element: "(?s)Tip: add places.*"
+    direction: DOWN
+    centerElement: true
+    timeout: 30000
+- stopRecording

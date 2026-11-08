@@ -756,6 +756,53 @@ void main() {
     expect(lineStatuses(alerts, {'DTL'}).single.detail, contains('Free bridging buses'));
   });
 
+  test('trip board: the bus to leave for first, buses too soon to catch dimmed at the end', () {
+    const a = BusEta(service: '47', minutes: 2, load: 'SEA'); // too soon for a 4 min walk
+    const b = BusEta(service: '12', minutes: 9, load: 'SEA');
+    const c = BusEta(service: '36', minutes: 6, load: 'SEA');
+    const d = BusEta(service: '3', minutes: 1, load: 'SEA'); // too soon
+    final grouped = [(d, null), (a, 12), (c, 15), (b, null)];
+    final lb = leaveBy(grouped, null, 4)!;
+    expect(lb.service, '36'); // leave in 2 min
+    final rows = tripBoard(grouped, lb, 4);
+    expect([for (final r in rows) r.eta.service], ['36', '12', '3', '47']);
+    expect(rows.last.next, 12); // a bus too soon still shows its next one
+    expect([for (final r in rows) r.tooSoon], [false, false, true, true]);
+    // Leaving for the next 47 (its first is too soon): the next one on top, the first one dimmed below.
+    final only47 = tripBoard([(a, 12)], leaveBy([(a, 12)], null, 4), 4);
+    expect([for (final r in only47) (r.eta.service, r.eta.minutes, r.next, r.tooSoon)],
+        [('47', 12, null, false), ('47', 2, null, true)]);
+    // Start not near the stop: no walk, so nothing is too soon and the order stays.
+    final far = tripBoard(grouped, null, null);
+    expect([for (final r in far) r.eta.service], ['3', '47', '36', '12']);
+    expect(far.any((r) => r.tooSoon), isFalse);
+  });
+
+  test('trip planner ends: picking the other end swaps, tapping the destination again clears it', () {
+    // From Home to Work; picking Work as the start swaps the two.
+    expect(pickTripEnd(isFrom: true, key: 'work', from: 'home', to: 'work', fallback: 'here'), (from: 'work', to: 'home'));
+    expect(pickTripEnd(isFrom: false, key: 'home', from: 'home', to: 'work', fallback: 'here'), (from: 'work', to: 'home'));
+    // No clash: only that end changes.
+    expect(pickTripEnd(isFrom: true, key: 'here', from: 'home', to: 'work', fallback: 'here'), (from: 'here', to: 'work'));
+    expect(pickTripEnd(isFrom: false, key: 'extra:0', from: 'home', to: 'work', fallback: 'here'),
+        (from: 'home', to: 'extra:0'));
+    // The start picked as the first destination: the start moves to the fallback.
+    expect(pickTripEnd(isFrom: false, key: 'home', from: 'home', to: null, fallback: 'here'), (from: 'here', to: 'home'));
+    // Tapping the picked destination again clears it.
+    expect(pickTripEnd(isFrom: false, key: 'work', from: 'home', to: 'work', fallback: 'here'), (from: 'home', to: null));
+    // Two searched addresses are different places: no swap.
+    expect(pickTripEnd(isFrom: true, key: 'adhoc', from: 'home', to: 'adhoc', fallback: 'here'), (from: 'adhoc', to: 'adhoc'));
+  });
+
+  test('no orphan: the last two words stay together, so one word never sits alone on a line', () {
+    expect(noOrphan('From stop: Marine Pde Stn Exit 6'), 'From stop: Marine Pde Stn Exit 6');
+    expect(noOrphan('Alone'), 'Alone');
+    const s = S();
+    expect(s.leaveInHead('36', 7), 'Leave in 7 min to catch 36');
+    expect(s.leaveInHead('36', 0), 'Leave now to catch 36');
+    expect(s.walkToStopThenBus(3, 10), '3 min walk to the stop\u00A0· bus\u00A0in\u00A010\u00A0min');
+  });
+
   test('leave by: first bus still catchable after the walk', () {
     const a = BusEta(service: '47', minutes: 2, load: 'SEA');
     const b = BusEta(service: '12', minutes: 9, load: 'SEA');
@@ -1298,14 +1345,14 @@ void main() {
     expect(w.near!.name, 'Blk 201');
     expect(w.stopsAway, 2);
     const s = S();
-    expect(s.busWhereLine(w), 'Now near Blk 201 · 2 stops away');
+    expect(s.busWhereLine(w), 'Now near Blk 201 · 2\u00A0stops\u00A0away');
     expect(s.busLive(b20, busWhere(b20, 'M', routes, stops)), s.busScheduled);
 
     // Off the route (no stop within 400 m): straight-line distance instead.
     const far = BusEta(service: '47', minutes: 9, load: 'SEA', lat: 1.3700, lng: 103.9600);
     final w2 = busWhere(far, 'M', routes, stops)!;
     expect(w2.stopsAway, isNull);
-    expect(s.busWhereLine(w2), 'Now 3.3 km away');
+    expect(s.busWhereLine(w2), 'Now 3.3\u00A0km\u00A0away');
     // At the rider's stop.
     const atStop = BusEta(service: '47', minutes: 0, load: 'SEA', lat: 1.3400, lng: 103.9601);
     expect(s.busWhereLine(busWhere(atStop, 'M', routes, stops)!), 'At your stop now');

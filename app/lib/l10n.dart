@@ -307,7 +307,15 @@ class S {
   String get goSomewhere => 'Go somewhere';
   String get planTrip => 'Plan a trip';
   String get planTripSub => 'From here or a saved place to anywhere, by bus, MRT, car or taxi.';
-  String tooSoonThen(String skipped, String line) => '$skipped is too soon to catch. $line';
+  String get tooSoon => 'Too soon';
+  String leaveInHead(String service, int minutes) => noOrphan(
+      minutes == 0 ? 'Leave now to catch $service' : 'Leave in $minutes min to catch $service');
+  // No-break spaces: a wrap comes after the "·" and "bus in 11 min" moves on as a whole.
+  String walkToStopThenBus(int walk, int bus) => '$walk min walk to the stop\u00A0· bus\u00A0in\u00A0$bus\u00A0min';
+  String fromStop(String name) => noOrphan('From stop: $name');
+  String get swapEnds => 'Swap From and To';
+  String get searchAddressHint => 'Search an address or postal code';
+  String get clearSearch => 'Clear';
   String get weekendCard => 'This weekend near home';
   String get weekendIndoor => 'Rain or haze around: indoor ideas first.';
   String get eventsNearby => 'Events nearby';
@@ -339,7 +347,7 @@ class S {
   String get noRacks => 'No LTA bicycle racks within 800 m.';
   String get cycleWeatherTip => 'Check rain, haze and heat above before you ride.';
   String get taxiFromHere => 'Taxi from';
-  String get addPlacesHint => 'Add places like your favourite food spot in Setup to see them here.';
+  String get addPlacesHint => 'Tip: add places like your favourite food spot in Setup to pick them here.';
 
   String get mrtOption => 'By MRT';
   String lineName(String code) {
@@ -728,9 +736,10 @@ class S {
   /// Live position of a coming bus, e.g. "Now near Blk 201 · 3 stops away".
   String busWhereLine(BusWhere w) => switch (w.stopsAway) {
         0 => 'At your stop now',
-        1 => 'Now near ${w.near!.name} · 1 stop away',
-        final int n => 'Now near ${w.near!.name} · $n stops away',
-        null => 'Now ${w.metres >= 1000 ? '${(w.metres / 1000).toStringAsFixed(1)} km' : '${(w.metres / 50).round() * 50} m'} away',
+        // No-break spaces keep "3 stops away" together, so "away" never sits alone on a line.
+        1 => 'Now near ${w.near!.name} · 1\u00A0stop\u00A0away',
+        final int n => 'Now near ${w.near!.name} · $n\u00A0stops\u00A0away',
+        null => 'Now ${w.metres >= 1000 ? '${(w.metres / 1000).toStringAsFixed(1)}\u00A0km' : '${(w.metres / 50).round() * 50}\u00A0m'}\u00A0away',
       };
   String get busScheduled => 'Timetable estimate, no live GPS';
 
@@ -1152,4 +1161,11 @@ class S {
       };
   String get wtlBest => 'Best';
   String get wtlNoData => 'The town data has not loaded yet. Check your connection and try again.';
+}
+
+/// Joins the last two words with a no-break space, so a line never ends with one word alone
+/// ("away", "6") when the text wraps.
+String noOrphan(String text) {
+  final i = text.trimRight().lastIndexOf(' ');
+  return i <= 0 ? text : '${text.substring(0, i)}\u00A0${text.substring(i + 1)}';
 }
