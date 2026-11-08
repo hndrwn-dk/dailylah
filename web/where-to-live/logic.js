@@ -4,7 +4,10 @@
 
 export const MODES = ["rent", "buy"];
 export const MAX_MINUTES = [30, 45, 60, 75, 90];
-export const DEFAULTS = { area: "cbd", mode: "rent", flat: "4-ROOM", budget: null, max: null, town: null };
+export const DEFAULTS = { area: "cbd", mode: "rent", flat: "4-ROOM", budget: null, max: null, town: null, compare: [] };
+
+/** Towns side by side in the comparison, at most. */
+export const MAX_COMPARE = 3;
 
 /** Working days in a month: the commute is there and back on each. */
 export const WORKDAYS = 22;
@@ -54,7 +57,27 @@ export function readQuery(search, data) {
   const max = MAX_MINUTES.includes(maxRaw) ? maxRaw : null;
   // A town to open on load (links from the town pages); only ids from the data.
   const town = data.towns.some((t) => t.id === q.get("town")) ? q.get("town") : null;
-  return { area, mode, flat, budget, max, town };
+  const compare = compareIds(q.get("compare"), data);
+  return { area, mode, flat, budget, max, town, compare };
+}
+
+/**
+ * Towns to compare from "?compare=punggol,bedok": ids from the data only, each once, in the given
+ * order, at most MAX_COMPARE. Anything else is dropped.
+ */
+export function compareIds(value, data) {
+  const known = new Set(data.towns.map((t) => t.id));
+  const out = [];
+  for (const id of String(value ?? "").split(",")) {
+    if (known.has(id) && !out.includes(id) && out.length < MAX_COMPARE) out.push(id);
+  }
+  return out;
+}
+
+/** The compare list with a town added or removed; unchanged when adding to a full list. */
+export function toggleCompare(list, id) {
+  if (list.includes(id)) return list.filter((x) => x !== id);
+  return list.length < MAX_COMPARE ? [...list, id] : list;
 }
 
 /**
@@ -73,7 +96,9 @@ export function writeQuery(state) {
     const v = state[key];
     if (v != null && v !== DEFAULTS[key]) q.set(key, String(v));
   }
-  const s = q.toString();
+  if (state.compare?.length) q.set("compare", state.compare.join(","));
+  // Town ids are [a-z0-9-], so the commas can stay readable: ?compare=punggol,bedok
+  const s = q.toString().replace(/%2C/g, ",");
   return s ? `?${s}` : "";
 }
 
@@ -237,4 +262,101 @@ export function rank(data, state) {
   const out = { match: [], noPrice: [], other: [] };
   for (const row of rows.sort(byTimeThenPrice)) out[row.group].push(row);
   return out;
+}
+
+// ---------------------------------------------------------------- compare
+
+/** What the comparison shows for the office area's own town in every commute line. */
+export const IN_AREA = "In this area";
+
+/** "Punggol, Bedok and Sengkang" for the compare bar and headings. */
+export function namesText(names) {
+  if (names.length < 2) return names.join("");
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/** The compare bar's line: who is picked and what to do next. */
+export function compareBarText(names) {
+  if (!names.length) return "";
+  if (names.length === 1) return `${names[0]}: add a town to compare`;
+  return namesText(names);
+}
+
+/**
+ * The comparison table for the towns in state.compare, for the chosen office area, mode and flat
+ * type: { towns, lines }, one column per town and per line a label and one cell per town
+ * ({ text, value, best }). value is the number compared (lower is better), null when unknown.
+ * best marks the lowest value, ties included, only when at least two towns have one. The town of
+ * the office area itself (same_area) is not a 0-minute trip, as on the board and the town pages:
+ * - time, transfers and fare read "In this area" and leave it out of "best";
+ * - all-in a month reads "≈ $<rent> rent, no fare estimate" ("In this area" without a rent, and
+ *   in buy mode's fares a month), and hours a month read "In this area";
+ * - all-in (or fares) a month and hours a month mark no "best" at all while that town is compared:
+ *   its money and time are not comparable with a commute, so a "best" there would mislead.
+ */
+export function compareTable(data, state) {
+  const key = state.mode === "buy" ? "resale" : "rent";
+  const area = data.areas.find((a) => a.id === state.area);
+  const towns = state.compare.map((id) => data.towns.find((t) => t.id === id)).filter(Boolean);
+  const rows = towns.map((town) => {
+    const row = { town, commute: town.commute?.[state.area] ?? null, price: town[key]?.[state.flat] ?? null };
+    return { ...row, cost: monthlyCost(state, row) };
+  });
+  const cell = (text, value = null) => ({ text, value, best: false });
+  // A commute line: "–" (or noRoute) without a route, "In this area" for the office area's town,
+  // else what known(row) gives.
+  const commuteLine = (lineKey, label, known, noRoute = "–") => ({
+    key: lineKey,
+    label,
+    cells: rows.map((row) =>
+      !row.commute ? cell(noRoute) : row.commute.same_area ? cell(IN_AREA) : known(row),
+    ),
+  });
+  const lines = [
+    commuteLine("time", `Time to ${area?.name ?? "the office"}`, ({ commute: c }) => cell(`${c.min} min`, c.min), "No route data"),
+    commuteLine("transfers", "Transfers", ({ commute: c }) => cell(transfersCell(c.transfers), c.transfers)),
+    commuteLine("fare", "Fare per trip (adult card)", ({ commute: c }) =>
+      Number.isInteger(c.fare) ? cell(`$${(c.fare / 100).toFixed(2)}`, c.fare) : cell("Not known"),
+    ),
+    {
+      key: "price",
+      label: `${flatLabel(state.flat)} median ${state.mode === "buy" ? "resale price" : "rent"}`,
+      cells: rows.map(({ price: p }) =>
+        p ? cell(`${priceText(state.mode, p)} (${quarterLabel(p.quarter)})`, p.median) : cell("Not enough data"),
+      ),
+    },
+    state.mode === "buy"
+      ? commuteLine("fares", "Fares a month", ({ cost: m }) =>
+          m.fares != null ? cell(`≈ $${money.format(m.fares)}`, m.fares) : cell("–"),
+        )
+      : {
+          key: "allin",
+          label: "All-in a month (rent + fares)",
+          // The office area's own town: its rent, said plainly, and no value to compare.
+          cells: rows.map((row) =>
+            row.commute?.same_area
+              ? cell(row.price ? `≈ $${money.format(row.price.median)} rent, no fare estimate` : IN_AREA)
+              : !row.commute
+                ? cell("–")
+                : row.cost.total != null
+                  ? cell(`≈ $${money.format(row.cost.total)}`, row.cost.total)
+                  : cell("–"),
+          ),
+        },
+    commuteLine("hours", "On the road a month", ({ cost: m }) => cell(`${m.hours} h`, m.hours)),
+  ];
+  const inArea = rows.some((row) => row.commute?.same_area);
+  const NO_BEST_IN_AREA = new Set(["allin", "fares", "hours"]);
+  for (const line of lines) {
+    if (inArea && NO_BEST_IN_AREA.has(line.key)) continue;
+    const known = line.cells.filter((c) => c.value != null);
+    if (known.length < 2) continue;
+    const low = Math.min(...known.map((c) => c.value));
+    for (const c of known) c.best = c.value === low;
+  }
+  return { towns, lines };
+}
+
+function transfersCell(n) {
+  return n === 0 ? "No transfer" : n === 1 ? "1 transfer" : `${n} transfers`;
 }

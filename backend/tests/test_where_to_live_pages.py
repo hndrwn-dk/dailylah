@@ -66,7 +66,7 @@ def test_town_page_content():
     text = " ".join(visible_words(page))
     assert "<title>Living in Punggol: commute and HDB prices | DailyLah</title>" in page
     assert '<link rel="canonical" href="https://dailylah.sg/where-to-live/punggol">' in page
-    assert 'href="/where-to-live?town=punggol"' in page
+    assert 'href="/where-to-live?compare=punggol"' in page
     assert "quickest of 26 HDB towns" in text
     assert "(Q3 2026)" in text  # each price carries its own quarter
     assert "Compared with Sengkang" in text

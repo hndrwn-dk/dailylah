@@ -5,8 +5,13 @@
 // Fase 2). Map pills and popups are DOM elements. Query values are checked against the data.
 
 import {
+  MAX_COMPARE,
   MAX_MINUTES,
   changeChoices,
+  compareBarText,
+  compareTable,
+  namesText,
+  toggleCompare,
   commuteText,
   flatLabel,
   flatTypes,
@@ -115,8 +120,115 @@ function boardRow(row, view, actions) {
   const page = el("a", "town-link", `More about ${row.town.name}`);
   page.href = `/where-to-live/${encodeURIComponent(row.town.id)}`;
   more.append(page);
-  li.append(more);
+  li.append(compareButton(row.town, view, actions), more);
   return li;
+}
+
+/** "+ Compare" next to a row: adds or removes the town (at most MAX_COMPARE). */
+function compareButton(town, view, actions) {
+  const picked = view.state.compare.includes(town.id);
+  const full = !picked && view.state.compare.length >= MAX_COMPARE;
+  const b = el("button", `cmp${picked ? " on" : ""}`);
+  b.type = "button";
+  b.append(el("span", "cmp-mark", picked ? "✓" : "+"), el("span", "cmp-word", picked ? "Added" : "Compare"));
+  b.setAttribute("aria-pressed", String(picked));
+  b.setAttribute("aria-label", `Compare ${town.name}`);
+  if (full) {
+    b.disabled = true;
+    b.title = `Up to ${MAX_COMPARE} towns`;
+  }
+  b.addEventListener("click", () => actions.compare(town.id));
+  return b;
+}
+
+// ---------------------------------------------------------------- compare
+
+/** The bar at the bottom: the picked towns (tap to remove), a hint and the Compare button. */
+function renderCompareBar(data, view, actions) {
+  const ids = view.state.compare;
+  const bar = $("compare-bar");
+  bar.hidden = ids.length === 0;
+  document.body.classList.toggle("has-bar", ids.length > 0);
+  const names = ids.map((id) => data.towns.find((t) => t.id === id)?.name ?? id);
+  $("compare-chips").replaceChildren(
+    ...ids.map((id, i) => {
+      const li = el("li");
+      const chip = el("button", "chip");
+      chip.type = "button";
+      chip.append(el("span", null, names[i]), el("span", "chip-x", "×"));
+      chip.setAttribute("aria-label", `Remove ${names[i]} from the comparison`);
+      chip.addEventListener("click", () => actions.compare(id));
+      li.append(chip);
+      return li;
+    }),
+  );
+  $("compare-hint").textContent =
+    ids.length === 1 ? "Add a town to compare" : ids.length >= MAX_COMPARE ? `Up to ${MAX_COMPARE} towns` : "";
+  const go = $("compare-go");
+  go.disabled = ids.length < 2;
+  // While the table is open it follows the list; the button then takes you back to it.
+  go.textContent = view.comparing ? "See comparison" : "Compare";
+  if (ids.length) bar.setAttribute("aria-label", `Towns to compare: ${compareBarText(names)}`);
+}
+
+/**
+ * Keep the end of the page clear of the fixed bar, whatever its height (one to three lines of
+ * chips on a phone). Sets padding through the CSSOM, which the page's CSP allows.
+ */
+function watchBarHeight() {
+  const bar = $("compare-bar");
+  const fit = () => {
+    const room = bar.hidden ? "" : `${Math.ceil(bar.getBoundingClientRect().height) + 16}px`;
+    document.body.style.paddingBottom = room;
+    // A row focused with the keyboard is scrolled clear of the bar, not under it.
+    document.documentElement.style.scrollPaddingBottom = room;
+  };
+  if (typeof ResizeObserver === "function") new ResizeObserver(fit).observe(bar);
+  return fit;
+}
+
+/** The side-by-side table: a column per town, the best value in each line marked. */
+function renderCompare(data, view, actions) {
+  const panel = $("compare");
+  panel.hidden = !view.comparing;
+  if (!view.comparing) return;
+  const { state } = view;
+  const { towns, lines } = compareTable(data, state);
+  const area = data.areas.find((a) => a.id === state.area);
+  $("compare-title").textContent = `Compare ${namesText(towns.map((t) => t.name))}`;
+  $("compare-sub").textContent = `To ${area.name}, weekday 08:30 by MRT and bus, ${flatLabel(state.flat)} ${
+    state.mode === "buy" ? "resale" : "rent"
+  }`;
+  const head = el("tr");
+  head.append(el("td", "corner"));
+  for (const town of towns) {
+    const th = el("th");
+    th.scope = "col";
+    const link = el("a", null, town.name);
+    link.href = `/where-to-live/${encodeURIComponent(town.id)}`;
+    const drop = el("button", "col-x", "×");
+    drop.type = "button";
+    drop.setAttribute("aria-label", `Remove ${town.name} from the comparison`);
+    drop.addEventListener("click", () => actions.compare(town.id));
+    th.append(link, drop);
+    head.append(th);
+  }
+  const thead = el("thead");
+  thead.append(head);
+  const tbody = el("tbody");
+  for (const line of lines) {
+    const tr = el("tr");
+    const th = el("th", null, line.label);
+    th.scope = "row";
+    tr.append(th);
+    for (const c of line.cells) {
+      const td = el("td", c.best ? "best" : null, c.text);
+      if (c.best) td.append(el("span", "best-tag", "Best"));
+      tr.append(td);
+    }
+    tbody.append(tr);
+  }
+  $("compare-table").replaceChildren(thead, tbody);
 }
 
 function group(title, rows, view, actions, opts = {}) {
@@ -384,13 +496,28 @@ async function main() {
     selected: null, // town whose pill is highlighted
     showAll: false,
     unfolded: new Set(),
+    // The side-by-side table is open: on load when the link names two or more towns.
+    comparing: false,
   };
+  view.comparing = view.state.compare.length >= 2;
   const m = makeMap(data);
   let groups = rank(data, view.state);
 
+  const fitBar = watchBarHeight();
+  const syncUrl = () =>
+    window.history.replaceState(null, "", `${window.location.pathname}${writeQuery(view.state)}`);
   const draw = () => {
     renderBoard(data, view, groups, actions);
     renderMap(m, data, view, groups, actions);
+    renderCompareBar(data, view, actions);
+    fitBar();
+    renderCompare(data, view, actions);
+  };
+  const showCompare = () => {
+    view.comparing = true;
+    draw();
+    $("compare").scrollIntoView({ block: "start" });
+    $("compare-title").focus({ preventScroll: true });
   };
   const reveal = (id) => {
     // Make sure the row is on the board: past the top rows, or in the folded group.
@@ -426,17 +553,51 @@ async function main() {
       view.showAll = true;
       draw();
     },
+    compare(id) {
+      // draw() rebuilds the buttons, so remember where the keyboard was and put it back.
+      const from = document.activeElement;
+      const focusRow = from?.closest?.(".row")?.id;
+      const chips = [...document.querySelectorAll("#compare-chips .chip")];
+      const cols = [...document.querySelectorAll("#compare-table .col-x")];
+      const chipAt = chips.indexOf(from);
+      const colAt = cols.indexOf(from);
+      view.state = { ...view.state, compare: toggleCompare(view.state.compare, id) };
+      if (view.state.compare.length < 2) view.comparing = false;
+      draw();
+      syncUrl();
+      if (focusRow) $(focusRow)?.querySelector(".cmp")?.focus();
+      else if (chipAt >= 0) {
+        // The next chip, else the Compare button, else the board.
+        const left = document.querySelectorAll("#compare-chips .chip");
+        const go = $("compare-go");
+        (left[Math.min(chipAt, left.length - 1)] ?? (go.disabled ? $("board-title") : go)).focus();
+      } else if (colAt >= 0) {
+        // The next column's ×, else (the table closed) the board.
+        const left = document.querySelectorAll("#compare-table .col-x");
+        const next = view.comparing ? left[Math.min(colAt, left.length - 1)] : null;
+        (next ?? $("board-title")).focus();
+      }
+    },
   };
+  $("compare-go").addEventListener("click", showCompare);
+  $("compare-close").addEventListener("click", () => {
+    view.comparing = false;
+    draw();
+    $("board-title").scrollIntoView({ block: "start" });
+    // The button was inside the table that just closed: move the keyboard to the board.
+    $("board-title").focus({ preventScroll: true });
+  });
   const update = () => {
     // changeChoices drops the budget when the mode changes; fillForm then clears the field.
-    view.state = changeChoices(view.state, formQuery(), data);
+    // The towns to compare stay: the table follows the new office area, mode and flat type.
+    view.state = { ...changeChoices(view.state, formQuery(), data), compare: view.state.compare };
     view.open = null;
     view.selected = null;
     view.showAll = false;
     groups = rank(data, view.state);
     fillForm(data, view.state);
     draw();
-    window.history.replaceState(null, "", `${window.location.pathname}${writeQuery(view.state)}`);
+    syncUrl();
   };
   $("choices").addEventListener("change", update);
   $("choices").addEventListener("submit", (e) => {
@@ -446,18 +607,22 @@ async function main() {
   renderSources(data);
   setUpShare();
   fillForm(data, view.state);
-  if (view.state.town) {
-    // Opened from a town page: show that town's row and pill.
-    view.open = view.state.town;
-    view.selected = view.state.town;
-    reveal(view.state.town);
+  // A town to show: ?town= (older links), or the one town of ?compare= (the town pages' link,
+  // which then asks for a second town in the bar).
+  const focusTown = view.state.town ?? (view.state.compare.length === 1 ? view.state.compare[0] : null);
+  if (focusTown) {
+    view.open = focusTown;
+    view.selected = focusTown;
+    reveal(focusTown);
   }
   draw();
-  if (view.state.town) {
-    m?.markers.get(view.state.town)?.openPopup();
-    $(`row-${view.state.town}`)?.scrollIntoView({ block: "center" });
+  if (view.comparing) {
+    $("compare").scrollIntoView({ block: "start" });
+  } else if (focusTown) {
+    m?.markers.get(focusTown)?.openPopup();
+    $(`row-${focusTown}`)?.scrollIntoView({ block: "center" });
   }
-  window.history.replaceState(null, "", `${window.location.pathname}${writeQuery(view.state)}`);
+  syncUrl();
 }
 
 main();

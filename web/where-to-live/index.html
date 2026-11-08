@@ -60,11 +60,25 @@
     </label>
   </form>
 
+  <section id="compare" class="compare sticker" aria-labelledby="compare-title" hidden>
+    <div class="compare-top">
+      <div>
+        <h2 id="compare-title" tabindex="-1">Compare towns</h2>
+        <p id="compare-sub" class="compare-sub"></p>
+      </div>
+      <button id="compare-close" class="compare-close" type="button">Back to the list</button>
+    </div>
+    <div class="table-wrap" id="compare-scroll">
+      <table id="compare-table" class="compare-table"></table>
+    </div>
+    <p class="compare-note">Best in each line is marked where the towns can be compared. Estimates from planned weekday 08:30 trips and 22 working days there and back.</p>
+  </section>
+
   <div class="results">
     <section class="board-wrap sticker" aria-labelledby="board-title">
       <div class="board-top">
         <div>
-          <h2 id="board-title">Loading towns</h2>
+          <h2 id="board-title" tabindex="-1">Loading towns</h2>
           <p id="board-sub" class="board-sub"></p>
         </div>
         <button id="share" class="share" type="button" hidden>Share</button>
@@ -111,6 +125,13 @@
     </nav>
   </footer>
 </main>
+<div id="compare-bar" class="compare-bar" role="region" aria-label="Towns to compare" hidden>
+  <div class="wrap compare-bar-in">
+    <ul id="compare-chips" class="chips"></ul>
+    <p id="compare-hint" class="compare-hint" role="status"></p>
+    <button id="compare-go" class="compare-go" type="button">Compare</button>
+  </div>
+</div>
 <noscript><p class="wrap">This page needs JavaScript to rank the towns.</p></noscript>
 </body>
 </html>
