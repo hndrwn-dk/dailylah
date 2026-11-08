@@ -126,6 +126,19 @@ void main() {
     expect(find.text(_s.wtlFits(n45)), findsOneWidget);
   });
 
+  testWidgets('the commute card has its own accessibility nodes, not one node for the whole page', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await _open(tester, householdFavorites, const BlockPage(block: _tampines));
+    await _show(tester, find.byKey(const ValueKey('wtl-from')));
+    // Screen readers and Maestro find the line on its own, a node no taller than the line.
+    final node = tester.getSemantics(find.byKey(const ValueKey('wtl-from')));
+    expect(node.label, 'Tampines · from ${town.station} MRT');
+    expect(node.rect.height, lessThan(120));
+    await _show(tester, find.textContaining('Fits your choices'));
+    expect(tester.getSemantics(find.textContaining('Fits your choices')).label, startsWith('Fits your choices'));
+    semantics.dispose();
+  });
+
   testWidgets('an office area picked by hand is not asked to be saved again', (tester) async {
     await _open(tester, householdFavorites.copyWith(wtlArea: 'one-north'), const BlockPage(block: _tampines));
     await _show(tester, find.byKey(const ValueKey('wtl-from')));

@@ -90,7 +90,9 @@ class BlockCommute extends ConsumerWidget {
     final cm = row?.commute;
     InputDecoration label(String text) => InputDecoration(labelText: text, border: const OutlineInputBorder());
 
-    return Panel(
+    return Semantics(
+      container: true,
+      child: Panel(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -136,8 +138,11 @@ class BlockCommute extends ConsumerWidget {
             if (town == null)
               EmptyNote(s.wtlNotInData)
             else ...[
-              Text('${town.name} · ${s.wtlFromStation(town.station)}',
-                  key: const ValueKey('wtl-from'), style: t.titleSmall),
+              Semantics(
+                container: true,
+                child: Text('${town.name} · ${s.wtlFromStation(town.station)}',
+                    key: const ValueKey('wtl-from'), style: t.titleSmall),
+              ),
               const SizedBox(height: 12),
               if (cm == null || cm.sameArea)
                 Text(s.wtlRoute(row!), style: t.titleMedium)
@@ -171,6 +176,7 @@ class BlockCommute extends ConsumerWidget {
           ],
         ),
       ),
+      ),
     );
   }
 }
@@ -198,7 +204,8 @@ class _Figure extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    return Column(
+    return MergeSemantics(
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         FittedBox(
@@ -209,6 +216,7 @@ class _Figure extends StatelessWidget {
         const SizedBox(height: 2),
         Text(caption, style: t.bodySmall),
       ],
+      ),
     );
   }
 }
@@ -258,9 +266,13 @@ class _TownsBoardState extends ConsumerState<TownsBoard> {
         : [...match.take(_topRows), ...match.skip(_topRows).where((r) => r.town.id == mine)];
     final dim = t.bodySmall?.copyWith(color: DL.ledDim);
     InputDecoration label(String text) => InputDecoration(labelText: text, border: const OutlineInputBorder());
-    Widget heading(String text) => Padding(
-          padding: const EdgeInsets.fromLTRB(4, 14, 4, 4),
-          child: Text(text, style: t.labelLarge?.copyWith(color: DL.ledDim)),
+    Widget heading(String text) => Semantics(
+          container: true,
+          header: true,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(4, 14, 4, 4),
+            child: Text(text, style: t.labelLarge?.copyWith(color: DL.ledDim)),
+          ),
         );
     Widget rows(List<WtlRow> list) => Column(
           children: [

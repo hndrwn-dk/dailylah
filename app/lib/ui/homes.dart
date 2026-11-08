@@ -301,10 +301,14 @@ class BlockPage extends ConsumerWidget {
                 if (stats.isEmpty)
                   Panel(child: EmptyNote(s.noResale))
                 else
-                  for (final st in stats) _ResaleCard(stat: st, townMedian: townMedians[st.flatType], town: block.town),
+                  for (final st in stats)
+                    Semantics(
+                      container: true,
+                      child: _ResaleCard(stat: st, townMedian: townMedians[st.flatType], town: block.town),
+                    ),
                 if (rents.isNotEmpty) ...[
                   SectionTitle(s.rentTitle, trailing: quarterly ? null : Text(rents.values.first.period, style: t.bodySmall)),
-                  Panel(
+                  Semantics(container: true, child: Panel(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -315,7 +319,7 @@ class BlockPage extends ConsumerWidget {
                         ],
                       ),
                     ),
-                  ),
+                  )),
                 ],
                 SectionTitle(s.wtlCommuteTitle),
                 BlockCommute(block: block),

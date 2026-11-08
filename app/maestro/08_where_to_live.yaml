@@ -18,16 +18,17 @@ name: 08 Where to live
     direction: DOWN
     centerElement: true
 - tapOn: "(?s).*Prices, rent and score.*"
-# Flutter leaves off-screen rows out of the hierarchy: scroll to each section.
+# Flutter leaves off-screen rows out of the hierarchy: scroll to each part. The commute card, its
+# figures and the board's headings are their own accessibility nodes (Semantics container).
 - scrollUntilVisible:
-    element: "(?s).*Commute and all-in cost.*"
-    direction: DOWN
-    timeout: 30000
-- scrollUntilVisible:
-    element: "(?s)Ang Mo Kio · from Ang Mo Kio MRT"
+    element: "(?s).*from Ang Mo Kio MRT.*"
     direction: DOWN
     centerElement: true
-- assertVisible: "(?s).*all-in a month, rent \\+ fares.*"
+    timeout: 30000
+- scrollUntilVisible:
+    element: "(?s).*all-in a month, rent \\+ fares.*"
+    direction: DOWN
+    centerElement: true
 - scrollUntilVisible:
     element: "Price"
     direction: DOWN
@@ -37,5 +38,8 @@ name: 08 Where to live
     element: "(?s)Fits your choices.*"
     direction: DOWN
     centerElement: true
-- assertVisible: "(?s).*This block's town.*"
+- scrollUntilVisible:
+    element: "(?s).*This block's town.*"
+    direction: DOWN
+    centerElement: true
 - stopRecording
