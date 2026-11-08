@@ -1445,7 +1445,8 @@ class _TripPlannerPageState extends ConsumerState<TripPlannerPage> {
             Place(kind: PlaceKind.other, name: ref.read(stringsProvider).hereNow, addrLat: pos.latitude, addrLng: pos.longitude);
         if (ref.read(goPicksProvider) != picksBefore) return;
         // A Here destination from an earlier visit was where the phone was then, not now: drop it.
-        if (toBefore == 'here') ref.read(goKeyProvider.notifier).state = null;
+        // (Only while it still is: a shared place may have become the destination meanwhile.)
+        if (toBefore == 'here' && ref.read(goKeyProvider) == 'here') ref.read(goKeyProvider.notifier).state = null;
         ref.read(goFromKeyProvider.notifier).state = 'here';
       } on Object {
         // No location: the planner starts from a saved place.

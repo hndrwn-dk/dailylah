@@ -1,6 +1,7 @@
 // Feature tests: one per user-facing feature, driving the real widgets the way a user
 // would (tap, sheet, button) with the fakes in support/harness.dart. Every feature PR adds
 // its test here (see CLAUDE.md, "Testing a feature").
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -24,7 +25,7 @@ import 'package:dailylah/ui/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:geolocator/geolocator.dart' show LocationPermission;
+import 'package:geolocator/geolocator.dart' show GeolocatorPlatform, LocationPermission;
 
 import 'support/harness.dart';
 
@@ -895,6 +896,50 @@ void main() {
     expect(box.read(goFromKeyProvider), 'here');
     expect(find.text('Here → Here'), findsNothing);
     expect(find.text(const S().goSomewhereHint), findsOneWidget);
+  });
+
+  testWidgets('Plan a trip: picks made while the location is coming in are kept', (tester) async {
+    await applyCondition(tester, _normal);
+    final gps = Completer<void>();
+    GeolocatorPlatform.instance = FakeGeolocator(LocationPermission.whileInUse, gate: gps);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    final nav = Navigator.of(tester.element(find.byType(TodayPage)));
+    nav.push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    // The fix is slow: the user picks Work as the start and School as the destination first.
+    await tester.tap(find.text('Work').first);
+    await tester.tap(find.text('School').last);
+    await settle(tester);
+    gps.complete();
+    await settle(tester);
+    expect(box.read(goFromKeyProvider), 'work');
+    expect(box.read(goKeyProvider), 'school');
+    expect(find.text('Work → School'), findsOneWidget);
+    nav.pop();
+    await settle(tester);
+  });
+
+  testWidgets('Plan a trip: a place shared in while the location is coming in stays the destination', (tester) async {
+    await applyCondition(tester, _normal);
+    final gps = Completer<void>();
+    GeolocatorPlatform.instance = FakeGeolocator(LocationPermission.whileInUse, gate: gps);
+    await tester.pumpWidget(_appWithOneMap(_OneMap()));
+    await settle(tester);
+    final box = containerOf(tester);
+    // Left from an earlier visit: a trip back to Here.
+    box.read(goKeyProvider.notifier).state = 'here';
+    final shared = parseSharedPlace('Somerset Bencoolen\nSingapore 189630\nhttps://maps.app.goo.gl/AbC123')!;
+    Navigator.of(tester.element(find.byType(TodayPage)))
+        .push(MaterialPageRoute<void>(builder: (_) => TripPlannerPage(shared: shared)));
+    await settle(tester);
+    expect(box.read(goKeyProvider), 'adhoc');
+    gps.complete();
+    await settle(tester);
+    expect(box.read(goKeyProvider), 'adhoc');
+    expect(box.read(goAdhocDestProvider)!.postal, '189630');
+    expect(box.read(goFromKeyProvider), 'here');
   });
 
   testWidgets('Plan a trip: Here on both ends never makes a trip to itself', (tester) async {
