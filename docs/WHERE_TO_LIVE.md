@@ -189,7 +189,8 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
   bertuliskan "In this area" dan tidak ikut "Best" (town lain tetap dibandingkan); di baris all-in
   bertuliskan "≈ $<sewa> rent, no fare estimate" (mode beli: tarif per bulan "In this area"), di
   baris jam "In this area"; dan selama town itu ikut dibandingkan, baris all-in (atau tarif per
-  bulan) dan jam tidak memberi "Best" sama sekali. Harganya tetap dibandingkan. Di HP tabelnya digeser ke samping, kolom label tetap.
+  bulan) dan jam tidak memberi "Best" sama sekali. Harganya tetap dibandingkan. Di HP tabelnya
+  digeser ke samping, kolom label tetap.
   Tabel ikut pilihan area kantor, mode dan tipe flat.
 - URL: `?compare=punggol,bedok,sengkang` (id dari JSON saja, tiap town sekali, maksimal 3, sisanya
   dibuang), jadi bisa di-Share; dengan dua town atau lebih tabelnya langsung terbuka. Halaman town

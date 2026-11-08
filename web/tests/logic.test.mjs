@@ -480,12 +480,16 @@ test("compareTable: Woodlands to Woodlands against Ang Mo Kio and Bedok (real da
   assert.deepEqual(bests(lineOf(t, "allin")), [false, false, false]);
   assert.deepEqual(bests(lineOf(t, "hours")), [false, false, false]);
   // Other lines as before: the commute lines among Ang Mo Kio and Bedok, the rent among all three.
-  assert.equal(lineOf(t, "time").cells[0].text, IN_AREA);
-  assert.equal(lineOf(t, "time").cells.filter((c) => c.best).length, 1);
-  assert.equal(lineOf(t, "time").cells[0].best, false);
+  // (Written to hold after any weekly data rebuild: a lost rent or route only changes which cell.)
+  const time = lineOf(t, "time");
+  assert.equal(time.cells[0].text, IN_AREA);
+  assert.equal(time.cells[0].best, false);
+  const commutes = time.cells.slice(1).filter((c) => c.value != null);
+  assert.equal(time.cells.slice(1).some((c) => c.best), commutes.length >= 2);
   const rents = lineOf(t, "price").cells.map((c) => c.value);
-  const low = Math.min(...rents);
-  assert.deepEqual(bests(lineOf(t, "price")), rents.map((r) => r === low));
+  const known = rents.filter((r) => r != null);
+  const low = Math.min(...known);
+  assert.deepEqual(bests(lineOf(t, "price")), rents.map((r) => known.length >= 2 && r === low));
   // Buy mode: fares a month reads "In this area" and marks no "best" either.
   const buy = compareTable(real, readQuery("?area=woodlands&mode=buy&compare=woodlands,ang-mo-kio,bedok", real));
   assert.equal(lineOf(buy, "fares").cells[0].text, IN_AREA);
