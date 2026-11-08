@@ -7,6 +7,7 @@ import '../l10n.dart';
 import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
+import 'block_commute.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -194,10 +195,17 @@ class BlockPage extends ConsumerWidget {
     final fav = ref.watch(favoritesProvider);
     final resale = ref.watch(resaleProvider).value;
     final rent = ref.watch(rentProvider).value;
+    final wtl = ref.watch(whereToLiveProvider).value;
     final year = (ref.watch(clockProvider).value ?? DateTime.now()).year;
     final stats = resale?.blocks[block.key] ?? const <ResaleStat>[];
     final townMedians = resale?.towns[block.town] ?? const <String, int>{};
-    final rents = rent?.towns[block.town] ?? const <String, int>{};
+    // One rent per town on this page: the quarterly where-to-live medians (each with its quarter),
+    // the same figures the commute and town board below use; hdb_rent only for a town not in it.
+    final rents = townRents(wtl, rent, block.town);
+    final quarterly = rents.values.any((r) => r.quarterly);
+    final areaName = wtl == null || wtl.isEmpty
+        ? ''
+        : wtl.areas.where((a) => a.id == wtlChoiceFor(wtl, fav).choice.area).firstOrNull?.name ?? '';
     final watching = fav.watchedBlocks.containsKey(block.key);
     final comparing = fav.compareBlocks.contains(block.key);
     final t = Theme.of(context).textTheme;
@@ -300,7 +308,7 @@ class BlockPage extends ConsumerWidget {
                 else
                   for (final st in stats) _ResaleCard(stat: st, townMedian: townMedians[st.flatType], town: block.town),
                 if (rents.isNotEmpty) ...[
-                  SectionTitle(s.rentTitle, trailing: Text(rent!.period, style: t.bodySmall)),
+                  SectionTitle(s.rentTitle, trailing: quarterly ? null : Text(rents.values.first.period, style: t.bodySmall)),
                   Panel(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
@@ -312,18 +320,32 @@ class BlockPage extends ConsumerWidget {
                             runSpacing: 16,
                             children: [
                               for (final e in rents.entries)
-                                Stat(value: sgd(e.value), caption: '${e.key.toLowerCase()} ${s.perMonth}'),
+                                Stat(
+                                  value: sgd(e.value.median),
+                                  caption: e.value.quarterly
+                                      ? s.wtlRentCaption(e.key, e.value.period)
+                                      : '${e.key.toLowerCase()} ${s.perMonth}',
+                                ),
                             ],
                           ),
                           const SizedBox(height: 12),
-                          Text(s.rentNote, style: t.bodySmall),
+                          Text(
+                            quarterly ? s.wtlTownRentNote(titleCase(block.town)) : s.wtlHdbRentPeriod(rents.values.first.period),
+                            style: t.bodySmall,
+                          ),
                         ],
                       ),
                     ),
                   ),
                 ],
+                SectionTitle(s.wtlCommuteTitle),
+                BlockCommute(block: block),
                 SectionTitle(s.dailyLifeScore),
                 _ScoreCard(block: block),
+                if (areaName.isNotEmpty) ...[
+                  SectionTitle(s.wtlTownsTitle(areaName)),
+                  TownsBoard(block: block),
+                ],
                 const SizedBox(height: 8),
                 Text(s.homesDisclaimer, style: t.bodySmall),
               ],
@@ -514,6 +536,7 @@ class ComparePage extends ConsumerWidget {
     final byKey = {for (final b in blocks) b.key: b};
     final chosen = [for (final k in fav.compareBlocks) if (byKey[k] != null) byKey[k]!];
     final t = Theme.of(context).textTheme;
+    final commute = wtlCompareLinesFor(ref, chosen);
 
     String priceFor(HdbBlock b, String ft) {
       final st = (resale?.blocks[b.key] ?? const <ResaleStat>[]).where((r) => r.flatType == ft);
@@ -595,11 +618,36 @@ class ComparePage extends ConsumerWidget {
                                 Text(rows[i].$2(b), textAlign: TextAlign.center, style: t.titleSmall),
                             ],
                           ),
+                        // Commute from each block's town ("In this area" and "Best" as on the website).
+                        if (commute != null)
+                          for (var j = 0; j < commute.lines.length; j++)
+                            TableRow(
+                              decoration: BoxDecoration(
+                                color: (rows.length + j).isEven
+                                    ? Theme.of(context).colorScheme.surfaceContainer.withValues(alpha: 0.5)
+                                    : null,
+                              ),
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  child: Text(s.wtlLine(commute.lines[j].key, commute.area?.name ?? '', commute.choice),
+                                      style: t.bodySmall),
+                                ),
+                                for (final cell in commute.lines[j].cells)
+                                  WtlCellText(line: commute.lines[j].key, cell: cell, mode: commute.choice.mode),
+                              ],
+                            ),
                       ],
                     ),
                   ),
                   ),
                 ),
+                if (commute != null && commute.area != null) ...[
+                  Text(s.wtlCompareSub(commute.area!.name, commute.choice.flat, commute.choice.mode), style: t.bodySmall),
+                  const SizedBox(height: 4),
+                  Text(s.wtlCompareNote, style: t.bodySmall),
+                  const SizedBox(height: 8),
+                ],
                 Text(s.homesDisclaimer, style: t.bodySmall),
               ],
             ),

@@ -799,12 +799,12 @@ class WhereToLive {
             for (final e in v.entries) '${e.key}': QuarterMedian.fromBundle(e.value),
         };
     final areas = [
-      for (final a in (j['areas'] as List? ?? const []))
+      for (final a in (j['areas'] is List ? j['areas'] as List : const []))
         if (place(a))
           WtlArea(id: a['id'] as String, name: '${a['name'] ?? a['id']}', station: '${a['station'] ?? ''}', lat: _d(a['lat']), lng: _d(a['lng'])),
     ];
     final towns = [
-      for (final t in (j['towns'] as List? ?? const []))
+      for (final t in (j['towns'] is List ? j['towns'] as List : const []))
         if (place(t))
           WtlTown(
             id: t['id'] as String,

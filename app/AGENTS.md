@@ -161,7 +161,18 @@ feature, screen, provider or rule moves, appears or goes away.
   budget), `wtlRank` (match / noPrice / other), `wtlMonthly` (fares and hours on `wtlWorkdays`, all-in for rent),
   `wtlHighlights`, `wtlCompareIds` / `wtlToggleCompare` (max `wtlMaxCompare`) and `wtlCompareTable`
   (best per line; the office area's own town is "in this area" and takes no part, and all-in/hours
-  mark no best while it is compared). No screen yet.
+  mark no best while it is compared). No page of its own: it lives on the block page "Prices, rent and
+  score" (`BlockPage` in `ui/homes.dart`), built from `ui/block_commute.dart`. A block takes its town's
+  numbers from the town's MRT station (`wtlTownFor`, HDB town name to bundle town). `BlockCommute`: office
+  area, rent/buy and flat type (kept in `Favorites` `wtlArea`, `wtlMode`, `wtlFlat`; `wtlChoiceFor`), then
+  minutes, transfers, fare, the all-in month (fares a month when buying) and hours, labelled estimate.
+  `TownsBoard`: budget, time limit and sort (`WtlSort`, `wtlSorted`; per visit), Fastest / Best value, the
+  LED board (top 8 + Show all, the block's own town always shown) with "More about" to
+  `dailylah.sg/where-to-live/<id>` (`wtlTownUrl`). Town rent on the block page and the Home block card is one
+  source per town (`townRents`, `townRentFor`): the quarterly where-to-live medians with their quarter, or
+  `hdb_rent`'s six-month medians (with the period) only for a town the bundle lacks. `ComparePage` adds
+  time, transfers, fare, all-in (or fares) and hours per block (`wtlBlockLines`, `wtlCompareLinesFor`,
+  `WtlCellText`), same "in this area" and "Best" rules as the website. Maestro: `maestro/08_where_to_live.yaml`.
 - Home tab (`ui/home.dart`) is about the saved home, one section at a time (chips under the hero,
   `homeSectionProvider`): its HDB block (`homeBlock`) or private project (`private_homes.json` from
   URA, `privateProjectFor`; backend `app/ura.py`, secret `URA_ACCESS_KEY`), upgrading and

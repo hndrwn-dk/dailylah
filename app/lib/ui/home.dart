@@ -508,10 +508,10 @@ class _MyBlock extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
     final resale = ref.watch(resaleProvider).value;
-    final rent = ref.watch(rentProvider).value;
     final stats = [...?resale?.blocks[block.key]]..sort((a, b) => b.count.compareTo(a.count));
-    final rents = rent?.towns[block.town] ?? const <String, int>{};
-    final topRent = rentFor(rents, stats.isEmpty ? null : stats.first.flatType);
+    // The same rent as "Prices, rent and score": the town's quarterly median when known.
+    final rents = townRents(ref.watch(whereToLiveProvider).value, ref.watch(rentProvider).value, block.town);
+    final topRent = townRentFor(rents, stats.isEmpty ? null : stats.first.flatType);
     final watching = ref.watch(favoritesProvider).watchedBlocks.containsKey(block.key);
     final year = DateTime.now().year;
 
@@ -549,7 +549,11 @@ class _MyBlock extends ConsumerWidget {
             ],
             if (topRent != null) ...[
               const SizedBox(height: 8),
-              Text(s.rentMedian(topRent.$1, sgd(topRent.$2)), style: t.bodySmall),
+              Text(
+                s.rentMedian(topRent.$1, sgd(topRent.$2.median),
+                    topRent.$2.quarterly ? s.wtlQuarter(topRent.$2.period) : topRent.$2.period),
+                style: t.bodySmall,
+              ),
             ],
             const SizedBox(height: 12),
             Wrap(

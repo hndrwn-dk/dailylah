@@ -1,0 +1,41 @@
+# Commute and all-in cost on "Prices, rent and score": the saved block (Blk 201 Ang Mo Kio Ave 3,
+# flow 01) takes its town's trip from Ang Mo Kio MRT; the towns below are ranked by that trip and
+# can be sorted by price.
+appId: com.tursinalabs.dailylah
+name: 08 Where to live
+---
+- launchApp:
+    stopApp: true
+    permissions:
+      notifications: deny
+- startRecording: 08_where_to_live
+- tapOn: "(?s)Home.*"
+- extendedWaitUntil:
+    visible: "(?is).*Ang Mo Kio Av.*3.*"
+    timeout: 30000
+- scrollUntilVisible:
+    element: "(?s).*Prices, rent and score.*"
+    direction: DOWN
+    centerElement: true
+- tapOn: "(?s).*Prices, rent and score.*"
+# Flutter leaves off-screen rows out of the hierarchy: scroll to each section.
+- scrollUntilVisible:
+    element: "(?s).*Commute and all-in cost.*"
+    direction: DOWN
+    timeout: 30000
+- scrollUntilVisible:
+    element: "(?s)Ang Mo Kio · from Ang Mo Kio MRT"
+    direction: DOWN
+    centerElement: true
+- assertVisible: "(?s).*all-in a month, rent \\+ fares.*"
+- scrollUntilVisible:
+    element: "Price"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Price"
+- scrollUntilVisible:
+    element: "(?s)Fits your choices.*"
+    direction: DOWN
+    centerElement: true
+- assertVisible: "(?s).*This block's town.*"
+- stopRecording

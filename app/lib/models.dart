@@ -254,6 +254,9 @@ class Favorites {
     this.extraPlaces = const [],
     this.workDays = const {1, 2, 3, 4, 5},
     this.mrtLines = const {},
+    this.wtlArea = '',
+    this.wtlMode = '',
+    this.wtlFlat = '',
   });
 
   final Map<PlaceKind, Place> places;
@@ -322,6 +325,13 @@ class Favorites {
   final Map<String, String> mrtLines;
   static const maxMrtLines = 20;
 
+  /// Commute and all-in cost on "Prices, rent and score": office area picked by hand ('' = the one
+  /// nearest work or school), mode ('' = rent, 'buy') and flat type ('' = 4-room). Checked against
+  /// the where-to-live bundle when read (wtlChoiceFor); phone only, never in the share code.
+  final String wtlArea;
+  final String wtlMode;
+  final String wtlFlat;
+
   bool get isSetUp => places.containsKey(PlaceKind.home);
 
   Favorites copyWith({
@@ -352,6 +362,9 @@ class Favorites {
     List<Place>? extraPlaces,
     Set<int>? workDays,
     Map<String, String>? mrtLines,
+    String? wtlArea,
+    String? wtlMode,
+    String? wtlFlat,
   }) =>
       Favorites(
         places: places ?? this.places,
@@ -381,6 +394,9 @@ class Favorites {
         extraPlaces: extraPlaces ?? this.extraPlaces,
         workDays: workDays ?? this.workDays,
         mrtLines: mrtLines ?? this.mrtLines,
+        wtlArea: wtlArea ?? this.wtlArea,
+        wtlMode: wtlMode ?? this.wtlMode,
+        wtlFlat: wtlFlat ?? this.wtlFlat,
       );
 
   Map<String, dynamic> toJson() => {
@@ -411,6 +427,9 @@ class Favorites {
         if (extraPlaces.isNotEmpty) 'extra': [for (final p in extraPlaces) p.toJson()],
         'workDays': workDays.toList()..sort(),
         if (mrtLines.isNotEmpty) 'mrtLines': mrtLines,
+        if (wtlArea.isNotEmpty) 'wtlArea': wtlArea,
+        if (wtlMode.isNotEmpty) 'wtlMode': wtlMode,
+        if (wtlFlat.isNotEmpty) 'wtlFlat': wtlFlat,
       };
 
   factory Favorites.fromJson(Map<String, dynamic> j) {
@@ -456,6 +475,9 @@ class Favorites {
       mrtLines: {
         for (final e in ((j['mrtLines'] as Map?) ?? const {}).entries) '${e.key}': '${e.value}',
       },
+      wtlArea: '${j['wtlArea'] ?? ''}',
+      wtlMode: '${j['wtlMode'] ?? ''}',
+      wtlFlat: '${j['wtlFlat'] ?? ''}',
     );
   }
 }

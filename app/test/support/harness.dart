@@ -366,10 +366,10 @@ ProviderContainer containerOf(WidgetTester tester) =>
     ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
 
 /// Scrolls the main list to the end so every widget below the fold is built and laid out.
-Future<void> scrollThrough(WidgetTester tester) async {
+Future<void> scrollThrough(WidgetTester tester, {int times = 8}) async {
   final lists = find.byType(Scrollable).hitTestable();
   if (lists.evaluate().isEmpty) return;
-  for (var i = 0; i < 8; i++) {
+  for (var i = 0; i < times; i++) {
     await tester.drag(lists.first, const Offset(0, -600), warnIfMissed: false);
     await tester.pump(const Duration(milliseconds: 200));
   }

@@ -313,4 +313,101 @@ void main() {
       expect(line(t, WtlLineKey.time).cells.first.best, isFalse);
     });
   });
+
+  group('block page', () {
+    test('an HDB town name finds its where-to-live town', () {
+      final d = data();
+      expect(wtlTownFor(d, 'BISHAN')?.id, 'bishan');
+      expect(wtlTownFor(d, 'CENTRAL AREA')?.id, 'central');
+      expect(wtlTownFor(d, ' jurong east ')?.id, 'jurong-east');
+      expect(wtlTownFor(d, 'TENGAH'), isNull);
+    });
+
+    test('rents: the quarterly medians when the town is in the data, one source per town', () {
+      const six = RentData(period: '2026-05 – 2026-10', towns: {
+        'BISHAN': {'4-ROOM': 3650, '3-ROOM': 2950, 'EXECUTIVE': 4800},
+        'TENGAH': {'4-ROOM': 3300},
+      });
+      final r = townRents(data(), six, 'BISHAN');
+      // Not 3650: the six-month figure is not mixed in, nor its executive rent.
+      expect(r.keys, ['3-ROOM', '4-ROOM']);
+      expect(r['4-ROOM'], (median: 3700, period: '2026-Q3', quarterly: true));
+      // A town the bundle lacks keeps the six-month median, with its period.
+      expect(
+          townRents(data(), six, 'TENGAH'), {'4-ROOM': (median: 3300, period: '2026-05 – 2026-10', quarterly: false)});
+      // No where-to-live bundle at all.
+      expect(townRents(null, six, 'BISHAN')['4-ROOM']!.median, 3650);
+      expect(townRents(null, null, 'BISHAN'), isEmpty);
+    });
+
+    test('the rent quoted for a block: its flat type, else the smallest one', () {
+      final r = townRents(data(), null, 'BISHAN');
+      expect(townRentFor(r, '4 ROOM')!.$1, '4-ROOM');
+      expect(townRentFor(r, 'EXECUTIVE')!.$1, '3-ROOM');
+      expect(townRentFor(const {}, '4-ROOM'), isNull);
+    });
+
+    test('the area nearest the saved work place, unless one was picked', () {
+      final d = data();
+      const work = Place(kind: PlaceKind.work, address: 'RAFFLES PLACE', addrLat: 1.2801, addrLng: 103.8501);
+      const fav = Favorites(places: {PlaceKind.work: work});
+      final near = wtlChoiceFor(d, fav);
+      expect(near.choice.area, 'cbd');
+      expect(near.anchor, same(work));
+      final picked = wtlChoiceFor(d, fav.copyWith(wtlArea: 'jurong-east', wtlMode: 'buy', wtlFlat: '3-ROOM'));
+      expect(picked.choice.area, 'jurong-east');
+      expect(picked.anchor, isNull);
+      expect(picked.choice.mode, WtlMode.buy);
+      // No 3-room resale in the data: back to 4-room.
+      expect(picked.choice.flat, '4-ROOM');
+      expect(wtlChoiceFor(d, const Favorites()).choice.area, 'cbd');
+    });
+
+    test('sort by price: cheapest first, no price last, then by time', () {
+      final g = wtlRank(data(), const WtlChoice(area: 'cbd'));
+      final all = [...g[WtlGroup.match]!, ...g[WtlGroup.other]!];
+      expect(ids(wtlSorted(all, WtlSort.time)), ids(all));
+      expect(ids(wtlSorted(all, WtlSort.price)), ['punggol', 'bishan', 'central', 'jurong-east']);
+    });
+  });
+
+  group('block compare', () {
+    test('each block takes its town column; two blocks in one town share it', () {
+      final d = data();
+      final lines = wtlBlockLines(d, const WtlChoice(area: 'cbd'), ['BISHAN', 'PUNGGOL', 'BISHAN']);
+      expect(lines.map((l) => l.key),
+          [WtlLineKey.time, WtlLineKey.transfers, WtlLineKey.fare, WtlLineKey.allIn, WtlLineKey.hours]);
+      final time = lines.first;
+      expect(shown(time), [20, 45, 20]);
+      expect(bests(time), [true, false, true]);
+    });
+
+    test('a block whose town is not in the data is unknown and takes no part in best', () {
+      final lines = wtlBlockLines(data(), const WtlChoice(area: 'cbd'), ['TENGAH', 'BISHAN']);
+      expect(kinds(lines.first), [WtlCellKind.unknown, WtlCellKind.value]);
+      expect(bests(lines.first), [false, false]);
+    });
+
+    test('the office area town: in this area, its rent with no fare estimate, no best in all-in and hours', () {
+      final d = data((j) {
+        setFare(j, 'bishan', 'jurong-east', 200);
+        setFare(j, 'punggol', 'jurong-east', 250);
+      });
+      final lines =
+          wtlBlockLines(d, const WtlChoice(area: 'jurong-east', flat: '3-ROOM'), ['JURONG EAST', 'BISHAN', 'PUNGGOL']);
+      WtlLine of(WtlLineKey k) => lines.firstWhere((l) => l.key == k);
+      expect(kinds(of(WtlLineKey.time)), [WtlCellKind.inArea, WtlCellKind.value, WtlCellKind.value]);
+      expect(bests(of(WtlLineKey.time)), [false, true, false]);
+      expect(kinds(of(WtlLineKey.allIn)).first, WtlCellKind.inAreaRent);
+      expect(shown(of(WtlLineKey.allIn)).first, 2700);
+      expect(bests(of(WtlLineKey.allIn)), [false, false, false]);
+      expect(bests(of(WtlLineKey.hours)), [false, false, false]);
+    });
+
+    test('buying: fares a month instead of all-in', () {
+      final lines = wtlBlockLines(data(), const WtlChoice(area: 'cbd', mode: WtlMode.buy), ['BISHAN']);
+      expect(lines.map((l) => l.key), contains(WtlLineKey.faresMonth));
+      expect(lines.map((l) => l.key), isNot(contains(WtlLineKey.allIn)));
+    });
+  });
 }
