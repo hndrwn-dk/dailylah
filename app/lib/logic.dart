@@ -1873,6 +1873,9 @@ Set<String> mrtPlanLines(MrtPlan plan) => {
 
 // ---------------------------------------------------------------- leave by
 
+/// Within this distance of a stop the rider is at the stop: no walk before the bus.
+const atStopMetres = 80.0;
+
 /// Walking minutes for a straight-line distance (1.3 detour, 80 m a minute), at least 1.
 int walkMinutesTo(double metres) => math.max(1, (metres * 1.3 / 80).round());
 

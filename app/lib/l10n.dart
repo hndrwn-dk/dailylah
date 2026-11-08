@@ -311,7 +311,9 @@ class S {
   String leaveInHead(String service, int minutes) => noOrphan(
       minutes == 0 ? 'Leave now to catch $service' : 'Leave in $minutes min to catch $service');
   // No-break spaces: a wrap comes after the "·" and "bus in 11 min" moves on as a whole.
-  String walkToStopThenBus(int walk, int bus) => '$walk min walk to the stop\u00A0· bus\u00A0in\u00A0$bus\u00A0min';
+  String walkToStopThenBus(int walk, int bus) => walk == 0
+      ? "You're at the stop\u00A0· bus\u00A0in\u00A0$bus\u00A0min"
+      : '$walk min walk to the stop\u00A0· bus\u00A0in\u00A0$bus\u00A0min';
   String fromStop(String name) => noOrphan('From stop: $name');
   String get swapEnds => 'Swap From and To';
   String get searchAddressHint => 'Search an address or postal code';

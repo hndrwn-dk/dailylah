@@ -848,7 +848,8 @@ class TripBusCard extends ConsumerWidget {
                         // The bus to leave for comes first and stands out; buses that come before
                         // the walk to the stop is done are dimmed as "Too soon", at the end.
                         final walkM = from == null ? null : distanceMeters(from!.lat, from!.lng, stop.lat, stop.lng);
-                        final walk = walkM != null && walkM < 1500 ? walkMinutesTo(walkM) : null;
+                        // At the stop already (within atStopMetres): no walk, so the bus there now can be caught.
+                        final walk = walkM == null || walkM >= 1500 ? null : (walkM < atStopMetres ? 0 : walkMinutesTo(walkM));
                         final lb = walk == null ? null : leaveBy(direct, null, walk);
                         return [
                           if (lb != null) _LeaveCard(lb: lb),
@@ -1234,7 +1235,9 @@ class GoSomewhere extends ConsumerWidget {
     final dest = placeFor(key, adhocTo);
     // No location yet (or a saved place since removed): start from the first saved place
     // that is not the destination.
-    if (placeFor(fromKey, adhocFrom) == null) {
+    // The same place on both ends (Here picked as To while the start waited for the location)
+    // falls back the same way, so a trip never goes from a place to itself.
+    if (placeFor(fromKey, adhocFrom) == null || (fromKey == key && key != 'adhoc')) {
       final saved = options.where((o) => o.$1 != 'here' && o.$1 != key).firstOrNull;
       if (saved != null) fromKey = saved.$1;
     }
@@ -1437,10 +1440,9 @@ class _TripPlannerPageState extends ConsumerState<TripPlannerPage> {
         if (!mounted) return;
         ref.read(goFromHereProvider.notifier).state =
             Place(kind: PlaceKind.other, name: ref.read(stringsProvider).hereNow, addrLat: pos.latitude, addrLng: pos.longitude);
-        // Here may already be the destination (a return trip kept from last time): keep that.
-        if (ref.read(goKeyProvider) != 'here' && ref.read(goFromKeyProvider) == startBefore) {
-          ref.read(goFromKeyProvider.notifier).state = 'here';
-        }
+        // A Here destination from an earlier visit was where the phone was then, not now: drop it.
+        if (ref.read(goKeyProvider) == 'here') ref.read(goKeyProvider.notifier).state = null;
+        if (ref.read(goFromKeyProvider) == startBefore) ref.read(goFromKeyProvider.notifier).state = 'here';
       } on Object {
         // No location: the planner starts from a saved place.
       }

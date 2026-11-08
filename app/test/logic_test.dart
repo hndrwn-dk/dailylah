@@ -780,6 +780,11 @@ void main() {
     final far = tripBoard(grouped, null, null);
     expect([for (final r in far) r.eta.service], ['3', '47', '36', '12']);
     expect(far.any((r) => r.tooSoon), isFalse);
+    // At the stop (no walk): the bus there now is the one to catch, not "too soon".
+    const now = BusEta(service: '15', minutes: 0, load: 'SEA');
+    final atStop = tripBoard([(now, 8)], leaveBy([(now, 8)], null, 0), 0);
+    expect((atStop.single.eta.minutes, atStop.single.tooSoon), (0, false));
+    expect(leaveBy([(now, 8)], null, 0)!.leaveIn, 0);
   });
 
   test('trip planner ends: picking the other end swaps, tapping the destination again clears it', () {
@@ -806,6 +811,7 @@ void main() {
     const s = S();
     expect(s.leaveInHead('36', 7), 'Leave in 7 min to catch 36');
     expect(s.leaveInHead('36', 0), 'Leave now to catch 36');
+    expect(s.walkToStopThenBus(0, 2), "You're at the stop\u00A0· bus\u00A0in\u00A02\u00A0min");
     expect(s.walkToStopThenBus(3, 10), '3 min walk to the stop\u00A0· bus\u00A0in\u00A010\u00A0min');
   });
 

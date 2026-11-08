@@ -871,7 +871,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Plan a trip: a return trip to Here is kept when the planner opens again', (tester) async {
+  testWidgets('Plan a trip: an old Here destination is dropped when the planner opens again', (tester) async {
     await applyCondition(tester, _normal);
     await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
     await settle(tester);
@@ -890,10 +890,29 @@ void main() {
 
     nav.push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
     await settle(tester);
-    expect(box.read(goFromKeyProvider), 'work');
-    expect(box.read(goKeyProvider), 'here');
-    expect(find.text('Work → Here'), findsOneWidget);
+    // Here is wherever the phone is now: the old destination is gone and the trip starts Here.
+    expect(box.read(goKeyProvider), isNull);
+    expect(box.read(goFromKeyProvider), 'here');
     expect(find.text('Here → Here'), findsNothing);
+    expect(find.text(const S().goSomewhereHint), findsOneWidget);
+  });
+
+  testWidgets('Plan a trip: Here on both ends never makes a trip to itself', (tester) async {
+    const denied = Condition('denied', location: LocationPermission.deniedForever);
+    await applyCondition(tester, denied);
+    await tester.pumpWidget(appUnder(denied, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    // The start waits on Here; the location then comes for a Here destination.
+    box.read(goFromKeyProvider.notifier).state = 'here';
+    box.read(goKeyProvider.notifier).state = 'here';
+    box.read(goFromHereProvider.notifier).state =
+        Place(kind: PlaceKind.other, name: 'Here', addrLat: tampinesInt.lat, addrLng: tampinesInt.lng);
+    await settle(tester);
+    expect(find.text('Here → Here'), findsNothing);
+    expect(find.text('Home → Here'), findsOneWidget);
   });
 
   testWidgets('Plan a trip: without location, picks work on the start shown on screen', (tester) async {
