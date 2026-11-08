@@ -69,9 +69,9 @@ rent/resale. Static page and JSON, no browser API calls, no Render. One PR per p
   production is live (above), then Phase 4 (launch with production). Related app backlog: the
   optional meal price in History ("Open ideas" below).
 - App (8 Nov): #127 (bundle model and the ported rules) and #128 (commute and all-in cost on
-  "Prices, rent and score", Compare commute rows) are merged. The 1.0.0 release PR follows
-  (version 1.0.0, What's new for this feature only). After that merge, the `app` workflow uploads
-  1.0.0 to closed testing (`alpha`) and tags `v1.0.0`. Testers check it on real phones. Then, after
+  "Prices, rent and score", Compare commute rows) are merged. The 2.0.0 release PR follows
+  (version 2.0.0, What's new for this feature only). After that merge, the `app` workflow uploads
+  2.0.0 to closed testing (`alpha`) and tags `v2.0.0`. Testers check it on real phones. Then, after
   the checklist in docs/QA.md "Before promoting a release to production", promote **the same
   AAB** to production in Play Console by hand. Once production is live, do two things in one
   small PR: the CTA switch in `web/shared/cta.js`, and "Also in the app" on `/where-to-live`.
@@ -160,10 +160,10 @@ Seven findings from a second review of the pipeline, one PR per group. Gates sta
 
 ### Release tags
 `v1.9.1` (06c6e73) and `v1.9.2` (45dd485) were pushed by hand on 7 Nov 2026; later tags come from
-the `release-tag` job. The first public version is 1.0.0, which is lower than 1.9.2 by version number. Every
-lookup is by history or date, never by version sort: `git describe` follows commits, versionCode
-is the run number, `whatsNewDue` compares with `!=`, and the log line in `app.yml` lists tags by
-date (`--sort=-creatordate`). Older releases, only if a full archive is ever wanted (version bump commits
+the `release-tag` job. The first public version is 2.0.0, after 1.9.2: versions never go back. The release lookups go
+by history, not by version number: `git describe` follows commits, versionCode is the run number,
+`whatsNewDue` compares with `!=`, and the log line in `app.yml` lists tags by date
+(`--sort=-creatordate`). Older releases, only if a full archive is ever wanted (version bump commits
 on `main`): 1.9.0 a9f29be, 1.8.0 cf5dc80, 1.7.0 52a8481, 1.6.2 5fb50a2, 1.6.1 3740839, 1.6.0 86dbd79,
 1.5.0 43059ee, 1.4.0 eb09d8e, 1.3.0 f5192fe, 1.2.3 f0109c8, 1.2.2 6efc234, 1.2.1 ec06643,
 1.2.0 dc7ca69. A tag ruleset must let GitHub Actions create `v*` tags.
@@ -272,7 +272,7 @@ No new secrets are needed for Phase 1.
   - Set `ANDROID_KEYSTORE_PATH` (`C:\Users\hendr\Deployment\signed\dailylah\dailylah-upload.jks`),
     `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD` as env vars. Never commit them.
   - Run `scripts/build-apk.ps1` (Windows) or `scripts/build-apk.sh`. They pass `APP_VERSION` and
-    `GIT_SHA` so About shows the version and commit, e.g. `1.0.0 (build 294 · a8d2bba)`.
+    `GIT_SHA` so About shows the version and commit, e.g. `2.0.0 (build 294 · a8d2bba)`.
 - Backend: `cd backend && pip install -r requirements-dev.txt && pytest && ruff check .`
 - Bundles:
   - Run `cd backend && python -m app.build_static`. It needs the secrets in `.env`.
