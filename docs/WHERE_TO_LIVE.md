@@ -183,7 +183,9 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
   transfer, tarif per perjalanan, harga tipe flat terpilih dengan kuartalnya, all-in per bulan
   (sewa + tarif; mode beli: tarif per bulan) dan jam di jalan per bulan. Nilai terendah di tiap
   baris diberi "Best" (seri: semua), hanya kalau minimal dua town punya nilai. Town = area kantor
-  dihitung 0 menit, tanpa transfer dan tarif. Di HP tabelnya digeser ke samping, kolom label tetap.
+  (`same_area`) bertuliskan "In this area" di baris waktu, transfer, tarif, all-in/tarif per bulan
+  dan jam, dan tidak ikut penentuan "Best" di baris itu (sama seperti di daftar dan halaman town);
+  harganya tetap dibandingkan. Di HP tabelnya digeser ke samping, kolom label tetap.
   Tabel ikut pilihan area kantor, mode dan tipe flat.
 - URL: `?compare=punggol,bedok,sengkang` (id dari JSON saja, tiap town sekali, maksimal 3, sisanya
   dibuang), jadi bisa di-Share; dengan dua town atau lebih tabelnya langsung terbuka. Halaman town

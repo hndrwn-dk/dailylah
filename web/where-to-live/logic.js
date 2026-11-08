@@ -266,6 +266,9 @@ export function rank(data, state) {
 
 // ---------------------------------------------------------------- compare
 
+/** What the comparison shows for the office area's own town in every commute line. */
+export const IN_AREA = "In this area";
+
 /** "Punggol, Bedok and Sengkang" for the compare bar and headings. */
 export function namesText(names) {
   if (names.length < 2) return names.join("");
@@ -284,7 +287,8 @@ export function compareBarText(names) {
  * type: { towns, lines }, one column per town and per line a label and one cell per town
  * ({ text, value, best }). value is the number compared (lower is better), null when unknown.
  * best marks the lowest value, ties included, only when at least two towns have one. The town of
- * the office area itself counts as 0 minutes, no transfer and no fare.
+ * the office area itself (same_area) reads "In this area" in every commute line and is left out of
+ * "best" there, as on the board and the town pages: it is not a 0-minute trip.
  */
 export function compareTable(data, state) {
   const key = state.mode === "buy" ? "resale" : "rent";
@@ -295,27 +299,21 @@ export function compareTable(data, state) {
     return { ...row, cost: monthlyCost(state, row) };
   });
   const cell = (text, value = null) => ({ text, value, best: false });
-  const route = (c, same, known, unknown = "–") => (!c ? cell("–") : c.same_area ? same : known ?? cell(unknown));
+  // A commute line: "–" (or noRoute) without a route, "In this area" for the office area's town,
+  // else what known(row) gives.
+  const commuteLine = (lineKey, label, known, noRoute = "–") => ({
+    key: lineKey,
+    label,
+    cells: rows.map((row) =>
+      !row.commute ? cell(noRoute) : row.commute.same_area ? cell(IN_AREA) : known(row),
+    ),
+  });
   const lines = [
-    {
-      key: "time",
-      label: `Time to ${area?.name ?? "the office"}`,
-      cells: rows.map(({ commute: c }) =>
-        !c ? cell("No route data") : route(c, cell("In this area", 0), cell(`${c.min} min`, c.min)),
-      ),
-    },
-    {
-      key: "transfers",
-      label: "Transfers",
-      cells: rows.map(({ commute: c }) => route(c, cell("None", 0), c && cell(transfersCell(c.transfers), c.transfers))),
-    },
-    {
-      key: "fare",
-      label: "Fare per trip (adult card)",
-      cells: rows.map(({ commute: c }) =>
-        route(c, cell("None", 0), Number.isInteger(c?.fare) ? cell(`$${(c.fare / 100).toFixed(2)}`, c.fare) : null, "Not known"),
-      ),
-    },
+    commuteLine("time", `Time to ${area?.name ?? "the office"}`, ({ commute: c }) => cell(`${c.min} min`, c.min), "No route data"),
+    commuteLine("transfers", "Transfers", ({ commute: c }) => cell(transfersCell(c.transfers), c.transfers)),
+    commuteLine("fare", "Fare per trip (adult card)", ({ commute: c }) =>
+      Number.isInteger(c.fare) ? cell(`$${(c.fare / 100).toFixed(2)}`, c.fare) : cell("Not known"),
+    ),
     {
       key: "price",
       label: `${flatLabel(state.flat)} median ${state.mode === "buy" ? "resale price" : "rent"}`,
@@ -324,21 +322,13 @@ export function compareTable(data, state) {
       ),
     },
     state.mode === "buy"
-      ? {
-          key: "fares",
-          label: "Fares a month",
-          cells: rows.map(({ cost: m }) => (m?.fares != null ? cell(`≈ $${money.format(m.fares)}`, m.fares) : cell("–"))),
-        }
-      : {
-          key: "allin",
-          label: "All-in a month (rent + fares)",
-          cells: rows.map(({ cost: m }) => (m?.total != null ? cell(`≈ $${money.format(m.total)}`, m.total) : cell("–"))),
-        },
-    {
-      key: "hours",
-      label: "On the road a month",
-      cells: rows.map(({ cost: m }) => (m ? cell(`${m.hours} h`, m.hours) : cell("–"))),
-    },
+      ? commuteLine("fares", "Fares a month", ({ cost: m }) =>
+          m.fares != null ? cell(`≈ $${money.format(m.fares)}`, m.fares) : cell("–"),
+        )
+      : commuteLine("allin", "All-in a month (rent + fares)", ({ cost: m }) =>
+          m.total != null ? cell(`≈ $${money.format(m.total)}`, m.total) : cell("–"),
+        ),
+    commuteLine("hours", "On the road a month", ({ cost: m }) => cell(`${m.hours} h`, m.hours)),
   ];
   for (const line of lines) {
     const known = line.cells.filter((c) => c.value != null);
