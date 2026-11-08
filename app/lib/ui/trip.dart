@@ -38,7 +38,11 @@ class TripSection extends ConsumerWidget {
     required this.modePlace,
     this.fromLabel,
     this.commute = false,
+    this.startsHere = false,
   });
+
+  /// The trip starts from the phone's location: within [arrivedMetres] it says "You're here".
+  final bool startsHere;
 
   /// The daily trip to work or school (its History key is "home>work"). Every trip has
   /// I'm leaving; the running trip and Arrived live in [TripBanner] above the tabs.
@@ -67,7 +71,12 @@ class TripSection extends ConsumerWidget {
 
     final body = switch (mode) {
       TravelMode.transit => _TransitBlock(
-          fromKey: fromKey, from: from, fromName: fromLabel ?? placeTitle(s.placeLabel, from), to: to, toLabel: toLabel),
+          fromKey: fromKey,
+          from: from,
+          fromName: fromLabel ?? placeTitle(s.placeLabel, from),
+          to: to,
+          toLabel: toLabel,
+          startsHere: startsHere),
       TravelMode.car => _DriveBlock(from: from, to: to, toLabel: toLabel, lotType: 'C'),
       TravelMode.motorcycle => _DriveBlock(from: from, to: to, toLabel: toLabel, lotType: 'Y'),
       TravelMode.bicycle => _CycleBlock(to: to, toLabel: toLabel),
@@ -206,8 +215,15 @@ IconData _adviceIcon(TripAdvice a) => switch (a) {
 // ---------------------------------------------------------------- bus / MRT
 
 class _TransitBlock extends ConsumerWidget {
-  const _TransitBlock(
-      {required this.fromKey, required this.from, required this.fromName, required this.to, required this.toLabel});
+  const _TransitBlock({
+    required this.fromKey,
+    required this.from,
+    required this.fromName,
+    required this.to,
+    required this.toLabel,
+    required this.startsHere,
+  });
+  final bool startsHere;
   final String? fromKey;
   final Place from;
   final String fromName;
@@ -250,7 +266,7 @@ class _TransitBlock extends ConsumerWidget {
     final bad = planDisruption(plan, ref.watch(trainAlertsProvider).value);
 
     // Already there (e.g. "Here" after the ride): no walk or buses to suggest.
-    if (fromKey == null && straight < arrivedMetres) {
+    if (startsHere && straight < arrivedMetres) {
       return Panel(
         color: DL.mint,
         child: Padding(
@@ -1151,13 +1167,16 @@ class GoSomewhere extends ConsumerWidget {
   /// [from] is the start as shown, which may be a saved place standing in for "Here" while the
   /// location is unknown, so a pick works on what the user sees.
   void _pick(WidgetRef ref, {required bool isFrom, required String key, required String from, String fallback = 'here'}) {
+    final to = ref.read(goKeyProvider);
     final next = pickTripEnd(
       isFrom: isFrom,
       key: key,
       from: from,
-      to: ref.read(goKeyProvider),
+      to: to,
       fallback: fallback,
     );
+    // A pick that swaps the ends carries the searched places along, like the swap button.
+    if (to != null && next.from == to && next.to == from) return _swap(ref, from, to);
     ref.read(goFromKeyProvider.notifier).state = next.from;
     ref.read(goKeyProvider.notifier).state = next.to;
   }
@@ -1283,6 +1302,7 @@ class GoSomewhere extends ConsumerWidget {
             fromKey: fromKey == 'here' || fromKey == 'adhoc' ? null : fromKey,
             from: from,
             fromLabel: fromKey == 'here' ? s.hereNow : null,
+            startsHere: fromKey == 'here',
             to: dest,
             modeKey: key!,
             modePlace: dest,
@@ -1395,6 +1415,8 @@ class _TripPlannerPageState extends ConsumerState<TripPlannerPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _useShared(shared));
     }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // A start the user picks while the location is coming in wins over Here.
+      final startBefore = ref.read(goFromKeyProvider);
       try {
         final perm = await Geolocator.checkPermission();
         if (perm != LocationPermission.always && perm != LocationPermission.whileInUse) return;
@@ -1405,7 +1427,9 @@ class _TripPlannerPageState extends ConsumerState<TripPlannerPage> {
         ref.read(goFromHereProvider.notifier).state =
             Place(kind: PlaceKind.other, name: ref.read(stringsProvider).hereNow, addrLat: pos.latitude, addrLng: pos.longitude);
         // Here may already be the destination (a return trip kept from last time): keep that.
-        if (ref.read(goKeyProvider) != 'here') ref.read(goFromKeyProvider.notifier).state = 'here';
+        if (ref.read(goKeyProvider) != 'here' && ref.read(goFromKeyProvider) == startBefore) {
+          ref.read(goFromKeyProvider.notifier).state = 'here';
+        }
       } on Object {
         // No location: the planner starts from a saved place.
       }

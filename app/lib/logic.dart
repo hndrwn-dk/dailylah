@@ -1908,15 +1908,15 @@ typedef TripBoardRow = ({BusEta eta, int? next, bool tooSoon});
 /// that can still be caught, then the ones that come too soon ([walk] minutes to the stop; null
 /// when the start is not near the stop, then nothing is too soon and the order stays). When the
 /// bus to leave for is the next one of a service whose first bus is too soon, the two get a row
-/// each: the next one on top (no load or position: LTA sends those for the bus as a whole only
-/// in the arrival it belongs to, kept on the first row), the first one dimmed at the end.
+/// each: the next one on top (no load, position, wheelchair or deck: LTA sends those per bus, and
+/// the grouped arrivals keep only the first bus's), the first one dimmed at the end.
 List<TripBoardRow> tripBoard(List<(BusEta, int?)> direct, LeaveBy? lb, int? walk) {
   final rows = <TripBoardRow>[];
   for (final (e, next) in direct) {
     final soon = walk != null && e.minutes < walk;
     if (e.service == lb?.service && soon && next != null) {
       rows
-        ..add((eta: BusEta(service: e.service, minutes: next, load: '', wheelchair: e.wheelchair, deck: e.deck), next: null, tooSoon: false))
+        ..add((eta: BusEta(service: e.service, minutes: next, load: ''), next: null, tooSoon: false))
         ..add((eta: e, next: null, tooSoon: true));
     } else {
       rows.add((eta: e, next: next, tooSoon: soon));

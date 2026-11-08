@@ -772,6 +772,10 @@ void main() {
     final only47 = tripBoard([(a, 12)], leaveBy([(a, 12)], null, 4), 4);
     expect([for (final r in only47) (r.eta.service, r.eta.minutes, r.next, r.tooSoon)],
         [('47', 12, null, false), ('47', 2, null, true)]);
+    // Wheelchair and deck belong to the first bus: the next one's row does not claim them.
+    final wab = tripBoard([(const BusEta(service: '47', minutes: 2, load: 'SEA', wheelchair: true, deck: 'DD'), 12)],
+        leaveBy([(a, 12)], null, 4), 4);
+    expect((wab.first.eta.wheelchair, wab.first.eta.deck), (false, ''));
     // Start not near the stop: no walk, so nothing is too soon and the order stays.
     final far = tripBoard(grouped, null, null);
     expect([for (final r in far) r.eta.service], ['3', '47', '36', '12']);

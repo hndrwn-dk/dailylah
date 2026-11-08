@@ -770,6 +770,53 @@ void main() {
     expect(find.text(s.goSomewhereHint), findsOneWidget);
   });
 
+  testWidgets('Plan a trip: picking the other end swaps the searched place along', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    const searched = Place(kind: PlaceKind.other, name: 'Bencoolen', addrLat: 1.29661, addrLng: 103.85220);
+    box.read(goAdhocFromProvider.notifier).state = searched;
+    box.read(goFromKeyProvider.notifier).state = 'adhoc';
+    box.read(goKeyProvider.notifier).state = 'home';
+    await settle(tester);
+    expect(find.text('Bencoolen → Home'), findsOneWidget);
+    // Home on From: the ends swap, and the searched place goes to To with them.
+    await tester.tap(find.text('Home').first);
+    await settle(tester);
+    expect(box.read(goFromKeyProvider), 'home');
+    expect(box.read(goKeyProvider), 'adhoc');
+    expect(box.read(goAdhocDestProvider)?.name, 'Bencoolen');
+    expect(find.text('Home → Bencoolen'), findsOneWidget);
+  });
+
+  testWidgets("Plan a trip: \"You're here\" only when the trip starts Here", (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    const s = S();
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    // A destination 50 m from the phone (Tampines Int).
+    final near = Place(kind: PlaceKind.other, name: 'Near', addrLat: tampinesInt.lat + 0.00045, addrLng: tampinesInt.lng);
+    box.read(goAdhocDestProvider.notifier).state = near;
+    box.read(goKeyProvider.notifier).state = 'adhoc';
+    box.read(modeOverrideProvider.notifier).state = {'adhoc': TravelMode.transit};
+    await settle(tester);
+    expect(box.read(goFromKeyProvider), 'here');
+    expect(find.text(s.youAreHere), findsOneWidget);
+    // The same spot as a searched start is a start, not "you are here".
+    box.read(goAdhocFromProvider.notifier).state =
+        Place(kind: PlaceKind.other, name: 'Searched', addrLat: tampinesInt.lat, addrLng: tampinesInt.lng);
+    box.read(goFromKeyProvider.notifier).state = 'adhoc';
+    await settle(tester);
+    expect(find.text('Searched → Near'), findsOneWidget);
+    expect(find.text(s.youAreHere), findsNothing);
+  });
+
   testWidgets('Plan a trip: a return trip to Here is kept when the planner opens again', (tester) async {
     await applyCondition(tester, _normal);
     await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
