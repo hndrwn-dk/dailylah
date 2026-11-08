@@ -679,40 +679,48 @@ class _LeaveCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
+    // The plate scales down rather than wrap "970A" inside it.
+    final plate = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 96),
+      child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: BusPlate(lb.service)),
+    );
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(s.leaveInHead(lb.service, lb.leaveIn),
+            style: t.titleLarge?.copyWith(color: DL.ink, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 2),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 1, right: 4),
+              child: Icon(Icons.directions_walk, size: 18, color: DL.ink),
+            ),
+            Expanded(
+              child: Text(s.walkToStopThenBus(lb.walk, lb.leaveIn + lb.walk), style: t.bodyMedium?.copyWith(color: DL.ink)),
+            ),
+          ],
+        ),
+      ],
+    );
     return Panel(
       margin: const EdgeInsets.only(top: 4, bottom: 10),
       color: DL.mint,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ConstrainedBox(constraints: const BoxConstraints(maxWidth: 96), child: BusPlate(lb.service)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(s.leaveInHead(lb.service, lb.leaveIn),
-                      style: t.titleLarge?.copyWith(color: DL.ink, fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 2),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.only(top: 1, right: 4),
-                        child: Icon(Icons.directions_walk, size: 18, color: DL.ink),
-                      ),
-                      Expanded(
-                        child: Text(s.walkToStopThenBus(lb.walk, lb.leaveIn + lb.walk),
-                            style: t.bodyMedium?.copyWith(color: DL.ink)),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
+        // Large text or a narrow card: the plate goes on top, so "catch 190" and "bus in 11 min"
+        // get the whole width and never break inside a word or number.
+        child: LayoutBuilder(
+          builder: (context, box) => MediaQuery.textScalerOf(context).scale(16) > 20 || box.maxWidth < 260
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [plate, const SizedBox(height: 8), text],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [plate, const SizedBox(width: 12), Expanded(child: text)],
+                ),
         ),
       ),
     );
@@ -1175,9 +1183,12 @@ class GoSomewhere extends ConsumerWidget {
       to: to,
       fallback: fallback,
     );
-    // A pick that swaps the ends carries the searched places along, like the swap button.
-    if (to != null && next.from == to && next.to == from) return _swap(ref, from, to);
-    ref.read(goFromKeyProvider.notifier).state = next.from;
+    // A pick that swaps the ends carries the searched places along, like the swap button (two
+    // searched ends both read "adhoc": a new search there is no swap).
+    if (to != null && next.from != next.to && next.from == to && next.to == from) return _swap(ref, from, to);
+    // The start is written only when the pick changes it: a start set meanwhile (Here, once the
+    // location came in while the address picker was open) is kept.
+    if (next.from != from) ref.read(goFromKeyProvider.notifier).state = next.from;
     ref.read(goKeyProvider.notifier).state = next.to;
   }
 

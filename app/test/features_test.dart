@@ -817,6 +817,60 @@ void main() {
     expect(find.text(s.youAreHere), findsNothing);
   });
 
+  testWidgets('Plan a trip: with both ends searched, a new search changes only its own end', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(_appWithOneMap(_OneMap()));
+    await settle(tester);
+    final box = containerOf(tester);
+    const s = S();
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    box.read(goAdhocFromProvider.notifier).state = const Place(kind: PlaceKind.other, name: 'Start A', addrLat: 1.30, addrLng: 103.85);
+    box.read(goAdhocDestProvider.notifier).state = const Place(kind: PlaceKind.other, name: 'End B', addrLat: 1.35, addrLng: 103.94);
+    box.read(goFromKeyProvider.notifier).state = 'adhoc';
+    box.read(goKeyProvider.notifier).state = 'adhoc';
+    await settle(tester);
+    expect(find.text('Start A → End B'), findsOneWidget);
+    await tester.tap(find.text('End B').last);
+    await settle(tester);
+    await tester.enterText(find.descendant(of: find.byType(AddressPickerPage), matching: find.byType(TextField)), '189630');
+    await tester.pump(const Duration(milliseconds: 500));
+    await settle(tester);
+    await tester.tap(find.textContaining('51 Bencoolen Street'));
+    await settle(tester);
+    expect(box.read(goAdhocFromProvider)!.name, 'Start A');
+    expect(box.read(goAdhocDestProvider)!.postal, '189630');
+    expect(find.textContaining(RegExp(r'^Start A → ')), findsOneWidget);
+    expect(find.text(s.searchAddressHint), findsNothing);
+  });
+
+  testWidgets('Trip buses at 200% text on 320 dp: the bus plate sits above the leave line', (tester) async {
+    const big = Condition('big', textScale: 2.0, size: Size(320, 780));
+    await applyCondition(tester, big);
+    await tester.pumpWidget(ProviderScope(retry: noRetry, overrides: [
+      initialFavoritesProvider.overrideWithValue(householdFavorites),
+      apiProvider.overrideWithValue(_SoonApi()),
+      bundleRepoProvider.overrideWithValue(FileBundles()),
+      clockProvider.overrideWith((ref) => Stream.value(tuesdayMorning)),
+    ], child: const DailyLahApp()));
+    await settle(tester);
+    final box = containerOf(tester);
+    const s = S();
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    box.read(goFromKeyProvider.notifier).state = 'home';
+    box.read(goKeyProvider.notifier).state = 'work';
+    box.read(modeOverrideProvider.notifier).state = {'work': TravelMode.transit};
+    await settle(tester);
+    final leave = find.text(s.leaveInHead('10', 7));
+    await tester.ensureVisible(leave);
+    await tester.pump();
+    final card = find.ancestor(of: leave, matching: find.byType(Panel)).first;
+    final plate = find.descendant(of: card, matching: find.byType(BusPlate));
+    expect(tester.getBottomLeft(plate).dy, lessThanOrEqualTo(tester.getTopLeft(leave).dy));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Plan a trip: a return trip to Here is kept when the planner opens again', (tester) async {
     await applyCondition(tester, _normal);
     await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
