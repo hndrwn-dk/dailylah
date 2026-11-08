@@ -53,14 +53,20 @@ name: 09 Plan a trip
 - extendedWaitUntil:
     visible: "(?s).*Work → (Here|Home).*"
     timeout: 20000
-# Start from a searched address instead: the first search field is the From one.
+# Start from a searched address instead. Back to the top first, so both search fields are on
+# screen and the first one is From's (off-screen rows are not in the hierarchy).
+- repeat:
+    times: 3
+    commands:
+      - swipe:
+          direction: DOWN
 - tapOn:
     text: "(?s).*Search an address or postal code.*"
     index: 0
 - runFlow:
     file: common/search_address.yaml
     env:
-      POSTAL: "310201"
+      POSTAL: "189630"
 - extendedWaitUntil:
     visible: "(?s).*\\S → (Here|Home).*"
     timeout: 20000
