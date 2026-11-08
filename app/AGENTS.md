@@ -49,7 +49,8 @@ feature, screen, provider or rule moves, appears or goes away.
   station at each end from the `mrt_stations.json` bundle (`mrtPlan`). "Plan a trip" (`TripPlannerPage`,
   `GoSomewhere`) is one route card: From on top, To below, both with the same choices (Here, Home, Work,
   School, saved places, and an address search field, `goAdhocFromProvider`/`goAdhocDestProvider`) and a
-  swap button between; picking on one end what the other has swaps them (`pickTripEnd`). The tip about
+  swap button between; picking on one end what the other has swaps them (`pickTripEnd`); the location
+  arriving late never undoes a pick (`goPicksProvider`). The tip about
   saving places sits small at the end, only while none beyond Home/Work/School is saved. On each bus card
   ("From stop: <name>") the bus to leave for is a mint card on top ("Leave in 7 min to catch 36"), then
   the board (`tripBoard`): that bus first, buses that come before the walk is done dimmed with "Too

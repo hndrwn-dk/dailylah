@@ -1184,6 +1184,7 @@ class GoSomewhere extends ConsumerWidget {
       to: to,
       fallback: fallback,
     );
+    ref.read(goPicksProvider.notifier).state++;
     // A pick that swaps the ends carries the searched places along, like the swap button (two
     // searched ends both read "adhoc": a new search there is no swap).
     if (to != null && next.from != next.to && next.from == to && next.to == from) return _swap(ref, from, to);
@@ -1194,6 +1195,7 @@ class GoSomewhere extends ConsumerWidget {
   }
 
   void _swap(WidgetRef ref, String from, String to) {
+    ref.read(goPicksProvider.notifier).state++;
     final adhocFrom = ref.read(goAdhocFromProvider);
     ref.read(goAdhocFromProvider.notifier).state = ref.read(goAdhocDestProvider);
     ref.read(goAdhocDestProvider.notifier).state = adhocFrom;
@@ -1429,8 +1431,9 @@ class _TripPlannerPageState extends ConsumerState<TripPlannerPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _useShared(shared));
     }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // A start the user picks while the location is coming in wins over Here.
-      final startBefore = ref.read(goFromKeyProvider);
+      // A pick the user makes while the location is coming in wins over what follows here.
+      final picksBefore = ref.read(goPicksProvider);
+      final toBefore = ref.read(goKeyProvider);
       try {
         final perm = await Geolocator.checkPermission();
         if (perm != LocationPermission.always && perm != LocationPermission.whileInUse) return;
@@ -1440,9 +1443,10 @@ class _TripPlannerPageState extends ConsumerState<TripPlannerPage> {
         if (!mounted) return;
         ref.read(goFromHereProvider.notifier).state =
             Place(kind: PlaceKind.other, name: ref.read(stringsProvider).hereNow, addrLat: pos.latitude, addrLng: pos.longitude);
+        if (ref.read(goPicksProvider) != picksBefore) return;
         // A Here destination from an earlier visit was where the phone was then, not now: drop it.
-        if (ref.read(goKeyProvider) == 'here') ref.read(goKeyProvider.notifier).state = null;
-        if (ref.read(goFromKeyProvider) == startBefore) ref.read(goFromKeyProvider.notifier).state = 'here';
+        if (toBefore == 'here') ref.read(goKeyProvider.notifier).state = null;
+        ref.read(goFromKeyProvider.notifier).state = 'here';
       } on Object {
         // No location: the planner starts from a saved place.
       }

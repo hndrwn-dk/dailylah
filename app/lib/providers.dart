@@ -384,6 +384,10 @@ final modeOverrideProvider = StateProvider<Map<String, TravelMode>>((ref) => con
 /// Destination picked in the "Go somewhere" card: the same keys as [goFromKeyProvider], or null.
 final goKeyProvider = StateProvider<String?>((ref) => null);
 
+/// Counts the planner picks made by the user (ends, swap, search), so the location arriving late
+/// never undoes one (memory only).
+final goPicksProvider = StateProvider<int>((ref) => 0);
+
 /// The phone's location for a "Here" end of a "Go somewhere" trip, null until known (memory only).
 final goFromHereProvider = StateProvider<Place?>((ref) => null);
 
