@@ -136,45 +136,77 @@ class BlockCommute extends ConsumerWidget {
             else ...[
               Text('${town.name} · ${s.wtlFromStation(town.station)}',
                   key: const ValueKey('wtl-from'), style: t.titleSmall),
-              const SizedBox(height: 10),
-              if (cm == null)
+              const SizedBox(height: 12),
+              if (cm == null || cm.sameArea)
                 Text(s.wtlRoute(row!), style: t.titleMedium)
-              else if (cm.sameArea)
-                Text(s.wtlRoute(row!), style: t.titleMedium)
-              else
-                Wrap(
-                  spacing: 24,
-                  runSpacing: 12,
-                  children: [
-                    Stat(
-                        value: cm.min == null ? '–' : '${cm.min} ${s.min}',
-                        caption: s.wtlLine(WtlLineKey.time, area.name, c)),
-                    Stat(value: '${cm.transfers ?? '–'}', caption: s.wtlTransfersCaption(cm.transfers)),
-                    Stat(
-                        value: cm.fare == null ? '–' : 'S\$${(cm.fare! / 100).toStringAsFixed(2)}',
-                        caption: s.wtlPerTrip),
-                  ],
+              else ...[
+                // Two by two: minutes | transfers, fare a trip | hours a month.
+                _Pair(
+                  _Figure(cm.min == null ? '–' : '${cm.min} ${s.min}', s.wtlLine(WtlLineKey.time, area.name, c)),
+                  _Figure(cm.transfers == null ? '–' : s.wtlTransfersValue(cm.transfers!), s.wtlTransfersCaption),
                 ),
-              const SizedBox(height: 10),
-              Text(s.wtlPriceDetail(c, row!.price, withFigure: true), style: t.bodyMedium),
-              if (month != null && !month.same) ...[
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 24,
-                  runSpacing: 12,
-                  children: [
-                    if (c.mode == WtlMode.rent)
-                      Stat(value: month.total == null ? '–' : '≈ ${sgd(month.total!)}', caption: s.wtlAllInLabel)
-                    else
-                      Stat(value: month.fares == null ? '–' : '≈ ${sgd(month.fares!)}', caption: s.wtlFaresLabel),
-                    Stat(value: s.wtlHours(month.hours), caption: s.wtlHoursLabel),
-                  ],
+                const SizedBox(height: 14),
+                _Pair(
+                  _Figure(cm.fare == null ? '–' : 'S\$${(cm.fare! / 100).toStringAsFixed(2)}', s.wtlPerTrip),
+                  _Figure(month == null ? '–' : s.wtlHours(month.hours), s.wtlHoursLabel),
                 ),
+                if (month != null) ...[
+                  const Divider(height: 28),
+                  if (c.mode == WtlMode.rent) ...[
+                    _Figure(month.total == null ? '–' : '≈ ${sgd(month.total!)}', s.wtlAllInLabel, large: true),
+                    if (month.total != null && row!.price != null && month.fares != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(s.wtlAllInParts(sgd(row.price!.median), sgd(month.fares!)),
+                            key: const ValueKey('wtl-all-in-parts'),
+                            style: t.bodySmall?.copyWith(color: DL.muted(context))),
+                      ),
+                  ] else
+                    _Figure(month.fares == null ? '–' : '≈ ${sgd(month.fares!)}', s.wtlFaresLabel, large: true),
+                ],
               ],
             ],
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Two figures side by side, each half the width.
+class _Pair extends StatelessWidget {
+  const _Pair(this.left, this.right);
+  final Widget left;
+  final Widget right;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [Expanded(child: left), const SizedBox(width: 16), Expanded(child: right)],
+      );
+}
+
+/// A figure on one line (scaled down rather than broken) over its caption.
+class _Figure extends StatelessWidget {
+  const _Figure(this.value, this.caption, {this.large = false});
+  final String value;
+  final String caption;
+  final bool large;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(value, maxLines: 1, style: large ? t.displayMedium?.copyWith(fontSize: 40) : t.displaySmall),
+        ),
+        const SizedBox(height: 2),
+        Text(caption, style: t.bodySmall),
+      ],
     );
   }
 }

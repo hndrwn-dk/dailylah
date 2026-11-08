@@ -785,11 +785,7 @@ List<TodayAlert> todayAlerts({
 
 // ---------------------------------------------------------------- addresses (OneMap)
 
-String _titleCase(String s) => s
-    .toLowerCase()
-    .split(' ')
-    .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
-    .join(' ');
+String _titleCase(String s) => s.split(' ').map(capitalizeWord).join(' ');
 
 /// Results of https://www.onemap.gov.sg/api/common/elastic/search, de-duplicated by postal code.
 List<AddressHit> parseOneMap(Map<String, dynamic> body) {
@@ -1807,11 +1803,7 @@ List<(EPoint, double)> halalNear(List<EPoint> all, double lat, double lng,
 }
 
 /// "MARINE DR" -> "Marine Dr", "BT BATOK ST 11" -> "Bt Batok St 11".
-String titleCase(String s) => s
-    .toLowerCase()
-    .split(' ')
-    .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
-    .join(' ');
+String titleCase(String s) => s.split(' ').map(capitalizeWord).join(' ');
 
 /// The private project at a saved home: the nearest one within [maxMetres] (URA gives one
 /// point per project, so large estates need some slack).

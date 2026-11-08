@@ -15,7 +15,7 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 
 ### `lib/data.dart`
 - Types: `Closure`, `Hawker`, `DengueCluster`, `Poi`, `PoiKind (enum)`, `PoiSet`, `Carpark`, `HdbBlock`, `ResaleStat`, `ResaleData`, `RentData`, `PrayerTimes`, `EPoint`, `EvPlug`, `EvSite`, `EvLive`, `EmergencyKind (enum)`, `EmergencySet`, `MrtStation`, `Project`, `AroundSet`, `PrivateProject`, `PublicEvent`, `QuarterMedian`, `TownCommute`, `WtlArea`, `WtlTown`, `WhereToLive`
-- Functions: `expandPlaceName`, `cleanPlaceName`, `cleanDetail`, `isTemporarilyClosed`
+- Functions: `expandPlaceName`, `capitalizeWord`, `cleanPlaceName`, `cleanDetail`, `isTemporarilyClosed`
 
 ### `lib/l10n.dart`
 - Types: `AirLevel (enum)`, `OrderInReason (enum)`, `ParkTime (enum)`, `TripAdvice (enum)`, `S`
@@ -76,7 +76,7 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 - Types: `HomePage`, `NearItem`, `NearGroup`
 
 ### `lib/ui/homes.dart`
-- Types: `BlockSearchPage`, `BlockTile`, `BlockPage`, `LeaseBar`, `FlatChip`, `ComparePage`, `AgentCheckPage`
+- Types: `BlockSearchPage`, `BlockTile`, `BlockPage`, `LeaseBar`, `FlatChip`, `ComparePage`, `AgentCheckPage`, `WordWrapTitle`
 
 ### `lib/ui/keyboard.dart`
 - Types: `KeyboardNavigatorObserver`, `KeyboardRepaint`

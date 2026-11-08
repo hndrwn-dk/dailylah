@@ -13,6 +13,7 @@ import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/block_commute.dart';
 import 'package:dailylah/ui/homes.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/harness.dart';
@@ -59,7 +60,7 @@ void main() {
     await _open(tester, householdFavorites, const BlockPage(block: _tampines));
     await _show(tester, find.byKey(const ValueKey('wtl-from')));
     expect(find.text('Tampines · from ${town.station} MRT'), findsOneWidget);
-    expect(find.textContaining('Commute to CBD (Raffles Place)'), findsOneWidget);
+    expect(find.text('The office area where your work is.'), findsOneWidget);
     final cm = town.commute['cbd']!;
     expect(find.text('${cm.min} min'), findsWidgets);
     expect(find.text('Time to CBD (Raffles Place)'), findsOneWidget);
@@ -68,6 +69,11 @@ void main() {
     expect(find.text('≈ ${sgd(m.total!)}'), findsOneWidget);
     expect(find.text(_s.wtlAllInLabel), findsOneWidget);
     expect(_s.wtlAllInLabel, contains('estimate'));
+    // All-in is rent plus fares, both shown under it.
+    expect(find.text(_s.wtlAllInParts(sgd(row.price!.median), sgd(m.fares!))), findsOneWidget);
+    expect(find.text(_s.wtlTransfersValue(cm.transfers!)), findsOneWidget);
+    // The rent is in the list above, not repeated on the card.
+    expect(find.textContaining('median rent S\$'), findsNothing);
     expect(find.text('${m.hours} h'), findsOneWidget);
     expect(find.text(_s.wtlHoursLabel), findsOneWidget);
   });
@@ -202,4 +208,50 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('compare: section titles over the resale and rent lines, short labels', (tester) async {
+    await _open(tester, householdFavorites.copyWith(compareBlocks: ['1|MARSILING DR', '156|TAMPINES ST 12']), const ComparePage());
+    expect(find.text('Resale median'), findsOneWidget);
+    await _show(tester, find.text('Rent in town'));
+    expect(find.text('Hawkers ≤ 1 km'), findsOneWidget);
+    expect(find.text('Bus stops ≤ 400 m'), findsOneWidget);
+  });
+
+  testWidgets('the block street wraps between words at 200% text, never inside one', (tester) async {
+    const c = Condition('header', textScale: 2, size: Size(320, 700));
+    await applyCondition(tester, c);
+    const long = HdbBlock(
+      block: '101',
+      street: 'ANG MO KIO AVE 3',
+      town: 'ANG MO KIO',
+      yearCompleted: 1977,
+      floors: 12,
+      lat: 1.37024,
+      lng: 103.83948,
+      postal: '560101',
+    );
+    for (final b in [_tampines, long]) {
+      await tester.pumpWidget(pageUnder(c, householdFavorites, tuesdayMorning, BlockPage(block: b)));
+      await settle(tester);
+      final title = find.text(b.street);
+      final para = tester.renderObject<RenderParagraph>(title);
+      // Lay the same text out again at the paragraph's width to read where its lines break.
+      final tp = TextPainter(text: para.text, textDirection: TextDirection.ltr, textScaler: para.textScaler)
+        ..layout(maxWidth: para.size.width);
+      addTearDown(tp.dispose);
+      final text = b.street;
+      // Every line break falls on a space.
+      final lines = tp.getLineBoundary(const TextPosition(offset: 0));
+      expect(lines.start, 0);
+      var offset = 0;
+      while (offset < text.length) {
+        final line = tp.getLineBoundary(TextPosition(offset: offset));
+        if (line.end < text.length) {
+          expect(text[line.end - 1] == ' ' || text[line.end] == ' ', isTrue, reason: '${b.street} breaks at ${line.end}');
+        }
+        offset = line.end > offset ? line.end : offset + 1;
+      }
+      expect(tester.takeException(), isNull);
+    }
+  });
 }

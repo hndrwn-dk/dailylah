@@ -229,7 +229,7 @@ class BlockPage extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(block.street, style: t.headlineSmall),
+                          WordWrapTitle(block.street, style: t.headlineSmall),
                           const SizedBox(height: 4),
                           Text(block.town, style: t.bodyMedium?.copyWith(color: t.bodySmall?.color)),
                         ],
@@ -587,7 +587,7 @@ class _ScoreCard extends ConsumerWidget {
       (
         Icons.train_outlined,
         s.nearestMrt,
-        sc.nearestMrt == null ? '–' : '${_title(sc.nearestMrt!.$1.name)} · ${s.metres(sc.nearestMrt!.$2)}',
+        sc.nearestMrt == null ? '–' : '${titleCase(sc.nearestMrt!.$1.name)} · ${s.metres(sc.nearestMrt!.$2)}',
         false
       ),
       (Icons.directions_bus_outlined, s.busStops400, '${sc.busStops400}', false),
@@ -602,27 +602,23 @@ class _ScoreCard extends ConsumerWidget {
       child: Column(
         children: [
           for (final (icon, label, value, warn) in rows)
-            ListTile(
-              leading: _IconBadge(icon, color: warn ? DL.amber : null),
-              title: Text(label, style: t.bodyMedium),
-              trailing: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 170),
-                child: Text(value,
-                    textAlign: TextAlign.end,
-                    style: value.length <= 3 ? t.displaySmall?.copyWith(fontSize: 24) : t.labelLarge),
-              ),
-            ),
+            value.length <= 3
+                ? ListTile(
+                    leading: _IconBadge(icon, color: warn ? DL.amber : null),
+                    title: Text(label, style: t.bodyMedium),
+                    trailing: Text(value, style: t.displaySmall?.copyWith(fontSize: 24)),
+                  )
+                : ListTile(
+                    leading: _IconBadge(icon, color: warn ? DL.amber : null),
+                    title: Text(label, style: t.bodyMedium),
+                    subtitle: Text(value, style: t.labelLarge),
+                  ),
         ],
       ),
     );
   }
 }
 
-String _title(String upper) => upper
-    .toLowerCase()
-    .split(' ')
-    .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
-    .join(' ');
 
 // ---------------------------------------------------------------- compare
 
@@ -665,6 +661,8 @@ class ComparePage extends ConsumerWidget {
           child: FittedBox(fit: BoxFit.scaleDown, child: Text(v, maxLines: 1, style: t.titleSmall)),
         );
     Widget label(String v) => Text(v, style: t.bodySmall);
+    // A small section title over a group of lines ("Resale median", "Rent in town").
+    Widget section(String v) => Text(v, style: t.labelLarge?.copyWith(color: DL.goText(context)));
     final wtl = ref.watch(whereToLiveProvider).value;
     final rentData = ref.watch(rentProvider).value;
     final rentFlat = commute?.choice.flat ?? '4-ROOM';
@@ -675,7 +673,8 @@ class ComparePage extends ConsumerWidget {
         number(sgd(r.median)),
         if (r.quarterly)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
+            // Apart from the next column's quarter at large text and on narrow screens.
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             child: FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(s.wtlQuarter(r.period), maxLines: 1, style: t.labelSmall?.copyWith(color: DL.muted(context))),
@@ -687,24 +686,17 @@ class ComparePage extends ConsumerWidget {
     final rows = <(Widget, Widget Function(HdbBlock))>[
       (label(s.builtLabel), (b) => number('${b.yearCompleted}')),
       (label(s.leaseLabel), (b) => LeaseBar(block: b, year: year, compact: true)),
+      if (flatTypes.isNotEmpty) (section(s.resaleMedian), (_) => const SizedBox.shrink()),
       for (final ft in flatTypes)
         (Align(alignment: Alignment.centerLeft, child: FlatChip(s.wtlFlatName(ft.replaceAll(' ', '-')))), (b) => number(priceFor(b, ft))),
-      (
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Wrap(spacing: 6, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-            FlatChip(s.wtlFlatName(rentFlat)),
-            Text(s.rentInTown, style: t.bodySmall),
-          ]),
-        ),
-        rentCell,
-      ),
+      (section(s.rentInTown), (_) => const SizedBox.shrink()),
+      (Align(alignment: Alignment.centerLeft, child: FlatChip(s.wtlFlatName(rentFlat))), rentCell),
       (label(s.nearestMrt), (b) => number(scores[b.key]?.nearestMrt == null ? '–' : s.metres(scores[b.key]!.nearestMrt!.$2))),
-      (label(s.busStops400), (b) => number('${scores[b.key]?.busStops400 ?? '–'}')),
-      (label(s.hawkers1km), (b) => number('${scores[b.key]?.hawkers1km ?? '–'}')),
-      (label(s.primary1km), (b) => number('${scores[b.key]?.primary1km ?? '–'}')),
-      (label(s.parks1km), (b) => number('${scores[b.key]?.parks1km ?? '–'}')),
-      (label(s.dengue1km), (b) => number('${scores[b.key]?.dengue1km ?? '–'}')),
+      (label(s.cmpBusStops), (b) => number('${scores[b.key]?.busStops400 ?? '–'}')),
+      (label(s.cmpHawkers), (b) => number('${scores[b.key]?.hawkers1km ?? '–'}')),
+      (label(s.cmpPrimary), (b) => number('${scores[b.key]?.primary1km ?? '–'}')),
+      (label(s.cmpParks), (b) => number('${scores[b.key]?.parks1km ?? '–'}')),
+      (label(s.cmpDengue), (b) => number('${scores[b.key]?.dengue1km ?? '–'}')),
     ];
 
     return Scaffold(
@@ -931,5 +923,31 @@ class _AgentResult extends ConsumerWidget {
             );
           },
         );
+  }
+}
+
+/// A title that wraps between words and never inside one: when its longest word is wider than the
+/// line (long street names at 200% text), the whole title is set smaller until that word fits.
+class WordWrapTitle extends StatelessWidget {
+  const WordWrapTitle(this.text, {super.key, this.style});
+  final String text;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = style ?? DefaultTextStyle.of(context).style;
+    final scaler = MediaQuery.textScalerOf(context);
+    return LayoutBuilder(builder: (context, box) {
+      var widest = 0.0;
+      for (final w in text.split(' ')) {
+        final tp = TextPainter(text: TextSpan(text: w, style: base), textDirection: TextDirection.ltr, textScaler: scaler)
+          ..layout();
+        if (tp.width > widest) widest = tp.width;
+        tp.dispose();
+      }
+      final fit = widest > box.maxWidth && widest > 0 ? box.maxWidth / widest * 0.98 : 1.0;
+      final size = (base.fontSize ?? 14) * fit;
+      return Text(text, style: base.copyWith(fontSize: size));
+    });
   }
 }

@@ -165,7 +165,8 @@ feature, screen, provider or rule moves, appears or goes away.
   score" (`BlockPage` in `ui/homes.dart`), built from `ui/block_commute.dart`. A block takes its town's
   numbers from the town's MRT station (`wtlTownFor`, HDB town name to bundle town). `BlockCommute`: office
   area, rent/buy and flat type (kept in `Favorites` `wtlArea`, `wtlMode`, `wtlFlat`; `wtlChoiceFor`), then
-  minutes, transfers, fare, the all-in month (fares a month when buying) and hours, labelled estimate.
+  a 2×2 grid (minutes | transfers, fare a trip | hours a month) and the all-in month as the main figure with
+  "S$<rent> rent + S$<fares> fares" under it (fares a month when buying), labelled estimate.
   `TownsBoard`: budget, time limit and sort (`WtlSort`, `wtlSorted`; per visit), Fastest / Best value, the
   LED board (top 8 + Show all, the block's own town always shown) with "More about" to
   `dailylah.sg/where-to-live/<id>` (`wtlTownUrl`). Town rent on the block page and the Home block card is one
@@ -173,13 +174,17 @@ feature, screen, provider or rule moves, appears or goes away.
   `hdb_rent`'s six-month medians (with the period) only for a town the bundle lacks. `ComparePage` adds
   time, transfers, fare, all-in (or fares) and hours per block (`wtlBlockLines`, `wtlCompareLinesFor`,
   `WtlCellText`; the office area's own town shows its rent with a small "rent only"), same "in this area" and
-  "Best" rules as the website, with the area, flat type and rent/buy as chips above the table. Block page UI:
+  "Best" rules as the website, with the area, flat type and rent/buy as chips above the table, section titles
+  "Resale median" and "Rent in town", and short labels ("Hawkers ≤ 1 km"). Block page UI:
   Watch and Compare are one size with one-line labels, stacked when they would not fit (`_ActionButtons`);
-  lease left is a bar of the 99 years with the year it ends (`LeaseBar`, also in Compare); resale prices show
+  the street in the header wraps between words and shrinks only when one word is too wide (`WordWrapTitle`);
+  long Daily life score values (the nearest MRT) sit under their label; lease left is a bar of the 99 years with the year it ends (`LeaseBar`, also in Compare); resale prices show
   the short figure (S$1.07M) over the full one; town rents are a list of `FlatChip` + price + quarter. Both pages
   end in one disclaimer line, "Indicative only, not advice. Updated <date>." (`DataFooter`), whose "About this
   data" opens `showAboutData` (sources, licence, the 08:30 / 22-day method, transactions not listings, the
   hdb.gov.sg eligibility link). Maestro: `maestro/08_where_to_live.yaml`.
+- Names put in title case (streets, OneMap addresses, CHAS clinics) keep short forms in capitals
+  (`capitalizeWord` in data.dart: MRT, LRT, HDB, NTUC...), so "Tampines MRT Station" reads the same everywhere.
 - Home tab (`ui/home.dart`) is about the saved home, one section at a time (chips under the hero,
   `homeSectionProvider`): its HDB block (`homeBlock`) or private project (`private_homes.json` from
   URA, `privateProjectFor`; backend `app/ura.py`, secret `URA_ACCESS_KEY`), upgrading and

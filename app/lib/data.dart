@@ -461,6 +461,20 @@ class EvLive {
       ];
 }
 
+/// Short forms that stay in capitals when a name is put in title case ("Tampines MRT Station").
+const _keepCaps = {'MRT', 'LRT', 'HDB', 'NTUC', 'CC', 'RC', 'ITE', 'NUS', 'NTU', 'SMU', 'SUTD', 'SIT', 'MOE', 'NEA', 'CHAS', 'LTA', 'URA'};
+
+/// One word of a name in title case: "tampines" -> "Tampines", "mrt" -> "MRT"; words with a digit
+/// keep their capitals ("65A", "#01-04", "L3").
+String capitalizeWord(String w) {
+  if (w.isEmpty) return w;
+  if (RegExp(r'\d').hasMatch(w)) return w.toUpperCase();
+  final core = w.replaceAll(RegExp(r'[^A-Za-z]'), '').toUpperCase();
+  if (_keepCaps.contains(core)) return w.toUpperCase();
+  final i = w.indexOf(RegExp(r'[A-Za-z]'));
+  return i < 0 ? w : '${w.substring(0, i)}${w[i].toUpperCase()}${w.substring(i + 1).toLowerCase()}';
+}
+
 /// Readable place names: ALL-CAPS names (CHAS clinics) in title case, and the long
 /// "NEA Producer Responsibility Scheme - " prefix on e-waste points dropped.
 String cleanPlaceName(String s) {
@@ -472,12 +486,7 @@ String cleanPlaceName(String s) {
     n = n
         .toLowerCase()
         .split(' ')
-        // Words with a digit keep their capitals: "65A", "#01-04", "L3".
-        .map((w) => w.isEmpty
-            ? w
-            : RegExp(r'\d').hasMatch(w)
-                ? w.toUpperCase()
-                : '${w[0].toUpperCase()}${w.substring(1)}')
+        .map(capitalizeWord)
         .join(' ');
   }
   return n;

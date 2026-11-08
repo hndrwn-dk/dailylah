@@ -1004,8 +1004,8 @@ class S {
   String wtlRankedFor(String area, PlaceKind kind, double km) {
     final place = kind == PlaceKind.school ? 'school' : 'work';
     return km < 0.5
-        ? 'Commute to $area, where your $place is.'
-        : 'Commute to $area, the office area nearest your $place (${km.toStringAsFixed(1)} km).';
+        ? 'The office area where your $place is.'
+        : 'The office area nearest your $place (${km.toStringAsFixed(1)} km).';
   }
   String get wtlPickArea => 'Pick the office area you travel to. Save your work place in setup to rank for it.';
   String get wtlFarArea => 'Your saved place is not near one of the six office areas. Pick the one you travel to.';
@@ -1023,7 +1023,13 @@ class S {
   String wtlToArea(String area) => 'To $area';
   String wtlModeName(WtlMode mode) => mode == WtlMode.buy ? 'Buy resale' : 'Rent';
   String get wtlRentOnly => 'rent only';
-  String get rentInTown => 'rent in town';
+  String get rentInTown => 'Rent in town';
+  String get resaleMedian => 'Resale median';
+  String get cmpBusStops => 'Bus stops ≤ 400 m';
+  String get cmpHawkers => 'Hawkers ≤ 1 km';
+  String get cmpPrimary => 'Primary schools ≤ 1 km';
+  String get cmpParks => 'Parks ≤ 1 km';
+  String get cmpDengue => 'Dengue clusters ≤ 1 km';
   String leaseEnds(int year) => 'ends $year';
   String get perMonthShort => '/mo';
 
@@ -1083,13 +1089,13 @@ class S {
     return 'From ${r.town.station} MRT, ${wtlTransfers(c.transfers ?? 0)}';
   }
 
-  /// "4-room median rent, Q3 2026", or with [withFigure] "4-room median rent S$3,500/mo, Q3 2026".
-  String wtlPriceDetail(WtlChoice c, QuarterMedian? p, {bool withFigure = false}) {
+  String wtlPriceDetail(WtlChoice c, QuarterMedian? p) {
     final what = '${wtlFlatName(c.flat)} median ${c.mode == WtlMode.buy ? 'resale price' : 'rent'}';
-    if (p == null) return '$what: not enough data';
-    return withFigure ? '$what ${wtlShortPrice(c.mode, p)}, ${wtlQuarter(p.quarter)}' : '$what, ${wtlQuarter(p.quarter)}';
+    return p == null ? '$what: not enough data' : '$what, ${wtlQuarter(p.quarter)}';
   }
-  String wtlTransfersCaption(int? n) => n == 1 ? 'transfer' : 'transfers';
+  String wtlTransfersValue(int n) => n == 0 ? 'No transfer' : (n == 1 ? '1 transfer' : '$n transfers');
+  String get wtlTransfersCaption => 'on the way';
+  String wtlAllInParts(String rent, String fares) => '$rent rent + $fares fares';
 
   /// "≈ S$3,535/mo all-in with fares, 26 h on the road a month (estimate)", or the known parts.
   String wtlAllIn(({int? fares, int hours, int? total, bool same})? m) {

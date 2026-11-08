@@ -688,6 +688,10 @@ void main() {
     expect(privateProjectFor([p], near)!.name, 'Taipan Grand');
     expect(privateProjectFor([p], far), isNull);
     expect(titleCase('BT BATOK ST 11'), 'Bt Batok St 11');
+    // Short forms stay in capitals, wherever a name is title-cased.
+    expect(titleCase('TAMPINES MRT STATION'), 'Tampines MRT Station');
+    expect(titleCase('Bakau LRT Station'), 'Bakau LRT Station');
+    expect(titleCase('(EW2) tampines'), '(EW2) Tampines');
   });
 
   test('order in: rain, then haze, then a closed hawker', () {
