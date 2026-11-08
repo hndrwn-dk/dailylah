@@ -699,3 +699,135 @@ class PublicEvent {
     );
   }
 }
+
+// ---------------------------------------------------------------- where to live
+
+/// A median with the quarter it is from, e.g. 3400 and "2026-Q3".
+class QuarterMedian {
+  const QuarterMedian(this.median, this.quarter);
+  final int median;
+  final String quarter;
+
+  static QuarterMedian? fromBundle(Object? v) {
+    final m = v is Map ? v['median'] : null;
+    if (m is! num || !m.isFinite) return null;
+    return QuarterMedian(m.round(), '${(v as Map)['quarter'] ?? ''}');
+  }
+}
+
+/// A planned weekday 08:30 trip from a town to an office area. [sameArea]: the town is the
+/// office area itself (no trip; min, transfers and fare are null).
+class TownCommute {
+  const TownCommute({this.min, this.transfers, this.fare, this.sameArea = false});
+  final int? min;
+  final int? transfers;
+
+  /// Adult card fare per trip in cents, null when OneMap gave none.
+  final int? fare;
+  final bool sameArea;
+
+  static TownCommute? fromBundle(Object? v) {
+    if (v is! Map) return null;
+    if (v['same_area'] == true) return const TownCommute(sameArea: true);
+    // A number too big for a double (1e400) decodes to Infinity; .round() would throw.
+    int? n(Object? x) => x is num && x.isFinite ? x.round() : null;
+    if (n(v['min']) == null) return null;
+    return TownCommute(min: n(v['min']), transfers: n(v['transfers']), fare: n(v['fare']));
+  }
+}
+
+class WtlArea {
+  const WtlArea({required this.id, required this.name, required this.station, required this.lat, required this.lng});
+  final String id;
+  final String name;
+  final String station;
+  final double lat;
+  final double lng;
+}
+
+class WtlTown {
+  const WtlTown({
+    required this.id,
+    required this.name,
+    required this.station,
+    required this.lat,
+    required this.lng,
+    this.rent = const {},
+    this.resale = const {},
+    this.commute = const {},
+  });
+  final String id;
+  final String name;
+  final String station;
+  final double lat;
+  final double lng;
+
+  /// Flat type ("4-ROOM") to its median, null for "not enough data".
+  final Map<String, QuarterMedian?> rent;
+  final Map<String, QuarterMedian?> resale;
+
+  /// Office area id to the trip, null for no route data.
+  final Map<String, TownCommute?> commute;
+}
+
+/// web/data/where-to-live.json (backend/app/where_to_live.py, docs/WHERE_TO_LIVE.md): HDB median
+/// rent and resale per town and flat type, each with its own quarter, and the weekday 08:30
+/// transit trip from each town to six office areas. The same file the dailylah.sg page uses.
+class WhereToLive {
+  const WhereToLive({
+    required this.generatedAt,
+    required this.rentQuarter,
+    required this.resaleQuarter,
+    required this.areas,
+    required this.towns,
+  });
+  final String generatedAt;
+  final String rentQuarter;
+  final String resaleQuarter;
+  final List<WtlArea> areas;
+  final List<WtlTown> towns;
+
+  bool get isEmpty => areas.isEmpty || towns.isEmpty;
+
+  /// Ids are what the site's `/where-to-live/<id>` pages are named by; anything else is skipped.
+  static final _id = RegExp(r'^[a-z0-9-]+$');
+
+  factory WhereToLive.fromBundle(Map<String, dynamic> j) {
+    bool place(Object? v) => v is Map && v['id'] is String && _id.hasMatch(v['id'] as String) && v['lat'] is num && (v['lat'] as num).isFinite && v['lng'] is num && (v['lng'] as num).isFinite;
+    Map<String, QuarterMedian?> prices(Object? v) => {
+          if (v is Map)
+            for (final e in v.entries) '${e.key}': QuarterMedian.fromBundle(e.value),
+        };
+    final areas = [
+      for (final a in (j['areas'] as List? ?? const []))
+        if (place(a))
+          WtlArea(id: a['id'] as String, name: '${a['name'] ?? a['id']}', station: '${a['station'] ?? ''}', lat: _d(a['lat']), lng: _d(a['lng'])),
+    ];
+    final towns = [
+      for (final t in (j['towns'] as List? ?? const []))
+        if (place(t))
+          WtlTown(
+            id: t['id'] as String,
+            name: '${t['name'] ?? t['id']}',
+            station: '${t['station'] ?? ''}',
+            lat: _d(t['lat']),
+            lng: _d(t['lng']),
+            rent: prices(t['rent']),
+            resale: prices(t['resale']),
+            commute: {
+              if (t['commute'] is Map)
+                for (final e in (t['commute'] as Map).entries) '${e.key}': TownCommute.fromBundle(e.value),
+            },
+          ),
+    ];
+    return WhereToLive(
+      generatedAt: '${j['generated_at'] ?? ''}',
+      rentQuarter: '${j['rent_quarter'] ?? ''}',
+      resaleQuarter: '${j['resale_quarter'] ?? ''}',
+      areas: areas,
+      towns: towns,
+    );
+  }
+
+  static const empty = WhereToLive(generatedAt: '', rentQuarter: '', resaleQuarter: '', areas: [], towns: []);
+}

@@ -46,8 +46,6 @@ from .ura import build_private
 log = logging.getLogger(__name__)
 
 MIN_EXPECTED_STOPS = 4000  # Singapore has ~5,000; fewer means a broken upstream response
-# Files in web/data/ made by other jobs for the website, not for the app.
-NOT_IN_MANIFEST = {"where-to-live"}  # app/where_to_live.py
 GEOCODE_CACHE = Path(__file__).resolve().parent.parent / "data" / "geocode.json"
 
 # Minimum sizes below which a fresh bundle is treated as broken and not published.
@@ -202,7 +200,9 @@ async def build(
     # Describe every bundle on disk, including ones kept from a previous run.
     for path in sorted(out_dir.glob("*.json")):
         name = path.stem
-        if name == "manifest" or name in NOT_IN_MANIFEST:
+        # where-to-live.json comes from another weekly job (app/where_to_live.py); the app reads
+        # it too, so it is listed like every other bundle.
+        if name == "manifest":
             continue
         payload = path.read_bytes()
         data = results.get(name)

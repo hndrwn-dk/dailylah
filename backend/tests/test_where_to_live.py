@@ -1,12 +1,15 @@
+import hashlib
 import json
 from datetime import UTC, date, datetime
 
 import httpx
 import pytest
+import respx
 
 from app import build_static
 from app import where_to_live as w
 from app.bundles import DataGov
+from app.config import get_settings
 from app.onemap import OneMap
 
 
@@ -433,8 +436,37 @@ async def test_build_end_to_end(tmp_path, monkeypatch):
     assert len(cache) == 26 * 6 - 2
 
 
-def test_where_to_live_is_not_in_the_app_manifest():
-    assert "where-to-live" in build_static.NOT_IN_MANIFEST
+@respx.mock
+async def test_where_to_live_is_in_the_app_manifest(tmp_path, monkeypatch):
+    """The app loads where-to-live.json like any bundle, by its sha256 in the manifest."""
+    monkeypatch.setenv("LTA_ACCOUNT_KEY", "test-key")
+    get_settings.cache_clear()
+    stops = [
+        {
+            "BusStopCode": f"{i:05d}",
+            "RoadName": "R",
+            "Description": "D",
+            "Latitude": 1.3,
+            "Longitude": 103.8,
+        }
+        for i in range(4100)
+    ]
+    respx.get(url__startswith="https://datamall2.mytransport.sg/ltaodataservice/BusStops").mock(
+        side_effect=lambda r: httpx.Response(
+            200, json={"value": stops[int(r.url.params["$skip"]) :][:500]}
+        )
+    )
+    # Written by the weekly where-to-live job, not by this build.
+    payload = b'{"generated_at":"2026-11-08T00:00:00Z","areas":[],"towns":[{"id":"x"}]}'
+    (tmp_path / "where-to-live.json").write_bytes(payload)
+    try:
+        async with httpx.AsyncClient() as c:
+            manifest = await build_static.build(tmp_path, c, only_bus_stops=True)
+    finally:
+        get_settings.cache_clear()
+    entry = manifest["files"]["where-to-live"]
+    assert entry["path"] == "where-to-live.json"
+    assert entry["sha256"] == hashlib.sha256(payload).hexdigest()
 
 
 def test_parse_medians_real_row_shapes():

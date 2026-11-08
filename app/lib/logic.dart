@@ -2755,3 +2755,314 @@ SharedPlace? mapsLinkPlace(String url) {
   if (name == null && postal == null && point == null) return null;
   return SharedPlace(name: name, postal: postal, lat: point?.$1, lng: point?.$2);
 }
+
+// ---------------------------------------------------------------- where to live
+//
+// Ported from web/where-to-live/logic.js, same rules, so the app and dailylah.sg/where-to-live
+// rank and compare towns the same way. Everything runs on the phone from the where-to-live bundle;
+// the user's own address only picks the nearest office area here and never leaves the phone.
+
+enum WtlMode { rent, buy }
+
+/// Working days in a month: the commute is there and back on each.
+const wtlWorkdays = 22;
+
+/// Towns side by side in the comparison, at most.
+const wtlMaxCompare = 3;
+
+/// Travel time limits offered, in minutes.
+const wtlMaxMinutes = [30, 45, 60, 75, 90];
+
+/// A saved work or school place further than this from every office area does not pick one.
+const wtlNearestAreaMaxMeters = 5000.0;
+
+const _wtlFlatOrder = ['1-ROOM', '2-ROOM', '3-ROOM', '4-ROOM', '5-ROOM', 'EXECUTIVE'];
+
+/// The user's choices on the page.
+class WtlChoice {
+  const WtlChoice({
+    required this.area,
+    this.mode = WtlMode.rent,
+    this.flat = '4-ROOM',
+    this.budget,
+    this.maxMinutes,
+    this.compare = const [],
+  });
+  final String area;
+  final WtlMode mode;
+  final String flat;
+
+  /// A monthly rent (rent) or a total price (buy), in dollars; null = any.
+  final int? budget;
+  final int? maxMinutes;
+  final List<String> compare;
+
+  WtlChoice copyWith({
+    String? area,
+    WtlMode? mode,
+    String? flat,
+    int? Function()? budget,
+    int? Function()? maxMinutes,
+    List<String>? compare,
+  }) =>
+      WtlChoice(
+        area: area ?? this.area,
+        mode: mode ?? this.mode,
+        flat: flat ?? this.flat,
+        budget: budget != null ? budget() : this.budget,
+        maxMinutes: maxMinutes != null ? maxMinutes() : this.maxMinutes,
+        compare: compare ?? this.compare,
+      );
+}
+
+Map<String, QuarterMedian?> _wtlPrices(WtlTown t, WtlMode mode) => mode == WtlMode.buy ? t.resale : t.rent;
+
+/// Flat types with at least one price for this mode, smallest first.
+List<String> wtlFlatTypes(WhereToLive data, WtlMode mode) {
+  final seen = <String>{
+    for (final t in data.towns)
+      for (final e in _wtlPrices(t, mode).entries)
+        if (e.value != null) e.key,
+  };
+  int at(String f) => _wtlFlatOrder.contains(f) ? _wtlFlatOrder.indexOf(f) : _wtlFlatOrder.length;
+  return seen.toList()..sort((a, b) => at(a).compareTo(at(b)));
+}
+
+/// Highest budget taken: a monthly rent, or a total price when buying (as readQuery on the site).
+int wtlBudgetLimit(WtlMode mode) => mode == WtlMode.buy ? 10000000 : 100000;
+
+/// [c] with every choice checked against the data: an unknown area, flat type, time limit or town
+/// falls back to a default (as readQuery on the site). A budget is kept when positive and within
+/// [wtlBudgetLimit].
+WtlChoice wtlChecked(WhereToLive data, WtlChoice c) {
+  final areas = data.areas.map((a) => a.id).toList();
+  final area = areas.contains(c.area) ? c.area : (areas.contains('cbd') ? 'cbd' : (areas.isEmpty ? c.area : areas.first));
+  final flats = wtlFlatTypes(data, c.mode);
+  final flat = flats.contains(c.flat) ? c.flat : (flats.contains('4-ROOM') ? '4-ROOM' : (flats.isEmpty ? c.flat : flats.first));
+  final budget = (c.budget ?? 0) > 0 && c.budget! <= wtlBudgetLimit(c.mode) ? c.budget : null;
+  final max = wtlMaxMinutes.contains(c.maxMinutes) ? c.maxMinutes : null;
+  return WtlChoice(area: area, mode: c.mode, flat: flat, budget: budget, maxMinutes: max, compare: wtlCompareIds(c.compare, data));
+}
+
+/// New choices after switching rent / buy (as changeChoices on the site): the budget is dropped,
+/// since a monthly rent of 3500 must not become a resale budget of $3,500, and the flat type is
+/// checked again for the new mode.
+WtlChoice wtlChangeMode(WhereToLive data, WtlChoice c, WtlMode mode) {
+  if (mode == c.mode) return c;
+  return wtlChecked(data, c.copyWith(mode: mode, budget: () => null));
+}
+
+/// The office area nearest a point (the user's work or school), with its distance, or null when
+/// every area is further than [wtlNearestAreaMaxMeters] (then the user picks one).
+({WtlArea area, double meters})? wtlNearestArea(WhereToLive data, double lat, double lng) {
+  ({WtlArea area, double meters})? best;
+  for (final a in data.areas) {
+    final m = distanceMeters(lat, lng, a.lat, a.lng);
+    if (best == null || m < best.meters) best = (area: a, meters: m);
+  }
+  return best != null && best.meters <= wtlNearestAreaMaxMeters ? best : null;
+}
+
+/// The saved place to rank towns for: work, else school, when it has a position.
+Place? wtlAnchorPlace(Map<PlaceKind, Place> places) {
+  for (final k in const [PlaceKind.work, PlaceKind.school]) {
+    final p = places[k];
+    if (p != null && (p.hasAddress || p.stops.isNotEmpty)) return p;
+  }
+  return null;
+}
+
+enum WtlGroup { match, noPrice, other }
+
+enum WtlReason { route, far, budget }
+
+class WtlRow {
+  const WtlRow({required this.town, this.commute, this.price, required this.group, this.reason});
+  final WtlTown town;
+  final TownCommute? commute;
+  final QuarterMedian? price;
+  final WtlGroup group;
+  final WtlReason? reason;
+
+  /// Minutes to the office area: 0 for its own town, null without a route.
+  int? get minutes => commute == null ? null : (commute!.sameArea ? 0 : commute!.min);
+}
+
+/// Towns in three groups for the chosen office area, flat type and limits (as rank in logic.js):
+/// match (travel time known and within the limit, price within the budget or no budget),
+/// noPrice (a budget is set but the town has no price), other (no route, too far, over budget).
+/// Each group is sorted by travel time (same area first), then price, then name.
+Map<WtlGroup, List<WtlRow>> wtlRank(WhereToLive data, WtlChoice c) {
+  final rows = <WtlRow>[];
+  for (final town in data.towns) {
+    final commute = town.commute[c.area];
+    final price = _wtlPrices(town, c.mode)[c.flat];
+    final minutes = commute == null ? null : (commute.sameArea ? 0 : commute.min);
+    var group = WtlGroup.match;
+    WtlReason? reason;
+    if (commute == null || minutes == null) {
+      group = WtlGroup.other;
+      reason = WtlReason.route;
+    } else if (c.maxMinutes != null && minutes > c.maxMinutes!) {
+      group = WtlGroup.other;
+      reason = WtlReason.far;
+    } else if (c.budget != null && price == null) {
+      group = WtlGroup.noPrice;
+    } else if (c.budget != null && price!.median > c.budget!) {
+      group = WtlGroup.other;
+      reason = WtlReason.budget;
+    }
+    rows.add(WtlRow(town: town, commute: commute, price: price, group: group, reason: reason));
+  }
+  int cmp(WtlRow a, WtlRow b) {
+    final t = (a.minutes ?? 1 << 30).compareTo(b.minutes ?? 1 << 30);
+    if (t != 0) return t;
+    final p = (a.price?.median ?? 1 << 30).compareTo(b.price?.median ?? 1 << 30);
+    return p != 0 ? p : a.town.name.compareTo(b.town.name);
+  }
+
+  rows.sort(cmp);
+  return {for (final g in WtlGroup.values) g: [for (final r in rows) if (r.group == g) r]};
+}
+
+/// Estimated month: fares in dollars (adult card fare there and back on [wtlWorkdays] days, null
+/// without a fare), hours on the road, and for rent the all-in total (rent + fares). The office
+/// area's own town has no commute. null without a route.
+({int? fares, int hours, int? total, bool same})? wtlMonthly(WtlChoice c, WtlRow row) {
+  final cm = row.commute;
+  if (cm == null) return null;
+  final same = cm.sameArea;
+  final fares = same ? 0 : (cm.fare == null ? null : (cm.fare! * 2 * wtlWorkdays / 100).round());
+  final hours = same ? 0 : ((cm.min ?? 0) * 2 * wtlWorkdays / 60).round();
+  final total = c.mode == WtlMode.rent && row.price != null && fares != null ? row.price!.median + fares : null;
+  return (fares: fares, hours: hours, total: total, same: same);
+}
+
+/// Fastest (cheaper wins a tie) and best value (cheapest at or under the median travel time,
+/// faster wins a tie) among the towns that fit and have a time and a price; null when none.
+({WtlRow fastest, WtlRow value})? wtlHighlights(Map<WtlGroup, List<WtlRow>> groups) {
+  final pool = [for (final r in groups[WtlGroup.match] ?? const <WtlRow>[]) if (r.commute != null && r.price != null) r];
+  if (pool.isEmpty) return null;
+  final fast = [...pool]..sort((a, b) {
+      final t = a.minutes!.compareTo(b.minutes!);
+      return t != 0 ? t : a.price!.median.compareTo(b.price!.median);
+    });
+  final mins = pool.map((r) => r.minutes!).toList()..sort();
+  final mid = mins.length >> 1;
+  final median = mins.length.isOdd ? mins[mid].toDouble() : (mins[mid - 1] + mins[mid]) / 2;
+  final value = pool.where((r) => r.minutes! <= median).toList()
+    ..sort((a, b) {
+      final p = a.price!.median.compareTo(b.price!.median);
+      return p != 0 ? p : a.minutes!.compareTo(b.minutes!);
+    });
+  return (fastest: fast.first, value: value.first);
+}
+
+/// Towns to compare: ids from the data only, each once, in order, at most [wtlMaxCompare].
+List<String> wtlCompareIds(Iterable<String> ids, WhereToLive data) {
+  final known = {for (final t in data.towns) t.id};
+  final out = <String>[];
+  for (final id in ids) {
+    if (known.contains(id) && !out.contains(id) && out.length < wtlMaxCompare) out.add(id);
+  }
+  return out;
+}
+
+/// The compare list with a town added or removed; unchanged when adding to a full list.
+List<String> wtlToggleCompare(List<String> list, String id) {
+  if (list.contains(id)) return [for (final x in list) if (x != id) x];
+  return list.length < wtlMaxCompare ? [...list, id] : list;
+}
+
+enum WtlLineKey { time, transfers, fare, price, allIn, faresMonth, hours }
+
+/// What a comparison cell shows; the screen turns it into words (S).
+enum WtlCellKind {
+  /// [shown] is the number: minutes, transfers, fare in cents, price, dollars or hours.
+  value,
+
+  /// The office area's own town in a commute line.
+  inArea,
+
+  /// The office area's own town in the all-in line: [shown] is its rent, with no fare estimate.
+  inAreaRent,
+
+  /// No route to the office area ("No route data" in the time line, "–" elsewhere).
+  noRoute,
+
+  /// A route, but this number is not known (no fare, no price, no all-in).
+  unknown,
+}
+
+class WtlCell {
+  WtlCell(this.kind, [this.shown, this.score]);
+  final WtlCellKind kind;
+
+  /// The number to show (also for [WtlCellKind.inAreaRent]).
+  final int? shown;
+
+  /// The number compared for "best" (lower is better); null takes no part.
+  final int? score;
+  bool best = false;
+
+  /// For prices: the quarter of the figure.
+  String? quarter;
+}
+
+class WtlLine {
+  const WtlLine(this.key, this.cells);
+  final WtlLineKey key;
+  final List<WtlCell> cells;
+}
+
+/// The comparison table for [c.compare] (as compareTable in logic.js): a column per town and per
+/// line a cell per town. The lowest score of each line is "best", ties included, only when at least
+/// two towns have one. The office area's own town is not a 0-minute trip: time, transfers, fare and
+/// hours show "in this area" and leave it out of "best"; all-in shows its rent with no fare estimate;
+/// and while it is compared, all-in (fares a month when buying) and hours mark no "best" at all.
+({List<WtlTown> towns, List<WtlLine> lines}) wtlCompareTable(WhereToLive data, WtlChoice c) {
+  final byId = {for (final t in data.towns) t.id: t};
+  final towns = [for (final id in c.compare) if (byId[id] != null) byId[id]!];
+  final rows = [
+    for (final t in towns) WtlRow(town: t, commute: t.commute[c.area], price: _wtlPrices(t, c.mode)[c.flat], group: WtlGroup.match),
+  ];
+  WtlCell commute(WtlRow r, WtlCell Function(TownCommute cm) known) {
+    final cm = r.commute;
+    if (cm == null) return WtlCell(WtlCellKind.noRoute);
+    if (cm.sameArea) return WtlCell(WtlCellKind.inArea);
+    return known(cm);
+  }
+
+  WtlCell number(int? n) => n == null ? WtlCell(WtlCellKind.unknown) : WtlCell(WtlCellKind.value, n, n);
+  final lines = <WtlLine>[
+    WtlLine(WtlLineKey.time, [for (final r in rows) commute(r, (cm) => number(cm.min))]),
+    WtlLine(WtlLineKey.transfers, [for (final r in rows) commute(r, (cm) => number(cm.transfers))]),
+    WtlLine(WtlLineKey.fare, [for (final r in rows) commute(r, (cm) => number(cm.fare))]),
+    WtlLine(WtlLineKey.price, [
+      for (final r in rows)
+        r.price == null ? WtlCell(WtlCellKind.unknown) : (WtlCell(WtlCellKind.value, r.price!.median, r.price!.median)..quarter = r.price!.quarter),
+    ]),
+    if (c.mode == WtlMode.buy)
+      WtlLine(WtlLineKey.faresMonth, [for (final r in rows) commute(r, (_) => number(wtlMonthly(c, r)!.fares))])
+    else
+      WtlLine(WtlLineKey.allIn, [
+        for (final r in rows)
+          r.commute?.sameArea == true
+              ? (r.price == null ? WtlCell(WtlCellKind.inArea) : WtlCell(WtlCellKind.inAreaRent, r.price!.median))
+              : commute(r, (_) => number(wtlMonthly(c, r)!.total)),
+      ]),
+    WtlLine(WtlLineKey.hours, [for (final r in rows) commute(r, (_) => number(wtlMonthly(c, r)!.hours))]),
+  ];
+  final inArea = rows.any((r) => r.commute?.sameArea == true);
+  const noBestInArea = {WtlLineKey.allIn, WtlLineKey.faresMonth, WtlLineKey.hours};
+  for (final line in lines) {
+    if (inArea && noBestInArea.contains(line.key)) continue;
+    final known = [for (final cell in line.cells) if (cell.score != null) cell];
+    if (known.length < 2) continue;
+    final low = known.map((x) => x.score!).reduce(math.min);
+    for (final cell in known) {
+      cell.best = cell.score == low;
+    }
+  }
+  return (towns: towns, lines: lines);
+}

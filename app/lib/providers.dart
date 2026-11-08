@@ -320,6 +320,12 @@ final rentProvider = FutureProvider<RentData>((ref) async {
   return m == null ? RentData.empty : RentData.fromBundle(m);
 });
 
+/// HDB towns by commute and price (the where-to-live bundle, also used by dailylah.sg/where-to-live).
+final whereToLiveProvider = FutureProvider<WhereToLive>((ref) async {
+  final m = await _map(ref, 'where-to-live');
+  return m == null ? WhereToLive.empty : WhereToLive.fromBundle(m);
+});
+
 final busRoutesProvider = FutureProvider<BusRoutes>((ref) async {
   final m = await _map(ref, 'bus_routes');
   return m == null ? BusRoutes.empty : BusRoutes.fromBundle(m);

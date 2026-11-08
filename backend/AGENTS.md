@@ -44,8 +44,9 @@ relative to `backend/` when they start with `app/`. Endpoint index: `docs/REPO_M
   median rent and resale datasets and OneMap transit routes (weekday 08:30) from 26 town centres to
   6 office areas (`backend/data/where_to_live_points.json`). Routes are cached for 30 days in
   `backend/data/where_to_live_routes.json`; a town that is itself the office area gets
-  `{"min": null, "transfers": null, "same_area": true}`. The file is for the website, not the app, so
-  `build_static.py` leaves it out of the manifest (`NOT_IN_MANIFEST`). `generated_at` only changes
+  `{"min": null, "transfers": null, "same_area": true}`. The website and the app both read it; the
+  daily `build_static.py` lists it in the manifest like every bundle, so after a Monday update the
+  app sees it with the next daily run. `generated_at` only changes
   when the data does; `--dry-run` prints the report and writes nothing. Each route keeps OneMap's
   adult card `fare` in cents (null when OneMap gives none). `app/where_to_live_pages.py` then
   writes the "Living in <town>" pages to `web/where-to-live-towns/` (served at
