@@ -2828,16 +2828,28 @@ List<String> wtlFlatTypes(WhereToLive data, WtlMode mode) {
   return seen.toList()..sort((a, b) => at(a).compareTo(at(b)));
 }
 
+/// Highest budget taken: a monthly rent, or a total price when buying (as readQuery on the site).
+int wtlBudgetLimit(WtlMode mode) => mode == WtlMode.buy ? 10000000 : 100000;
+
 /// [c] with every choice checked against the data: an unknown area, flat type, time limit or town
-/// falls back to a default (as readQuery on the site). A budget is kept when positive.
+/// falls back to a default (as readQuery on the site). A budget is kept when positive and within
+/// [wtlBudgetLimit].
 WtlChoice wtlChecked(WhereToLive data, WtlChoice c) {
   final areas = data.areas.map((a) => a.id).toList();
   final area = areas.contains(c.area) ? c.area : (areas.contains('cbd') ? 'cbd' : (areas.isEmpty ? c.area : areas.first));
   final flats = wtlFlatTypes(data, c.mode);
   final flat = flats.contains(c.flat) ? c.flat : (flats.contains('4-ROOM') ? '4-ROOM' : (flats.isEmpty ? c.flat : flats.first));
-  final budget = (c.budget ?? 0) > 0 ? c.budget : null;
+  final budget = (c.budget ?? 0) > 0 && c.budget! <= wtlBudgetLimit(c.mode) ? c.budget : null;
   final max = wtlMaxMinutes.contains(c.maxMinutes) ? c.maxMinutes : null;
   return WtlChoice(area: area, mode: c.mode, flat: flat, budget: budget, maxMinutes: max, compare: wtlCompareIds(c.compare, data));
+}
+
+/// New choices after switching rent / buy (as changeChoices on the site): the budget is dropped,
+/// since a monthly rent of 3500 must not become a resale budget of $3,500, and the flat type is
+/// checked again for the new mode.
+WtlChoice wtlChangeMode(WhereToLive data, WtlChoice c, WtlMode mode) {
+  if (mode == c.mode) return c;
+  return wtlChecked(data, c.copyWith(mode: mode, budget: () => null));
 }
 
 /// The office area nearest a point (the user's work or school), with its distance, or null when

@@ -709,8 +709,9 @@ class QuarterMedian {
   final String quarter;
 
   static QuarterMedian? fromBundle(Object? v) {
-    if (v is! Map || v['median'] is! num) return null;
-    return QuarterMedian((v['median'] as num).round(), '${v['quarter'] ?? ''}');
+    final m = v is Map ? v['median'] : null;
+    if (m is! num || !m.isFinite) return null;
+    return QuarterMedian(m.round(), '${(v as Map)['quarter'] ?? ''}');
   }
 }
 
@@ -728,8 +729,9 @@ class TownCommute {
   static TownCommute? fromBundle(Object? v) {
     if (v is! Map) return null;
     if (v['same_area'] == true) return const TownCommute(sameArea: true);
-    if (v['min'] is! num) return null;
-    int? n(Object? x) => x is num ? x.round() : null;
+    // A number too big for a double (1e400) decodes to Infinity; .round() would throw.
+    int? n(Object? x) => x is num && x.isFinite ? x.round() : null;
+    if (n(v['min']) == null) return null;
     return TownCommute(min: n(v['min']), transfers: n(v['transfers']), fare: n(v['fare']));
   }
 }
@@ -791,7 +793,7 @@ class WhereToLive {
   static final _id = RegExp(r'^[a-z0-9-]+$');
 
   factory WhereToLive.fromBundle(Map<String, dynamic> j) {
-    bool place(Object? v) => v is Map && v['id'] is String && _id.hasMatch(v['id'] as String) && v['lat'] is num && v['lng'] is num;
+    bool place(Object? v) => v is Map && v['id'] is String && _id.hasMatch(v['id'] as String) && v['lat'] is num && (v['lat'] as num).isFinite && v['lng'] is num && (v['lng'] as num).isFinite;
     Map<String, QuarterMedian?> prices(Object? v) => {
           if (v is Map)
             for (final e in v.entries) '${e.key}': QuarterMedian.fromBundle(e.value),

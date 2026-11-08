@@ -98,6 +98,18 @@ void main() {
       expect(WhereToLive.fromBundle(const {}).isEmpty, isTrue);
     });
 
+    test('numbers too big for a double are left out, not a crash', () {
+      final huge = jsonDecode('1e400') as num; // Infinity
+      final d = data((j) {
+        town(j, 'bishan')['rent']['4-ROOM'] = {'median': huge, 'quarter': '2026-Q3'};
+        (town(j, 'punggol')['commute'] as Map)['cbd'] = {'min': huge, 'transfers': 0};
+        town(j, 'central')['lat'] = huge;
+      });
+      expect(d.towns.firstWhere((t) => t.id == 'bishan').rent['4-ROOM'], isNull);
+      expect(d.towns.firstWhere((t) => t.id == 'punggol').commute['cbd'], isNull);
+      expect(d.towns.map((t) => t.id), isNot(contains('central')));
+    });
+
     test('the committed web/data/where-to-live.json reads in full', () {
       final raw = File('../web/data/where-to-live.json').readAsStringSync();
       final d = WhereToLive.fromBundle(jsonDecode(raw) as Map<String, dynamic>);
@@ -124,6 +136,22 @@ void main() {
       expect(c.budget, isNull);
       expect(c.maxMinutes, isNull);
       expect(c.compare, ['punggol']);
+    });
+
+    test('switching rent / buy drops the budget; budgets have a ceiling', () {
+      final d = data();
+      const rent = WtlChoice(area: 'cbd', budget: 3500, flat: '3-ROOM');
+      final buy = wtlChangeMode(d, rent, WtlMode.buy);
+      expect(buy.mode, WtlMode.buy);
+      expect(buy.budget, isNull); // a rent of 3500 is not a resale budget of $3,500
+      expect(buy.flat, '4-ROOM'); // no 3-room resale prices
+      expect(wtlChangeMode(d, rent, WtlMode.rent), same(rent));
+      final back = wtlChangeMode(d, const WtlChoice(area: 'cbd', mode: WtlMode.buy, budget: 650000), WtlMode.rent);
+      expect(back.budget, isNull);
+      expect(wtlChecked(d, const WtlChoice(area: 'cbd', budget: 100001)).budget, isNull);
+      expect(wtlChecked(d, const WtlChoice(area: 'cbd', budget: 100000)).budget, 100000);
+      expect(wtlChecked(d, const WtlChoice(area: 'cbd', mode: WtlMode.buy, budget: 650000)).budget, 650000);
+      expect(wtlChecked(d, const WtlChoice(area: 'cbd', mode: WtlMode.buy, budget: 10000001)).budget, isNull);
     });
 
     test('the nearest office area to a saved place, within 5 km', () {
@@ -177,10 +205,28 @@ void main() {
       expect(wtlMonthly(const WtlChoice(area: 'cbd', mode: WtlMode.buy), row)!.total, isNull);
     });
 
-    test('fastest and best value', () {
+    test('fastest and best value among towns that fit', () {
+      // CBD, 4-room rent: Bishan 20 min $3,700; Jurong East 35 (no price); Punggol 45 $3,300.
+      // Priced candidates: 20 and 45 -> median 32.5, so only Bishan is at or under it.
       final h = wtlHighlights(wtlRank(data(), const WtlChoice(area: 'cbd')))!;
       expect(h.fastest.town.id, 'bishan');
-      expect(h.value.town.id, 'bishan'); // median 35: bishan 3700 vs ... jurong-east has no price
+      expect(h.value.town.id, 'bishan');
+      // 3-room: Bishan 20 $3,000, Jurong East 35 $2,700, Punggol 45 $2,850 -> median 35:
+      // Bishan and Jurong East qualify (at or under), and Jurong East is cheaper.
+      final h3 = wtlHighlights(wtlRank(data(), const WtlChoice(area: 'cbd', flat: '3-ROOM')))!;
+      expect(h3.fastest.town.id, 'bishan');
+      expect(h3.value.town.id, 'jurong-east');
+    });
+
+    test('highlights: the office area own town, buying, and nothing that fits', () {
+      final same = wtlHighlights(wtlRank(data(), const WtlChoice(area: 'jurong-east', flat: '3-ROOM')))!;
+      expect(same.fastest.town.id, 'jurong-east');
+      expect(same.fastest.minutes, 0);
+      final buy = wtlHighlights(wtlRank(data(), const WtlChoice(area: 'cbd', mode: WtlMode.buy)))!;
+      expect(buy.fastest.town.id, 'bishan');
+      expect(buy.fastest.price!.median, 700000);
+      expect(wtlHighlights(wtlRank(data(), const WtlChoice(area: 'cbd', budget: 1000))), isNull);
+      expect(wtlHighlights(wtlRank(data(), const WtlChoice(area: 'jurong-east', maxMinutes: 30)))!.fastest.town.id, 'central');
     });
   });
 

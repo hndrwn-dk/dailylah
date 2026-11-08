@@ -459,12 +459,14 @@ async def test_where_to_live_is_in_the_app_manifest(tmp_path, monkeypatch):
     # Written by the weekly where-to-live job, not by this build.
     payload = b'{"generated_at":"2026-11-08T00:00:00Z","areas":[],"towns":[{"id":"x"}]}'
     (tmp_path / "where-to-live.json").write_bytes(payload)
-    async with httpx.AsyncClient() as c:
-        manifest = await build_static.build(tmp_path, c, only_bus_stops=True)
+    try:
+        async with httpx.AsyncClient() as c:
+            manifest = await build_static.build(tmp_path, c, only_bus_stops=True)
+    finally:
+        get_settings.cache_clear()
     entry = manifest["files"]["where-to-live"]
     assert entry["path"] == "where-to-live.json"
     assert entry["sha256"] == hashlib.sha256(payload).hexdigest()
-    get_settings.cache_clear()
 
 
 def test_parse_medians_real_row_shapes():

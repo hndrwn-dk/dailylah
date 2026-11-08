@@ -6,7 +6,8 @@ Run weekly by .github/workflows/where-to-live.yml:
 
 Writes web/data/where-to-live.json: for each HDB town, the median rent and resale price per
 flat type (HDB quarterly medians on data.gov.sg) and the public transport time to six office
-areas (OneMap routing, a weekday at 08:30). Not part of the app's manifest.
+areas (OneMap routing, a weekday at 08:30). The app reads it too (WhereToLive in app/lib/data.dart):
+the daily build_static.py lists it in manifest.json, so a change of shape needs the app's parser.
 
 Routes rarely change, so they are cached in backend/data/where_to_live_routes.json and only
 asked again after ROUTE_MAX_AGE_DAYS; prices are read on every run. The output file is only
