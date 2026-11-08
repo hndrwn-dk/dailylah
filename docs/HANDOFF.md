@@ -54,13 +54,20 @@ rent/resale. Static page and JSON, no browser API calls, no Render. One PR per p
   commit it was queued at, whose bundles #60 had already replaced. The build jobs of `data.yml`
   and `where-to-live.yml` now check out `ref: main` (data.yml: only when run on main) and log
   "Built from <sha>". The workflow file itself still comes from the queued commit.
+  - Checked after merge (#122): data run #63, queued at `8303396` behind run #62, built from
+    `894eec6` (what #62 had just pushed) and pushed `e6bd539` through the ruleset bypass, the case
+    that failed in #61. where-to-live run #8: built from the newest main, "No data changes".
 - Town pages (8 Nov): static share image per town, `web/og/where-to-live/<id>.png` (1200x630,
   town name and "Commute & HDB prices", no numbers), made by hand with `scripts/build_og_images.py`
   (Pillow, OFL fonts from google/fonts, not committed) and committed. **When a town is added to
   the data, run that script and commit the PNG**; until then its page uses `/brand/og.jpg` and
   `test_every_town_has_a_share_image` fails. A town with no rent and no resale figure (Bukit
-  Timah) gets one "no median rent or resale price" sentence.
-- Phase 4 (launch with production).
+  Timah) gets one "no median rent or resale price" sentence. Done (#123): dailylah.sg serves
+  `/og/where-to-live/punggol.png` and `bukit-timah.png` as `image/png`, and the Bukit Timah page
+  has the one sentence. The town-page backlog (OG image, "no median" sentence) is closed.
+- **What is left of "Where to live?"** (8 Nov): the CTA switch to the public listing when
+  production is live (above), then Phase 4 (launch with production). Related app backlog: the
+  optional meal price in History ("Open ideas" below).
 
 ## CI/CD hardening (Nov 2026, 8 phases, one PR each)
 Layers: deterministic scans → AI review → a person decides. Existing gates (analyze, test,
