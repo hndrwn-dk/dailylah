@@ -49,15 +49,12 @@ rent/resale. Static page and JSON, no browser API calls, no Render. One PR per p
     and its push job wrote all 28 pages and the sitemap. Run #7: "No data changes". data run #60
     pushed with the new `*.json` allowlist. dailylah.sg/where-to-live/punggol and /sitemap.xml
     answer 200 with fares.
-- Next for the town pages (web backlog, 8 Nov 2026, not started):
-  - OG image per town. Today every page uses the shared `/brand/og.jpg`. Generate one image per
-    town (name, minutes to the CBD, 4-room rent) without a Vercel build step, and keep it within
-    the CSP (`img-src 'self'`).
-  - Merge the two "no median" sentences into one. A town with neither a rent nor a resale figure
-    (Bukit Timah today) reads "HDB published no median rent for Bukit Timah in the last four
-    quarters. HDB published no median resale price for Bukit Timah in the last four quarters."
-    Make it one sentence ("no median rent or resale price") in `summary_sentences` of
-    `backend/app/where_to_live_pages.py`, and regenerate the committed pages.
+- Town pages (8 Nov): static share image per town, `web/og/where-to-live/<id>.png` (1200x630,
+  town name and "Commute & HDB prices", no numbers), made by hand with `scripts/build_og_images.py`
+  (Pillow, OFL fonts from google/fonts, not committed) and committed. **When a town is added to
+  the data, run that script and commit the PNG**; until then its page uses `/brand/og.jpg` and
+  `test_every_town_has_a_share_image` fails. A town with no rent and no resale figure (Bukit
+  Timah) gets one "no median rent or resale price" sentence.
 - Phase 4 (launch with production).
 
 ## CI/CD hardening (Nov 2026, 8 phases, one PR each)

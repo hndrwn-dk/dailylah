@@ -8,6 +8,9 @@ Writes, only when the content changed:
     web/where-to-live-towns/<town id>.html   one page per HDB town (served at /where-to-live/<id>)
     web/where-to-live-towns/index.html       all towns (served at /where-to-live/towns)
     web/sitemap.xml
+Each town page's og:image is web/og/where-to-live/<town id>.png, a static image made by hand with
+scripts/build_og_images.py and committed (this generator and the push job never write images); a
+town without one yet gets the site's /brand/og.jpg.
 The rewrites from /where-to-live/... live in web/vercel.json, so the pages share the tool's CSP.
 The folder holds generated HTML only: the build job's patch may not touch it or the sitemap
 (scripts/push_data.sh allowlist); only this generator, run in the push job, writes them. Every
@@ -194,6 +197,11 @@ def summary_parts(data: dict, town: dict) -> tuple[list[str], list[str]]:
             f"The lowest median rent here is for a {FLAT_LABEL[flat]} flat, {money(low)} a month."
         )
     out.extend(neighbour_sentence(data, town))
+    if not main_flat(town, "rent") and not main_flat(town, "resale"):
+        out.append(
+            f"HDB published no median rent or resale price for {name} in the last four quarters."
+        )
+        return move, out
     for kind, what in (("rent", "rent"), ("resale", "resale price")):
         flat = main_flat(town, kind)
         if not flat:
@@ -257,8 +265,18 @@ def neighbour_sentence(data: dict, town: dict) -> list[str]:
 # ---------------------------------------------------------------- html
 
 
-def head(title: str, description: str, path: str) -> str:
+# Share images: one static PNG per town (scripts/build_og_images.py, committed), else the site's.
+OG_DIR = "og/where-to-live"
+OG_DEFAULT = ("/brand/og.jpg", 1024, 500)
+
+
+def og_image(town_id: str) -> tuple[str, int, int]:
+    return (f"/{OG_DIR}/{town_id}.png", 1200, 630)
+
+
+def head(title: str, description: str, path: str, image: tuple[str, int, int] = OG_DEFAULT) -> str:
     url = f"{SITE}{path}"
+    src, width, height = image
     return f"""<!doctype html>
 <html lang="en-SG">
 <head>
@@ -273,7 +291,10 @@ def head(title: str, description: str, path: str) -> str:
 <meta property="og:title" content="{e(title)}">
 <meta property="og:description" content="{e(description)}">
 <meta property="og:url" content="{e(url)}">
-<meta property="og:image" content="{SITE}/brand/og.jpg">
+<meta property="og:image" content="{e(SITE + src)}">
+<meta property="og:image:width" content="{width}">
+<meta property="og:image:height" content="{height}">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="canonical" href="{e(url)}">
 <link rel="icon" href="/favicon.png" sizes="32x32">
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
@@ -387,7 +408,9 @@ def link_list(towns: list[dict], origin: dict | None = None) -> str:
     return ", ".join(links[:-1]) + " and " + links[-1]
 
 
-def town_page(data: dict, town: dict) -> str:
+def town_page(data: dict, town: dict, has_image: bool = True) -> str:
+    """has_image: the town's share image exists (a town new to the data has none until
+    scripts/build_og_images.py is run; it gets the site's image meanwhile)."""
     name = town["name"]
     area = cbd_area(data)
     c = (town.get("commute") or {}).get(area["id"])
@@ -410,7 +433,12 @@ def town_page(data: dict, town: dict) -> str:
     getting_around, prices = summary_paragraphs(data, town)
     nearby = nearest(data["towns"], town)
     return (
-        head(title, description, f"/where-to-live/{town['id']}")
+        head(
+            title,
+            description,
+            f"/where-to-live/{town['id']}",
+            og_image(town["id"]) if has_image else OG_DEFAULT,
+        )
         + f"""
   <section class="intro">
     <h1>Living in {e(name)}</h1>
@@ -537,7 +565,12 @@ def build(data: dict, web_dir: Path) -> dict[str, int]:
         if not (isinstance(t.get("id"), str) and TOWN_ID.fullmatch(t["id"])) or t["id"] == "index":
             raise ValueError(f"bad town id: {t.get('id')!r}")
     out_dir = web_dir / TOWNS_DIR
-    files = {out_dir / f"{t['id']}.html": town_page(data, t) for t in data["towns"]}
+    files = {
+        out_dir / f"{t['id']}.html": town_page(
+            data, t, (web_dir / og_image(t["id"])[0].lstrip("/")).is_file()
+        )
+        for t in data["towns"]
+    }
     files[out_dir / "index.html"] = index_page(data)
     files[web_dir / "sitemap.xml"] = sitemap(data)
     written = sum(_write(p, text) for p, text in files.items())

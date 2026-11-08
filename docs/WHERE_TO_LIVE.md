@@ -150,7 +150,7 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
   `html.escape`; tidak ada script selain `cta.js`. Jaccard 5-kata antar halaman maksimal sekitar 0,31
   (tes: < 0,5).
 - **SEO:** `web/sitemap.xml` (dibuat generator, `lastmod` dari `generated_at`), `web/robots.txt`
-  (tetap), canonical, meta description dan OG per town (gambar OG bersama). Tool dan Home menautkan
+  (tetap), canonical, meta description dan OG per town. Tool dan Home menautkan
   ke `/where-to-live/towns`.
 - **Workflow:** patch dari job build `where-to-live.yml` hanya boleh mengubah JSON-nya dan cache
   rute (allowlist `push_data.sh`, yang mendukung `dir/*.ext`; `data.yml` dibatasi ke `*.json`), dan
@@ -164,7 +164,15 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
   escaping, sitemap, halaman lama dihapus, tidak ada duplikat, file yang di-commit = hasil generator),
   `test_push_data.py` (pola `*.ext`, halaman di patch ditolak, JSON tidak valid ditolak, halaman
   dibuat saat push, `nosniff` untuk `/data/`), `web/tests/logic.test.mjs` (biaya, `?town=`).
-- **Belum:** gambar OG per town.
+- **Gambar OG per town** (8 Nov): PNG statis 1200×630 di `web/og/where-to-live/<id>.png`, tanpa
+  angka: nama town, "Commute & HDB prices", papan LED dan wordmark. Dibuat dengan script dev
+  `scripts/build_og_images.py` (Pillow, font OFL Barlow Condensed dan Plus Jakarta Sans dari
+  google/fonts; TTF tidak di-commit, lisensinya ada di `web/fonts/*-OFL.txt`) lalu di-commit. Tidak
+  ada build step di Vercel, dan job push serta `push_data.sh` tidak menyentuh gambar. Halaman town
+  memakai `og:image` (+ ukuran, `twitter:card` `summary_large_image`); town yang belum punya gambar
+  memakai `/brand/og.jpg`. **Town baru di data:** jalankan script itu dan commit PNG-nya; tes
+  `test_every_town_has_a_share_image` gagal sampai itu dilakukan.
+- Town tanpa sewa maupun harga jual mendapat satu kalimat "no median rent or resale price".
 
 ## Fase 4: launch
 - Live bersamaan dengan production DailyLah. Post LinkedIn: app + alat web.
