@@ -178,7 +178,10 @@ function renderCompareBar(data, view, actions) {
 function watchBarHeight() {
   const bar = $("compare-bar");
   const fit = () => {
-    document.body.style.paddingBottom = bar.hidden ? "" : `${Math.ceil(bar.getBoundingClientRect().height) + 16}px`;
+    const room = bar.hidden ? "" : `${Math.ceil(bar.getBoundingClientRect().height) + 16}px`;
+    document.body.style.paddingBottom = room;
+    // A row focused with the keyboard is scrolled clear of the bar, not under it.
+    document.documentElement.style.scrollPaddingBottom = room;
   };
   if (typeof ResizeObserver === "function") new ResizeObserver(fit).observe(bar);
   return fit;
@@ -581,6 +584,8 @@ async function main() {
     view.comparing = false;
     draw();
     $("board-title").scrollIntoView({ block: "start" });
+    // The button was inside the table that just closed: move the keyboard to the board.
+    $("board-title").focus({ preventScroll: true });
   });
   const update = () => {
     // changeChoices drops the budget when the mode changes; fillForm then clears the field.
