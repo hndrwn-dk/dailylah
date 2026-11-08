@@ -60,35 +60,41 @@ after(async () => {
 async function phone(path) {
   const page = await browser.newPage({ viewport: { width: 360, height: 800 } });
   await page.route((url) => !url.href.startsWith(base), (route) => route.abort());
-  await page.goto(base + path, { waitUntil: "load" });
+  const res = await page.goto(base + path, { waitUntil: "load" });
+  assert.ok(res?.ok(), `${path} answered ${res?.status()}`);
   return page;
 }
 
 /**
- * The boxes of a call-to-action button (with its hard shadow) and every link next to it in the
- * same block, plus how many lines each link takes.
+ * Every visible link and button with its box (the hard sticker shadow included), and how many
+ * lines its text takes (counted from the text, so a block-level link that wraps counts too).
+ * Map controls are left out.
  */
-function actionBoxes(page, buttonSelector) {
-  return page.$$eval(buttonSelector, (buttons) =>
-    buttons.map((button) => {
-      const r = button.getBoundingClientRect();
-      // The sticker shadow is drawn outside the box: "3px 4px 0" and the like.
-      const shadow = getComputedStyle(button).boxShadow.match(/(-?\d+(?:\.\d+)?)px (-?\d+(?:\.\d+)?)px/);
-      const dx = shadow ? Math.max(0, Number(shadow[1])) : 0;
-      const dy = shadow ? Math.max(0, Number(shadow[2])) : 0;
-      const links = [...button.parentElement.querySelectorAll("a")].filter((a) => a !== button);
-      return {
-        button: { left: r.left, top: r.top, right: r.right + dx, bottom: r.bottom + dy },
-        links: links.map((a) => {
-          const box = a.getBoundingClientRect();
-          return {
-            text: a.textContent.trim(),
-            lines: a.getClientRects().length,
-            box: { left: box.left, top: box.top, right: box.right, bottom: box.bottom },
-          };
-        }),
-      };
-    }),
+function controls(page) {
+  return page.$$eval("a, button", (els) =>
+    els
+      .filter((el) => !el.closest(".leaflet-container"))
+      .map((el) => {
+        const r = el.getBoundingClientRect();
+        const style = getComputedStyle(el);
+        // The shadow is drawn outside the box: "3px 4px 0" and the like.
+        const shadow = style.boxShadow.match(/(-?\d+(?:\.\d+)?)px (-?\d+(?:\.\d+)?)px/);
+        const dx = shadow ? Math.max(0, Number(shadow[1])) : 0;
+        const dy = shadow ? Math.max(0, Number(shadow[2])) : 0;
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const lines = new Set([...range.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top))).size;
+        return {
+          text: el.textContent.trim().replace(/\s+/g, " ").slice(0, 60),
+          visible: r.width > 0 && r.height > 0 && style.visibility !== "hidden",
+          button: el.classList.contains("go-tool"),
+          // A link that sits with a call-to-action button, or on its own as one ("Browse all towns").
+          action: Boolean(el.closest(".actions, .towns-link")) || el.classList.contains("go-tool"),
+          lines,
+          box: { left: r.left + scrollX, top: r.top + scrollY, right: r.right + scrollX + dx, bottom: r.bottom + scrollY + dy },
+        };
+      })
+      .filter((c) => c.visible),
   );
 }
 
@@ -100,14 +106,17 @@ for (const [name, path] of [
   ["towns list", "/where-to-live/towns"],
   ["town page", "/where-to-live/punggol"],
 ]) {
-  test(`${name} at 360 px: a button and the links beside it never overlap, links stay on one line`, async () => {
+  test(`${name} at 360 px: no link or button overlaps another (shadows included), action links stay on one line`, async () => {
     const page = await phone(path);
     try {
-      const groups = await actionBoxes(page, ".go-tool");
-      for (const { button, links } of groups) {
-        for (const link of links) {
-          assert.equal(link.lines, 1, `"${link.text}" breaks over ${link.lines} lines`);
-          assert.ok(!overlaps(button, link.box), `"${link.text}" overlaps the button or its shadow`);
+      const all = await controls(page);
+      const actions = all.filter((c) => c.action);
+      assert.ok(actions.length > 0, `${path} has a call to action to check`);
+      // A button's label may wrap inside the button; a link beside it must not break mid-phrase.
+      for (const c of actions.filter((a) => !a.button)) assert.equal(c.lines, 1, `"${c.text}" breaks over ${c.lines} lines`);
+      for (let i = 0; i < all.length; i++) {
+        for (let j = i + 1; j < all.length; j++) {
+          assert.ok(!overlaps(all[i].box, all[j].box), `"${all[i].text}" and "${all[j].text}" overlap`);
         }
       }
     } finally {
@@ -116,14 +125,13 @@ for (const [name, path] of [
   });
 }
 
-test("home at 360 px: Compare towns, then Browse all towns under it", async () => {
+test("home at 360 px: Compare towns, then Browse all towns under it with a gap", async () => {
   const page = await phone("/");
   try {
-    const [group] = await actionBoxes(page, ".tool .go-tool");
-    assert.ok(group, "the Where to live? button is on the home page");
-    assert.deepEqual(group.links.map((l) => l.text), ["Browse all towns"]);
-    // Stacked: the link starts below the button and its shadow, with a gap.
-    assert.ok(group.links[0].box.top >= group.button.bottom + 8, "the link sits below the button with room to spare");
+    const [button, link] = (await controls(page)).filter((c) => c.action && c.text.match(/^(Compare towns|Browse all towns)$/));
+    assert.equal(button?.text, "Compare towns");
+    assert.equal(link?.text, "Browse all towns");
+    assert.ok(link.box.top >= button.box.bottom + 8, "the link sits below the button and its shadow with room to spare");
   } finally {
     await page.close();
   }
