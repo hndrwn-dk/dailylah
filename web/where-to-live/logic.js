@@ -287,8 +287,12 @@ export function compareBarText(names) {
  * type: { towns, lines }, one column per town and per line a label and one cell per town
  * ({ text, value, best }). value is the number compared (lower is better), null when unknown.
  * best marks the lowest value, ties included, only when at least two towns have one. The town of
- * the office area itself (same_area) reads "In this area" in every commute line and is left out of
- * "best" there, as on the board and the town pages: it is not a 0-minute trip.
+ * the office area itself (same_area) is not a 0-minute trip, as on the board and the town pages:
+ * - time, transfers and fare read "In this area" and leave it out of "best";
+ * - all-in a month reads "≈ $<rent> rent, no fare estimate" ("In this area" without a rent, and
+ *   in buy mode's fares a month), and hours a month read "In this area";
+ * - all-in (or fares) a month and hours a month mark no "best" at all while that town is compared:
+ *   its money and time are not comparable with a commute, so a "best" there would mislead.
  */
 export function compareTable(data, state) {
   const key = state.mode === "buy" ? "resale" : "rent";
@@ -325,12 +329,26 @@ export function compareTable(data, state) {
       ? commuteLine("fares", "Fares a month", ({ cost: m }) =>
           m.fares != null ? cell(`≈ $${money.format(m.fares)}`, m.fares) : cell("–"),
         )
-      : commuteLine("allin", "All-in a month (rent + fares)", ({ cost: m }) =>
-          m.total != null ? cell(`≈ $${money.format(m.total)}`, m.total) : cell("–"),
-        ),
+      : {
+          key: "allin",
+          label: "All-in a month (rent + fares)",
+          // The office area's own town: its rent, said plainly, and no value to compare.
+          cells: rows.map((row) =>
+            row.commute?.same_area
+              ? cell(row.price ? `≈ $${money.format(row.price.median)} rent, no fare estimate` : IN_AREA)
+              : !row.commute
+                ? cell("–")
+                : row.cost.total != null
+                  ? cell(`≈ $${money.format(row.cost.total)}`, row.cost.total)
+                  : cell("–"),
+          ),
+        },
     commuteLine("hours", "On the road a month", ({ cost: m }) => cell(`${m.hours} h`, m.hours)),
   ];
+  const inArea = rows.some((row) => row.commute?.same_area);
+  const NO_BEST_IN_AREA = new Set(["allin", "fares", "hours"]);
   for (const line of lines) {
+    if (inArea && NO_BEST_IN_AREA.has(line.key)) continue;
     const known = line.cells.filter((c) => c.value != null);
     if (known.length < 2) continue;
     const low = Math.min(...known.map((c) => c.value));

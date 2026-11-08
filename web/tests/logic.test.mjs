@@ -433,18 +433,24 @@ test("compareTable: the office area's town reads 'In this area' and is never bes
   data.towns[0].commute["jurong-east"].fare = 190; // bishan
   data.towns[1].commute["jurong-east"].fare = 245; // punggol
   const t = compareTable(data, state({ area: "jurong-east", compare: ["jurong-east", "bishan", "punggol"] }));
+  // Jurong East has no 4-room rent here, so its all-in cell is "In this area" too.
   for (const key of ["time", "transfers", "fare", "allin", "hours"]) {
     const line = lineOf(t, key);
     assert.equal(line.cells[0].text, IN_AREA, key);
     assert.equal(line.cells[0].value, null, key);
     assert.equal(line.cells[0].best, false, key);
   }
-  // Best among the other two towns only: Bishan (40 min, 1 transfer, $1.90) over Punggol.
+  // Time, transfers, fare: best among the other two towns, Bishan (40 min, 1 transfer, $1.90).
   assert.deepEqual(bests(lineOf(t, "time")), [false, true, false]);
   assert.deepEqual(bests(lineOf(t, "transfers")), [false, true, false]);
   assert.deepEqual(bests(lineOf(t, "fare")), [false, true, false]);
-  assert.deepEqual(bests(lineOf(t, "allin")), [false, false, true]); // Punggol's lower rent wins all-in
-  assert.deepEqual(bests(lineOf(t, "hours")), [false, true, false]);
+  // All-in and hours a month: no "best" at all while the office area's town is compared.
+  assert.deepEqual(bests(lineOf(t, "allin")), [false, false, false]);
+  assert.deepEqual(bests(lineOf(t, "hours")), [false, false, false]);
+  // Without it, the same two lines mark their best again.
+  const others = compareTable(data, state({ area: "jurong-east", compare: ["bishan", "punggol"] }));
+  assert.deepEqual(bests(lineOf(others, "allin")), [false, true]); // Punggol's lower rent
+  assert.deepEqual(bests(lineOf(others, "hours")), [true, false]);
   // The price is not a commute line: the office area's town is compared as usual (no 4-room rent).
   assert.equal(texts(lineOf(t, "price"))[0], "Not enough data");
   // With only one other town, no commute line has two values: nothing is marked.
@@ -456,6 +462,35 @@ test("compareTable: the office area's town reads 'In this area' and is never bes
   assert.equal(lineOf(buy, "fares").cells[0].best, false);
   assert.deepEqual(texts(lineOf(buy, "price")), ["$560,000 (Q2 2026)", "$700,000 (Q2 2026)"]);
   assert.deepEqual(bests(lineOf(buy, "price")), [true, false]);
+});
+
+test("compareTable: Woodlands to Woodlands against Ang Mo Kio and Bedok (real data)", () => {
+  const real = JSON.parse(read("data/where-to-live.json"));
+  const t = compareTable(real, readQuery("?area=woodlands&compare=woodlands,ang-mo-kio,bedok", real));
+  const wood = real.towns.find((x) => x.id === "woodlands");
+  // The data is rebuilt weekly: without a 4-room rent the cell reads "In this area".
+  const rent = wood.rent?.["4-ROOM"]?.median;
+  assert.equal(
+    lineOf(t, "allin").cells[0].text,
+    rent == null ? IN_AREA : `≈ $${rent.toLocaleString("en-SG")} rent, no fare estimate`,
+  );
+  assert.equal(lineOf(t, "allin").cells[0].value, null);
+  assert.equal(lineOf(t, "hours").cells[0].text, IN_AREA);
+  // No "best" in all-in or hours a month: Woodlands (no fares, no hours) is in the comparison.
+  assert.deepEqual(bests(lineOf(t, "allin")), [false, false, false]);
+  assert.deepEqual(bests(lineOf(t, "hours")), [false, false, false]);
+  // Other lines as before: the commute lines among Ang Mo Kio and Bedok, the rent among all three.
+  assert.equal(lineOf(t, "time").cells[0].text, IN_AREA);
+  assert.equal(lineOf(t, "time").cells.filter((c) => c.best).length, 1);
+  assert.equal(lineOf(t, "time").cells[0].best, false);
+  const rents = lineOf(t, "price").cells.map((c) => c.value);
+  const low = Math.min(...rents);
+  assert.deepEqual(bests(lineOf(t, "price")), rents.map((r) => r === low));
+  // Buy mode: fares a month reads "In this area" and marks no "best" either.
+  const buy = compareTable(real, readQuery("?area=woodlands&mode=buy&compare=woodlands,ang-mo-kio,bedok", real));
+  assert.equal(lineOf(buy, "fares").cells[0].text, IN_AREA);
+  assert.deepEqual(bests(lineOf(buy, "fares")), [false, false, false]);
+  assert.deepEqual(bests(lineOf(buy, "hours")), [false, false, false]);
 });
 
 test("compareTable: towns without a route", () => {
