@@ -3,6 +3,7 @@
 library;
 
 import 'data.dart';
+import 'logic.dart';
 import 'models.dart';
 
 /// NEA health advisory bands for haze (24-hour PSI and 1-hour PM2.5).
@@ -643,7 +644,11 @@ class S {
   String get watchBlock => 'Notify me of new sales';
   String get watchingBlock => 'Notifying you';
   String medianFor(String flatType) => 'median ${flatType.toLowerCase()}';
-  String rentMedian(String flatType, String amount) => 'Rent around $amount a month for a ${flatType.toLowerCase().replaceAll('-', ' ')} in this town';
+  String rentMedian(String flatType, String amount, [String period = '']) {
+    final flat = flatType.toLowerCase().replaceAll('-', ' ');
+    return 'Rent around $amount a month for ${flat.startsWith('e') ? 'an' : 'a'} $flat in this town'
+        '${period.isEmpty ? '' : ' ($period median)'}';
+  }
   String get propertyAgents => 'Property agents';
   String get worksTitle => 'Upgrading and construction';
   String get worksNone => 'No upgrading or construction listed within 1 km.';
@@ -760,7 +765,7 @@ class S {
   String compareCount(int n) => 'Compare ($n)';
   String get addToCompare => 'Add to compare';
   String get inCompare => 'In comparison';
-  String openCompare(int n) => 'See comparison ($n)';
+  String openCompare(int n) => 'Compare ($n)';
   String get watch => 'Notify me of new sales';
   String get watching => 'Notifying you';
   String get watchNote => 'You get a notification when a flat in this block is sold, with the price and flat type.';
@@ -994,4 +999,157 @@ class S {
   String get hawkerTomorrowTitle => 'Hawker closed tomorrow';
   String get dengueTitle => 'Dengue cluster nearby';
   String get heatTitle => 'Heat and lightning';
+
+  // ---------------------------------------------------------------- where to live
+  String wtlRankedFor(String area, PlaceKind kind, double km) {
+    final place = kind == PlaceKind.school ? 'school' : 'work';
+    return km < 0.5
+        ? 'The office area where your $place is.'
+        : 'The office area nearest your $place (${km.toStringAsFixed(1)} km).';
+  }
+  String get wtlPickedArea => 'The office area you picked.';
+  String get wtlPickArea => 'Pick the office area you travel to. Save your work place in setup to rank for it.';
+  String get wtlFarArea => 'Your saved place is not near one of the six office areas. Pick the one you travel to.';
+  String get wtlOfficeArea => 'Office area';
+  String get wtlIWantTo => 'I want to';
+  String get wtlRent => 'Rent';
+  String get wtlBuy => 'Buy resale';
+  String get wtlFlatType => 'Flat type';
+  String wtlBudgetLabel(WtlMode mode) => mode == WtlMode.buy ? r'Max price ($)' : r'Max rent per month ($)';
+  String get wtlAny => 'Any';
+  String get wtlTravelTime => 'Travel time';
+  String get wtlAnyTime => 'Any time';
+  String wtlUpTo(int m) => 'Up to $m min';
+  String wtlFlatName(String flat) => flat == 'EXECUTIVE' ? 'Executive' : flat.toLowerCase();
+  String wtlToArea(String area) => 'To $area';
+  String wtlModeName(WtlMode mode) => mode == WtlMode.buy ? 'Buy resale' : 'Rent';
+  String get wtlRentOnly => 'rent only';
+  String get rentInTown => 'Rent in town';
+  String get resaleMedian => 'Resale median';
+  String get cmpBusStops => 'Bus stops ≤ 400 m';
+  String get cmpHawkers => 'Hawkers ≤ 1 km';
+  String get cmpPrimary => 'Primary schools ≤ 1 km';
+  String get cmpParks => 'Parks ≤ 1 km';
+  String get cmpDengue => 'Dengue clusters ≤ 1 km';
+  String leaseEnds(int year) => 'ends $year';
+  String get perMonthShort => '/mo';
+
+  // One line at the foot of the block page and the comparison; the rest is in "About this data".
+  String dataFooter(String updated) => 'Indicative only, not advice.${updated.isEmpty ? '' : ' Updated $updated.'}';
+  String get aboutData => 'About this data';
+  String get aboutDataSources => 'Sources';
+  String get aboutDataSourcesText => 'HDB resale prices and median rents of approved HDB rentals via data.gov.sg '
+      '(Singapore Open Data Licence). Trips planned with OneMap (Singapore Land Authority). Bus stops from LTA '
+      'DataMall; schools, parks, hawker centres and dengue clusters from MOE, NParks and NEA via data.gov.sg.';
+  String get aboutDataMethod => 'How the numbers are made';
+  String get aboutDataMethodText => 'Resale prices are medians of the last 24 months of sales. Town rents are '
+      'quarterly medians, each shown with its own quarter. Commutes are planned weekday 08:30 trips by MRT and '
+      "bus from the town's MRT station, so the trip from a block itself can differ. A month is 22 working days "
+      'there and back, at the adult card fare; all-in is rent plus those fares.';
+  String get aboutDataListings => 'Past transactions, not listings';
+  String get aboutDataListingsText => 'These are past transactions and approved rentals from public data, not '
+      'flats for sale or rent now. Indicative only, not financial advice.';
+  String get checkEligibility => 'Check eligibility on hdb.gov.sg';
+  String get wtlCommuteTitle => 'Commute and all-in cost';
+  String wtlTownsTitle(String area) => 'Towns by trip to $area';
+  String wtlTownsSub(String flat, WtlMode mode) =>
+      'Weekday 08:30 by MRT and bus, ${wtlFlatName(flat)} ${mode == WtlMode.buy ? 'resale' : 'rent'}';
+  String get wtlSortBy => 'Sort by';
+  String get wtlSortTime => 'Time';
+  String get wtlSortPrice => 'Price';
+  String get wtlYourTown => "This block's town";
+  String wtlFromStation(String station) => 'from $station MRT';
+  String get wtlNotInData => 'No commute data for this town yet.';
+  String get wtlPerTrip => 'a trip, adult card';
+  String get wtlAllInLabel => 'all-in a month, rent + fares · estimate';
+  String get wtlFaresLabel => 'fares a month · estimate';
+  String get wtlHoursLabel => 'on the road a month · estimate';
+  String wtlHours(int h) => '$h h';
+  String wtlFits(int n) => 'Fits your choices ($n)';
+  String wtlNoPriceGroup(String flat, int n) => 'No ${wtlFlatName(flat)} price data ($n)';
+  String wtlOutside(int n) => 'Outside your choices ($n)';
+  String get wtlNothingFits => 'Alamak, nothing fits. Try a bigger budget or longer travel time.';
+  String wtlShowAll(int n) => 'Show all $n';
+  String get wtlFastest => 'Fastest';
+  String get wtlBestValue => 'Best value';
+  String get wtlHere => 'Here';
+
+  /// "2026-Q3" -> "Q3 2026".
+  String wtlQuarter(String q) {
+    final m = RegExp(r'^(\d{4})-Q([1-4])$').firstMatch(q);
+    return m == null ? '' : 'Q${m[2]} ${m[1]}';
+  }
+
+  String wtlShortPrice(WtlMode mode, QuarterMedian? p) =>
+      p == null ? 'No data' : (mode == WtlMode.buy ? sgd(p.median) : '${sgd(p.median)}/mo');
+  String wtlTransfers(int n) => n == 0 ? 'no transfer' : (n == 1 ? '1 transfer' : '$n transfers');
+  String wtlRoute(WtlRow r) {
+    final c = r.commute;
+    if (c == null) return 'No route data';
+    if (c.sameArea) return 'In this area (${r.town.station} MRT)';
+    return 'From ${r.town.station} MRT, ${wtlTransfers(c.transfers ?? 0)}';
+  }
+
+  String wtlPriceDetail(WtlChoice c, QuarterMedian? p) {
+    final what = '${wtlFlatName(c.flat)} median ${c.mode == WtlMode.buy ? 'resale price' : 'rent'}';
+    return p == null ? '$what: not enough data' : '$what, ${wtlQuarter(p.quarter)}';
+  }
+  String wtlTransfersValue(int n) => n == 0 ? 'No transfer' : (n == 1 ? '1 transfer' : '$n transfers');
+  String get wtlTransfersCaption => 'on the way';
+  String wtlAllInParts(String rent, String fares) => '$rent rent + $fares fares';
+
+  /// "≈ S$3,535/mo all-in with fares, 26 h on the road a month (estimate)", or the known parts.
+  String wtlAllIn(({int? fares, int hours, int? total, bool same})? m) {
+    if (m == null) return '';
+    if (m.same) return 'In this area: no commute to pay for (estimate)';
+    final parts = [
+      if (m.total != null)
+        '≈ ${sgd(m.total!)}/mo all-in with fares'
+      else if (m.fares != null)
+        '≈ ${sgd(m.fares!)}/mo in fares',
+      '${m.hours} h on the road a month',
+    ];
+    return '${parts.join(', ')} (estimate)';
+  }
+
+  String wtlReason(WtlReason? r, int? max) => switch (r) {
+        WtlReason.far => 'Over $max min',
+        WtlReason.budget => 'Over your budget',
+        WtlReason.route => 'No route data',
+        null => '',
+      };
+  String wtlMoreAbout(String town) => 'More about $town';
+  String wtlLine(WtlLineKey k, String area, WtlChoice c) => switch (k) {
+        WtlLineKey.time => 'Time to $area',
+        WtlLineKey.transfers => 'Transfers',
+        WtlLineKey.fare => 'Fare per trip (adult card)',
+        WtlLineKey.price => c.mode == WtlMode.buy
+            ? '${_cap(wtlFlatName(c.flat))} median resale price'
+            : '${_cap(wtlFlatName(c.flat))} median rent',
+        WtlLineKey.allIn => 'All-in a month (rent + fares)',
+        WtlLineKey.faresMonth => 'Fares a month',
+        WtlLineKey.hours => 'On the road a month',
+      };
+  static String _cap(String x) => x.isEmpty ? x : '${x[0].toUpperCase()}${x.substring(1)}';
+  String wtlCell(WtlLineKey k, WtlCell cell, WtlMode mode) => switch (cell.kind) {
+        WtlCellKind.inArea => 'In this area',
+        WtlCellKind.inAreaRent => '≈ ${sgd(cell.shown!)}',
+        WtlCellKind.noRoute => k == WtlLineKey.time ? 'No route data' : '–',
+        WtlCellKind.unknown => switch (k) {
+            WtlLineKey.fare => 'Not known',
+            WtlLineKey.price => 'Not enough data',
+            _ => '–',
+          },
+        WtlCellKind.value => switch (k) {
+            WtlLineKey.time => '${cell.shown} min',
+            WtlLineKey.transfers => cell.shown == 0 ? 'No transfer' : (cell.shown == 1 ? '1 transfer' : '${cell.shown} transfers'),
+            WtlLineKey.fare => 'S\$${(cell.shown! / 100).toStringAsFixed(2)}',
+            WtlLineKey.price => '${mode == WtlMode.buy ? sgd(cell.shown!) : '${sgd(cell.shown!)}/mo'}\n'
+                '${wtlQuarter(cell.quarter ?? '')}',
+            WtlLineKey.allIn || WtlLineKey.faresMonth => '≈ ${sgd(cell.shown!)}',
+            WtlLineKey.hours => '${cell.shown} h',
+          },
+      };
+  String get wtlBest => 'Best';
+  String get wtlNoData => 'The town data has not loaded yet. Check your connection and try again.';
 }

@@ -43,6 +43,23 @@ const _block156 = HdbBlock(
   postal: '521156',
 );
 
+const _blockWoodlands = HdbBlock(
+  block: '1',
+  street: 'MARSILING DR',
+  town: 'WOODLANDS',
+  yearCompleted: 1973,
+  floors: 11,
+  lat: 1.44062,
+  lng: 103.77573,
+  postal: '730001',
+);
+
+/// Woodlands is the office area itself: "In this area", no fare estimate, no best in its lines.
+final _officeTown = householdFavorites.copyWith(
+  wtlArea: 'woodlands',
+  compareBlocks: ['1|MARSILING DR', '156|TAMPINES ST 12', '101|ANG MO KIO AVE 3'],
+);
+
 /// Pages opened with Navigator.push from the tabs.
 final Map<String, Widget Function()> _pages = {
   'Setup (first run, empty)': () => const SetupPage(firstRun: true),
@@ -56,6 +73,8 @@ final Map<String, Widget Function()> _pages = {
   'Block search': () => const BlockSearchPage(),
   'Block page': () => const BlockPage(block: _block156),
   'Compare blocks': () => const ComparePage(),
+  'Block page (office area in its town)': () => const BlockPage(block: _blockWoodlands),
+  'Compare blocks (one in the office area)': () => const ComparePage(),
   'Agent check': () => const AgentCheckPage(),
   'Family share': () => const FamilySharePage(),
   'About': () => const AboutDailyLahPage(),
@@ -173,10 +192,13 @@ void main() {
       for (final entry in _pages.entries) {
         testWidgets('Page: ${entry.key}', (tester) async {
           await applyCondition(tester, c);
-          final fav = entry.key.contains('empty') ? const Favorites() : householdFavorites;
+          final fav = entry.key.contains('empty')
+              ? const Favorites()
+              : (entry.key.contains('office area') ? _officeTown : householdFavorites);
           await tester.pumpWidget(pageUnder(c, fav, tuesdayMorning, entry.value()));
           await settle(tester);
-          await scrollThrough(tester);
+          // The block page runs long (commute and the town board): scroll to its end.
+          await scrollThrough(tester, times: entry.key.startsWith('Block page') ? 30 : 8);
           expect(tester.takeException(), isNull);
         });
       }

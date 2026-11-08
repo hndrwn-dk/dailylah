@@ -612,7 +612,6 @@ void main() {
     expect(upgradingAtHome(near).single.kind, 'lup');
     expect(projectEnded('4Q 2026', DateTime(2026, 10, 21)), isFalse);
     expect(projectEnded('2026-09', DateTime(2026, 10, 21)), isTrue);
-    expect(rentFor({'3-ROOM': 3000, '5-ROOM': 4300}, '3 ROOM'), ('3-ROOM', 3000));
   });
 
   test('hawker closures in the next 30 days near home', () {
@@ -689,6 +688,10 @@ void main() {
     expect(privateProjectFor([p], near)!.name, 'Taipan Grand');
     expect(privateProjectFor([p], far), isNull);
     expect(titleCase('BT BATOK ST 11'), 'Bt Batok St 11');
+    // Short forms stay in capitals, wherever a name is title-cased.
+    expect(titleCase('TAMPINES MRT STATION'), 'Tampines MRT Station');
+    expect(titleCase('Bakau LRT Station'), 'Bakau LRT Station');
+    expect(titleCase('(EW2) tampines'), '(EW2) Tampines');
   });
 
   test('order in: rain, then haze, then a closed hawker', () {

@@ -785,11 +785,7 @@ List<TodayAlert> todayAlerts({
 
 // ---------------------------------------------------------------- addresses (OneMap)
 
-String _titleCase(String s) => s
-    .toLowerCase()
-    .split(' ')
-    .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
-    .join(' ');
+String _titleCase(String s) => s.split(' ').map(capitalizeWord).join(' ');
 
 /// Results of https://www.onemap.gov.sg/api/common/elastic/search, de-duplicated by postal code.
 List<AddressHit> parseOneMap(Map<String, dynamic> body) {
@@ -1783,15 +1779,6 @@ List<(Hawker, Closure, double)> upcomingClosures(List<Hawker> all, double lat, d
   return out;
 }
 
-/// Median rent in a town for the flat type closest to [flatType] ("3 ROOM" -> "3-ROOM").
-(String, int)? rentFor(Map<String, int> rents, String? flatType) {
-  if (rents.isEmpty) return null;
-  final want = (flatType ?? '').toUpperCase().replaceAll(' ', '-');
-  if (rents[want] != null) return (want, rents[want]!);
-  final keys = rents.keys.toList()..sort();
-  return (keys.first, rents[keys.first]!);
-}
-
 /// Halal places near a point, optionally matching every word of [query] in the name or
 /// address ("nasi padang", "cafe tampines"). Wider radius when searching.
 /// Halal places matching [query] near a point, nearest first. Favourites ([favs], by
@@ -1816,11 +1803,7 @@ List<(EPoint, double)> halalNear(List<EPoint> all, double lat, double lng,
 }
 
 /// "MARINE DR" -> "Marine Dr", "BT BATOK ST 11" -> "Bt Batok St 11".
-String titleCase(String s) => s
-    .toLowerCase()
-    .split(' ')
-    .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
-    .join(' ');
+String titleCase(String s) => s.split(' ').map(capitalizeWord).join(' ');
 
 /// The private project at a saved home: the nearest one within [maxMetres] (URA gives one
 /// point per project, so large estates need some slack).
@@ -3065,4 +3048,108 @@ class WtlLine {
     }
   }
   return (towns: towns, lines: lines);
+}
+
+// ---------------------------------------------------------------- where to live on a block's page
+//
+// "Prices, rent and score" (BlockPage) and the block comparison use the rules above for the
+// block's own HDB town: the block takes its town's numbers, from the town's MRT station.
+
+/// The where-to-live town of an HDB town name as the block bundles spell it ("KALLANG/WHAMPOA").
+WtlTown? wtlTownFor(WhereToLive data, String hdbTown) {
+  final want = hdbTown.trim().toUpperCase();
+  for (final t in data.towns) {
+    if (t.name.toUpperCase() == want) return t;
+  }
+  return null;
+}
+
+/// The user's choices from Favorites, checked against the data, with the office area nearest the
+/// saved work or school place when none was picked by hand. [anchor] / [meters]: that place and its
+/// distance, null when the area was picked by hand or no saved place is near one.
+({WtlChoice choice, Place? anchor, double? meters}) wtlChoiceFor(WhereToLive data, Favorites fav) {
+  final place = wtlAnchorPlace(fav.places);
+  final near = place == null ? null : wtlNearestArea(data, place.lat, place.lng);
+  final picked = data.areas.any((a) => a.id == fav.wtlArea);
+  final area = picked ? fav.wtlArea : (near?.area.id ?? 'cbd');
+  final choice = wtlChecked(
+    data,
+    WtlChoice(
+      area: area,
+      mode: fav.wtlMode == 'buy' ? WtlMode.buy : WtlMode.rent,
+      flat: fav.wtlFlat.isEmpty ? '4-ROOM' : fav.wtlFlat,
+    ),
+  );
+  return (choice: choice, anchor: picked || near == null ? null : place, meters: picked ? null : near?.meters);
+}
+
+/// One town rent: the median, and the quarter ("2026-Q3", [quarterly]) or the six-month period
+/// ("2026-05 – 2026-10") it covers.
+typedef TownRent = ({int median, String period, bool quarterly});
+
+/// The rents shown for an HDB town, one source per town so a page never shows two different rents
+/// for it: the quarterly medians of the where-to-live bundle (each with its quarter) when it has the
+/// town, else the six-month medians of hdb_rent with their period. Flat types smallest first.
+Map<String, TownRent> townRents(WhereToLive? wtl, RentData? rent, String hdbTown) {
+  final town = wtl == null ? null : wtlTownFor(wtl, hdbTown);
+  int at(String f) => _wtlFlatOrder.contains(f) ? _wtlFlatOrder.indexOf(f) : _wtlFlatOrder.length;
+  final Map<String, TownRent> out;
+  if (town != null) {
+    out = {
+      for (final e in town.rent.entries)
+        if (e.value != null) e.key: (median: e.value!.median, period: e.value!.quarter, quarterly: true),
+    };
+  } else {
+    out = {
+      for (final e in (rent?.towns[hdbTown] ?? const <String, int>{}).entries)
+        e.key: (median: e.value, period: rent!.period, quarterly: false),
+    };
+  }
+  final keys = out.keys.toList()..sort((a, b) => at(a).compareTo(at(b)));
+  return {for (final k in keys) k: out[k]!};
+}
+
+/// The rent to quote for a block: its most traded flat type when the town has a rent for it, else
+/// the smallest flat type with one.
+(String, TownRent)? townRentFor(Map<String, TownRent> rents, String? flatType) {
+  if (rents.isEmpty) return null;
+  final want = (flatType ?? '').toUpperCase().replaceAll(' ', '-');
+  if (rents[want] != null) return (want, rents[want]!);
+  final first = rents.entries.first;
+  return (first.key, first.value);
+}
+
+enum WtlSort { time, price }
+
+/// [rows] in the order picked: by travel time as [wtlRank] already sorts them, or by price (no
+/// price last), then travel time, then name.
+List<WtlRow> wtlSorted(List<WtlRow> rows, WtlSort sort) {
+  if (sort == WtlSort.time) return rows;
+  return [...rows]..sort((a, b) {
+      final p = (a.price?.median ?? 1 << 30).compareTo(b.price?.median ?? 1 << 30);
+      if (p != 0) return p;
+      final t = (a.minutes ?? 1 << 30).compareTo(b.minutes ?? 1 << 30);
+      return t != 0 ? t : a.town.name.compareTo(b.town.name);
+    });
+}
+
+/// Commute lines for the block comparison: time, transfers, fare, all-in a month (fares a month
+/// when buying) and hours a month, a cell per block from its town (as [wtlCompareTable], with the
+/// same "in this area" and "best" rules over the towns compared). A block whose town is not in the
+/// data gets unknown cells and takes no part in "best".
+List<WtlLine> wtlBlockLines(WhereToLive data, WtlChoice c, List<String> hdbTowns) {
+  final towns = [for (final name in hdbTowns) wtlTownFor(data, name)];
+  final ids = <String>{
+    for (final t in towns)
+      if (t != null) t.id,
+  }.toList();
+  final table = wtlCompareTable(data, c.copyWith(compare: ids));
+  final col = {for (var i = 0; i < table.towns.length; i++) table.towns[i].id: i};
+  return [
+    for (final line in table.lines)
+      if (line.key != WtlLineKey.price)
+        WtlLine(line.key, [
+          for (final t in towns) t == null || col[t.id] == null ? WtlCell(WtlCellKind.unknown) : line.cells[col[t.id]!],
+        ]),
+  ];
 }
