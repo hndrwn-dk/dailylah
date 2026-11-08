@@ -96,7 +96,7 @@ jobs:
           BEFORE: ${{ github.event.before }}
           TRACK: ${{ steps.track.outputs.track }}
         run: |
-          echo "Release tags fetched: $(git tag -l 'v[0-9]*' | wc -l) ($(git tag -l 'v[0-9]*' --sort=-v:refname | head -3 | tr '\n' ' '))"
+          echo "Release tags fetched: $(git tag -l 'v[0-9]*' | wc -l) ($(git tag -l 'v[0-9]*' --sort=-creatordate | head -3 | tr '\n' ' '))"
           if ref=$(git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD^ 2>/dev/null); then
             echo "::notice title=Upgrade test::from $ref ($(git rev-parse --short "$ref^{commit}")), the last release"
           else

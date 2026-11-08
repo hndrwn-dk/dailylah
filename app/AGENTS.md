@@ -242,8 +242,8 @@ feature, screen, provider or rule moves, appears or goes away.
   missing classes or plugins. A new plugin with native code may need a keep rule.
 
 ## Store assets (Google Play)
-- Version: bump `version:` in `app/pubspec.yaml` only (e.g. `1.0.0+2`). CI takes the versionName from
-  there and uses the run number as versionCode, so every CI build can be uploaded. First public release: 1.0.0.
+- Version: bump `version:` in `app/pubspec.yaml` only (e.g. `2.0.1+23`). CI takes the versionName from
+  there and uses the run number as versionCode, so every CI build can be uploaded. First public release: 2.0.0 (after the 1.9.x test builds; versions never go back).
 - Icon `app/assets/store/play-icon-512.png` and feature graphic `docs/feature_design/feature-graphic-1024x500.png`
   come from `scripts/make_feature_graphic.py`.
 - Phone screenshots (8, 1080x1920) in `docs/store/screenshots`: real screens rendered by `app/test_store`

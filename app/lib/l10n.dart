@@ -886,7 +886,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Your saved places, habits and history now stay on this phone only: they are left out of Google backup and phone-to-phone transfer. To set up a new phone, Share with family copies your saved stops, MRT lines and times.",
+        "New in Prices, rent and score: travel time, fares and all-in monthly cost to your office for every HDB town, plus commute and cost when you compare blocks.",
       ];
 
   // about
