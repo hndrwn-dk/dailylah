@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "push_data.sh"
@@ -306,9 +307,15 @@ def test_a_generated_path_the_generator_did_not_write_is_skipped(repos, tmp_path
     ],
 )
 def test_build_job_checks_out_the_newest_main(workflow, ref):
-    """A queued run must not build its patch on data an earlier run already replaced (data #61)."""
-    text = (ROOT / ".github" / "workflows" / workflow).read_text()
-    build = text.split("\n  build:\n", 1)[1].split("\n  push:\n", 1)[0]
-    checkout = build.split("actions/checkout@", 1)[1].split("\n      - ", 1)[0]
-    assert f"ref: {ref}\n" in checkout
-    assert "persist-credentials: false" in checkout
+    """A queued run must not build its patch on data an earlier run already replaced (data #61).
+
+    The push job keeps the queued commit: the push_data.sh that holds the key is the reviewed one
+    the run was started with."""
+    jobs = yaml.safe_load((ROOT / ".github" / "workflows" / workflow).read_text())["jobs"]
+
+    def checkout(job: str) -> dict:
+        steps = jobs[job]["steps"]
+        return next(s.get("with", {}) for s in steps if "actions/checkout@" in s.get("uses", ""))
+
+    assert checkout("build") == {"ref": ref, "persist-credentials": False}
+    assert "ref" not in checkout("push")

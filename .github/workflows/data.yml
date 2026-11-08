@@ -35,8 +35,9 @@ jobs:
       # On main, build from the newest main, not from the commit the run was queued at: a run that
       # waited in the `data` concurrency group would otherwise build a patch on top of bundles an
       # earlier run already replaced, and push_data.sh would refuse it (data run #61, 8 Nov 2026).
-      # The workflow file itself still comes from the queued commit. A run on another branch
-      # builds that branch (its push job is skipped).
+      # The workflow file (secrets, allowlist) still comes from the queued commit: a run queued
+      # before a merge that changes the build's outputs or the allowlist may fail once (closed);
+      # run it again. A run on another branch builds that branch (its push job is skipped).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.ref == 'refs/heads/main' && 'main' || github.sha }}

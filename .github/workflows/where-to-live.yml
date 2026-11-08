@@ -28,8 +28,9 @@ jobs:
     steps:
       # Build from the newest main, not from the commit the run was queued at, so a run that
       # waited in the `where-to-live` concurrency group starts from the data an earlier run pushed
-      # (see data.yml, data run #61). This job runs on main only. The workflow file itself still
-      # comes from the queued commit.
+      # (see data.yml, data run #61). This job runs on main only. The workflow file (secrets,
+      # allowlist) still comes from the queued commit: a run queued before a merge that changes
+      # them may fail once (closed); run it again.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main

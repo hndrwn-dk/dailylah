@@ -88,9 +88,11 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   only bypass) that runs `scripts/push_data.sh` and nothing from pip. The patch may carry only
   JSON files that parse; files the site serves as pages (the where-to-live town pages, the sitemap)
   are made in the push job by main's own stdlib generator (`push_data.sh --generate`), never taken
-  from the patch. Both build jobs check out the newest `main` (`ref: main`), so a run that waited
-  in its concurrency group never builds on data an earlier run replaced. `web/vercel.json` sends
-  `nosniff` for `/data/*`. In `app.yml` only
+  from the patch. When run on main, both build jobs check out the newest `main` (`ref: main`), so a
+  run that waited in its concurrency group builds on the data the earlier run pushed; the push
+  jobs keep the queued commit (and its `push_data.sh`). A run queued before a merge that changes
+  the build's outputs, secrets or allowlist may fail once (fails closed); run it again.
+  `web/vercel.json` sends `nosniff` for `/data/*`. In `app.yml` only
   `release-tag` writes (`contents: write`, the release tag and draft Release); `play`, which holds
   the Play key, stays read-only. The upload key is only in the `sign` job (environment `signing`:
   sparse checkout of `scripts/sign_aab.sh`, JDK only, no Gradle, pub or cache); the Play key only in
