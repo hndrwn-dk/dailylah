@@ -51,6 +51,22 @@ updates:
       ci-tools:
         update-types: [minor, patch]
 
+  # The web layout check (playwright-core only), run by web.yml.
+  - package-ecosystem: npm
+    directory: /web/tests/e2e
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: Asia/Singapore
+    # A new npm release waits a week before it is proposed (time for a bad publish to be pulled).
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor:
+        update-types: [minor, patch]
+
   # Keeps the commit SHAs in every `uses:` current; the `# vX.Y.Z` comment is updated too.
   - package-ecosystem: github-actions
     directory: /

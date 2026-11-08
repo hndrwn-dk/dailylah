@@ -132,10 +132,16 @@
   /* ---------------- where to live */
   .tool { padding: 24px; margin-bottom: 40px; display: grid; gap: 12px; justify-items: start; background: var(--sky); }
   .tool p { margin: 0; max-width: 60ch; }
-  .go-tool { font-weight: 700; padding: 10px 16px; border: 2.5px solid var(--edge); border-radius: 12px; background: #0A7068;
+  .go-tool { display: inline-block; font-weight: 700; padding: 10px 16px; border: 2.5px solid var(--edge); border-radius: 12px; background: #0A7068;
              color: #fff; text-decoration: none; box-shadow: 3px 4px 0 var(--shadow); }
   .go-tool:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
-  .tool .towns { margin-left: 10px; font-weight: 600; }
+  /* Button and link side by side with room for the button's shadow; stacked on narrow screens. The
+     link never breaks mid-phrase. */
+  .tool .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; }
+  .tool .towns { font-weight: 600; white-space: nowrap; }
+  @media (max-width: 559px) {
+    .tool .actions { flex-direction: column; align-items: flex-start; gap: 16px; }
+  }
   /* ---------------- privacy */
   .private { padding: 28px 24px; margin-bottom: 72px; background: var(--mint); display: grid; gap: 18px; }
   @media (min-width: 760px) { .private { grid-template-columns: 1fr 1.4fr; padding: 36px; } }
@@ -258,7 +264,7 @@
   <section class="tool sticker">
     <h2>Where to live?</h2>
     <p>Compare HDB towns by MRT and bus time to your office and by HDB median rent or resale price, on one map.</p>
-    <p><a class="go-tool" href="/where-to-live">Compare towns</a> <a class="towns" href="/where-to-live/towns">or browse all HDB towns</a></p>
+    <p class="actions"><a class="go-tool" href="/where-to-live">Compare towns</a> <a class="towns" href="/where-to-live/towns">Browse all towns</a></p>
   </section>
 
   <section class="private sticker">

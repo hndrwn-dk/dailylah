@@ -3,7 +3,8 @@ name: security
 # nothing here blocks a Google Play upload, but a red run must be fixed before merging.
 #   - CodeQL: actions, python, java-kotlin. Dart is not supported by CodeQL; it is covered by
 #     `dart analyze` (app workflow) and the AI review.
-#   - osv-scanner: app/pubspec.lock and backend/requirements*.txt. Fails on High/Critical.
+#   - osv-scanner: app/pubspec.lock, backend/requirements*.txt, .github/tools/requirements.txt and
+#     web/tests/e2e/package-lock.json. Fails on High/Critical.
 #   - zizmor: every workflow. Fails on High; Medium shows as a warning.
 # Baselines (Low findings only, each with a reason): osv-scanner.toml, .github/zizmor.yml.
 on:
@@ -152,7 +153,8 @@ jobs:
                 --lockfile app/pubspec.lock
                 --lockfile backend/requirements.txt
                 --lockfile requirements.txt:backend/requirements-dev.txt
-                --lockfile .github/tools/requirements.txt)
+                --lockfile .github/tools/requirements.txt
+                --lockfile web/tests/e2e/package-lock.json)
           "$RUNNER_TEMP/osv-scanner" scan source "${args[@]}" --format json --output-file osv.json
           rc=$?
           "$RUNNER_TEMP/osv-scanner" scan source "${args[@]}" --format sarif --output-file osv.sarif

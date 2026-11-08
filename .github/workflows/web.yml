@@ -48,11 +48,30 @@ jobs:
           node-version: "22"
       - run: node --test 'web/tests/*.test.mjs'
 
+  # The pages at phone width in a real browser: buttons and the links beside them never overlap.
+  # Only playwright-core (pinned, lockfile, no install scripts); the browser is the runner's Chrome.
+  layout:
+    name: layout (Playwright)
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "22"
+      - working-directory: web/tests/e2e
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          node --test layout.e2e.mjs
+
   # The one check to require for this workflow: fails if any job failed or was cancelled,
   # passes when they passed or were skipped (no web change).
   result:
     name: web result
-    needs: [changes, test]
+    needs: [changes, test, layout]
     if: always()
     runs-on: ubuntu-latest
     permissions: {}

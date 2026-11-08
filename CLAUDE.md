@@ -57,7 +57,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - Trigger a poll locally: `curl -X POST localhost:8000/internal/poll`
 - App: `cd app && flutter pub get && flutter analyze && flutter test`
 - Run app against local API (Android emulator): `flutter run --dart-define=API_URL=http://10.0.2.2:8000`
-- Web: `node --test 'web/tests/*.test.mjs'` (Node 22, no packages)
+- Web: `node --test 'web/tests/*.test.mjs'` (Node 22, no packages). Layout at 360 px in a real browser:
+  `cd web/tests/e2e && npm ci --ignore-scripts && node --test layout.e2e.mjs` (playwright-core only, pinned in
+  its lockfile; set `CHROME_PATH` when Chrome is not installed as `chrome`)
 - Repo map and agent docs: `python3 scripts/repo_map.py` writes `docs/REPO_MAP.md` and every
   `AGENTS.md`; `--check` fails when either is stale.
 
@@ -111,8 +113,8 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   `.github/zizmor.yml`) take Low findings only, each with a reason.
 - Backend: ruff includes the bandit rules (`S`); an exception is an inline `# noqa: Sxxx` with the
   reason. `backend` also runs `pip-audit`.
-- Dependabot (`.github/dependabot.yml`): pub, gradle, pip and github-actions, weekly on Monday,
-  minor/patch grouped per ecosystem.
+- Dependabot (`.github/dependabot.yml`): pub, gradle, pip, github-actions and npm (`web/tests/e2e`, with a
+  7-day cooldown), weekly on Monday, minor/patch grouped per ecosystem.
 
 ## Git workflow
 - One branch and one PR per batch, squash-merged into `main`.

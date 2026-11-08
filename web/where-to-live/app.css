@@ -208,7 +208,7 @@ input[type=text]::placeholder { color: var(--mist); }
 /* Phones: the button sits on its own short line under the town, so the names keep their width.
    Wider screens: beside the line. */
 .row { display: grid; grid-template-columns: minmax(0, 1fr); }
-.cmp { justify-self: start; display: inline-flex; align-items: center; gap: 5px; min-height: 32px; margin: -4px 0 10px 4px;
+.cmp { justify-self: start; display: inline-flex; align-items: center; gap: 5px; min-height: 32px; margin: 0 0 10px 4px;
        padding: 0 10px; background: none; color: var(--led); border: 1.5px solid rgba(255, 182, 39, 0.55);
        border-radius: 999px; font: 700 13px/1.1 var(--body); cursor: pointer; }
 .cmp-mark { font: 700 16px/1 var(--display); }
