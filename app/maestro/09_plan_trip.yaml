@@ -20,10 +20,10 @@ name: 09 Plan a trip
     centerElement: true
     timeout: 30000
 - tapOn: "(?s)Plan a trip.*"
+# Flutter merges the page's plain texts into one node: From comes before To in it.
 - extendedWaitUntil:
-    visible: "From"
+    visible: "(?s)From\\nTo\\n.*"
     timeout: 20000
-- assertVisible: "To"
 - assertVisible: "Swap From and To"
 # The same choices on both ends: Work is there twice, the second one is To.
 - tapOn:
@@ -31,7 +31,7 @@ name: 09 Plan a trip
     index: 1
 # From starts on Here once the location is in, else on Home.
 - extendedWaitUntil:
-    visible: "(Here|Home) → Work"
+    visible: "(?s).*(Here|Home) → Work.*"
     timeout: 30000
 # Buses (the bus to leave for first), the train, or a note when nothing runs now.
 - scrollUntilVisible:
@@ -51,7 +51,7 @@ name: 09 Plan a trip
     direction: UP
 - tapOn: "Swap From and To"
 - extendedWaitUntil:
-    visible: "Work → (Here|Home)"
+    visible: "(?s).*Work → (Here|Home).*"
     timeout: 20000
 # Start from a searched address instead: the first search field is the From one.
 - tapOn:
@@ -62,11 +62,11 @@ name: 09 Plan a trip
     env:
       POSTAL: "310201"
 - extendedWaitUntil:
-    visible: "(?s).+ → (Here|Home)"
+    visible: "(?s).*\\S → (Here|Home).*"
     timeout: 20000
-- assertNotVisible: "Work → (Here|Home)"
+- assertNotVisible: "(?s).*Work → (Here|Home).*"
 - scrollUntilVisible:
-    element: "(?s)Tip: add places.*"
+    element: "(?s).*Tip: add places.*"
     direction: DOWN
     centerElement: true
     timeout: 30000
