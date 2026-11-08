@@ -444,7 +444,7 @@ def town_page(data: dict, town: dict, has_image: bool = True) -> str:
     <h1>Living in {e(name)}</h1>
     <p class="lead">{" ".join(e(s) for s in getting_around)}</p>
     <p class="lead">{" ".join(e(s) for s in prices)}</p>
-    <p><a class="go-tool" href="/where-to-live?town={e(town["id"])}">Compare {e(name)} with other towns</a></p>
+    <p><a class="go-tool" href="/where-to-live?compare={e(town["id"])}">Compare {e(name)} with other towns</a></p>
   </section>
 
   <section class="sticker facts" aria-labelledby="commute-title">

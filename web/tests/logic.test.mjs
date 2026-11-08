@@ -11,6 +11,12 @@ import {
   allInText,
   highlightText,
   monthlyCost,
+  MAX_COMPARE,
+  compareBarText,
+  compareIds,
+  compareTable,
+  namesText,
+  toggleCompare,
   highlights,
   pillText,
   priceDetail,
@@ -65,7 +71,7 @@ const DATA = {
   ],
 };
 const state = (over = {}) => ({
-  area: "cbd", mode: "rent", flat: "4-ROOM", budget: null, max: null, town: null, ...over,
+  area: "cbd", mode: "rent", flat: "4-ROOM", budget: null, max: null, town: null, compare: [], ...over,
 });
 const ids = (rows) => rows.map((r) => r.town.id);
 
@@ -73,7 +79,7 @@ const ids = (rows) => rows.map((r) => r.town.id);
 
 test("readQuery keeps known values", () => {
   assert.deepEqual(readQuery("?area=jurong-east&mode=buy&flat=4-ROOM&budget=650000&max=45", DATA), {
-    area: "jurong-east", mode: "buy", flat: "4-ROOM", budget: 650000, max: 45, town: null,
+    area: "jurong-east", mode: "buy", flat: "4-ROOM", budget: 650000, max: 45, town: null, compare: [],
   });
 });
 
@@ -89,7 +95,7 @@ test("readQuery replaces unknown or hostile values with defaults", () => {
     "?area=<script>&mode=steal&flat=9-ROOM&budget=-5&max=44&extra=1",
     DATA,
   );
-  assert.deepEqual(s, { area: "cbd", mode: "rent", flat: "4-ROOM", budget: null, max: null, town: null });
+  assert.deepEqual(s, { area: "cbd", mode: "rent", flat: "4-ROOM", budget: null, max: null, town: null, compare: [] });
   assert.equal(readQuery("?budget=1e9", DATA).budget, null);
   assert.equal(readQuery("?budget=3500abc", DATA).budget, null);
   assert.equal(readQuery("?budget=999999999", DATA).budget, null); // over the rent limit
@@ -345,4 +351,110 @@ test("the page loads Leaflet from the vendored copy only", () => {
   const html = read("where-to-live/index.html");
   const srcs = [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map((m) => m[1]);
   for (const s of srcs.filter((s) => /\.(js|css)$/.test(s))) assert.match(s, /^\//, s);
+});
+
+// ---------------------------------------------------------------- compare
+
+test("?compare= keeps towns from the data, each once, in order, at most three", () => {
+  assert.deepEqual(readQuery("?compare=punggol,bishan", DATA).compare, ["punggol", "bishan"]);
+  assert.deepEqual(compareIds("punggol,punggol,nowhere,<img>,bishan", DATA), ["punggol", "bishan"]);
+  assert.deepEqual(compareIds("punggol,bishan,central,jurong-east", DATA), ["punggol", "bishan", "central"]);
+  assert.equal(MAX_COMPARE, 3);
+  assert.deepEqual(compareIds("", DATA), []);
+  assert.deepEqual(compareIds(null, DATA), []);
+  assert.deepEqual(compareIds("Punggol, bishan", DATA), []); // ids are exact: no case or space fixing
+  assert.deepEqual(readQuery("?compare=x&compare=punggol", DATA).compare, []); // the first value only
+});
+
+test("writeQuery writes ?compare= with plain commas and round-trips", () => {
+  const s = state({ compare: ["punggol", "bishan", "central"] });
+  assert.equal(writeQuery(s), "?compare=punggol,bishan,central");
+  assert.deepEqual(readQuery(writeQuery(s), DATA).compare, ["punggol", "bishan", "central"]);
+  assert.equal(writeQuery(state({ area: "jurong-east", compare: ["punggol"] })), "?area=jurong-east&compare=punggol");
+  assert.equal(writeQuery(state()), "");
+});
+
+test("toggleCompare adds, removes and stops at three", () => {
+  assert.deepEqual(toggleCompare([], "punggol"), ["punggol"]);
+  assert.deepEqual(toggleCompare(["punggol", "bishan"], "punggol"), ["bishan"]);
+  const full = ["punggol", "bishan", "central"];
+  assert.equal(toggleCompare(full, "jurong-east"), full);
+  assert.deepEqual(toggleCompare(full, "central"), ["punggol", "bishan"]);
+});
+
+test("compare bar text asks for a second town", () => {
+  assert.equal(compareBarText([]), "");
+  assert.equal(compareBarText(["Punggol"]), "Punggol: add a town to compare");
+  assert.equal(compareBarText(["Punggol", "Bishan"]), "Punggol and Bishan");
+  assert.equal(namesText(["Punggol", "Bishan", "Bedok"]), "Punggol, Bishan and Bedok");
+});
+
+const lineOf = (table, key) => table.lines.find((l) => l.key === key);
+const texts = (line) => line.cells.map((c) => c.text);
+const bests = (line) => line.cells.map((c) => c.best);
+
+test("compareTable: a column per town and the best value in each line", () => {
+  const data = structuredClone(DATA);
+  data.towns[0].commute.cbd.fare = 160; // bishan
+  data.towns[1].commute.cbd.fare = 211; // punggol
+  const t = compareTable(data, state({ compare: ["punggol", "bishan"] }));
+  assert.deepEqual(t.towns.map((x) => x.id), ["punggol", "bishan"]);
+  assert.equal(lineOf(t, "time").label, "Time to CBD (Raffles Place)");
+  assert.deepEqual(texts(lineOf(t, "time")), ["45 min", "20 min"]);
+  assert.deepEqual(bests(lineOf(t, "time")), [false, true]);
+  assert.deepEqual(texts(lineOf(t, "transfers")), ["1 transfer", "No transfer"]);
+  assert.deepEqual(texts(lineOf(t, "fare")), ["$2.11", "$1.60"]);
+  assert.equal(lineOf(t, "price").label, "4-room median rent");
+  assert.deepEqual(texts(lineOf(t, "price")), ["$3,300/month (Q1 2026)", "$3,700/month (Q3 2026)"]);
+  assert.deepEqual(bests(lineOf(t, "price")), [true, false]);
+  // All-in: rent + fare there and back on 22 days (3300 + 92.84 -> 3393, 3700 + 70.4 -> 3770).
+  assert.deepEqual(texts(lineOf(t, "allin")), ["≈ $3,393", "≈ $3,770"]);
+  assert.deepEqual(bests(lineOf(t, "allin")), [true, false]);
+  assert.deepEqual(texts(lineOf(t, "hours")), ["33 h", "15 h"]);
+});
+
+test("compareTable: ties are all best, unknown values never are, one value marks nothing", () => {
+  const data = structuredClone(DATA);
+  data.towns[1].commute.cbd = { min: 20, transfers: 0 }; // punggol now as fast as bishan
+  const t = compareTable(data, state({ compare: ["bishan", "punggol", "jurong-east"] }));
+  assert.deepEqual(bests(lineOf(t, "time")), [true, true, false]);
+  // No fares in this data: nothing to compare, nothing marked.
+  assert.deepEqual(texts(lineOf(t, "fare")), ["Not known", "Not known", "Not known"]);
+  assert.deepEqual(bests(lineOf(t, "fare")), [false, false, false]);
+  // Jurong East has no 4-room rent: not enough data, and not best.
+  assert.equal(texts(lineOf(t, "price"))[2], "Not enough data");
+  assert.equal(bests(lineOf(t, "price"))[2], false);
+  assert.deepEqual(texts(lineOf(t, "allin")), ["–", "–", "–"]); // no fares, no all-in
+});
+
+test("compareTable: the office area's town and towns without a route", () => {
+  const t = compareTable(DATA, state({ area: "jurong-east", compare: ["jurong-east", "bishan"] }));
+  assert.deepEqual(texts(lineOf(t, "time")), ["In this area", "40 min"]);
+  assert.deepEqual(bests(lineOf(t, "time")), [true, false]);
+  assert.deepEqual(texts(lineOf(t, "transfers")), ["None", "1 transfer"]);
+  assert.equal(texts(lineOf(t, "fare"))[0], "None");
+  assert.equal(texts(lineOf(t, "hours"))[0], "0 h");
+  const noRoute = compareTable(DATA, state({ compare: ["central", "bishan"] }));
+  assert.deepEqual(texts(lineOf(noRoute, "time")), ["No route data", "20 min"]);
+  assert.deepEqual(bests(lineOf(noRoute, "time")), [false, false]); // one known value: no mark
+  assert.equal(texts(lineOf(noRoute, "hours"))[0], "–");
+});
+
+test("compareTable in buy mode compares resale prices and monthly fares", () => {
+  const data = structuredClone(DATA);
+  data.towns[0].commute.cbd.fare = 160;
+  data.towns[1].commute.cbd.fare = 211;
+  const t = compareTable(data, state({ mode: "buy", compare: ["punggol", "bishan"] }));
+  assert.equal(lineOf(t, "price").label, "4-room median resale price");
+  assert.deepEqual(texts(lineOf(t, "price")), ["$610,000 (Q2 2026)", "$700,000 (Q2 2026)"]);
+  assert.equal(lineOf(t, "allin"), undefined);
+  assert.deepEqual(texts(lineOf(t, "fares")), ["≈ $93", "≈ $70"]);
+  assert.deepEqual(bests(lineOf(t, "fares")), [false, true]);
+});
+
+test("the page has the compare panel and bar", () => {
+  const html = read("where-to-live/index.html");
+  for (const id of ["compare", "compare-table", "compare-bar", "compare-go", "compare-chips"]) {
+    assert.match(html, new RegExp(`id="${id}"`));
+  }
 });

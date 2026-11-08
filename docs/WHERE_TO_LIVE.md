@@ -146,7 +146,7 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
   paragraf dari data town itu (peringkat ke CBD, area kantor terdekat, jam per bulan, sewa
   terendah, perbandingan dengan town terdekat, median vs median 26 town), tabel 6 area kantor
   (waktu, transfer, ongkos, jam dan ongkos per bulan), tabel harga per tipe flat dengan kuartalnya,
-  3 town terdekat, dan tautan ke tool (`?town=<id>` membuka barisnya). Semua nilai lewat
+  3 town terdekat, dan tautan ke tool (`?compare=<id>`: town itu langsung terpilih untuk dibandingkan). Semua nilai lewat
   `html.escape`; tidak ada script selain `cta.js`. Jaccard 5-kata antar halaman maksimal sekitar 0,31
   (tes: < 0,5).
 - **SEO:** `web/sitemap.xml` (dibuat generator, `lastmod` dari `generated_at`), `web/robots.txt`
@@ -163,7 +163,7 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
 - **Tes:** `backend/tests/test_where_to_live.py` (fare), `test_where_to_live_pages.py` (generator,
   escaping, sitemap, halaman lama dihapus, tidak ada duplikat, file yang di-commit = hasil generator),
   `test_push_data.py` (pola `*.ext`, halaman di patch ditolak, JSON tidak valid ditolak, halaman
-  dibuat saat push, `nosniff` untuk `/data/`), `web/tests/logic.test.mjs` (biaya, `?town=`).
+  dibuat saat push, `nosniff` untuk `/data/`), `web/tests/logic.test.mjs` (biaya, `?town=`, compare).
 - **Gambar OG per town** (8 Nov): PNG statis 1200×630 di `web/og/where-to-live/<id>.png`, tanpa
   angka: nama town, "Commute & HDB prices", papan LED dan wordmark. Dibuat dengan script dev
   `scripts/build_og_images.py` (Pillow, font OFL Barlow Condensed dan Plus Jakarta Sans dari
@@ -173,6 +173,23 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
   memakai `/brand/og.jpg`. **Town baru di data:** jalankan script itu dan commit PNG-nya; tes
   `test_every_town_has_a_share_image` gagal sampai itu dilakukan.
 - Town tanpa sewa maupun harga jual mendapat satu kalimat "no median rent or resale price".
+
+## Compare (8 Nov)
+- Tiap baris papan punya tombol "+ Compare" (maksimal 3 town; tombol lain nonaktif kalau penuh). Di
+  HP tombolnya di baris kecil di bawah nama town, supaya nama tidak terpotong; di layar lebar di
+  sampingnya. Bar yang menempel di bawah menampilkan town terpilih (ketuk untuk menghapus) dan
+  tombol "Compare"; dengan satu town tertulis "Add a town to compare".
+- Tabel perbandingan di atas papan: kolom per town, baris waktu tempuh ke area kantor terpilih,
+  transfer, tarif per perjalanan, harga tipe flat terpilih dengan kuartalnya, all-in per bulan
+  (sewa + tarif; mode beli: tarif per bulan) dan jam di jalan per bulan. Nilai terendah di tiap
+  baris diberi "Best" (seri: semua), hanya kalau minimal dua town punya nilai. Town = area kantor
+  dihitung 0 menit, tanpa transfer dan tarif. Di HP tabelnya digeser ke samping, kolom label tetap.
+  Tabel ikut pilihan area kantor, mode dan tipe flat.
+- URL: `?compare=punggol,bedok,sengkang` (id dari JSON saja, tiap town sekali, maksimal 3, sisanya
+  dibuang), jadi bisa di-Share; dengan dua town atau lebih tabelnya langsung terbuka. Halaman town
+  menautkan `?compare=<id>`; `?town=` lama tetap membuka baris town itu.
+- Logika di `logic.js` (`compareIds`, `toggleCompare`, `compareTable`, `compareBarText`), tes di
+  `web/tests/logic.test.mjs`. Semua teks lewat `textContent`; CSP tidak berubah.
 
 ## Fase 4: launch
 - Live bersamaan dengan production DailyLah. Post LinkedIn: app + alat web.
