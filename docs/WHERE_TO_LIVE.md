@@ -52,8 +52,9 @@ Alat web interaktif: pengguna pilih area kantor + tipe flat + sewa/beli + budget
 - Keluaran `web/data/where-to-live.json` (compact): `generated_at`, `rent_quarter`,
   `resale_quarter`, `commute_depart`, `areas[]`, `towns[]` (`id`, `name`, `station`, `lat`, `lng`,
   `rent`, `resale`, `commute: {area id: {"min", "transfers"} | {"same_area": true, ...} | null}`),
-  `attribution`. Tipe flat dari kedua dataset (`4-RM`, `4-room`) dinormalisasi ke `4-ROOM`. Tidak masuk
-  `manifest.json` app (`NOT_IN_MANIFEST` di `build_static.py`).
+  `attribution`. Tipe flat dari kedua dataset (`4-RM`, `4-room`) dinormalisasi ke `4-ROOM`. Sejak app
+  memakainya (fitur "Where to live?" di app), file ini masuk `manifest.json` lewat run harian
+  `build_static.py`, jadi app melihat pembaruan Senin setelah run harian berikutnya.
 - `generated_at` hanya diperbarui kalau datanya berubah, jadi minggu tanpa perubahan tidak membuat
   commit. Cache rute juga hanya ditulis kalau berubah.
 - Run dianggap rusak dan tidak menulis apa pun kalau kurang dari 20 town punya harga atau kurang

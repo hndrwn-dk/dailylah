@@ -152,6 +152,15 @@ feature, screen, provider or rule moves, appears or goes away.
   collection 2312 (`build_prayer`); next year appears once MUIS publishes it.
 - School alerts (heat, lightning, dengue at school) only fire on school days (`isSchoolDay`: the school's
   days and not a school holiday); otherwise the heat/lightning checks use home.
+- Where to live? (rules in logic.dart, ported from web/where-to-live/logic.js with the same cases in
+  `test/where_to_live_test.dart`): the `where-to-live` bundle (`whereToLiveProvider`, `WhereToLive` in
+  data.dart; HDB medians each with its own quarter, weekday 08:30 trips to six office areas, the same
+  file as dailylah.sg/where-to-live). `wtlAnchorPlace` (work, else school) and `wtlNearestArea` (within
+  `wtlNearestAreaMaxMeters`) pick the office area on the phone; the address is never sent.
+  `wtlRank` (match / noPrice / other), `wtlMonthly` (fares and hours on `wtlWorkdays`, all-in for rent),
+  `wtlHighlights`, `wtlCompareIds` / `wtlToggleCompare` (max `wtlMaxCompare`) and `wtlCompareTable`
+  (best per line; the office area's own town is "in this area" and takes no part, and all-in/hours
+  mark no best while it is compared). No screen yet.
 - Home tab (`ui/home.dart`) is about the saved home, one section at a time (chips under the hero,
   `homeSectionProvider`): its HDB block (`homeBlock`) or private project (`private_homes.json` from
   URA, `privateProjectFor`; backend `app/ura.py`, secret `URA_ACCESS_KEY`), upgrading and
