@@ -6,6 +6,9 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 
+# Node (web layout check)
+node_modules/
+
 # Flutter / Dart
 app/.dart_tool/
 app/build/
