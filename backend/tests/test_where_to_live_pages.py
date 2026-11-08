@@ -139,3 +139,57 @@ def test_bad_town_ids_write_nothing(tmp_path):
         with pytest.raises(ValueError, match="bad town id"):
             p.build(data, tmp_path)
         assert not any(tmp_path.rglob("*"))
+
+
+def test_a_town_without_any_price_gets_one_sentence():
+    data = copy.deepcopy(REAL)
+    town = next(t for t in data["towns"] if t["id"] == "bukit-timah")
+    town["rent"] = dict.fromkeys(town["rent"])
+    town["resale"] = dict.fromkeys(town["resale"])
+    _, prices = p.summary_parts(data, town)
+    text = " ".join(prices)
+    assert text.count("HDB published no median") == 1
+    assert (
+        "HDB published no median rent or resale price for Bukit Timah in the last four quarters."
+        in prices
+    )
+    # Only one of the two missing: its own sentence, and the other figure is described.
+    town["rent"]["4-ROOM"] = {"median": 3000, "quarter": "2026-Q3"}
+    _, prices = p.summary_parts(data, town)
+    assert "HDB published no median resale price for Bukit Timah in the last four quarters." in (
+        prices
+    )
+    assert not any("rent or resale" in s for s in prices)
+
+
+def png_size(path: Path) -> tuple[int, int]:
+    head = path.read_bytes()[:24]
+    assert head[:8] == b"\x89PNG\r\n\x1a\n" and head[12:16] == b"IHDR", path
+    return int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big")
+
+
+def test_every_town_has_a_share_image():
+    """A town new to the data needs scripts/build_og_images.py run (docs/WHERE_TO_LIVE.md)."""
+    folder = WEB / p.OG_DIR
+    ids = {t["id"] for t in REAL["towns"]}
+    assert {f.stem for f in folder.glob("*.png")} == ids
+    for town_id in ids:
+        assert png_size(folder / f"{town_id}.png") == (1200, 630), town_id
+
+
+def test_every_town_page_points_at_its_share_image():
+    for t in REAL["towns"]:
+        page = (WEB / p.TOWNS_DIR / f"{t['id']}.html").read_text()
+        src = f"/og/where-to-live/{t['id']}.png"
+        assert f'<meta property="og:image" content="https://dailylah.sg{src}">' in page, t["id"]
+        assert (WEB / src.lstrip("/")).is_file()
+        assert '<meta property="og:image:width" content="1200">' in page
+        assert '<meta property="og:image:height" content="630">' in page
+        assert '<meta name="twitter:card" content="summary_large_image">' in page
+
+
+def test_a_town_without_a_share_image_gets_the_site_image(tmp_path):
+    p.build(REAL, tmp_path)
+    page = (tmp_path / p.TOWNS_DIR / "punggol.html").read_text()
+    assert '<meta property="og:image" content="https://dailylah.sg/brand/og.jpg">' in page
+    assert '<meta property="og:image:width" content="1024">' in page

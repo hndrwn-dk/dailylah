@@ -40,7 +40,8 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - `app/` — Flutter app (Riverpod, dio). Platform folders are generated with `flutter create`.
 - `web/` — static site on Vercel, no build step: landing page, the "Where to live?" page
   (`web/where-to-live/`, docs/WHERE_TO_LIVE.md) and its generated town pages
-  (`web/where-to-live-towns/`, never hand-edited), the shared Play CTA (`web/shared/cta.js`),
+  (`web/where-to-live-towns/`, never hand-edited) with their share images (`web/og/where-to-live/`,
+  made by `scripts/build_og_images.py`), the shared Play CTA (`web/shared/cta.js`),
   vendored Leaflet (`web/vendor/`), static data bundles in `web/data/`, tests in `web/tests/`.
 - `contracts/v1/` — one example per `/v1/*` endpoint, checked by the backend and app tests
   (docs/QA.md "Contract tests").
