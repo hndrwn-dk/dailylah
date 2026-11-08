@@ -57,11 +57,13 @@ after(async () => {
   await new Promise((ok) => server?.close(ok));
 });
 
-async function phone(path) {
+/** The page at 360 px; [ready]: a selector to wait for when the page renders after a fetch. */
+async function phone(path, ready) {
   const page = await browser.newPage({ viewport: { width: 360, height: 800 } });
   await page.route((url) => !url.href.startsWith(base), (route) => route.abort());
   const res = await page.goto(base + path, { waitUntil: "load" });
   assert.ok(res?.ok(), `${path} answered ${res?.status()}`);
+  if (ready) await page.waitForSelector(ready, { timeout: 15000 });
   return page;
 }
 
@@ -77,6 +79,7 @@ function controls(page) {
       .map((el) => {
         const r = el.getBoundingClientRect();
         const style = getComputedStyle(el);
+        // One box per line: a wrapped inline link only covers its own lines, not the whole paragraph.
         // The shadow is drawn outside the box: "3px 4px 0" and the like.
         const shadow = style.boxShadow.match(/(-?\d+(?:\.\d+)?)px (-?\d+(?:\.\d+)?)px/);
         const dx = shadow ? Math.max(0, Number(shadow[1])) : 0;
@@ -91,6 +94,10 @@ function controls(page) {
           // A link that sits with a call-to-action button, or on its own as one ("Browse all towns").
           action: Boolean(el.closest(".actions, .towns-link")) || el.classList.contains("go-tool"),
           lines,
+          cmp: el.classList.contains("cmp"),
+          boxes: [...el.getClientRects()]
+            .filter((x) => x.width > 0 && x.height > 0)
+            .map((x) => ({ left: x.left + scrollX, top: x.top + scrollY, right: x.right + scrollX + dx, bottom: x.bottom + scrollY + dy })),
           box: { left: r.left + scrollX, top: r.top + scrollY, right: r.right + scrollX + dx, bottom: r.bottom + scrollY + dy },
         };
       })
@@ -99,24 +106,27 @@ function controls(page) {
 }
 
 const overlaps = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+const anyOverlap = (a, b) => a.boxes.some((x) => b.boxes.some((y) => overlaps(x, y)));
 
-for (const [name, path] of [
+// /where-to-live draws its board after fetching the bundle: wait for the rows and their + Compare.
+for (const [name, path, ready] of [
   ["home", "/"],
-  ["where-to-live", "/where-to-live"],
+  ["where-to-live", "/where-to-live", "#board-body .row .cmp"],
   ["towns list", "/where-to-live/towns"],
   ["town page", "/where-to-live/punggol"],
 ]) {
   test(`${name} at 360 px: no link or button overlaps another (shadows included), action links stay on one line`, async () => {
-    const page = await phone(path);
+    const page = await phone(path, ready);
     try {
       const all = await controls(page);
+      if (ready) assert.ok(all.some((c) => c.cmp), "the board rows and their + Compare are checked");
       const actions = all.filter((c) => c.action);
       assert.ok(actions.length > 0, `${path} has a call to action to check`);
       // A button's label may wrap inside the button; a link beside it must not break mid-phrase.
       for (const c of actions.filter((a) => !a.button)) assert.equal(c.lines, 1, `"${c.text}" breaks over ${c.lines} lines`);
       for (let i = 0; i < all.length; i++) {
         for (let j = i + 1; j < all.length; j++) {
-          assert.ok(!overlaps(all[i].box, all[j].box), `"${all[i].text}" and "${all[j].text}" overlap`);
+          assert.ok(!anyOverlap(all[i], all[j]), `"${all[i].text}" and "${all[j].text}" overlap`);
         }
       }
     } finally {
