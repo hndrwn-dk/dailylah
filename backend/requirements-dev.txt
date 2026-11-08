@@ -806,6 +806,7 @@ pyyaml==6.0.3 \
     --hash=sha256:fc09d0aa354569bc501d4e787133afc08552722d3ab34836a80547331bb5d4a0
     # via
     #   -c requirements.txt
+    #   -r requirements-dev.in
     #   uvicorn
 qstash==3.4.0 \
     --hash=sha256:883744276820788986bd5c4386c2f244c89f10ad3720210efa65e776b11a6dea \
