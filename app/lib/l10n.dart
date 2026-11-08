@@ -1007,6 +1007,7 @@ class S {
         ? 'The office area where your $place is.'
         : 'The office area nearest your $place (${km.toStringAsFixed(1)} km).';
   }
+  String get wtlPickedArea => 'The office area you picked.';
   String get wtlPickArea => 'Pick the office area you travel to. Save your work place in setup to rank for it.';
   String get wtlFarArea => 'Your saved place is not near one of the six office areas. Pick the one you travel to.';
   String get wtlOfficeArea => 'Office area';

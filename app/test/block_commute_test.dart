@@ -126,6 +126,16 @@ void main() {
     expect(find.text(_s.wtlFits(n45)), findsOneWidget);
   });
 
+  testWidgets('an office area picked by hand is not asked to be saved again', (tester) async {
+    await _open(tester, householdFavorites.copyWith(wtlArea: 'one-north'), const BlockPage(block: _tampines));
+    await _show(tester, find.byKey(const ValueKey('wtl-from')));
+    expect(find.text(_s.wtlPickedArea), findsOneWidget);
+    expect(find.textContaining('Save your work place'), findsNothing);
+    // The towns' heading shows once, above the filters.
+    await _show(tester, find.textContaining('Fits your choices'));
+    expect(find.text(_s.wtlTownsTitle('one-north')), findsOneWidget);
+  });
+
   testWidgets('switching to buy drops the rent budget and saves the choice', (tester) async {
     await _open(tester, householdFavorites, const BlockPage(block: _tampines));
     await _show(tester, find.byKey(const ValueKey('wtl-budget')));

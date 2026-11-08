@@ -76,7 +76,9 @@ class BlockCommute extends ConsumerWidget {
     final town = wtlTownFor(data, block.town);
     final note = picked.anchor != null
         ? s.wtlRankedFor(area.name, picked.anchor!.kind, picked.meters! / 1000)
-        : (wtlAnchorPlace(fav.places) == null || fav.wtlArea.isNotEmpty ? s.wtlPickArea : s.wtlFarArea);
+        : (data.areas.any((a) => a.id == fav.wtlArea)
+            ? s.wtlPickedArea
+            : (wtlAnchorPlace(fav.places) == null ? s.wtlPickArea : s.wtlFarArea));
     final row = town == null
         ? null
         : WtlRow(
@@ -244,7 +246,6 @@ class _TownsBoardState extends ConsumerState<TownsBoard> {
     });
     final c = wtlSessionChoice(ref, data);
     final sort = ref.watch(_sortProvider);
-    final area = data.areas.firstWhere((a) => a.id == c.area, orElse: () => data.areas.first);
     final groups = wtlRank(data, c);
     final picks = wtlHighlights(groups);
     final mine = wtlTownFor(data, widget.block.town)?.id;
@@ -334,8 +335,6 @@ class _TownsBoardState extends ConsumerState<TownsBoard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(s.wtlTownsTitle(area.name),
-                    style: t.headlineSmall?.copyWith(fontFamily: DL.display, color: DL.led)),
                 Text(s.wtlTownsSub(c.flat, c.mode), style: dim),
                 if (picks != null) ...[
                   const SizedBox(height: 10),

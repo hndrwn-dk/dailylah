@@ -427,15 +427,16 @@ class LeaseBar extends ConsumerWidget {
 }
 
 /// One line of the town rent list: flat type chip, the monthly median, its quarter in small type.
-class _RentRow extends StatelessWidget {
+class _RentRow extends ConsumerWidget {
   const _RentRow({required this.flat, required this.median, required this.quarter});
   final String flat;
   final int median;
   final String quarter;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = Theme.of(context).textTheme;
+    final s = ref.watch(stringsProvider);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       // Chip, price and quarter on one line; they wrap under each other at large text sizes.
@@ -447,7 +448,7 @@ class _RentRow extends StatelessWidget {
           ConstrainedBox(constraints: const BoxConstraints(minWidth: 104), child: FlatChip(flat)),
           Text.rich(TextSpan(children: [
             TextSpan(text: sgd(median), style: t.displaySmall?.copyWith(fontSize: 24)),
-            TextSpan(text: ' /mo', style: t.bodySmall),
+            TextSpan(text: ' ${s.perMonthShort}', style: t.bodySmall),
           ])),
           if (quarter.isNotEmpty) Text(quarter, style: t.labelSmall?.copyWith(color: DL.muted(context))),
         ],
