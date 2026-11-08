@@ -172,7 +172,14 @@ feature, screen, provider or rule moves, appears or goes away.
   source per town (`townRents`, `townRentFor`): the quarterly where-to-live medians with their quarter, or
   `hdb_rent`'s six-month medians (with the period) only for a town the bundle lacks. `ComparePage` adds
   time, transfers, fare, all-in (or fares) and hours per block (`wtlBlockLines`, `wtlCompareLinesFor`,
-  `WtlCellText`), same "in this area" and "Best" rules as the website. Maestro: `maestro/08_where_to_live.yaml`.
+  `WtlCellText`; the office area's own town shows its rent with a small "rent only"), same "in this area" and
+  "Best" rules as the website, with the area, flat type and rent/buy as chips above the table. Block page UI:
+  Watch and Compare are one size with one-line labels, stacked when they would not fit (`_ActionButtons`);
+  lease left is a bar of the 99 years with the year it ends (`LeaseBar`, also in Compare); resale prices show
+  the short figure (S$1.07M) over the full one; town rents are a list of `FlatChip` + price + quarter. Both pages
+  end in one disclaimer line, "Indicative only, not advice. Updated <date>." (`DataFooter`), whose "About this
+  data" opens `showAboutData` (sources, licence, the 08:30 / 22-day method, transactions not listings, the
+  hdb.gov.sg eligibility link). Maestro: `maestro/08_where_to_live.yaml`.
 - Home tab (`ui/home.dart`) is about the saved home, one section at a time (chips under the hero,
   `homeSectionProvider`): its HDB block (`homeBlock`) or private project (`private_homes.json` from
   URA, `privateProjectFor`; backend `app/ura.py`, secret `URA_ACCESS_KEY`), upgrading and

@@ -86,7 +86,6 @@ class BlockCommute extends ConsumerWidget {
             group: WtlGroup.match);
     final month = row == null ? null : wtlMonthly(c, row);
     final cm = row?.commute;
-    final muted = t.bodySmall?.copyWith(color: DL.muted(context));
     InputDecoration label(String text) => InputDecoration(labelText: text, border: const OutlineInputBorder());
 
     return Panel(
@@ -172,9 +171,6 @@ class BlockCommute extends ConsumerWidget {
                   ],
                 ),
               ],
-              const SizedBox(height: 10),
-              Text(s.wtlEstimateNote, style: muted),
-              Text(s.wtlBlockUsesTown(town.name, town.station), style: muted),
             ],
           ],
         ),
@@ -348,23 +344,12 @@ class _TownsBoardState extends ConsumerState<TownsBoard> {
                       children: [rows(other)],
                     ),
                   ),
-                const SizedBox(height: 6),
-                Text(s.wtlEstimateNote, style: dim),
               ],
             ),
           ),
         ),
-        Text(s.wtlSource, style: t.bodySmall),
-        if (data.generatedAt.isNotEmpty) Text(s.wtlUpdated(_day(data.generatedAt)), style: t.bodySmall),
       ],
     );
-  }
-
-  static String _day(String iso) {
-    final d = DateTime.tryParse(iso)?.toUtc().add(const Duration(hours: 8)); // Singapore time
-    if (d == null) return '';
-    const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${d.day} ${m[d.month - 1]} ${d.year}';
   }
 }
 
@@ -502,26 +487,35 @@ class WtlCellText extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
     final bestBg = Theme.of(context).brightness == Brightness.dark ? const Color(0xFF17322F) : DL.mint;
+    final style = t.titleSmall?.copyWith(fontWeight: cell.best ? FontWeight.w800 : null);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       decoration: cell.best ? BoxDecoration(color: bestBg, borderRadius: BorderRadius.circular(8)) : null,
       child: Column(
         children: [
-          Text(
-            s.wtlCell(line, cell, mode),
-            textAlign: TextAlign.center,
-            style: t.titleSmall?.copyWith(fontWeight: cell.best ? FontWeight.w800 : null),
+          // One line, scaled down when the column is narrow, so nothing breaks mid-word.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(s.wtlCell(line, cell, mode), maxLines: 1, textAlign: TextAlign.center, style: style),
           ),
+          if (cell.kind == WtlCellKind.inAreaRent)
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(s.wtlRentOnly, maxLines: 1, style: t.labelSmall?.copyWith(color: DL.muted(context))),
+            ),
           if (cell.best)
             Container(
               margin: const EdgeInsets.only(top: 3),
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
               decoration: BoxDecoration(color: DL.goText(context), borderRadius: BorderRadius.circular(6)),
-              child: Text(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
                 s.wtlBest,
                 style:
                     t.labelSmall?.copyWith(color: Theme.of(context).colorScheme.surface, fontWeight: FontWeight.w700),
+              ),
               ),
             ),
         ],
@@ -529,3 +523,96 @@ class WtlCellText extends ConsumerWidget {
     );
   }
 }
+
+/// "8 Nov 2026" for a bundle's ISO time, in Singapore time; '' when unreadable.
+String dataDay(String iso) {
+  final d = DateTime.tryParse(iso)?.toUtc().add(const Duration(hours: 8));
+  if (d == null) return '';
+  const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return '${d.day} ${m[d.month - 1]} ${d.year}';
+}
+
+final _hdbUrl = Uri.https('www.hdb.gov.sg', '/');
+
+/// The one disclaimer line at the foot of the block page and the comparison, with "About this data".
+class DataFooter extends ConsumerWidget {
+  const DataFooter({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final wtl = ref.watch(whereToLiveProvider).value;
+    final day = wtl == null ? '' : dataDay(wtl.generatedAt);
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 4,
+        children: [
+          Text(s.dataFooter(day), style: t.bodySmall?.copyWith(color: DL.muted(context))),
+          TextButton.icon(
+            key: const ValueKey('about-data'),
+            style: TextButton.styleFrom(foregroundColor: DL.goText(context), padding: const EdgeInsets.symmetric(horizontal: 8)),
+            onPressed: () => showAboutData(context),
+            icon: const Icon(Icons.info_outline, size: 18),
+            label: Text(s.aboutData),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Sources, licence, how the numbers are made, and that they are past transactions, not listings.
+Future<void> showAboutData(BuildContext context) => showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => Consumer(
+        builder: (context, ref, _) {
+          final s = ref.watch(stringsProvider);
+          final t = Theme.of(context).textTheme;
+          Widget part(String title, String text) => Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: t.titleSmall),
+                    const SizedBox(height: 4),
+                    Text(text, style: t.bodyMedium),
+                  ],
+                ),
+              );
+          return DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.7,
+            maxChildSize: 0.95,
+            builder: (context, controller) => SingleChildScrollView(
+              controller: controller,
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                Text(s.aboutData, style: t.headlineSmall),
+                const SizedBox(height: 14),
+                part(s.aboutDataSources, s.aboutDataSourcesText),
+                part(s.aboutDataMethod, s.aboutDataMethodText),
+                part(s.aboutDataListings, s.aboutDataListingsText),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    key: const ValueKey('check-eligibility'),
+                    style: TextButton.styleFrom(foregroundColor: DL.goText(context), padding: EdgeInsets.zero),
+                    onPressed: () => openExternal(context, _hdbUrl, s.cannotOpen(_hdbUrl.toString())),
+                    icon: const Icon(Icons.open_in_new, size: 18),
+                    label: Text(s.checkEligibility),
+                  ),
+                ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );

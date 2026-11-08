@@ -765,7 +765,7 @@ class S {
   String compareCount(int n) => 'Compare ($n)';
   String get addToCompare => 'Add to compare';
   String get inCompare => 'In comparison';
-  String openCompare(int n) => 'See comparison ($n)';
+  String openCompare(int n) => 'Compare ($n)';
   String get watch => 'Notify me of new sales';
   String get watching => 'Notifying you';
   String get watchNote => 'You get a notification when a flat in this block is sold, with the price and flat type.';
@@ -1020,8 +1020,29 @@ class S {
   String get wtlAnyTime => 'Any time';
   String wtlUpTo(int m) => 'Up to $m min';
   String wtlFlatName(String flat) => flat == 'EXECUTIVE' ? 'Executive' : flat.toLowerCase();
-  String wtlCompareSub(String area, String flat, WtlMode mode) =>
-      "Commute to $area from each block's town MRT station, weekday 08:30, ${wtlFlatName(flat)} ${mode == WtlMode.buy ? 'resale' : 'rent'}";
+  String wtlToArea(String area) => 'To $area';
+  String wtlModeName(WtlMode mode) => mode == WtlMode.buy ? 'Buy resale' : 'Rent';
+  String get wtlRentOnly => 'rent only';
+  String get rentInTown => 'rent in town';
+  String leaseEnds(int year) => 'ends $year';
+  String get perMonthShort => '/mo';
+
+  // One line at the foot of the block page and the comparison; the rest is in "About this data".
+  String dataFooter(String updated) => 'Indicative only, not advice.${updated.isEmpty ? '' : ' Updated $updated.'}';
+  String get aboutData => 'About this data';
+  String get aboutDataSources => 'Sources';
+  String get aboutDataSourcesText => 'HDB resale prices and median rents of approved HDB rentals via data.gov.sg '
+      '(Singapore Open Data Licence). Trips planned with OneMap (Singapore Land Authority). Bus stops from LTA '
+      'DataMall; schools, parks, hawker centres and dengue clusters from MOE, NParks and NEA via data.gov.sg.';
+  String get aboutDataMethod => 'How the numbers are made';
+  String get aboutDataMethodText => 'Resale prices are medians of the last 24 months of sales. Town rents are '
+      'quarterly medians, each shown with its own quarter. Commutes are planned weekday 08:30 trips by MRT and '
+      "bus from the town's MRT station, so the trip from a block itself can differ. A month is 22 working days "
+      'there and back, at the adult card fare; all-in is rent plus those fares.';
+  String get aboutDataListings => 'Past transactions, not listings';
+  String get aboutDataListingsText => 'These are past transactions and approved rentals from public data, not '
+      'flats for sale or rent now. Indicative only, not financial advice.';
+  String get checkEligibility => 'Check eligibility on hdb.gov.sg';
   String get wtlCommuteTitle => 'Commute and all-in cost';
   String wtlTownsTitle(String area) => 'Towns by trip to $area';
   String wtlTownsSub(String flat, WtlMode mode) =>
@@ -1031,17 +1052,12 @@ class S {
   String get wtlSortPrice => 'Price';
   String get wtlYourTown => "This block's town";
   String wtlFromStation(String station) => 'from $station MRT';
-  String wtlBlockUsesTown(String town, String station) =>
-      'Numbers for $town, from $station MRT: the trip from this block itself can differ.';
   String get wtlNotInData => 'No commute data for this town yet.';
   String get wtlPerTrip => 'a trip, adult card';
-  String get wtlEstimateNote => 'Estimate: planned weekday 08:30 trips, there and back on 22 working days a month.';
-  String get wtlAllInLabel => 'all-in a month, rent + fares';
-  String get wtlFaresLabel => 'fares a month';
-  String get wtlHoursLabel => 'on the road a month';
+  String get wtlAllInLabel => 'all-in a month, rent + fares · estimate';
+  String get wtlFaresLabel => 'fares a month · estimate';
+  String get wtlHoursLabel => 'on the road a month · estimate';
   String wtlHours(int h) => '$h h';
-  String wtlRentCaption(String flat, String quarter) => '${wtlFlatName(flat)} /month · ${wtlQuarter(quarter)}';
-  String wtlTownRentNote(String town) => 'Median monthly rent of approved HDB rentals in $town, each for its own quarter.';
   String wtlFits(int n) => 'Fits your choices ($n)';
   String wtlNoPriceGroup(String flat, int n) => 'No ${wtlFlatName(flat)} price data ($n)';
   String wtlOutside(int n) => 'Outside your choices ($n)';
@@ -1110,7 +1126,7 @@ class S {
   static String _cap(String x) => x.isEmpty ? x : '${x[0].toUpperCase()}${x.substring(1)}';
   String wtlCell(WtlLineKey k, WtlCell cell, WtlMode mode) => switch (cell.kind) {
         WtlCellKind.inArea => 'In this area',
-        WtlCellKind.inAreaRent => '≈ ${sgd(cell.shown!)} rent, no fare estimate',
+        WtlCellKind.inAreaRent => '≈ ${sgd(cell.shown!)}',
         WtlCellKind.noRoute => k == WtlLineKey.time ? 'No route data' : '–',
         WtlCellKind.unknown => switch (k) {
             WtlLineKey.fare => 'Not known',
@@ -1128,12 +1144,5 @@ class S {
           },
       };
   String get wtlBest => 'Best';
-  String get wtlCompareNote => 'Best in each commute line is marked where the towns can be compared. Estimates from '
-      'planned weekday 08:30 trips and 22 working days there and back.';
-  String get wtlSource => 'HDB median rents and resale prices via data.gov.sg (Singapore Open Data Licence), each '
-      'with its own quarter, and planned weekday 08:30 trips from OneMap (Singapore Land Authority). '
-      'Indicative only, not advice.';
-  String wtlUpdated(String date) => 'Updated $date.';
   String get wtlNoData => 'The town data has not loaded yet. Check your connection and try again.';
-  String wtlHdbRentPeriod(String period) => 'Median monthly rent of approved HDB rentals, $period.';
 }

@@ -243,34 +243,31 @@ class BlockPage extends ConsumerWidget {
                   runSpacing: 8,
                   children: [
                     _HeroChip(Icons.calendar_today_outlined, s.builtIn(block.yearCompleted)),
-                    _HeroChip(Icons.hourglass_bottom, s.leaseLeft(block.leaseLeft(year))),
                     if (block.floors > 0) _HeroChip(Icons.apartment, s.storeys(block.floors)),
                   ],
                 ),
+                const SizedBox(height: 14),
+                LeaseBar(block: block, year: year),
                 const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
+                _ActionButtons(
+                  watch: FilledButton.icon(
                         style: FilledButton.styleFrom(
                           backgroundColor: watching ? DL.amber : DL.ink,
                           foregroundColor: watching ? DL.ink : DL.card,
                         ),
                         icon: Icon(watching ? Icons.visibility : Icons.visibility_outlined),
-                        label: Text(watching ? s.watching : s.watch),
+                        label: _OneLine(watching ? s.watching : s.watch),
                         onPressed: () => ref
                             .read(favoritesProvider.notifier)
                             .toggleWatch(block.key, resale?.countFor(block.key) ?? 0),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: OutlinedButton.icon(
+                  compare: OutlinedButton.icon(
+                        key: const ValueKey('block-compare'),
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size.fromHeight(54),
                         ),
                         icon: Icon(comparing ? Icons.compare_arrows : Icons.add),
-                        label: Text(comparing ? s.openCompare(fav.compareBlocks.length) : s.compare),
+                        label: _OneLine(comparing ? s.openCompare(fav.compareBlocks.length) : s.compare),
                         onPressed: () async {
                           if (comparing) {
                             await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ComparePage()));
@@ -289,8 +286,6 @@ class BlockPage extends ConsumerWidget {
                           );
                         },
                       ),
-                    ),
-                  ],
                 ),
                 const SizedBox(height: 8),
                 Text(s.watchNote, style: Theme.of(context).textTheme.bodySmall),
@@ -315,24 +310,8 @@ class BlockPage extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Wrap(
-                            spacing: 24,
-                            runSpacing: 16,
-                            children: [
-                              for (final e in rents.entries)
-                                Stat(
-                                  value: sgd(e.value.median),
-                                  caption: e.value.quarterly
-                                      ? s.wtlRentCaption(e.key, e.value.period)
-                                      : '${e.key.toLowerCase()} ${s.perMonth}',
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            quarterly ? s.wtlTownRentNote(titleCase(block.town)) : s.wtlHdbRentPeriod(rents.values.first.period),
-                            style: t.bodySmall,
-                          ),
+                          for (final e in rents.entries)
+                            _RentRow(flat: s.wtlFlatName(e.key), median: e.value.median, quarter: e.value.quarterly ? s.wtlQuarter(e.value.period) : ''),
                         ],
                       ),
                     ),
@@ -346,8 +325,7 @@ class BlockPage extends ConsumerWidget {
                   SectionTitle(s.wtlTownsTitle(areaName)),
                   TownsBoard(block: block),
                 ],
-                const SizedBox(height: 8),
-                Text(s.homesDisclaimer, style: t.bodySmall),
+                const DataFooter(),
               ],
             ),
           ),
@@ -355,6 +333,144 @@ class BlockPage extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Watch and Compare side by side, the same width and height with one-line labels; stacked full
+/// width when the labels would not fit (large text, narrow screens).
+class _ActionButtons extends StatelessWidget {
+  const _ActionButtons({required this.watch, required this.compare});
+  final Widget watch;
+  final Widget compare;
+
+  @override
+  Widget build(BuildContext context) {
+    final scale = MediaQuery.textScalerOf(context).scale(16) / 16;
+    return LayoutBuilder(builder: (context, box) {
+      // Each half needs about 170 dp for "Notifying you" with its icon at 100% text.
+      if (box.maxWidth / 2 - 5 < 170 * scale) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [watch, const SizedBox(height: 10), compare],
+        );
+      }
+      return Row(
+        children: [Expanded(child: watch), const SizedBox(width: 10), Expanded(child: compare)],
+      );
+    });
+  }
+}
+
+/// A button label kept on one line, scaled down rather than wrapped.
+class _OneLine extends StatelessWidget {
+  const _OneLine(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => FittedBox(fit: BoxFit.scaleDown, child: Text(text, maxLines: 1));
+}
+
+/// Lease left as a bar of the 99-year lease, with the year it ends.
+class LeaseBar extends ConsumerWidget {
+  const LeaseBar({super.key, required this.block, required this.year, this.compact = false});
+  final HdbBlock block;
+  final int year;
+
+  /// In the comparison: the years and a thin bar only.
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final left = block.leaseLeft(year);
+    final ends = block.yearCompleted + 99;
+    final bar = ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: LinearProgressIndicator(
+        value: left / 99,
+        minHeight: compact ? 6 : 10,
+        color: left < 40 ? DL.amber : DL.teal,
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
+        semanticsLabel: '${s.leaseLeft(left)}, ${s.leaseEnds(ends)}',
+      ),
+    );
+    if (compact) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Column(
+          children: [
+            FittedBox(fit: BoxFit.scaleDown, child: Text('$left', maxLines: 1, style: t.titleSmall)),
+            const SizedBox(height: 4),
+            bar,
+            const SizedBox(height: 2),
+            FittedBox(fit: BoxFit.scaleDown, child: Text('$ends', maxLines: 1, style: t.labelSmall?.copyWith(color: DL.muted(context)))),
+          ],
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.hourglass_bottom, size: 16),
+            const SizedBox(width: 6),
+            Expanded(child: Text(s.leaseLeft(left), style: t.labelLarge)),
+            Text(s.leaseEnds(ends), style: t.labelMedium?.copyWith(color: DL.muted(context))),
+          ],
+        ),
+        const SizedBox(height: 6),
+        bar,
+      ],
+    );
+  }
+}
+
+/// One line of the town rent list: flat type chip, the monthly median, its quarter in small type.
+class _RentRow extends StatelessWidget {
+  const _RentRow({required this.flat, required this.median, required this.quarter});
+  final String flat;
+  final int median;
+  final String quarter;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      // Chip, price and quarter on one line; they wrap under each other at large text sizes.
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          ConstrainedBox(constraints: const BoxConstraints(minWidth: 104), child: FlatChip(flat)),
+          Text.rich(TextSpan(children: [
+            TextSpan(text: sgd(median), style: t.displaySmall?.copyWith(fontSize: 24)),
+            TextSpan(text: ' /mo', style: t.bodySmall),
+          ])),
+          if (quarter.isNotEmpty) Text(quarter, style: t.labelSmall?.copyWith(color: DL.muted(context))),
+        ],
+      ),
+    );
+  }
+}
+
+/// A flat type ("4-room") as a small mint chip.
+class FlatChip extends StatelessWidget {
+  const FlatChip(this.flat, {super.key});
+  final String flat;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: DL.mint,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: DL.edge(context), width: 1.5),
+        ),
+        child: Text(flat, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: DL.ink)),
+      );
 }
 
 class _HeroChip extends StatelessWidget {
@@ -402,22 +518,13 @@ class _ResaleCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(stat.flatType.toLowerCase(), style: t.labelLarge?.copyWith(color: scheme.primary)),
-                      const SizedBox(height: 4),
-                      Text(sgd(stat.median), style: t.displayMedium?.copyWith(fontSize: 36)),
-                    ],
-                  ),
-                ),
-                Flexible(child: Text(s.medianOf(stat.count), style: t.bodySmall, textAlign: TextAlign.end)),
-              ],
+            FlatChip(s.wtlFlatName(stat.flatType)),
+            const SizedBox(height: 6),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(sgd(stat.median, compact: true), maxLines: 1, style: t.displayMedium?.copyWith(fontSize: 36)),
             ),
+            Text('${sgd(stat.median)} · ${s.medianOf(stat.count)}', style: t.bodySmall?.copyWith(color: DL.muted(context))),
             if (tm != null && maxV > 0) ...[
               const SizedBox(height: 14),
               _Bar(label: '${s.thisBlock} ${sgd(stat.median, compact: true)}', value: stat.median / maxV, color: scheme.primary),
@@ -552,16 +659,52 @@ class ComparePage extends ConsumerWidget {
         if (pois != null) b.key: scoreBlock(b, pois: pois, stops: stops, hawkers: hawkers, dengue: dengue),
     };
 
-    final rows = <(String, String Function(HdbBlock))>[
-      (s.builtLabel, (b) => '${b.yearCompleted}'),
-      (s.leaseLabel, (b) => '${b.leaseLeft(year)}'),
-      for (final ft in flatTypes) (ft.toLowerCase(), (b) => priceFor(b, ft)),
-      (s.nearestMrt, (b) => scores[b.key]?.nearestMrt == null ? '–' : s.metres(scores[b.key]!.nearestMrt!.$2)),
-      (s.busStops400, (b) => '${scores[b.key]?.busStops400 ?? '–'}'),
-      (s.hawkers1km, (b) => '${scores[b.key]?.hawkers1km ?? '–'}'),
-      (s.primary1km, (b) => '${scores[b.key]?.primary1km ?? '–'}'),
-      (s.parks1km, (b) => '${scores[b.key]?.parks1km ?? '–'}'),
-      (s.dengue1km, (b) => '${scores[b.key]?.dengue1km ?? '–'}'),
+    // Numbers stay on one line, scaled down when a column is narrow.
+    Widget number(String v) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: FittedBox(fit: BoxFit.scaleDown, child: Text(v, maxLines: 1, style: t.titleSmall)),
+        );
+    Widget label(String v) => Text(v, style: t.bodySmall);
+    final wtl = ref.watch(whereToLiveProvider).value;
+    final rentData = ref.watch(rentProvider).value;
+    final rentFlat = commute?.choice.flat ?? '4-ROOM';
+    Widget rentCell(HdbBlock b) {
+      final r = townRents(wtl, rentData, b.town)[rentFlat];
+      if (r == null) return number('–');
+      return Column(children: [
+        number(sgd(r.median)),
+        if (r.quarterly)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(s.wtlQuarter(r.period), maxLines: 1, style: t.labelSmall?.copyWith(color: DL.muted(context))),
+            ),
+          ),
+      ]);
+    }
+
+    final rows = <(Widget, Widget Function(HdbBlock))>[
+      (label(s.builtLabel), (b) => number('${b.yearCompleted}')),
+      (label(s.leaseLabel), (b) => LeaseBar(block: b, year: year, compact: true)),
+      for (final ft in flatTypes)
+        (Align(alignment: Alignment.centerLeft, child: FlatChip(s.wtlFlatName(ft.replaceAll(' ', '-')))), (b) => number(priceFor(b, ft))),
+      (
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Wrap(spacing: 6, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
+            FlatChip(s.wtlFlatName(rentFlat)),
+            Text(s.rentInTown, style: t.bodySmall),
+          ]),
+        ),
+        rentCell,
+      ),
+      (label(s.nearestMrt), (b) => number(scores[b.key]?.nearestMrt == null ? '–' : s.metres(scores[b.key]!.nearestMrt!.$2))),
+      (label(s.busStops400), (b) => number('${scores[b.key]?.busStops400 ?? '–'}')),
+      (label(s.hawkers1km), (b) => number('${scores[b.key]?.hawkers1km ?? '–'}')),
+      (label(s.primary1km), (b) => number('${scores[b.key]?.primary1km ?? '–'}')),
+      (label(s.parks1km), (b) => number('${scores[b.key]?.parks1km ?? '–'}')),
+      (label(s.dengue1km), (b) => number('${scores[b.key]?.dengue1km ?? '–'}')),
     ];
 
     return Scaffold(
@@ -571,84 +714,119 @@ class ComparePage extends ConsumerWidget {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                // What the commute lines are for: office area, flat type, rent or buy.
+                if (commute != null && commute.area != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Wrap(
+                      key: const ValueKey('compare-context'),
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _HeroChip(Icons.work_outline, s.wtlToArea(commute.area!.name)),
+                        _HeroChip(Icons.apartment, s.wtlFlatName(commute.choice.flat)),
+                        _HeroChip(commute.choice.mode == WtlMode.buy ? Icons.sell_outlined : Icons.key_outlined,
+                            s.wtlModeName(commute.choice.mode)),
+                      ],
+                    ),
+                  ),
                 Panel(
                   // Clip so the striped rows stay inside the rounded outline.
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(DL.radius - 2),
                     child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Table(
-                      columnWidths: const {0: FlexColumnWidth(1.4)},
-                      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                      children: [
-                        TableRow(children: [
-                          const SizedBox(),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: LayoutBuilder(builder: (context, box) {
+                        final scale = MediaQuery.textScalerOf(context).scale(16) / 16;
+                        // A label column beside the cells needs room; at large text or on a narrow
+                        // screen each line's label goes above its cells, full width.
+                        final stacked = box.maxWidth / (chosen.length + 1.4) * 1.4 < 110 * scale;
+                        final lines = <(Widget, List<Widget>)>[
+                          for (final r in rows) (r.$1, [for (final b in chosen) r.$2(b)]),
+                          // Commute from each block's town ("In this area" and "Best" as on the website).
+                          if (commute != null)
+                            for (final line in commute.lines)
+                              (
+                                Text(s.wtlLine(line.key, commute.area?.name ?? '', commute.choice), style: t.bodySmall),
+                                [for (final cell in line.cells) WtlCellText(line: line.key, cell: cell, mode: commute.choice.mode)],
+                              ),
+                        ];
+                        Color? stripe(int i) =>
+                            i.isEven ? Theme.of(context).colorScheme.surfaceContainer.withValues(alpha: 0.5) : null;
+                        final heads = [
                           for (final b in chosen)
-                            // Top-aligned so the block numbers line up whatever the street length.
-                            TableCell(
-                              verticalAlignment: TableCellVerticalAlignment.top,
-                              child: Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: Column(
-                                  children: [
-                                    _BlockNumber(b.block),
-                                    const SizedBox(height: 6),
+                            Padding(
+                              padding: const EdgeInsets.all(8),
+                              child: Column(
+                                children: [
+                                  FittedBox(fit: BoxFit.scaleDown, child: _BlockNumber(b.block)),
+                                  const SizedBox(height: 6),
+                                  if (stacked)
+                                    FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(titleCase(b.street), style: t.labelSmall, maxLines: 1),
+                                    )
+                                  else
                                     Text(b.street, style: t.labelSmall, textAlign: TextAlign.center, maxLines: 3),
-                                    IconButton(
-                                      tooltip: s.remove,
-                                      icon: const Icon(Icons.close),
-                                      onPressed: () => ref.read(favoritesProvider.notifier).toggleCompare(b.key),
-                                    ),
-                                  ],
-                                ),
+                                  IconButton(
+                                    tooltip: s.remove,
+                                    icon: const Icon(Icons.close),
+                                    onPressed: () => ref.read(favoritesProvider.notifier).toggleCompare(b.key),
+                                  ),
+                                ],
                               ),
                             ),
-                        ]),
-                        for (var i = 0; i < rows.length; i++)
-                          TableRow(
-                            decoration: BoxDecoration(
-                              color: i.isEven ? Theme.of(context).colorScheme.surfaceContainer.withValues(alpha: 0.5) : null,
-                            ),
+                        ];
+                        if (stacked) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                child: Text(rows[i].$1, style: t.bodySmall),
-                              ),
-                              for (final b in chosen)
-                                Text(rows[i].$2(b), textAlign: TextAlign.center, style: t.titleSmall),
-                            ],
-                          ),
-                        // Commute from each block's town ("In this area" and "Best" as on the website).
-                        if (commute != null)
-                          for (var j = 0; j < commute.lines.length; j++)
-                            TableRow(
-                              decoration: BoxDecoration(
-                                color: (rows.length + j).isEven
-                                    ? Theme.of(context).colorScheme.surfaceContainer.withValues(alpha: 0.5)
-                                    : null,
-                              ),
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                  child: Text(s.wtlLine(commute.lines[j].key, commute.area?.name ?? '', commute.choice),
-                                      style: t.bodySmall),
+                              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [for (final h in heads) Expanded(child: h)]),
+                              for (var i = 0; i < lines.length; i++)
+                                Container(
+                                  color: stripe(i),
+                                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      lines[i].$1,
+                                      Row(
+                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        children: [for (final c in lines[i].$2) Expanded(child: Center(child: c))],
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                for (final cell in commute.lines[j].cells)
-                                  WtlCellText(line: commute.lines[j].key, cell: cell, mode: commute.choice.mode),
-                              ],
-                            ),
-                      ],
+                            ],
+                          );
+                        }
+                        return Table(
+                          columnWidths: const {0: FlexColumnWidth(1.4)},
+                          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                          children: [
+                            TableRow(children: [
+                              const SizedBox(),
+                              // Top-aligned so the block numbers line up whatever the street length.
+                              for (final h in heads) TableCell(verticalAlignment: TableCellVerticalAlignment.top, child: h),
+                            ]),
+                            for (var i = 0; i < lines.length; i++)
+                              TableRow(
+                                decoration: BoxDecoration(color: stripe(i)),
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                    child: lines[i].$1,
+                                  ),
+                                  ...lines[i].$2,
+                                ],
+                              ),
+                          ],
+                        );
+                      }),
                     ),
                   ),
-                  ),
                 ),
-                if (commute != null && commute.area != null) ...[
-                  Text(s.wtlCompareSub(commute.area!.name, commute.choice.flat, commute.choice.mode), style: t.bodySmall),
-                  const SizedBox(height: 4),
-                  Text(s.wtlCompareNote, style: t.bodySmall),
-                  const SizedBox(height: 8),
-                ],
-                Text(s.homesDisclaimer, style: t.bodySmall),
+                const DataFooter(),
               ],
             ),
     );

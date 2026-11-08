@@ -10,6 +10,7 @@ import 'package:dailylah/l10n.dart';
 import 'package:dailylah/logic.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
+import 'package:dailylah/ui/block_commute.dart';
 import 'package:dailylah/ui/homes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -65,17 +66,18 @@ void main() {
     final row = WtlRow(town: town, commute: cm, price: town.rent['4-ROOM'], group: WtlGroup.match);
     final m = wtlMonthly(cbd, row)!;
     expect(find.text('≈ ${sgd(m.total!)}'), findsOneWidget);
-    expect(find.text('all-in a month, rent + fares'), findsOneWidget);
+    expect(find.text(_s.wtlAllInLabel), findsOneWidget);
+    expect(_s.wtlAllInLabel, contains('estimate'));
     expect(find.text('${m.hours} h'), findsOneWidget);
-    expect(find.text(_s.wtlEstimateNote), findsWidgets);
+    expect(find.text(_s.wtlHoursLabel), findsOneWidget);
   });
 
   testWidgets('one rent per town: the quarterly median with its quarter, not the six-month one', (tester) async {
     await _open(tester, householdFavorites, const BlockPage(block: _tampines));
     await _show(tester, find.text(_s.rentTitle));
     final q = town.rent['4-ROOM']!;
-    expect(find.text(_s.wtlRentCaption('4-ROOM', q.quarter)), findsOneWidget);
-    expect(find.text(_s.wtlTownRentNote('Tampines')), findsOneWidget);
+    expect(find.text('${sgd(q.median)} /mo', findRichText: true), findsOneWidget);
+    expect(find.text(_s.wtlQuarter(q.quarter)), findsWidgets);
     final six = _sixMonth.towns['TAMPINES']!['4-ROOM'];
     if (six != null && six != q.median) {
       // Anywhere on the page, the six-month 4-room figure never shows.
@@ -140,10 +142,16 @@ void main() {
     );
     await _open(tester, fav, const ComparePage());
     final woodlands = wtlTownFor(_wtl, 'WOODLANDS')!;
+    // The context as chips above the table.
+    final chips = find.byKey(const ValueKey('compare-context'));
+    expect(find.descendant(of: chips, matching: find.text('To Woodlands')), findsOneWidget);
+    expect(find.descendant(of: chips, matching: find.text('4-room')), findsOneWidget);
+    expect(find.descendant(of: chips, matching: find.text('Rent')), findsOneWidget);
     await _show(tester, find.text('On the road a month'));
     expect(find.text('Time to Woodlands'), findsOneWidget);
     expect(find.text('In this area'), findsWidgets);
-    expect(find.text('≈ ${sgd(woodlands.rent['4-ROOM']!.median)} rent, no fare estimate'), findsOneWidget);
+    expect(find.text('≈ ${sgd(woodlands.rent['4-ROOM']!.median)}'), findsOneWidget);
+    expect(find.text('rent only'), findsOneWidget);
     // The same cells the table shows: their best flags.
     final lines = wtlBlockLines(_wtl, const WtlChoice(area: 'woodlands'), ['WOODLANDS', 'TAMPINES', 'ANG MO KIO']);
     final time = lines.firstWhere((l) => l.key == WtlLineKey.time);
@@ -162,4 +170,36 @@ void main() {
     expect(find.textContaining(RegExp(r'Rent around S\$[\d,]+ a month for an? .* in this town \(Q[1-4] \d{4} median\)')),
         findsOneWidget);
   });
+
+  testWidgets('one disclaimer line; About this data opens the sheet with the hdb.gov.sg link', (tester) async {
+    await _open(tester, householdFavorites, const BlockPage(block: _tampines));
+    final about = find.byKey(const ValueKey('about-data'));
+    await _show(tester, about);
+    expect(find.text(_s.dataFooter(dataDay(_wtl.generatedAt))), findsOneWidget);
+    expect(find.text(_s.homesDisclaimer), findsNothing);
+    await tester.tap(about);
+    await settle(tester);
+    expect(find.text(_s.aboutDataMethod), findsOneWidget);
+    expect(find.textContaining('22 working days'), findsOneWidget);
+    expect(find.byKey(const ValueKey('check-eligibility')), findsOneWidget);
+  });
+
+  for (final scale in [1.0, 2.0]) {
+    testWidgets('Notify and Compare buttons: same size, labels on one line (text ${scale * 100}%)', (tester) async {
+      final c = Condition('buttons', textScale: scale, size: scale > 1 ? const Size(360, 780) : const Size(412, 915));
+      await applyCondition(tester, c);
+      await tester.pumpWidget(pageUnder(c, householdFavorites, tuesdayMorning, const BlockPage(block: _tampines)));
+      await settle(tester);
+      final watch = find.widgetWithText(FilledButton, 'Notifying you');
+      final compare = find.byKey(const ValueKey('block-compare'));
+      expect(tester.getSize(watch), tester.getSize(compare));
+      for (final label in [_s.watching, _s.openCompare(2)]) {
+        final text = find.text(label);
+        // One line: the label is no taller than one line of its style.
+        final style = tester.widget<Text>(text).style ?? DefaultTextStyle.of(tester.element(text)).style;
+        expect(tester.getSize(text).height, lessThanOrEqualTo((style.fontSize ?? 14) * scale * (style.height ?? 1.5) + 2));
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
 }

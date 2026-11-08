@@ -58,8 +58,8 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 - Types: `AppFrame`
 
 ### `lib/ui/block_commute.dart`
-- Types: `BlockCommute`, `TownsBoard`, `WtlCellText`
-- Functions: `wtlTownUrl`, `wtlSessionChoice`
+- Types: `BlockCommute`, `TownsBoard`, `WtlCellText`, `DataFooter`
+- Functions: `wtlTownUrl`, `wtlSessionChoice`, `dataDay`, `showAboutData`
 
 ### `lib/ui/bus_sheet.dart`
 - Types: `WhereBusSheet`
@@ -76,7 +76,7 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 - Types: `HomePage`, `NearItem`, `NearGroup`
 
 ### `lib/ui/homes.dart`
-- Types: `BlockSearchPage`, `BlockTile`, `BlockPage`, `ComparePage`, `AgentCheckPage`
+- Types: `BlockSearchPage`, `BlockTile`, `BlockPage`, `LeaseBar`, `FlatChip`, `ComparePage`, `AgentCheckPage`
 
 ### `lib/ui/keyboard.dart`
 - Types: `KeyboardNavigatorObserver`, `KeyboardRepaint`
