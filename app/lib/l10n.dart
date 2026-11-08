@@ -886,7 +886,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Commute and all-in cost in Prices, rent and score: see minutes, fares and monthly cost to your office for every HDB town, and compare blocks side by side.",
+        "New in Prices, rent and score: travel time, fares and all-in monthly cost to your office for every HDB town, plus commute and cost when you compare blocks.",
       ];
 
   // about
