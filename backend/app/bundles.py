@@ -21,6 +21,7 @@ from typing import Any
 
 import httpx
 
+from . import geoapify as _geoapify  # noqa: F401  (installs the httpx log redaction: apiKey=***)
 from .datagov import DataGovKey
 from .onemap import OneMap
 from .svy21 import to_latlon
@@ -670,7 +671,10 @@ async def build_poi(dg: DataGov, geo: Geocoder) -> dict:
     async def parks() -> list[dict]:
         items = compact_points(await dg.geojson(PARKS))
         try:
-            return attach_facilities(items, await dg.geojson(PARK_FACILITIES))
+            facilities = await dg.geojson(PARK_FACILITIES)
+            # The same NParks points give the park toilets of toilets.json (build_toilets).
+            LAST_PARK_TOILETS[:] = park_toilet_points(facilities, items)
+            return attach_facilities(items, facilities)
         except Exception as e:  # parks without facility chips are still useful
             log.warning("park facilities failed: %s", e)
             return items
@@ -1496,3 +1500,178 @@ async def build_halal(client: httpx.AsyncClient, pause: float = 1.0, max_pages: 
         page += 1
         await asyncio.sleep(pause)
     return out
+
+
+# ---------------------------------------------------------------- toilets ("Need a toilet?")
+
+GEOAPIFY_PLACES_URL = "https://api.geoapify.com/v2/places"
+# Singapore's bounding box (as in in_sg), lon1,lat1,lon2,lat2.
+TOILET_RECT = "rect:103.59,1.15,104.1,1.48"
+TOILET_PAGE = 500
+TOILET_DEDUPE_METRES = 30.0
+
+# Park toilets from the last build_poi run (NParks Park Facilities), for build_toilets.
+LAST_PARK_TOILETS: list[dict] = []
+
+# Kind of a toilet from its name, first match wins. Stations before malls: "Bishan
+# Interchange" is the bus interchange, "Junction 8" is a mall.
+_TOILET_KIND_WORDS: list[tuple[str, re.Pattern[str]]] = [
+    ("station", re.compile(r"\b(interchange|mrt|lrt|station|bus terminal)\b", re.I)),
+    (
+        "hawker",
+        re.compile(r"\b(hawker|food centre|food center|market|kopitiam|food court)\b", re.I),
+    ),
+    (
+        "mall",
+        re.compile(
+            r"\b(mall|plaza|city|point|square|junction|shopping|galleria)\b",
+            re.I,
+        ),
+    ),
+    ("park", re.compile(r"\b(park|garden|gardens|reservoir|beach|nature|connector)\b", re.I)),
+]
+_TOILET_KIND_CATEGORIES: list[tuple[str, tuple[str, ...]]] = [
+    ("station", ("public_transport",)),
+    ("hawker", ("catering.food_court", "commercial.marketplace")),
+    ("mall", ("commercial.shopping_mall", "commercial.department_store")),
+    ("park", ("leisure.park", "national_park", "beach")),
+]
+_TOILET_KIND_ORDER = ["mall", "hawker", "station", "park", "other"]
+
+
+def toilet_kind(name: str, categories: list[str]) -> str:
+    """mall | station | hawker | park | other, from the name, else Geoapify's categories."""
+    for kind, words in _TOILET_KIND_WORDS:
+        if words.search(name or ""):
+            return kind
+    for kind, prefixes in _TOILET_KIND_CATEGORIES:
+        if any(str(c).startswith(prefixes) for c in categories or ()):
+            return kind
+    return "other"
+
+
+def compact_geoapify_toilets(body: object) -> list[dict]:
+    """Toilets from one Geoapify Places page: name (or the street), position and kind."""
+    feats = body.get("features") if isinstance(body, dict) else None
+    out: list[dict] = []
+    for f in feats if isinstance(feats, list) else []:
+        props = f.get("properties") if isinstance(f, dict) else None
+        if not isinstance(props, dict):
+            continue
+        la, lo = props.get("lat"), props.get("lon")
+        if not isinstance(la, int | float) or not isinstance(lo, int | float) or not in_sg(la, lo):
+            continue
+        name = str(props.get("name") or "").strip()[:80]
+        cats = props.get("categories")
+        cats = [str(c) for c in cats] if isinstance(cats, list) else []
+        kind = toilet_kind(name, cats)
+        if not name:
+            street = str(props.get("street") or "").strip()[:60]
+            name = f"Toilet, {street}" if street else "Toilet"
+        out.append({"n": name, "la": _r(la), "lo": _r(lo), "k": kind})
+    return out
+
+
+def park_toilet_points(geo: dict, parks: list[dict], radius: float = 400.0) -> list[dict]:
+    """NParks facility points whose class is a toilet, named after the nearest park within
+    [radius] metres, else their own NAME, else "Park toilet"."""
+    out = []
+    for f in geo.get("features", []):
+        props = f.get("properties") or {}
+        desc = str(props.get("Description", ""))
+        cls = str(props.get("CLASS") or props.get("Class") or html_field(desc, "CLASS") or "")
+        if not cls or _facility_label(cls) != "Toilet":
+            continue
+        c = centroid(f.get("geometry"))
+        if not c or not in_sg(c[0], c[1]):
+            continue
+        best, best_d = None, radius
+        for p in parks:
+            d = _haversine(c[0], c[1], p["la"], p["lo"])
+            if d <= best_d:
+                best, best_d = p, d
+        name = str(best["n"]) if best else _props_name(props).strip() or "Park toilet"
+        out.append({"n": name, "la": _r(c[0]), "lo": _r(c[1]), "k": "park"})
+    return out
+
+
+def _toilet_name_score(t: dict) -> tuple[int, int]:
+    """Higher is clearer: a real name beats "Toilet"/"Toilet, <street>", then longer."""
+    n = str(t.get("n", ""))
+    generic = n.lower().startswith("toilet") or n.lower() in ("public toilet", "park toilet")
+    return (0 if generic else 1, len(n))
+
+
+def merge_toilets(points: list[dict], metres: float = TOILET_DEDUPE_METRES) -> list[dict]:
+    """One toilet per spot: points closer than [metres] are the same toilet. The clearest name
+    is kept, and a specific kind (mall, hawker...) wins over "other"."""
+    cell = 0.0005  # ~55 m, so twins are in the same or a neighbouring cell
+    grid: dict[tuple[int, int], list[dict]] = defaultdict(list)
+    kept: list[dict] = []
+    for p in sorted(points, key=_toilet_name_score, reverse=True):
+        gx, gy = int(p["la"] / cell), int(p["lo"] / cell)
+        twin = None
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                for q in grid.get((gx + dx, gy + dy), ()):
+                    if _haversine(p["la"], p["lo"], q["la"], q["lo"]) < metres:
+                        twin = q
+                        break
+                if twin:
+                    break
+            if twin:
+                break
+        if twin is None:
+            item = {"n": p["n"], "la": p["la"], "lo": p["lo"], "k": p.get("k", "other")}
+            grid[(gx, gy)].append(item)
+            kept.append(item)
+        elif twin["k"] == "other" and p.get("k", "other") != "other":
+            twin["k"] = p["k"]
+    kept.sort(key=lambda t: (_TOILET_KIND_ORDER.index(t["k"]), t["la"], t["lo"]))
+    return kept
+
+
+async def build_toilets(
+    client: httpx.AsyncClient,
+    api_key: str | None,
+    hawkers: list[dict],
+    park_toilets: list[dict],
+    *,
+    max_pages: int = 20,
+) -> list[dict]:
+    """toilets.json: OpenStreetMap toilets from Geoapify Places (amenity.toilet in Singapore),
+    NParks park toilets and every hawker centre (nearly all have one), one per 30 m.
+
+    Geoapify takes the key in the URL: errors are raised without the httpx exception (whose
+    text names the URL), and httpx's request log line is redacted by app.geoapify."""
+    if not api_key:
+        raise RuntimeError("no GEOAPIFY_API_KEY; keeping the previous toilets.json")
+    found: list[dict] = []
+    for page in range(max_pages):
+        params = {
+            "categories": "amenity.toilet",
+            "filter": TOILET_RECT,
+            "limit": TOILET_PAGE,
+            "offset": page * TOILET_PAGE,
+            "apiKey": api_key,
+        }
+        try:
+            r = await client.get(GEOAPIFY_PLACES_URL, params=params, timeout=60)
+            r.raise_for_status()
+            body = r.json()
+        except (httpx.HTTPError, ValueError) as e:
+            status = e.response.status_code if isinstance(e, httpx.HTTPStatusError) else None
+            raise RuntimeError(
+                f"Geoapify places failed: {type(e).__name__} {status or ''}".strip()
+            ) from None
+        feats = body.get("features") if isinstance(body, dict) else None
+        n = len(feats) if isinstance(feats, list) else 0
+        found += compact_geoapify_toilets(body)
+        if n < TOILET_PAGE:
+            break
+    hawker_toilets = [
+        {"n": str(h["n"]), "la": _r(h["la"]), "lo": _r(h["lo"]), "k": "hawker"}
+        for h in hawkers
+        if h.get("n") and in_sg(h.get("la"), h.get("lo"))
+    ]
+    return merge_toilets(found + hawker_toilets + list(park_toilets))

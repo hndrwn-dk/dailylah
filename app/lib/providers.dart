@@ -367,6 +367,15 @@ final nearbySectionProvider = StateProvider<String>((ref) => 'bus');
 final halalProvider = FutureProvider<List<EPoint>>((ref) => _list(ref, 'halal', EPoint.fromBundle));
 
 /// EV charging locations (ev.json, daily from LTA).
+/// Public toilets for "Need a toilet?" (the `toilets` bundle); empty until the data run makes it.
+final toiletsProvider = FutureProvider<List<Toilet>>((ref) => _list(ref, 'toilets', Toilet.fromBundle));
+
+/// The best toilets near a point (Nearby > Toilets), computed on the phone.
+final toiletsNearProvider = Provider.autoDispose.family<List<(Toilet, double)>?, (double, double)>((ref, at) {
+  final all = ref.watch(toiletsProvider).value;
+  return all == null ? null : toiletsNear(all, at.$1, at.$2);
+});
+
 final evSitesProvider = FutureProvider<List<EvSite>>((ref) => _list(ref, 'ev', EvSite.fromBundle));
 
 /// Live EV chargers at one postal code, asked only while a list showing it is on screen.

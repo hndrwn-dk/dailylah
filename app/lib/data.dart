@@ -840,3 +840,25 @@ class WhereToLive {
 
   static const empty = WhereToLive(generatedAt: '', rentQuarter: '', resaleQuarter: '', areas: [], towns: []);
 }
+
+
+/// What a toilet is part of, from the `toilets` bundle ("k"): malls, hawker centres and
+/// stations come first when two are as quick to reach (more cubicles).
+enum ToiletKind { mall, station, hawker, park, other }
+
+/// A public toilet from `toilets.json` (OpenStreetMap via Geoapify, NParks park toilets, hawker
+/// centres). {"n","la","lo","k"}
+class Toilet {
+  const Toilet({required this.name, required this.lat, required this.lng, this.kind = ToiletKind.other});
+  final String name;
+  final double lat;
+  final double lng;
+  final ToiletKind kind;
+
+  factory Toilet.fromBundle(Map<String, dynamic> j) => Toilet(
+        name: '${j['n'] ?? ''}',
+        lat: _d(j['la']),
+        lng: _d(j['lo']),
+        kind: ToiletKind.values.firstWhere((k) => k.name == j['k'], orElse: () => ToiletKind.other),
+      );
+}

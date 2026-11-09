@@ -300,6 +300,7 @@ No promote to production while any of these is open.
 - [ ] Widget on a foldable (Galaxy Z Fold): fold and unfold; the widget switches layout on each screen. On a Galaxy Z Flip, add it under Settings > Cover screen > Widgets.
 - [ ] Widget buttons Today / Nearby / Home open the app on that tab, also when the app was closed.
 - [ ] Wake me on a locked screen on a real bus ride.
+- [ ] Need a toilet? (once `toilets.json` is published): start Wake me on a real bus two or more stops before your stop, tap Need a toilet?; the sheet lists the stops ahead with a toilet ("Get off at … (in about N min)"), soonest first, and Walking directions opens Google Maps at the toilet. On the train, the sheet lists the next stations ("Stations usually have a toilet" where the data has none). Nearby > Toilets shows the three best toilets near the place.
 - [ ] Look at Today and Home once on a small real phone at the largest font size.
 - [ ] Public holiday: set the phone's date to a public holiday on a workday (e.g. Fri 25 Dec 2026) before the usual leave time. Today shows the holiday banner and no trip; the background check sends one "Happy Christmas Day · no commute today" notification and no "Time to go".
 - [ ] Plan a trip, To: "Lau Pa Sat" finds it at 18 Raffles Quay with the Geoapify line under the results; "560201" finds Blk 201 Ang Mo Kio (OneMap, no Geoapify line); "Jewel Changi" finds Jewel. ("Putra Minang" is not in OpenStreetMap and finds nothing: share it from Google Maps.)

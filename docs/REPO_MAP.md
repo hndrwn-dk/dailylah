@@ -5,7 +5,7 @@ after adding, moving, renaming or removing a file, a public class or function, a
 or an endpoint. CI (`docs` workflow) fails when this file is out of date. What each
 feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 
-## App: `app/lib` (34 files)
+## App: `app/lib` (35 files)
 
 ### `lib/api.dart`
 - Types: `DailyLahApi`, `OneMapApi`, `PlacesApi`, `BundleRepository`, `BusStopRepository`, `MapsLinks`
@@ -14,7 +14,7 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 - Functions: `initNotifications`, `notifyNow`, `requestNotificationPermission`, `registerBackgroundWork`, `callbackDispatcher`, `runChecks`, `updateWidget`, `resetWidgetCache`, `widgetTabTaps`
 
 ### `lib/data.dart`
-- Types: `Closure`, `Hawker`, `DengueCluster`, `Poi`, `PoiKind (enum)`, `PoiSet`, `Carpark`, `HdbBlock`, `ResaleStat`, `ResaleData`, `RentData`, `PrayerTimes`, `EPoint`, `EvPlug`, `EvSite`, `EvLive`, `EmergencyKind (enum)`, `EmergencySet`, `MrtStation`, `Project`, `AroundSet`, `PrivateProject`, `PublicEvent`, `QuarterMedian`, `TownCommute`, `WtlArea`, `WtlTown`, `WhereToLive`
+- Types: `Closure`, `Hawker`, `DengueCluster`, `Poi`, `PoiKind (enum)`, `PoiSet`, `Carpark`, `HdbBlock`, `ResaleStat`, `ResaleData`, `RentData`, `PrayerTimes`, `EPoint`, `EvPlug`, `EvSite`, `EvLive`, `EmergencyKind (enum)`, `EmergencySet`, `MrtStation`, `Project`, `AroundSet`, `PrivateProject`, `PublicEvent`, `QuarterMedian`, `TownCommute`, `WtlArea`, `WtlTown`, `WhereToLive`, `ToiletKind (enum)`, `Toilet`
 - Functions: `expandPlaceName`, `capitalizeWord`, `cleanPlaceName`, `cleanDetail`, `isTemporarilyClosed`
 
 ### `lib/l10n.dart`
@@ -22,8 +22,8 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 - Functions: `noOrphan`
 
 ### `lib/logic.dart`
-- Types: `AreaForecast`, `WakeEvent (enum)`, `LineStatus`, `CardKind (enum)`, `BlockScore`, `ShareChoice`, `ShareImport`, `AlertKind (enum)`, `TodayAlert`, `AirQuality`, `BusRoutes`, `DirectRide`, `BusStrip`, `ParkingLot`, `TripStops`, `MrtPlan`, `MrtRide`, `FeederBus`, `MrtChoice`, `LeaveBy`, `TripBoardRow (typedef)`, `HistoryKind (enum)`, `HistoryEntry`, `HistoryPeriod (enum)`, `HistorySummary`, `MealNudge`, `Holiday`, `SchoolHoliday`, `DaysOff`, `SharedPlace`, `WtlMode (enum)`, `WtlChoice`, `WtlGroup (enum)`, `WtlReason (enum)`, `WtlRow`, `WtlLineKey (enum)`, `WtlCellKind (enum)`, `WtlCell`, `WtlLine`, `TownRent (typedef)`, `WtlSort (enum)`
-- Functions: `distanceMeters`, `nearestStops`, `searchStops`, `forecastNear`, `isRainyForecast`, `liveStaleSince`, `wakeEvent`, `parseBusArrival`, `lineStatuses`, `highCrowdShare`, `commutePlace`, `cardFor`, `todayBackToTop`, `isCommuteDay`, `watchedLines`, `extrasForToday`, `originFor`, `destinationFor`, `isQuietHour`, `inRainWindow`, `dayKey`, `dateOnly`, `shortDate`, `sgd`, `monthLabel`, `taxisWithin`, `heatStressNear`, `isHighHeat`, `lightningNear`, `preferIndoor`, `nextPrayerIndex`, `scoreBlock`, `searchBlocks`, `encodeShareCode`, `readShareCode`, `shareConflicts`, `applyShare`, `decodeShareCode`, `todayAlerts`, `parseOneMap`, `looksLikeAddress`, `parsePlaces`, `blockForAddress`, `isPostalCode`, `uvIndex`, `psiLevel`, `pm25Level`, `airNear`, `taxiEase`, `taxisAround`, `compass8`, `directRides`, `busWhere`, `busStrip`, `tripRides`, `usableStops`, `destinationStops`, `parseParking`, `distanceToSegment`, `tripStops`, `shortPlaceName`, `lineOfCode`, `mrtPlan`, `mrtPlanBetween`, `mrtLeg`, `mrtRide`, `stationOnLine`, `feederBus`, `usualMrtChoice`, `lineMrtChoice`, `mrtChoices`, `stationCrowd`, `rideMinutesTo`, `rideIndexAt`, `rideEta`, `rideFixIndex`, `rideLineAt`, `rideAlertDue`, `homeBlock`, `projectEnded`, `distanceToProject`, `upgradingAtHome`, `titleCase`, `privateProjectFor`, `orderInReason`, `isParkNight`, `parkTime`, `transitResting`, `mrtPlanLines`, `walkMinutesTo`, `leaveBy`, `tripBoard`, `inLeaveWindow`, `stopBefore`, `wakeRadius`, `tripRouteKey`, `tripMinutes`, `mealPlaceId`, `halalPlaceId`, `mealTimeOn`, `addMeal`, `parkMinutes`, `adultCardFare`, `tripFareEstimate`, `hdbParkingCost`, `parkingEstimate`, `historyOfKinds`, `parseCents`, `historySince`, `historyEntries`, `historySummary`, `mealNudge`, `parkReminderDue`, `weeklyDigest`, `inDigestWindow`, `tripAdvice`, `clockLabel`, `sinceLabel`, `servicesToPlaces`, `schoolHolidayOn`, `isSchoolDay`, `extrasDueNow`, `shortAddress`, `daysToWeekendEnd`, `whatsNewDue`, `evPlugMatches`, `evLiveFor`, `shortForecast`, `weatherKind`, `widgetTrip`, `widgetData`, `tabForWidgetUri`, `mapsLinkIn`, `isMapsLinkHost`, `parseSharedPlace`, `mapsLinkPlace`, `wtlFlatTypes`, `wtlBudgetLimit`, `wtlChecked`, `wtlChangeMode`, `wtlAnchorPlace`, `wtlRank`, `wtlCompareIds`, `wtlToggleCompare`, `wtlTownFor`, `townRents`, `wtlSorted`, `wtlBlockLines`, `withRecentBlock`, `compareCandidates`
+- Types: `AreaForecast`, `WakeEvent (enum)`, `LineStatus`, `CardKind (enum)`, `BlockScore`, `ShareChoice`, `ShareImport`, `AlertKind (enum)`, `TodayAlert`, `AirQuality`, `BusRoutes`, `DirectRide`, `BusStrip`, `ParkingLot`, `TripStops`, `MrtPlan`, `MrtRide`, `ToiletStop`, `FeederBus`, `MrtChoice`, `LeaveBy`, `TripBoardRow (typedef)`, `HistoryKind (enum)`, `HistoryEntry`, `HistoryPeriod (enum)`, `HistorySummary`, `MealNudge`, `Holiday`, `SchoolHoliday`, `DaysOff`, `SharedPlace`, `WtlMode (enum)`, `WtlChoice`, `WtlGroup (enum)`, `WtlReason (enum)`, `WtlRow`, `WtlLineKey (enum)`, `WtlCellKind (enum)`, `WtlCell`, `WtlLine`, `TownRent (typedef)`, `WtlSort (enum)`
+- Functions: `distanceMeters`, `nearestStops`, `searchStops`, `forecastNear`, `isRainyForecast`, `liveStaleSince`, `wakeEvent`, `parseBusArrival`, `lineStatuses`, `highCrowdShare`, `commutePlace`, `cardFor`, `todayBackToTop`, `isCommuteDay`, `watchedLines`, `extrasForToday`, `originFor`, `destinationFor`, `isQuietHour`, `inRainWindow`, `dayKey`, `dateOnly`, `shortDate`, `sgd`, `monthLabel`, `taxisWithin`, `heatStressNear`, `isHighHeat`, `lightningNear`, `preferIndoor`, `nextPrayerIndex`, `scoreBlock`, `searchBlocks`, `encodeShareCode`, `readShareCode`, `shareConflicts`, `applyShare`, `decodeShareCode`, `todayAlerts`, `parseOneMap`, `looksLikeAddress`, `parsePlaces`, `blockForAddress`, `isPostalCode`, `uvIndex`, `psiLevel`, `pm25Level`, `airNear`, `taxiEase`, `taxisAround`, `compass8`, `directRides`, `busWhere`, `busStrip`, `tripRides`, `usableStops`, `destinationStops`, `parseParking`, `distanceToSegment`, `tripStops`, `shortPlaceName`, `lineOfCode`, `mrtPlan`, `mrtPlanBetween`, `mrtLeg`, `mrtRide`, `toiletRank`, `toiletsAheadBus`, `toiletsAheadMrt`, `stationOnLine`, `feederBus`, `usualMrtChoice`, `lineMrtChoice`, `mrtChoices`, `stationCrowd`, `rideMinutesTo`, `rideIndexAt`, `rideEta`, `rideFixIndex`, `rideLineAt`, `rideAlertDue`, `homeBlock`, `projectEnded`, `distanceToProject`, `upgradingAtHome`, `titleCase`, `privateProjectFor`, `orderInReason`, `isParkNight`, `parkTime`, `transitResting`, `mrtPlanLines`, `walkMinutesTo`, `leaveBy`, `tripBoard`, `inLeaveWindow`, `stopBefore`, `wakeRadius`, `tripRouteKey`, `tripMinutes`, `mealPlaceId`, `halalPlaceId`, `mealTimeOn`, `addMeal`, `parkMinutes`, `adultCardFare`, `tripFareEstimate`, `hdbParkingCost`, `parkingEstimate`, `historyOfKinds`, `parseCents`, `historySince`, `historyEntries`, `historySummary`, `mealNudge`, `parkReminderDue`, `weeklyDigest`, `inDigestWindow`, `tripAdvice`, `clockLabel`, `sinceLabel`, `servicesToPlaces`, `schoolHolidayOn`, `isSchoolDay`, `extrasDueNow`, `shortAddress`, `daysToWeekendEnd`, `whatsNewDue`, `evPlugMatches`, `evLiveFor`, `shortForecast`, `weatherKind`, `widgetTrip`, `widgetData`, `tabForWidgetUri`, `mapsLinkIn`, `isMapsLinkHost`, `parseSharedPlace`, `mapsLinkPlace`, `wtlFlatTypes`, `wtlBudgetLimit`, `wtlChecked`, `wtlChangeMode`, `wtlAnchorPlace`, `wtlRank`, `wtlCompareIds`, `wtlToggleCompare`, `wtlTownFor`, `townRents`, `wtlSorted`, `wtlBlockLines`, `withRecentBlock`, `compareCandidates`
 
 ### `lib/main.dart`
 - Types: `DailyLahApp`
@@ -35,12 +35,12 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 
 ### `lib/mrt_ride.dart`
 - Types: `RideState`, `RideNotifier`
-- Providers: 1 (listed below)
+- Providers: 2 (listed below)
 
 ### `lib/providers.dart`
 - Types: `FavoritesNotifier`, `HabitsNotifier`
 - Functions: `noRetry`, `nowOf`
-- Providers: 73 (listed below)
+- Providers: 75 (listed below)
 
 ### `lib/share_intake.dart`
 - Functions: `sharedPlaces`
@@ -114,6 +114,10 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 - Types: `TodayPage`, `BusStopCard`, `BusRow`, `StopArrivalsPage`, `TaxiSheet`, `TaxiEaseCard`, `TaxiRadar`, `TaxiStandPin`, `WhatsNewCard`
 - Functions: `openApp`
 
+### `lib/ui/toilets.dart`
+- Types: `ToiletRide (enum)`, `ToiletSheet`, `ToiletsNearby`, `ToiletRows`, `ToiletFooter`
+- Functions: `showToiletSheet`
+
 ### `lib/ui/trip.dart`
 - Types: `TripSection`, `MrtLineSheet`, `TripBusCard`, `GoSomewhere`, `TripPlannerPage`, `PlanTripCard`, `TripBanner`
 - Functions: `modeIcon`, `mrtRouteKey`, `showMrtLineSheet`
@@ -127,13 +131,14 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 
 ### `lib/wake_session.dart`
 - Types: `WakeState`, `WakeNotifier`
-- Providers: 1 (listed below)
+- Providers: 2 (listed below)
 
-## Riverpod providers (77)
+## Riverpod providers (81)
 
 | Provider | Kind | File |
 | --- | --- | --- |
 | `rideProvider` | `NotifierProvider` | `lib/mrt_ride.dart` |
+| `trainToiletsProvider` | `Provider.autoDispose` | `lib/mrt_ride.dart` |
 | `apiProvider` | `Provider` | `lib/providers.dart` |
 | `oneMapProvider` | `Provider` | `lib/providers.dart` |
 | `placesProvider` | `Provider` | `lib/providers.dart` |
@@ -165,6 +170,8 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 | `homeSectionProvider` | `StateProvider` | `lib/providers.dart` |
 | `nearbySectionProvider` | `StateProvider` | `lib/providers.dart` |
 | `halalProvider` | `FutureProvider` | `lib/providers.dart` |
+| `toiletsProvider` | `FutureProvider` | `lib/providers.dart` |
+| `toiletsNearProvider` | `Provider.autoDispose.family` | `lib/providers.dart` |
 | `evSitesProvider` | `FutureProvider` | `lib/providers.dart` |
 | `evLiveProvider` | `FutureProvider.autoDispose.family` | `lib/providers.dart` |
 | `aroundProvider` | `FutureProvider` | `lib/providers.dart` |
@@ -210,6 +217,7 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 | `historyPeriodProvider` | `StateProvider` | `lib/ui/history.dart` |
 | `historyKindProvider` | `StateProvider` | `lib/ui/history.dart` |
 | `wakeProvider` | `NotifierProvider` | `lib/wake_session.dart` |
+| `busToiletsProvider` | `Provider.autoDispose` | `lib/wake_session.dart` |
 
 ## Backend endpoints (14)
 

@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import date
 
 import httpx
@@ -752,3 +753,217 @@ def test_attach_facilities_records_unknown_classes():
     out = b.attach_facilities([{"n": "X", "la": 1.35, "lo": 103.9}], geo)
     assert out[0]["f"] == ["Toilet"]
     assert dict(b.LAST_UNKNOWN_FACILITIES) == {"NOTICEBOARD": 1}
+
+
+# ---------------------------------------------------------------- toilets
+
+
+def _geo_toilet(name, lat, lng, categories=("amenity.toilet",), street=""):
+    props = {"lat": lat, "lon": lng, "categories": list(categories)}
+    if name:
+        props["name"] = name
+    if street:
+        props["street"] = street
+    return {"type": "Feature", "properties": props, "geometry": None}
+
+
+def test_compact_geoapify_toilets_reads_name_position_and_kind():
+    body = {
+        "features": [
+            _geo_toilet("Jurong Point", 1.339912, 103.706512),
+            _geo_toilet("", 1.35, 103.85, street="Bishan Road"),
+            _geo_toilet("Outside", 1.0, 103.8),  # not in Singapore
+            {"properties": {"name": "No position"}},
+            "junk",
+        ]
+    }
+    out = b.compact_geoapify_toilets(body)
+    assert out == [
+        {"n": "Jurong Point", "la": 1.33991, "lo": 103.70651, "k": "mall"},
+        {"n": "Toilet, Bishan Road", "la": 1.35, "lo": 103.85, "k": "other"},
+    ]
+    assert b.compact_geoapify_toilets({"features": "x"}) == []
+    assert b.compact_geoapify_toilets(None) == []
+
+
+@pytest.mark.parametrize(
+    ("name", "cats", "kind"),
+    [
+        ("Toa Payoh Bus Interchange", (), "station"),
+        ("Bishan MRT Station", (), "station"),
+        ("Punggol LRT", (), "station"),
+        ("Plaza Singapura", (), "mall"),
+        ("Northpoint City", (), "mall"),
+        ("Tiong Bahru Market", (), "hawker"),
+        ("Old Airport Road Food Centre", (), "hawker"),
+        ("Bishan Park", (), "park"),
+        ("East Coast Park C2", (), "park"),
+        ("Toilet", (), "other"),
+        ("", ("amenity.toilet", "commercial.shopping_mall"), "mall"),
+        ("", ("amenity.toilet", "public_transport.subway"), "station"),
+        ("", ("amenity.toilet", "leisure.park"), "park"),
+    ],
+)
+def test_toilet_kind_from_name_and_categories(name, cats, kind):
+    assert b.toilet_kind(name, list(cats)) == kind
+
+
+def test_merge_toilets_dedupes_within_30_m_and_keeps_the_clearest_name():
+    out = b.merge_toilets(
+        [
+            {"n": "Toilet", "la": 1.30000, "lo": 103.80000, "k": "other"},
+            {"n": "Bedok Interchange Hawker Centre", "la": 1.30010, "lo": 103.80010, "k": "hawker"},
+            {"n": "Toilet, Bedok North Road", "la": 1.30000, "lo": 103.80020, "k": "other"},
+            {"n": "Far away", "la": 1.30050, "lo": 103.80000, "k": "other"},  # ~55 m
+        ]
+    )
+    names = sorted(t["n"] for t in out)
+    assert names == ["Bedok Interchange Hawker Centre", "Far away"]
+    kept = next(t for t in out if t["n"].startswith("Bedok"))
+    assert kept["k"] == "hawker"
+
+
+def test_merge_toilets_keeps_a_specific_kind_from_a_dropped_twin():
+    out = b.merge_toilets(
+        [
+            {"n": "Jurong Point Shopping Centre", "la": 1.3, "lo": 103.7, "k": "other"},
+            {"n": "Toilet", "la": 1.3001, "lo": 103.7, "k": "mall"},
+        ]
+    )
+    assert out == [{"n": "Jurong Point Shopping Centre", "la": 1.3, "lo": 103.7, "k": "mall"}]
+
+
+def test_park_toilet_points_takes_nparks_toilets_with_the_park_name():
+    def pt(lat, lng, cls, name=""):
+        return {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [lng, lat]},
+            "properties": {"NAME": name, "CLASS": cls},
+        }
+
+    geo = {
+        "features": [
+            pt(1.3001, 103.8, "TOILET"),
+            pt(1.3002, 103.8, "PUBLIC WASHROOM"),
+            pt(1.3003, 103.8, "PLAYGROUND"),
+            pt(1.4, 103.95, "TOILET", name="Coney Island"),
+            pt(1.45, 103.7, "TOILET"),
+        ]
+    }
+    parks = [{"n": "Bishan Park", "la": 1.3, "lo": 103.8}]
+    out = b.park_toilet_points(geo, parks)
+    assert out == [
+        {"n": "Bishan Park", "la": 1.3001, "lo": 103.8, "k": "park"},
+        {"n": "Bishan Park", "la": 1.3002, "lo": 103.8, "k": "park"},
+        {"n": "Coney Island", "la": 1.4, "lo": 103.95, "k": "park"},
+        {"n": "Park toilet", "la": 1.45, "lo": 103.7, "k": "park"},
+    ]
+
+
+def _places_page(n, start=0):
+    return {
+        "type": "FeatureCollection",
+        "features": [
+            # A 100 x 10 grid ~330 m apart in the south-west, away from the hawker and park.
+            _geo_toilet(f"Toilet {k}", 1.16 + (k // 100) * 0.003, 103.65 + (k % 100) * 0.003)
+            for k in range(start, start + n)
+        ],
+    }
+
+
+@respx.mock
+async def test_build_toilets_pages_geoapify_until_an_empty_page():
+    pages = {0: _places_page(500), 500: _places_page(500, 500), 1000: {"features": []}}
+
+    def answer(request):
+        assert request.url.params["categories"] == "amenity.toilet"
+        assert request.url.params["filter"] == "rect:103.59,1.15,104.1,1.48"
+        assert request.url.params["limit"] == "500"
+        assert request.url.params["apiKey"] == "secret-key"
+        return httpx.Response(200, json=pages[int(request.url.params["offset"])])
+
+    route = respx.get(b.GEOAPIFY_PLACES_URL).mock(side_effect=answer)
+    hawkers = [{"id": "1", "n": "Adam Road Food Centre", "la": 1.32413, "lo": 103.81416}]
+    parks = [{"n": "Bishan Park", "la": 1.36, "lo": 103.84, "k": "park"}]
+    async with httpx.AsyncClient() as c:
+        out = await b.build_toilets(c, "secret-key", hawkers, parks)
+    assert route.call_count == 3
+    assert len(out) == 1002
+    assert {"n": "Adam Road Food Centre", "la": 1.32413, "lo": 103.81416, "k": "hawker"} in out
+    assert {"n": "Bishan Park", "la": 1.36, "lo": 103.84, "k": "park"} in out
+    assert "secret-key" not in json.dumps(out)
+
+
+@respx.mock
+async def test_build_toilets_stops_after_a_short_page_and_at_max_pages():
+    route = respx.get(b.GEOAPIFY_PLACES_URL).mock(
+        return_value=httpx.Response(200, json=_places_page(3))
+    )
+    async with httpx.AsyncClient() as c:
+        out = await b.build_toilets(c, "k", [], [])
+    assert route.call_count == 1
+    assert len(out) == 3
+
+    route.mock(side_effect=lambda r: httpx.Response(200, json=_places_page(500)))
+    async with httpx.AsyncClient() as c:
+        await b.build_toilets(c, "k", [], [], max_pages=4)
+    assert route.call_count == 1 + 4
+
+
+async def test_build_toilets_needs_a_key():
+    async with httpx.AsyncClient() as c:
+        with pytest.raises(RuntimeError, match="GEOAPIFY_API_KEY"):
+            await b.build_toilets(c, None, [], [])
+
+
+@respx.mock
+async def test_build_toilets_error_never_names_the_key(caplog):
+    caplog.set_level(logging.INFO)  # httpx logs every request URL at INFO
+    respx.get(b.GEOAPIFY_PLACES_URL).mock(return_value=httpx.Response(401))
+    async with httpx.AsyncClient() as c:
+        with pytest.raises(RuntimeError) as err:
+            await b.build_toilets(c, "secret-key", [], [])
+    assert "secret-key" not in str(err.value)
+    assert err.value.__cause__ is None and err.value.__suppress_context__
+    assert "apiKey=***" in caplog.text  # the request was logged, with the key masked
+    assert "secret-key" not in caplog.text
+
+
+@respx.mock
+async def test_build_keeps_previous_toilets_when_geoapify_fails(tmp_path, monkeypatch):
+    monkeypatch.setenv("LTA_ACCOUNT_KEY", "test-key")
+    monkeypatch.setenv("GEOAPIFY_API_KEY", "secret-key")
+    get_settings.cache_clear()
+    stops = [
+        {
+            "BusStopCode": f"{i:05d}",
+            "Description": "S",
+            "RoadName": "R",
+            "Latitude": 1.3,
+            "Longitude": 103.8,
+        }
+        for i in range(4100)
+    ]
+    respx.get(f"{LTA}/BusStops").mock(
+        side_effect=lambda r: httpx.Response(
+            200,
+            json={"value": stops[int(r.url.params["$skip"]) : int(r.url.params["$skip"]) + 500]},
+        )
+    )
+    respx.get(b.DATASTORE_URL).mock(return_value=httpx.Response(500))
+    respx.get(url__startswith="https://api-open.data.gov.sg/v1/public/api/datasets/").mock(
+        return_value=httpx.Response(500)
+    )
+    respx.get(b.ONEMAP_SEARCH_URL).mock(return_value=httpx.Response(200, json={"results": []}))
+    respx.get(b.GEOAPIFY_PLACES_URL).mock(return_value=httpx.Response(500))
+    (tmp_path / "toilets.json").write_text('[{"n":"Old","la":1.3,"lo":103.8,"k":"mall"}]')
+
+    async with httpx.AsyncClient() as c:
+        manifest = await build_static.build(
+            tmp_path, c, geocode_cache=None, pause=0, today=date(2026, 10, 20)
+        )
+    assert manifest["files"]["toilets"]["count"] == 1  # kept from the previous run
+    assert "Old" in (tmp_path / "toilets.json").read_text()
+    report = json.loads((tmp_path.parent / "build_report.json").read_text())
+    assert "secret-key" not in json.dumps(report)
+    get_settings.cache_clear()

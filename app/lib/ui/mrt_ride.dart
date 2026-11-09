@@ -5,6 +5,7 @@ import '../logic.dart';
 import '../mrt_ride.dart';
 import '../providers.dart';
 import 'theme.dart';
+import 'toilets.dart';
 import 'widgets.dart';
 
 /// "On the train": the line status (checked every 2 min), every station to the rider's stop
@@ -82,6 +83,15 @@ class MrtRidePage extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 14),
+          if (here < r.stops) ...[
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+              icon: const Icon(Icons.wc),
+              label: Text(s.toiletNeed),
+              onPressed: () => showToiletSheet(context, ToiletRide.train),
+            ),
+            const SizedBox(height: 14),
+          ],
           if (r.stops >= 2)
             Panel(
               child: SwitchListTile(

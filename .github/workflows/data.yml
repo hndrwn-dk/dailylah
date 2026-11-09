@@ -1,7 +1,8 @@
 name: data
 # Rebuilds static bundles in web/data/ once a day and commits them if they changed.
 # Vercel redeploys web/ on push. Needs repo secrets LTA_ACCOUNT_KEY, ONEMAP_EMAIL and
-# ONEMAP_PASSWORD (OneMap geocoding and themes); DATAGOV_API_KEY is optional.
+# ONEMAP_PASSWORD (OneMap geocoding and themes); DATAGOV_API_KEY is optional. GEOAPIFY_API_KEY
+# (Geoapify Places, OpenStreetMap toilets for toilets.json): without it the previous file stays.
 # backend/data/geocode.json caches OneMap lookups between runs.
 on:
   schedule:
@@ -16,6 +17,7 @@ on:
       - "backend/app/sources.py"
       - "backend/app/bundles.py"
       - "backend/app/datagov.py"
+      - "backend/app/geoapify.py"
 permissions: {}
 concurrency:
   group: data
@@ -63,6 +65,9 @@ jobs:
           URA_ACCESS_KEY: ${{ secrets.URA_ACCESS_KEY }}
           EVENTFINDA_USER: ${{ secrets.EVENTFINDA_USER }}
           EVENTFINDA_PASSWORD: ${{ secrets.EVENTFINDA_PASSWORD }}
+          # toilets.json. Geoapify takes the key in the URL: build_toilets never prints the URL
+          # and httpx's request log line is redacted (apiKey=***, app/geoapify.py).
+          GEOAPIFY_API_KEY: ${{ secrets.GEOAPIFY_API_KEY }}
         run: python -m app.build_static ../web/data
       - name: Collect changes
         id: diff

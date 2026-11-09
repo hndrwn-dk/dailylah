@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dailylah/api.dart';
+import 'package:dailylah/data.dart';
 import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
@@ -335,7 +336,18 @@ Future<void> applyCondition(WidgetTester tester, Condition c, {Map<String, Objec
   addTearDown(tester.platformDispatcher.clearAllTestValues);
 }
 
+/// Toilets for the tests ("Need a toilet?"), fixed so the tests do not change with the daily
+/// `toilets` bundle: around Tampines Int, along bus 10 towards Changi General Hospital, and at Bedok.
+const harnessToilets = [
+  Toilet(name: 'Our Tampines Hub', lat: 1.35325, lng: 103.94060, kind: ToiletKind.mall),
+  Toilet(name: 'Tampines Mall', lat: 1.35260, lng: 103.94480, kind: ToiletKind.mall),
+  Toilet(name: 'Tampines Round Market', lat: 1.35350, lng: 103.94280, kind: ToiletKind.hawker),
+  Toilet(name: 'Toilet, Simei Street 3', lat: 1.34020, lng: 103.94850),
+  Toilet(name: 'Bedok Mall', lat: 1.32480, lng: 103.92920, kind: ToiletKind.mall),
+];
+
 List<Override> overridesFor(Condition c, Favorites fav, DateTime now, {String? disruptedLine}) => [
+      toiletsProvider.overrideWith((ref) async => c.cachedBundles ? harnessToilets : const <Toilet>[]),
       initialFavoritesProvider.overrideWithValue(fav),
       apiProvider.overrideWithValue(c.offline ? OfflineApi() : FakeApi(disruptedLine: disruptedLine)),
       bundleRepoProvider.overrideWithValue(c.cachedBundles ? FileBundles() : NoBundles()),

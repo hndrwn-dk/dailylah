@@ -34,6 +34,10 @@ name: 04 Nearby
 - extendedWaitUntil:
     visible: "(?s).*Taxis nearby.*"
     timeout: 20000
+- tapOn: "(?s)Toilets"
+- extendedWaitUntil:
+    visible: "(?s).*Toilets nearby.*"
+    timeout: 20000
 - tapOn: "(?s)Help"
 - extendedWaitUntil:
     visible: "(?s).*995 Ambulance & fire.*"

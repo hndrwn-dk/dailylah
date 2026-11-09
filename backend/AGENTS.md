@@ -48,7 +48,8 @@ relative to `backend/` when they start with `app/`. Endpoint index: `docs/REPO_M
   `https://dailylah.sg`, falling back to `https://dailylah.tursinalabs.com` and `https://dailylah-web.vercel.app`
   (same Vercel deployment). Never hard-code a single host; use `webUrls` in `lib/api.dart`.
   `backend/app/build_static.py` + `backend/app/bundles.py` build them daily in
-  `.github/workflows/data.yml` (secret `LTA_ACCOUNT_KEY`, optional `DATAGOV_API_KEY`).
+  `.github/workflows/data.yml` (secret `LTA_ACCOUNT_KEY`, optional `DATAGOV_API_KEY`,
+  `GEOAPIFY_API_KEY` for `toilets.json`).
   data.gov.sg keys expire: every data.gov.sg call goes through `DataGovKey` (`app/datagov.py`),
   which retries without the key on 401/403 and logs a warning; the data workflow then fails
   its last step ("Check data.gov.sg key") so the expiry is visible. Renew it in both GitHub and Render.
@@ -75,6 +76,21 @@ relative to `backend/` when they start with `app/`. Endpoint index: `docs/REPO_M
   and the sitemap (`scripts/push_data.sh --generate/--generated`). Each town page's `og:image` is a
   static PNG in `web/og/where-to-live/` made by hand with `scripts/build_og_images.py` (Pillow, a
   dev tool, not in the requirements) and committed; a new town needs that script run.
+- Toilets ("Need a toilet?", docs/TOILETS.md): `build_toilets` in `app/bundles.py` makes
+  `toilets.json` in the daily `data.yml` from Geoapify Places (`/v2/places`,
+  `categories=amenity.toilet`, Singapore rect, 500 a page until a short or empty page, max 20
+  pages), the NParks park toilets that `build_poi` finds in Park Facilities
+  (`park_toilet_points`, `LAST_PARK_TOILETS`) and every hawker centre (yesterday's
+  `hawkers.json` when today's hawker build failed). Points closer than 30 m are one toilet
+  (`merge_toilets`: clearest name, a specific kind wins over "other"); each has a kind `k`
+  (`toilet_kind`: mall, station, hawker, park, other, from the name, then Geoapify's categories).
+  Format `[{"n","la","lo","k"}]`. The key is the GitHub secret `GEOAPIFY_API_KEY` (CI only for
+  this bundle, never in the app); without it, or when Geoapify fails, the previous file stays.
+  Geoapify takes the key in the URL, so errors are raised without the httpx exception and the
+  httpx request log line is redacted (`app/geoapify.py`, imported by `bundles.py`). Places is
+  billed by places returned (about 1 credit per 20): a full run is a few hundred credits a day
+  from the account shared with `/v1/places` (3,000 a day). Data is OpenStreetMap (ODbL): the app
+  shows "Powered by Geoapify · © OpenStreetMap contributors" with it.
 - OneMap needs a token: the backend (`app/onemap.py`) logs in with `ONEMAP_EMAIL` /
   `ONEMAP_PASSWORD` (Render env and GitHub secrets) and renews it; the app searches via
   `/v1/search`. Never put OneMap credentials or tokens in the app.

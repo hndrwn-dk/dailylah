@@ -921,7 +921,7 @@ class TripBusCard extends ConsumerWidget {
                           ];
                           if (choices.isEmpty) return const SizedBox.shrink();
                           void open((String, BusStop, BusStop?) c) => Navigator.of(context).push(MaterialPageRoute(
-                                builder: (_) => WakeMePage(service: c.$1, alight: c.$2, before: c.$3),
+                                builder: (_) => WakeMePage(service: c.$1, alight: c.$2, before: c.$3, from: stop),
                               ));
                           final stops = {for (final c in choices) c.$2.code};
                           return Align(

@@ -1553,6 +1553,132 @@ MrtRide? mrtRide(List<MrtStation> all, MrtPlan plan) {
   return MrtRide(stations: [...a, ...b.skip(1)], lines: lines, viaIndex: a.length - 1);
 }
 
+// ---------------------------------------------------------------- "Need a toilet?"
+
+/// One answer to "Need a toilet?": get off at [at] in [rideMinutes] and walk to [toilet]
+/// ([metres] away), or, near me, just the toilet ([at] is ''). [assumed]: an MRT station with no
+/// toilet in the data nearby ("Stations usually have a toilet"), so [toilet] is null.
+class ToiletStop {
+  const ToiletStop({required this.at, required this.rideMinutes, this.toilet, this.metres = 0, this.assumed = false});
+  final String at;
+  final int rideMinutes;
+  final Toilet? toilet;
+  final double metres;
+  final bool assumed;
+
+  int get walkMinutes => toilet == null ? 0 : walkMinutesTo(metres);
+  int get minutes => rideMinutes + walkMinutes;
+
+  /// An assumed station toilet counts as a station.
+  ToiletKind get kind => toilet?.kind ?? ToiletKind.station;
+}
+
+const _toiletKindOrder = [ToiletKind.mall, ToiletKind.hawker, ToiletKind.station, ToiletKind.park, ToiletKind.other];
+
+/// Sort order for toilets: soonest there first; when as quick, malls, hawker centres and stations
+/// (more cubicles), then the nearer one.
+int toiletRank(ToiletStop a, ToiletStop b) {
+  final m = a.minutes.compareTo(b.minutes);
+  if (m != 0) return m;
+  final k = _toiletKindOrder.indexOf(a.kind).compareTo(_toiletKindOrder.indexOf(b.kind));
+  if (k != 0) return k;
+  return a.metres.compareTo(b.metres);
+}
+
+/// The best toilet within [radius] metres of a point, or null.
+(Toilet, double)? _toiletAt(List<Toilet> toilets, double lat, double lng, double radius) {
+  ToiletStop? best;
+  for (final t in toilets) {
+    // Cheap box check first: ~2,000 toilets for each stop ahead.
+    if ((t.lat - lat).abs() > radius / 100000 || (t.lng - lng).abs() > radius / 100000) continue;
+    final d = distanceMeters(lat, lng, t.lat, t.lng);
+    if (d > radius) continue;
+    final c = ToiletStop(at: '', rideMinutes: 0, toilet: t, metres: d);
+    if (best == null || toiletRank(c, best) < 0) best = c;
+  }
+  return best == null ? null : (best.toilet!, best.metres);
+}
+
+/// Toilets nearest to a point, best first ([toiletRank]).
+List<(Toilet, double)> toiletsNear(List<Toilet> all, double lat, double lng, {int limit = 3}) {
+  final list = [
+    for (final t in all) ToiletStop(at: '', rideMinutes: 0, toilet: t, metres: distanceMeters(lat, lng, t.lat, t.lng)),
+  ]..sort(toiletRank);
+  return [for (final t in list.take(limit)) (t.toilet!, t.metres)];
+}
+
+/// On the bus ("Wake me at my stop"): the stops after [from] up to [alight] on [service]'s route
+/// (`bus_routes`), each with its best toilet within [radius] m; stops without one are skipped. A
+/// GPS fix ([lat], [lng]) within 500 m of the route moves the start to the nearest stop on it.
+/// About [feederMinutesPerStop] minutes a stop, plus the walk ([walkMinutesTo]).
+List<ToiletStop> toiletsAheadBus(
+  BusRoutes routes,
+  String service,
+  BusStop from,
+  BusStop alight,
+  Map<String, BusStop> stops,
+  List<Toilet> toilets, {
+  double radius = 250,
+  int limit = 3,
+  double? lat,
+  double? lng,
+}) {
+  List<(String, double)>? best;
+  var bi = 0, bj = 0;
+  routes.routes.forEach((key, list) {
+    if (key.split('|').first != service) return;
+    final i = list.indexWhere((s) => s.$1 == from.code);
+    if (i < 0) return;
+    final j = list.indexWhere((s) => s.$1 == alight.code, i + 1);
+    if (j < 0 || (best != null && j - i >= bj - bi)) return;
+    best = list;
+    bi = i;
+    bj = j;
+  });
+  final route = best;
+  if (route == null) return const [];
+  var cur = bi;
+  if (lat != null && lng != null) {
+    var bestD = 500.0;
+    for (var k = bi; k <= bj; k++) {
+      final st = stops[route[k].$1];
+      if (st == null) continue;
+      final d = distanceMeters(lat, lng, st.lat, st.lng);
+      if (d < bestD) {
+        bestD = d;
+        cur = k;
+      }
+    }
+  }
+  final out = <ToiletStop>[];
+  for (var k = cur + 1; k <= bj; k++) {
+    final st = stops[route[k].$1];
+    if (st == null) continue;
+    final hit = _toiletAt(toilets, st.lat, st.lng, radius);
+    if (hit == null) continue;
+    out.add(ToiletStop(at: st.name, rideMinutes: (k - cur) * feederMinutesPerStop, toilet: hit.$1, metres: hit.$2));
+  }
+  out.sort(toiletRank);
+  return out.take(limit).toList();
+}
+
+/// On the train ("I'm on the train"): the stations after [here] (the ride's estimated position),
+/// each with its best toilet within [radius] m of the station point; a station without one is
+/// still listed as [ToiletStop.assumed]. Minutes from [rideMinutesTo].
+List<ToiletStop> toiletsAheadMrt(MrtRide ride, int here, List<Toilet> toilets, {double radius = 250, int limit = 3}) {
+  final out = <ToiletStop>[];
+  for (var i = here + 1; i <= ride.stops; i++) {
+    final st = ride.stations[i];
+    final minutes = rideMinutesTo(ride, i) - rideMinutesTo(ride, here);
+    final hit = _toiletAt(toilets, st.lat, st.lng, radius);
+    out.add(hit == null
+        ? ToiletStop(at: st.name, rideMinutes: minutes, assumed: true)
+        : ToiletStop(at: st.name, rideMinutes: minutes, toilet: hit.$1, metres: hit.$2));
+  }
+  out.sort(toiletRank);
+  return out.take(limit).toList();
+}
+
 // ---------------------------------------------------------------- MRT: pick a line today
 
 /// Lines the rider can pick for a trip ("Green line today"), in [trainLines] keys.
