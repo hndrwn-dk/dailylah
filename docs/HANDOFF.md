@@ -40,6 +40,7 @@ rent/resale. Static page and JSON, no browser API calls, no Render. One PR per p
   `https://play.google.com/store/apps/details?id=com.tursinalabs.dailylah`, `label` to
   "Get DailyLah" (short, fits a 360 px phone), `ariaLabel` to "Get DailyLah on Google Play", `steps`
   to `[]`. The landing page and `/where-to-live` both use it; update the test in `web/tests/`.
+  In the same PR, rewrite or remove the "Why is it a beta?" question in the landing page FAQ.
 - Phase 3 (fares, true monthly cost, 26 town pages, sitemap; branch `feat/where-to-live-seo`):
   see docs/WHERE_TO_LIVE.md "Fase 3". After merge: Actions > where-to-live > Run workflow once
   (it asks OneMap again for every route to get fares, about 4 minutes) and check that the push job
@@ -74,7 +75,8 @@ rent/resale. Static page and JSON, no browser API calls, no Render. One PR per p
   2.0.0 to closed testing (`alpha`) and tags `v2.0.0`. Testers check it on real phones. Then, after
   the checklist in docs/QA.md "Before promoting a release to production", promote **the same
   AAB** to production in Play Console by hand. Once production is live, do two things in one
-  small PR: the CTA switch in `web/shared/cta.js`, and "Also in the app" on `/where-to-live`.
+  small PR: the CTA switch in `web/shared/cta.js` (with the FAQ's "Why is it a beta?"), and "Also
+  in the app" on `/where-to-live`.
   The published privacy policy on tursinalabs.com is updated from `docs/legal/privacy.md` in
   hndrwn-dk/tursinalabs.com.
 
