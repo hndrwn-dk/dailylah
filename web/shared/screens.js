@@ -44,7 +44,10 @@ if (list) {
       li.classList.toggle("cur", k === cur);
       li.classList.toggle("next", k === (cur + 1) % items.length);
       li.classList.toggle("gone", k === prev && k !== cur);
-      li.querySelector("img").setAttribute("aria-hidden", String(k !== cur));
+      // Only the deck hides the screens behind; 4 across, every screen is visible.
+      const img = li.querySelector("img");
+      if (narrow.matches && k !== cur) img.setAttribute("aria-hidden", "true");
+      else img.removeAttribute("aria-hidden");
     });
     buttons.forEach((b, k) => {
       b.setAttribute("aria-pressed", String(k === cur));

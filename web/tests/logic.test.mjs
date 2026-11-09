@@ -340,6 +340,11 @@ test("home: one real screenshot per tab with size and alt, the day timeline and 
   assert.deepEqual([...faq.matchAll(/<h3[^>]*>([^<]+)<\/h3>/g)].map((m) => m[1]), ["Getting DailyLah", "Privacy and safety", "Using it"]);
   assert.ok((faq.match(/<details>/g) ?? []).length >= 12);
   assert.match(faq, /bus stop code/);
+  // Everything the server receives (privacy.md section 5), EV and CEA lookups included.
+  const sees = faq.slice(faq.indexOf("What does your server see?"), faq.indexOf("</details>", faq.indexOf("What does your server see?")));
+  for (const what of [/bus stop codes/, /MRT line codes/, /address text/, /postal code of an EV charging location/, /CEA registration number/]) {
+    assert.match(sees, what);
+  }
   assert.match(faq, /Android backup/);
   assert.match(faq, /No contacts, photos, microphone or camera/);
   // The privacy card links to the privacy questions.
