@@ -5,7 +5,8 @@ Masalah: OneMap (`/v1/search`) bagus untuk kode pos, blok HDB, gedung, sekolah d
 ## Keputusan
 - Hanya Plan a trip (kolom From dan To, `_search` di `app/lib/ui/trip.dart`). Onboarding Home/Work/School tetap OneMap saja.
 - Routing (opsi B): ketikan yang diawali angka ("560201", "201 Ang Mo Kio") atau "Blk"/"Block" + angka → OneMap seperti sekarang. Selain itu → Geoapify. Geoapify kosong → OneMap sekali sebagai jaring pengaman. Keduanya kosong → pesan kosong yang sudah direncanakan (Share from Google Maps, Pick on map).
-- Geoapify berlangganan berbayar (Hendrawan), jadi batas "limited commercial use" free plan tidak berlaku. Pilihan ini menggantikan rencana v1.1 Google Places di `docs/tester-feedback-plan.md`.
+- Koreksi (9 Nov 2026, setelah #142): akun Geoapify memakai **Free plan** (3.000 kredit/hari, 5 request/detik, berhenti saat kuota habis, tanpa tagihan), dan **satu akun dipakai bersama Prayer Cast** (project dan key berbeda, kredit sama). Syarat "limited commercial use" Free plan perlu dicek Hendrawan sebelum production. Pilihan ini menggantikan rencana v1.1 Google Places di `docs/tester-feedback-plan.md`.
+- Batas di server (PR lanjutan, `backend/app/limits.py`): budget harian DailyLah 2.000 panggilan (sisa 1.000 untuk Prayer Cast), maksimal 4 panggilan/detik, jeda 60 detik setelah 429 dan 10 menit setelah 401/403; semuanya 503 → aplikasi pindah ke OneMap. Batas per IP belum: header IP klien di Render belum dipastikan.
 - Key hanya di server (env `GEOAPIFY_API_KEY`), tidak pernah di APK. Lokasi pengguna tidak dikirim sebagai bias; cukup `filter=countrycode:sg`.
 - Debounce 400 ms + minimal 3 karakter sudah ada di `AddressPickerPage`; tidak ditambah.
 
