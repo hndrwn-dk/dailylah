@@ -16,6 +16,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from .cache import Cache
 from .config import Settings, get_settings
 from .geoapify import Geoapify, GeoapifyError
+from .limits import Breaker, RateGate, budget_key
 from .onemap import OneMap
 from .sources import (
     CEA_REG_RE,
@@ -80,6 +81,9 @@ async def lifespan(app: FastAPI):
     app.state.sources = Sources(s, app.state.http)
     app.state.onemap = OneMap(app.state.http, s.onemap_email, s.onemap_password)
     app.state.geoapify = Geoapify(app.state.http, s.geoapify_api_key)
+    app.state.places_gate = RateGate(s.places_per_second)
+    app.state.places_breaker = Breaker()
+    app.state.places_spent_day = ""  # the UTC day whose budget is used up (skips Redis)
     app.state.last_poll: dict[str, float] = {}
     app.state.locks: dict[str, asyncio.Lock] = {}
     yield
@@ -256,13 +260,18 @@ async def search(
 @app.get("/v1/places")
 async def places(
     q: str,
+    request: Request,
     c: Cache = Depends(cache),
     geo: Geoapify = Depends(geoapify),
     s: Settings = Depends(get_settings),
 ) -> dict:
     """Place names (shops, restaurants, malls) in Singapore on Geoapify, for Plan a trip.
     Like /v1/search: the query is not logged and results stay in memory only for a day.
-    The answer is cut down to name, address, postal, lat, lng and type."""
+    The answer is cut down to name, address, postal, lat, lng and type.
+
+    The Geoapify credits are shared with another app, so a call that is not cached first passes
+    a pause after Geoapify refused, a per-second cap and a daily budget (app/limits.py); each
+    answers 503 and the app searches OneMap instead."""
     query = " ".join(q.split())
     if not 2 <= len(query) <= 80:
         raise HTTPException(422, "query must be 2 to 80 characters")
@@ -272,9 +281,22 @@ async def places(
     hit = c.get_memory(key)
     if hit is not None:
         return hit
+    state = request.app.state
+    if state.places_breaker.paused():
+        raise HTTPException(503, "place search paused")
+    if not state.places_gate.take():
+        raise HTTPException(503, "place search busy")
+    day = budget_key()
+    if state.places_spent_day == day or await c.incr(day, 2 * 86400) > s.places_daily_budget:
+        state.places_spent_day = day
+        raise HTTPException(503, "place search daily limit reached")
     try:
         rows = await geo.autocomplete(query)
-    except GeoapifyError:
+    except GeoapifyError as e:
+        if e.status == 429:  # quota or rate limit
+            state.places_breaker.pause(60)
+        elif e.status in (401, 403):  # key revoked or blocked: no use asking again soon
+            state.places_breaker.pause(600)
         raise HTTPException(502, "upstream Geoapify error") from None
     data = {"fetched_at": int(time.time()), "data": rows}
     c.set_memory_only(key, data, s.places_ttl)

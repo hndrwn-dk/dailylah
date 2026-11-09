@@ -22,7 +22,12 @@ _SECRET_PARAMS = re.compile(r"\b(apiKey=|text=)[^&\s'\"]+")
 
 
 class GeoapifyError(Exception):
-    """Geoapify did not answer with results. The message never holds the key or the URL."""
+    """Geoapify did not answer with results. The message never holds the key or the URL;
+    [status] is Geoapify's HTTP status, None for a timeout or a body that is not JSON."""
+
+    def __init__(self, message: str, status: int | None = None) -> None:
+        super().__init__(message)
+        self.status = status
 
 
 class _RedactKey(logging.Filter):
@@ -101,5 +106,5 @@ class Geoapify:
             status = e.response.status_code if isinstance(e, httpx.HTTPStatusError) else None
             name = type(e).__name__
             log.warning("Geoapify autocomplete failed: %s %s", name, status or "")
-            raise GeoapifyError(f"{name} {status or ''}".strip()) from None
+            raise GeoapifyError(f"{name} {status or ''}".strip(), status) from None
         return compact_places(body)

@@ -89,6 +89,12 @@ is the fallback. Setup, Nearby and the shared-place picker stay OneMap only.
   try 10 common place names in Plan a trip and note the misses on the PR. Without the key
   `/v1/places` answers 503 and the app searches OneMap.
 - After merge: update the published privacy policy on tursinalabs.com (section 4a and 8).
+- Merged as #142. Live check (9 Nov): 9 of 10 names found; Putra Minang is not in OpenStreetMap.
+- Guards (branch `feat/places-limits`): the Geoapify account is on the Free plan (3,000 credits a
+  day) and shared with Prayer Cast, so `/v1/places` has a daily budget of 2,000 calls
+  (`PLACES_DAILY_BUDGET` on Render), at most 4 calls a second, and a pause after Geoapify refuses.
+  The access log is #143. A per-IP limit is not built: which
+  `X-Forwarded-For` entry Render puts the client in was not checked.
 
 ## CI/CD hardening (Nov 2026, 8 phases, one PR each)
 Layers: deterministic scans → AI review → a person decides. Existing gates (analyze, test,
