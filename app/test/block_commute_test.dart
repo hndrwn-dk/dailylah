@@ -1,4 +1,4 @@
-// Commute and all-in cost on "Prices, rent and score" (BlockPage) and the extra commute lines in
+// Commute and all-in cost on "Prices, rent and commute" (BlockPage) and the extra commute lines in
 // the block comparison. Rules are tested in where_to_live_test.dart; the layout under 200% text,
 // dark mode and a small screen in screens_matrix_test.dart. Expected figures come from the
 // committed bundles, so the weekly data rebuild does not break these tests.

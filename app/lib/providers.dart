@@ -135,10 +135,21 @@ class FavoritesNotifier extends Notifier<Favorites> {
         final l = [...f.compareBlocks];
         if (!l.remove(key)) {
           l.add(key);
-          if (l.length > 3) l.removeAt(0);
+          if (l.length > maxCompareBlocks) l.removeAt(0);
         }
         return f.copyWith(compareBlocks: l);
       });
+
+  /// Adds [key] to the comparison when there is room and it is not in it yet.
+  Future<void> addCompare(String key) => update((f) => f.compareBlocks.contains(key) ||
+          f.compareBlocks.length >= maxCompareBlocks
+      ? f
+      : f.copyWith(compareBlocks: [...f.compareBlocks, key]));
+
+  /// A block page was opened: it goes first in the recently viewed blocks.
+  Future<void> sawBlock(String key) => update((f) => f.recentBlocks.isNotEmpty && f.recentBlocks.first == key
+      ? f
+      : f.copyWith(recentBlocks: withRecentBlock(f.recentBlocks, key, max: Favorites.maxRecentBlocks)));
 }
 
 final favoritesProvider = NotifierProvider<FavoritesNotifier, Favorites>(FavoritesNotifier.new);

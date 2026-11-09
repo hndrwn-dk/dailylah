@@ -13,15 +13,23 @@ import 'widgets.dart';
 
 final _homesQueryProvider = StateProvider.autoDispose<String>((ref) => '');
 
+/// The search when picking a block to compare: its own text, apart from a block search open below.
+final _pickQueryProvider = StateProvider.autoDispose<String>((ref) => '');
+
 /// Homes: HDB block search, watched blocks, comparison and the CEA agent check.
 /// Search any HDB block by street, block or postal code.
 class BlockSearchPage extends ConsumerWidget {
-  const BlockSearchPage({super.key});
+  const BlockSearchPage({super.key, this.onPick});
+
+  /// Picking a block for the comparison: tapping a block calls this instead of opening its page,
+  /// and before anything is typed the watched and recently viewed blocks are offered.
+  final void Function(HdbBlock block)? onPick;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final query = ref.watch(_homesQueryProvider);
+    final queryProvider = onPick == null ? _homesQueryProvider : _pickQueryProvider;
+    final query = ref.watch(queryProvider);
     final blocks = ref.watch(hdbBlocksProvider);
     final t = Theme.of(context).textTheme;
 
@@ -48,11 +56,11 @@ class BlockSearchPage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const BackButton(),
-                PageTitle(s.homesTitle, subtitle: s.homesIntro),
+                PageTitle(onPick == null ? s.homesTitle : s.addBlockTitle, subtitle: onPick == null ? s.homesIntro : null),
                 const SizedBox(height: 18),
                 TextField(
                   autofocus: true,
-                  onChanged: (v) => ref.read(_homesQueryProvider.notifier).state = v,
+                  onChanged: (v) => ref.read(queryProvider.notifier).state = v,
                   textInputAction: TextInputAction.search,
                   decoration: InputDecoration(
                     hintText: s.blockSearchHint,
@@ -73,8 +81,9 @@ class BlockSearchPage extends ConsumerWidget {
                   if (postalHit?.isLoading == true) const LinearProgressIndicator(),
                   if (!empty && results.isEmpty && !(postalHit?.isLoading ?? false))
                     Panel(child: EmptyNote(postal ? s.blockNotInData : s.notAvailable)),
-                  for (final b in results) BlockTile(block: b),
+                  for (final b in results) BlockTile(block: b, onTap: onPick == null ? null : () => onPick!(b)),
                 ],
+                if (onPick != null && query.trim().length < 2) ..._candidates(ref, all, s),
                 const SizedBox(height: 12),
                 Text(s.homesDisclaimer, style: t.bodySmall),
               ],
@@ -84,6 +93,37 @@ class BlockSearchPage extends ConsumerWidget {
       ),
     );
   }
+
+  /// Watched, then recently viewed blocks not compared yet, under their own titles.
+  List<Widget> _candidates(WidgetRef ref, List<HdbBlock> all, S s) {
+    final fav = ref.watch(favoritesProvider);
+    final byKey = {for (final b in all) b.key: b};
+    final keys = compareCandidates(watched: fav.watchedBlocks.keys, recent: fav.recentBlocks, compared: fav.compareBlocks);
+    final watched = [for (final k in keys) if (fav.watchedBlocks.containsKey(k) && byKey[k] != null) byKey[k]!];
+    final recent = [for (final k in keys) if (!fav.watchedBlocks.containsKey(k) && byKey[k] != null) byKey[k]!];
+    return [
+      if (watched.isNotEmpty) ...[
+        SectionTitle(s.watched),
+        for (final b in watched) BlockTile(block: b, onTap: () => onPick!(b)),
+      ],
+      if (recent.isNotEmpty) ...[
+        SectionTitle(s.recentBlocks),
+        for (final b in recent) BlockTile(block: b, onTap: () => onPick!(b)),
+      ],
+    ];
+  }
+}
+
+/// The block search in pick mode: the block picked joins the comparison. Returns whether one was.
+/// Takes the favourites notifier, not a `WidgetRef`: the snackbar that calls it can outlive the page.
+Future<bool> pickBlockToCompare(NavigatorState nav, FavoritesNotifier favorites) async {
+  final picked = await nav.push<HdbBlock>(MaterialPageRoute(
+    // Like the other pickers: close the keyboard first, then pop (no blank area left where it was).
+    builder: (route) => BlockSearchPage(onPick: (b) => popAfterKeyboard(route, b)),
+  ));
+  if (picked == null) return false;
+  await favorites.addCompare(picked.key);
+  return true;
 }
 
 class _IconBadge extends StatelessWidget {
@@ -103,8 +143,11 @@ class _IconBadge extends StatelessWidget {
 }
 
 class BlockTile extends ConsumerWidget {
-  const BlockTile({super.key, required this.block});
+  const BlockTile({super.key, required this.block, this.onTap});
   final HdbBlock block;
+
+  /// Instead of opening the block's page (picking a block to compare).
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -115,7 +158,7 @@ class BlockTile extends ConsumerWidget {
     final top = stats.isEmpty ? null : (stats.toList()..sort((a, b) => b.count.compareTo(a.count))).first;
     return Panel(
       child: InkWell(
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => BlockPage(block: block))),
+        onTap: onTap ?? () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => BlockPage(block: block))),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -141,7 +184,7 @@ class BlockTile extends ConsumerWidget {
                         fit: BoxFit.scaleDown,
                         child: Text(sgd(top.median, compact: true), style: t.displaySmall?.copyWith(fontSize: 24)),
                       ),
-                      Text(top.flatType.toLowerCase(), style: t.bodySmall, textAlign: TextAlign.end),
+                      Text(s.wtlFlatName(top.flatType), style: t.bodySmall, textAlign: TextAlign.end),
                     ],
                   ),
                 ),
@@ -214,6 +257,7 @@ class BlockPage extends ConsumerWidget {
       body: ListView(
         padding: EdgeInsets.zero,
         children: [
+          _SeenBlock(block.key),
           HeroHeader(
             accent: const Color(0xFF2E9E7E),
             child: Column(
@@ -275,14 +319,19 @@ class BlockPage extends ConsumerWidget {
                           }
                           final messenger = ScaffoldMessenger.of(context);
                           final nav = Navigator.of(context);
+                          final favorites = ref.read(favoritesProvider.notifier);
                           await ref.read(favoritesProvider.notifier).toggleCompare(block.key);
                           if (comparing) return;
                           final n = ref.read(favoritesProvider).compareBlocks.length;
+                          // Room for more: "Add" picks the next block, then shows the comparison.
                           showActionSnackBar(
                             messenger,
                             s.compareAdded(n),
-                            actionLabel: n < 2 ? null : s.open,
-                            onAction: () => nav.push(MaterialPageRoute(builder: (_) => const ComparePage())),
+                            actionLabel: n < maxCompareBlocks ? s.add : s.open,
+                            onAction: () async {
+                              if (n < maxCompareBlocks && !await pickBlockToCompare(nav, favorites)) return;
+                              await nav.push(MaterialPageRoute(builder: (_) => const ComparePage()));
+                            },
                           );
                         },
                       ),
@@ -323,8 +372,6 @@ class BlockPage extends ConsumerWidget {
                 ],
                 SectionTitle(s.wtlCommuteTitle),
                 BlockCommute(block: block),
-                SectionTitle(s.dailyLifeScore),
-                _ScoreCard(block: block),
                 if (areaName.isNotEmpty) ...[
                   SectionTitle(s.wtlTownsTitle(areaName)),
                   TownsBoard(block: block),
@@ -337,6 +384,28 @@ class BlockPage extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Puts the block first in the recently viewed blocks once its page is shown.
+class _SeenBlock extends ConsumerStatefulWidget {
+  const _SeenBlock(this.blockKey);
+  final String blockKey;
+
+  @override
+  ConsumerState<_SeenBlock> createState() => _SeenBlockState();
+}
+
+class _SeenBlockState extends ConsumerState<_SeenBlock> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.read(favoritesProvider.notifier).sawBlock(widget.blockKey);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
 /// Watch and Compare side by side, the same width and height with one-line labels; stacked full
@@ -573,58 +642,6 @@ class _Bar extends StatelessWidget {
   }
 }
 
-class _ScoreCard extends ConsumerWidget {
-  const _ScoreCard({required this.block});
-  final HdbBlock block;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final s = ref.watch(stringsProvider);
-    final pois = ref.watch(poisProvider).value;
-    final stops = ref.watch(busStopsProvider).value;
-    final hawkers = ref.watch(hawkersProvider).value;
-    final dengue = ref.watch(dengueProvider).value ?? const <DengueCluster>[];
-    if (pois == null || stops == null || hawkers == null) {
-      return const Panel(child: Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator()));
-    }
-    final sc = scoreBlock(block, pois: pois, stops: stops, hawkers: hawkers, dengue: dengue);
-    final rows = <(IconData, String, String, bool)>[
-      (
-        Icons.train_outlined,
-        s.nearestMrt,
-        sc.nearestMrt == null ? '–' : '${titleCase(sc.nearestMrt!.$1.name)} · ${s.metres(sc.nearestMrt!.$2)}',
-        false
-      ),
-      (Icons.directions_bus_outlined, s.busStops400, '${sc.busStops400}', false),
-      (Icons.ramen_dining_outlined, s.hawkers1km, '${sc.hawkers1km}', false),
-      (Icons.school_outlined, s.primary1km, '${sc.primary1km}', false),
-      (Icons.school_outlined, s.primary2km, '${sc.primary2km}', false),
-      (Icons.park_outlined, s.parks1km, '${sc.parks1km}', false),
-      (Icons.bug_report_outlined, s.dengue1km, '${sc.dengue1km}', sc.dengue1km > 0),
-    ];
-    final t = Theme.of(context).textTheme;
-    return Panel(
-      child: Column(
-        children: [
-          for (final (icon, label, value, warn) in rows)
-            value.length <= 3
-                ? ListTile(
-                    leading: _IconBadge(icon, color: warn ? DL.amber : null),
-                    title: Text(label, style: t.bodyMedium),
-                    trailing: Text(value, style: t.displaySmall?.copyWith(fontSize: 24)),
-                  )
-                : ListTile(
-                    leading: _IconBadge(icon, color: warn ? DL.amber : null),
-                    title: Text(label, style: t.bodyMedium),
-                    subtitle: Text(value, style: t.labelLarge),
-                  ),
-        ],
-      ),
-    );
-  }
-}
-
-
 // ---------------------------------------------------------------- compare
 
 class ComparePage extends ConsumerWidget {
@@ -693,7 +710,7 @@ class ComparePage extends ConsumerWidget {
       (label(s.leaseLabel), (b) => LeaseBar(block: b, year: year, compact: true)),
       if (flatTypes.isNotEmpty) (section(s.resaleMedian), (_) => const SizedBox.shrink()),
       for (final ft in flatTypes)
-        (Align(alignment: Alignment.centerLeft, child: FlatChip(s.wtlFlatName(ft.replaceAll(' ', '-')))), (b) => number(priceFor(b, ft))),
+        (Align(alignment: Alignment.centerLeft, child: FlatChip(s.wtlFlatName(ft))), (b) => number(priceFor(b, ft))),
       (section(s.rentInTown), (_) => const SizedBox.shrink()),
       (Align(alignment: Alignment.centerLeft, child: FlatChip(s.wtlFlatName(rentFlat))), rentCell),
       (label(s.nearestMrt), (b) => number(scores[b.key]?.nearestMrt == null ? '–' : s.metres(scores[b.key]!.nearestMrt!.$2))),
@@ -704,13 +721,66 @@ class ComparePage extends ConsumerWidget {
       (label(s.cmpDengue), (b) => number('${scores[b.key]?.dengue1km ?? '–'}')),
     ];
 
+    // While there is room: a column that adds a block (search, watched and recently viewed blocks).
+    final canAdd = chosen.length < maxCompareBlocks;
+    void add() => pickBlockToCompare(Navigator.of(context), ref.read(favoritesProvider.notifier));
+    final addHead = Padding(
+      padding: const EdgeInsets.all(8),
+      child: OutlinedButton(
+        key: const ValueKey('compare-add'),
+        style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 14)),
+        onPressed: add,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.add),
+            const SizedBox(height: 4),
+            Text(s.addBlock, textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+
     return Scaffold(
       appBar: AppBar(title: Text(s.compare)),
       body: chosen.isEmpty
-          ? Center(child: EmptyNote(s.notAvailable))
+          ? ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Panel(child: EmptyNote(s.noCompareYet)),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  key: const ValueKey('compare-add'),
+                  icon: const Icon(Icons.add),
+                  label: Text(s.addBlock),
+                  onPressed: add,
+                ),
+              ],
+            )
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                // One block is not a comparison yet: say what to do next.
+                if (chosen.length == 1)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Panel(
+                      color: DL.mint,
+                      child: InkWell(
+                        onTap: add,
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.add_circle_outline, color: DL.ink),
+                              const SizedBox(width: 10),
+                              Expanded(child: Text(s.addAnotherBlock, style: t.titleSmall?.copyWith(color: DL.ink))),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 // What the commute lines are for: office area, flat type, rent or buy.
                 if (commute != null && commute.area != null)
                   Padding(
@@ -737,7 +807,8 @@ class ComparePage extends ConsumerWidget {
                         final scale = MediaQuery.textScalerOf(context).scale(16) / 16;
                         // A label column beside the cells needs room; at large text or on a narrow
                         // screen each line's label goes above its cells, full width.
-                        final stacked = box.maxWidth / (chosen.length + 1.4) * 1.4 < 110 * scale;
+                        final columns = chosen.length + (canAdd ? 1 : 0);
+                        final stacked = box.maxWidth / (columns + 1.4) * 1.4 < 110 * scale;
                         final lines = <(Widget, List<Widget>)>[
                           for (final r in rows) (r.$1, [for (final b in chosen) r.$2(b)]),
                           // Commute from each block's town ("In this area" and "Best" as on the website).
@@ -773,7 +844,10 @@ class ComparePage extends ConsumerWidget {
                                 ],
                               ),
                             ),
+                          if (canAdd) addHead,
                         ];
+                        // The add column has no values.
+                        List<Widget> cells(List<Widget> c) => [...c, if (canAdd) const SizedBox()];
                         if (stacked) {
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -789,7 +863,7 @@ class ComparePage extends ConsumerWidget {
                                       lines[i].$1,
                                       Row(
                                         crossAxisAlignment: CrossAxisAlignment.center,
-                                        children: [for (final c in lines[i].$2) Expanded(child: Center(child: c))],
+                                        children: [for (final c in cells(lines[i].$2)) Expanded(child: Center(child: c))],
                                       ),
                                     ],
                                   ),
@@ -814,7 +888,7 @@ class ComparePage extends ConsumerWidget {
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                                     child: lines[i].$1,
                                   ),
-                                  ...lines[i].$2,
+                                  ...cells(lines[i].$2),
                                 ],
                               ),
                           ],

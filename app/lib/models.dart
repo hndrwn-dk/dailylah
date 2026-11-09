@@ -251,6 +251,7 @@ class Favorites {
     this.carparks = const {},
     this.watchedBlocks = const {},
     this.compareBlocks = const [],
+    this.recentBlocks = const [],
     this.extraPlaces = const [],
     this.workDays = const {1, 2, 3, 4, 5},
     this.mrtLines = const {},
@@ -314,6 +315,11 @@ class Favorites {
   /// Blocks picked for side-by-side comparison (max 3).
   final List<String> compareBlocks;
 
+  /// Blocks whose page was opened lately, newest first (max [maxRecentBlocks]), offered when
+  /// adding a block to compare. On the phone only, never in the share code.
+  final List<String> recentBlocks;
+  static const maxRecentBlocks = 6;
+
   /// Custom favourite places (kind `other`), max [maxExtraPlaces].
   final List<Place> extraPlaces;
   static const maxExtraPlaces = 5;
@@ -325,7 +331,7 @@ class Favorites {
   final Map<String, String> mrtLines;
   static const maxMrtLines = 20;
 
-  /// Commute and all-in cost on "Prices, rent and score": office area picked by hand ('' = the one
+  /// Commute and all-in cost on "Prices, rent and commute": office area picked by hand ('' = the one
   /// nearest work or school), mode ('' = rent, 'buy') and flat type ('' = 4-room). Checked against
   /// the where-to-live bundle when read (wtlChoiceFor); phone only, never in the share code.
   final String wtlArea;
@@ -359,6 +365,7 @@ class Favorites {
     Set<String>? carparks,
     Map<String, int>? watchedBlocks,
     List<String>? compareBlocks,
+    List<String>? recentBlocks,
     List<Place>? extraPlaces,
     Set<int>? workDays,
     Map<String, String>? mrtLines,
@@ -391,6 +398,7 @@ class Favorites {
         carparks: carparks ?? this.carparks,
         watchedBlocks: watchedBlocks ?? this.watchedBlocks,
         compareBlocks: compareBlocks ?? this.compareBlocks,
+        recentBlocks: recentBlocks ?? this.recentBlocks,
         extraPlaces: extraPlaces ?? this.extraPlaces,
         workDays: workDays ?? this.workDays,
         mrtLines: mrtLines ?? this.mrtLines,
@@ -424,6 +432,7 @@ class Favorites {
         'carparks': carparks.toList()..sort(),
         'watchedBlocks': watchedBlocks,
         'compareBlocks': compareBlocks,
+        'recentBlocks': recentBlocks,
         if (extraPlaces.isNotEmpty) 'extra': [for (final p in extraPlaces) p.toJson()],
         'workDays': workDays.toList()..sort(),
         if (mrtLines.isNotEmpty) 'mrtLines': mrtLines,
@@ -466,6 +475,7 @@ class Favorites {
         for (final e in ((j['watchedBlocks'] as Map?) ?? const {}).entries) '${e.key}': (e.value as num).toInt(),
       },
       compareBlocks: [for (final v in (j['compareBlocks'] as List? ?? const [])) '$v'],
+      recentBlocks: [for (final v in (j['recentBlocks'] as List? ?? const [])) '$v'],
       extraPlaces: [
         for (final p in (j['extra'] as List? ?? const [])) Place.fromJson(p as Map<String, dynamic>),
       ],

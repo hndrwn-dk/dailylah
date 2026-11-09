@@ -56,7 +56,9 @@ feature, screen, provider or rule moves, appears or goes away.
   the board (`tripBoard`): that bus first, buses that come before the walk is done dimmed with "Too
   soon" at the end (`BoardRow.dim`/`tag`). Strings that wrap keep their last words together with
   no-break spaces (`noOrphan`, `busWhereLine`). The I'm leaving how-to is small under the button and
-  gone once the trip is learned. Maestro: `maestro/09_plan_trip.yaml`. Driving uses `/v1/parking`
+  gone once the trip is learned. From and To within `samePlaceMetres` say "You're already there" (no walk, buses or
+  timer). Board rows put their details (load, wheelchair, stops) under the number at full width when the column
+  beside it is too narrow for whole words (`_BoardRowLayout`, large text, small screens). Maestro: `maestro/09_plan_trip.yaml`. Driving uses `/v1/parking`
   (lot type C/Y) and `/v1/traffic-incidents`.
 - EV charging (opt-in, `Favorites.evPlug`: '' none, 'any', 'Type 2', 'CCS2', 'CHAdeMO'; More > Extras
   "My car is electric" with plug chips, or "Electric car? Show EV chargers" in Nearby > Park): `EvChargers`
@@ -171,7 +173,7 @@ feature, screen, provider or rule moves, appears or goes away.
   `wtlHighlights`, `wtlCompareIds` / `wtlToggleCompare` (max `wtlMaxCompare`) and `wtlCompareTable`
   (best per line; the office area's own town is "in this area" and takes no part, and all-in/hours
   mark no best while it is compared). No page of its own: it lives on the block page "Prices, rent and
-  score" (`BlockPage` in `ui/homes.dart`), built from `ui/block_commute.dart`. A block takes its town's
+  commute" (`BlockPage` in `ui/homes.dart`), built from `ui/block_commute.dart`. A block takes its town's
   numbers from the town's MRT station (`wtlTownFor`, HDB town name to bundle town). `BlockCommute`: office
   area, rent/buy and flat type (kept in `Favorites` `wtlArea`, `wtlMode`, `wtlFlat`; `wtlChoiceFor`), then
   a 2×2 grid (minutes | transfers, fare a trip | hours a month) and the all-in month as the main figure with
@@ -184,14 +186,21 @@ feature, screen, provider or rule moves, appears or goes away.
   time, transfers, fare, all-in (or fares) and hours per block (`wtlBlockLines`, `wtlCompareLinesFor`,
   `WtlCellText`; the office area's own town shows its rent with a small "rent only"), same "in this area" and
   "Best" rules as the website, with the area, flat type and rent/buy as chips above the table, section titles
-  "Resale median" and "Rent in town", and short labels ("Hawkers ≤ 1 km"). Block page UI:
+  "Resale median" and "Rent in town", and short labels ("Hawkers ≤ 1 km"); the daily life lines (nearest MRT,
+  bus stops, hawkers, schools, parks, dengue; `scoreBlock`) are only here, not on the block page. While fewer than
+  `maxCompareBlocks` (3) blocks are compared, Compare has an "Add block" column (and "Add another block to compare"
+  with one block) that opens `BlockSearchPage(onPick:)` (`pickBlockToCompare`, `addCompare`): the usual search plus
+  watched and recently viewed blocks (`Favorites.recentBlocks`, max 6, set when a block page opens, `sawBlock`;
+  `withRecentBlock`, `compareCandidates`). Compare on the block page shows "Added. Add another block to compare"
+  with Add (pick the next block, then the comparison). Flat types read one way everywhere (`S.wtlFlatName`: "3-room",
+  "Executive", from "3 ROOM" or "3-ROOM"). Block page UI:
   Watch and Compare are one size with one-line labels, stacked when they would not fit (`_ActionButtons`);
   the street in the header wraps between words and shrinks only when one word is too wide (`WordWrapTitle`);
-  long Daily life score values (the nearest MRT) sit under their label; lease left is a bar of the 99 years with the year it ends (`LeaseBar`, also in Compare); resale prices show
+  lease left is a bar of the 99 years with the year it ends (`LeaseBar`, also in Compare); resale prices show
   the short figure (S$1.07M) over the full one; town rents are a list of `FlatChip` + price + quarter. Both pages
   end in one disclaimer line, "Indicative only, not advice. Updated <date>." (`DataFooter`), whose "About this
   data" opens `showAboutData` (sources, licence, the 08:30 / 22-day method, transactions not listings, the
-  hdb.gov.sg eligibility link). Maestro: `maestro/08_where_to_live.yaml`.
+  hdb.gov.sg eligibility link). Maestro: `maestro/08_where_to_live.yaml`, `maestro/10_compare_blocks.yaml`.
 - Names put in title case (streets, OneMap addresses, CHAS clinics) keep short forms in capitals
   (`capitalizeWord` in data.dart: MRT, LRT, HDB, NTUC...), so "Tampines MRT Station" reads the same everywhere.
 - Home tab (`ui/home.dart`) is about the saved home, one section at a time (chips under the hero,
@@ -269,7 +278,7 @@ feature, screen, provider or rule moves, appears or goes away.
   and section in light and dark. Text on the page or a card uses `DL.goText`, `DL.muted`, `DL.stopText`
   (theme-aware), never the light-only `DL.tealText`/`DL.mist`/`DL.stop`; those stay for sticker surfaces.
 - `maestro/` drives the release build through the screen like a person (onboarding, Setup over a restart,
-  Today buses, Nearby, Home, location, Appearance, Where to live, Plan a trip), run by the emulator `maestro` job. A change to a
+  Today buses, Nearby, Home, location, Appearance, Where to live, Plan a trip, Compare blocks), run by the emulator `maestro` job. A change to a
   string, tab or screen those flows tap on updates the flow in the same PR; how to write and run them
   is in docs/QA.md "Maestro". Every `launchApp` denies notifications. A failed run prints why and runs all
   flows once more; a pass on that retry is a "Maestro flaky" warning to read, not to ignore.

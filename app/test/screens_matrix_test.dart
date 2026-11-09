@@ -75,6 +75,8 @@ final Map<String, Widget Function()> _pages = {
   'Block search': () => const BlockSearchPage(),
   'Block page': () => const BlockPage(block: _block156),
   'Compare blocks': () => const ComparePage(),
+  'Compare blocks (one block, add another)': () => const ComparePage(),
+  'Add a block to compare': () => BlockSearchPage(onPick: (_) {}),
   'Block page (office area in its town)': () => const BlockPage(block: _blockWoodlands),
   'Compare blocks (one in the office area)': () => const ComparePage(),
   'Agent check': () => const AgentCheckPage(),
@@ -229,7 +231,11 @@ void main() {
           await applyCondition(tester, c);
           final fav = entry.key.contains('empty')
               ? const Favorites()
-              : (entry.key.contains('office area') ? _officeTown : householdFavorites);
+              : entry.key.contains('office area')
+                  ? _officeTown
+                  : entry.key.contains('one block')
+                      ? householdFavorites.copyWith(compareBlocks: ['156|TAMPINES ST 12'], recentBlocks: ['101|ANG MO KIO AVE 3'])
+                      : householdFavorites;
           await tester.pumpWidget(pageUnder(c, fav, tuesdayMorning, entry.value()));
           await settle(tester);
           // The block page runs long (commute and the town board): scroll to its end.

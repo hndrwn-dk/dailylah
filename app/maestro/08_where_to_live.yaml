@@ -1,4 +1,4 @@
-# Commute and all-in cost on "Prices, rent and score": the saved block (Blk 201 Ang Mo Kio Ave 3,
+# Commute and all-in cost on "Prices, rent and commute": the saved block (Blk 201 Ang Mo Kio Ave 3,
 # flow 01) takes its town's trip from Ang Mo Kio MRT; the towns below are ranked by that trip and
 # can be sorted by price.
 appId: com.tursinalabs.dailylah
@@ -14,10 +14,10 @@ name: 08 Where to live
     visible: "(?is).*Ang Mo Kio Av.*3.*"
     timeout: 30000
 - scrollUntilVisible:
-    element: "(?s).*Prices, rent and score.*"
+    element: "(?s).*Prices, rent and commute.*"
     direction: DOWN
     centerElement: true
-- tapOn: "(?s).*Prices, rent and score.*"
+- tapOn: "(?s).*Prices, rent and commute.*"
 # Flutter leaves off-screen rows out of the hierarchy: scroll to each part. The commute card, its
 # figures and the board's headings are their own accessibility nodes (Semantics container).
 - scrollUntilVisible:

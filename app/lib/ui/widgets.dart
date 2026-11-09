@@ -880,85 +880,76 @@ class BusBoard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                  child: _BoardRowLayout(
+                    service: ConstrainedBox(
                       // Bounded so large system text cannot push the row past the edge.
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(minWidth: 62, maxWidth: 96),
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.topLeft,
-                          child: Text(r.service, style: led.copyWith(fontSize: 30, color: r.dim ? DL.ledDim : DL.led)),
-                        ),
+                      constraints: const BoxConstraints(minWidth: 62, maxWidth: 96),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.topLeft,
+                        child: Text(r.service, style: led.copyWith(fontSize: 30, color: r.dim ? DL.ledDim : DL.led)),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Wrap(
-                              spacing: 10,
-                              crossAxisAlignment: WrapCrossAlignment.end,
-                              children: [
-                                Text(r.minutes == 0 ? arrLabel : '${r.minutes} $minLabel',
-                                    style: led.copyWith(fontSize: 30, color: r.dim ? DL.ledDim : DL.led)),
-                                if (r.next != null)
-                                  Text(thenLabel(r.next!), style: led.copyWith(fontSize: 18, color: DL.ledDim)),
-                                if (r.tag case final tag?)
-                                  Container(
-                                    margin: const EdgeInsets.only(bottom: 4),
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                    decoration: BoxDecoration(
-                                      border: Border.all(color: DL.ledDim),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(tag, style: small),
-                                  ),
-                              ],
+                    ),
+                    time: Wrap(
+                      spacing: 10,
+                      crossAxisAlignment: WrapCrossAlignment.end,
+                      children: [
+                        Text(r.minutes == 0 ? arrLabel : '${r.minutes} $minLabel',
+                            style: led.copyWith(fontSize: 30, color: r.dim ? DL.ledDim : DL.led)),
+                        if (r.next != null) Text(thenLabel(r.next!), style: led.copyWith(fontSize: 18, color: DL.ledDim)),
+                        if (r.tag case final tag?)
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: DL.ledDim),
+                              borderRadius: BorderRadius.circular(6),
                             ),
-                            if (r.live != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2, bottom: 2),
-                                child: Text.rich(
-                                  TextSpan(children: [
-                                    const WidgetSpan(
-                                      alignment: PlaceholderAlignment.middle,
-                                      child: Padding(
-                                        padding: EdgeInsets.only(right: 4),
-                                        child: Icon(Icons.my_location, size: 14, color: DL.led),
-                                      ),
-                                    ),
-                                    TextSpan(text: r.live),
-                                  ]),
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: r.dim ? DL.ledDim : DL.led),
+                            child: Text(tag, style: small),
+                          ),
+                      ],
+                    ),
+                    details: [
+                      if (r.live != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2, bottom: 2),
+                          child: Text.rich(
+                            TextSpan(children: [
+                              const WidgetSpan(
+                                alignment: PlaceholderAlignment.middle,
+                                child: Padding(
+                                  padding: EdgeInsets.only(right: 4),
+                                  child: Icon(Icons.my_location, size: 14, color: DL.led),
                                 ),
                               ),
-                            if (r.info.isNotEmpty)
-                              Text.rich(
-                                TextSpan(children: [
-                                  if (LoadBars.level(r.load) > 0)
-                                    WidgetSpan(
-                                      alignment: PlaceholderAlignment.middle,
-                                      child: Padding(
-                                        padding: const EdgeInsets.only(right: 5),
-                                        child: LoadBars(r.load, onDark: true),
-                                      ),
-                                    ),
-                                  TextSpan(text: r.info),
-                                ]),
-                                style: small,
+                              TextSpan(text: r.live),
+                            ]),
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: r.dim ? DL.ledDim : DL.led),
+                          ),
+                        ),
+                      if (r.info.isNotEmpty)
+                        Text.rich(
+                          TextSpan(children: [
+                            if (LoadBars.level(r.load) > 0)
+                              WidgetSpan(
+                                alignment: PlaceholderAlignment.middle,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 5),
+                                  child: LoadBars(r.load, onDark: true),
+                                ),
                               ),
-                            if (r.note.isNotEmpty) Text(r.note, style: small),
-                          ],
+                            TextSpan(text: r.info),
+                          ]),
+                          style: small,
                         ),
-                      ),
-                      if (r.onTap != null)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 4),
-                          child: Icon(Icons.chevron_right, size: 20, color: DL.ledDim),
-                        ),
+                      if (r.note.isNotEmpty) Text(r.note, style: small),
                     ],
+                    chevron: r.onTap == null
+                        ? null
+                        : const Padding(
+                            padding: EdgeInsets.only(top: 4),
+                            child: Icon(Icons.chevron_right, size: 20, color: DL.ledDim),
+                          ),
                   ),
                 ),
               ),
@@ -972,6 +963,53 @@ class BusBoard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// One board row: the service number, then its time and details beside it. When the column beside
+/// the number gets too narrow for whole words (large text, small screens), the details go under the
+/// number and time at full width, so "Wheelchair" or a stop name moves down whole instead of
+/// breaking inside the word.
+class _BoardRowLayout extends StatelessWidget {
+  const _BoardRowLayout({required this.service, required this.time, required this.details, this.chevron});
+  final Widget service;
+  final Widget time;
+  final List<Widget> details;
+  final Widget? chevron;
+
+  @override
+  Widget build(BuildContext context) {
+    final scale = MediaQuery.textScalerOf(context).scale(16) / 16;
+    return LayoutBuilder(builder: (context, box) {
+      // The number takes 62 dp at normal text (more only at large text), the gap 10 and the chevron
+      // about 24: beside it on phones from 320 dp at 100% text, as before.
+      final beside = box.maxWidth - 62 - 10 - 24 >= 150 * scale;
+      final top = Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          service,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [time, if (beside) ...details],
+            ),
+          ),
+          if (chevron case final c?) c,
+        ],
+      );
+      if (beside || details.isEmpty) return top;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          top,
+          Padding(
+            padding: const EdgeInsets.only(top: 4, right: 8),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: details),
+          ),
+        ],
+      );
+    });
   }
 }
 

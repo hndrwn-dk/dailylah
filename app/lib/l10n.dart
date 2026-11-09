@@ -459,6 +459,7 @@ class S {
   String wakePassed(String stop) => 'You may have passed $stop. Check where you are.';
   String get wakePickBus => 'Which bus are you on?';
   String get youAreHere => "You're here";
+  String get alreadyThere => "You're already there";
   String arrivedAt(String place) => 'You are at $place.';
   String get wakeStop => 'Stop';
   String get wakeDone => 'Done';
@@ -650,13 +651,13 @@ class S {
   String get setHomeFirst => 'Set your home to see everything around it.';
   String get setHome => 'Set home';
   String get notHdb => 'No HDB block or private project found at this address. Everything around your home is in the chips above.';
-  String get blockDetails => 'Prices, rent and score';
+  String get blockDetails => 'Prices, rent and commute';
   String get watchBlock => 'Notify me of new sales';
   String get watchingBlock => 'Notifying you';
-  String medianFor(String flatType) => 'median ${flatType.toLowerCase()}';
+  String medianFor(String flatType) => '${wtlFlatName(flatType)} median';
   String rentMedian(String flatType, String amount, [String period = '']) {
-    final flat = flatType.toLowerCase().replaceAll('-', ' ');
-    return 'Rent around $amount a month for ${flat.startsWith('e') ? 'an' : 'a'} $flat in this town'
+    final flat = wtlFlatName(flatType);
+    return 'Rent around $amount a month for ${flat.startsWith('E') ? 'an' : 'a'} $flat in this town'
         '${period.isEmpty ? '' : ' ($period median)'}';
   }
   String get propertyAgents => 'Property agents';
@@ -769,7 +770,7 @@ class S {
   String get showLess => 'Show less';
   String get findBlock => 'Find another HDB block';
   String get homeDataNote => 'Works, services and places: OneMap (SLA) and agencies via data.gov.sg. Computed on your phone.';
-  String get homesIntro => 'Search a block to see resale prices, rent and daily life around it.';
+  String get homesIntro => 'Search a block to see resale prices, rent and the trip to work.';
   String get blockSearchHint => 'Block and street, e.g. 123 Bedok North';
   String get watched => 'Watched blocks';
   String get compare => 'Compare';
@@ -781,7 +782,12 @@ class S {
   String get watching => 'Notifying you';
   String get watchNote => 'You get a notification when a flat in this block is sold, with the price and flat type.';
   String get thisBlock => 'This block';
-  String compareAdded(int n) => n < 2 ? 'Added. Add one more block to compare.' : 'Added. $n blocks to compare.';
+  String compareAdded(int n) => n < 3 ? 'Added. Add another block to compare' : 'Added. $n blocks to compare';
+  String get addBlock => 'Add block';
+  String get addAnotherBlock => 'Add another block to compare';
+  String get addBlockTitle => 'Add a block to compare';
+  String get recentBlocks => 'Recently viewed';
+  String get noCompareYet => 'No blocks to compare yet.';
   String get open => 'Open';
   String builtIn(int y) => 'Built $y';
   String leaseLeft(int years) => '$years years lease left';
@@ -794,14 +800,7 @@ class S {
   String get rentTitle => 'Typical rent in this town';
   String get rentNote => 'Median monthly rent of approved HDB rentals.';
   String get perMonth => '/month';
-  String get dailyLifeScore => 'Daily life around this block';
   String get nearestMrt => 'Nearest MRT';
-  String get busStops400 => 'Bus stops within 400 m';
-  String get hawkers1km => 'Hawker centres within 1 km';
-  String get primary1km => 'Primary schools within 1 km';
-  String get primary2km => 'Primary schools within 2 km';
-  String get parks1km => 'Parks within 1 km';
-  String get dengue1km => 'Dengue clusters within 1 km';
   String get builtLabel => 'Year built';
   String get leaseLabel => 'Lease left (years)';
   String get ceaSource => 'Data: Council for Estate Agencies (CEA) via data.gov.sg.';
@@ -1031,7 +1030,13 @@ class S {
   String get wtlTravelTime => 'Travel time';
   String get wtlAnyTime => 'Any time';
   String wtlUpTo(int m) => 'Up to $m min';
-  String wtlFlatName(String flat) => flat == 'EXECUTIVE' ? 'Executive' : flat.toLowerCase();
+  /// One spelling for every flat type, whatever the source writes ("3 ROOM", "3-ROOM"): "3-room",
+  /// "Executive", "Multi-generation".
+  String wtlFlatName(String flat) => switch (flat.trim().toUpperCase().replaceAll(' ', '-')) {
+        'EXECUTIVE' => 'Executive',
+        'MULTI-GENERATION' => 'Multi-generation',
+        final f => f.toLowerCase(),
+      };
   String wtlToArea(String area) => 'To $area';
   String wtlModeName(WtlMode mode) => mode == WtlMode.buy ? 'Buy resale' : 'Rent';
   String get wtlRentOnly => 'rent only';

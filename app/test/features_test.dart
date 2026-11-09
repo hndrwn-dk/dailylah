@@ -23,6 +23,8 @@ import 'package:dailylah/ui/today.dart';
 import 'package:dailylah/ui/trip.dart';
 import 'package:dailylah/ui/widgets.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart' show GeolocatorPlatform, LocationPermission;
@@ -872,6 +874,54 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets("Plan a trip: From and To at the same spot say You're already there, no walk or buses", (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    const s = S();
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    // A searched start at the work address, to Work.
+    final work = householdFavorites.places[PlaceKind.work]!;
+    box.read(goAdhocFromProvider.notifier).state =
+        Place(kind: PlaceKind.other, name: '1 Raffles Place', addrLat: work.lat, addrLng: work.lng);
+    box.read(goFromKeyProvider.notifier).state = 'adhoc';
+    box.read(goKeyProvider.notifier).state = 'work';
+    await settle(tester);
+    expect(find.text('1 Raffles Place → Work'), findsOneWidget);
+    expect(find.text(s.alreadyThere), findsOneWidget);
+    expect(find.textContaining('0 min'), findsNothing);
+    expect(find.byType(BusBoard), findsNothing);
+    expect(find.text(s.imLeaving), findsNothing);
+
+    // A trip being timed still shows on the page, with Arrived.
+    await box.read(habitsProvider.notifier).startTrip('home>work', tuesdayMorning);
+    await settle(tester);
+    expect(find.byType(TripBanner), findsOneWidget);
+    expect(find.text(s.alreadyThere), findsOneWidget);
+  });
+
+  testWidgets('Bus board at 100% text on 360 dp: details stay beside the number', (tester) async {
+    const phone = Condition('phone', size: Size(360, 780));
+    await applyCondition(tester, phone);
+    const note = '43 stops · 19.5 km · get off at OUE Bayfront';
+    // Inside the page and card paddings, as in Nearby and the planner (about 267 dp wide).
+    await tester.pumpWidget(MaterialApp(
+      theme: buildTheme(Brightness.light),
+      home: Scaffold(
+        body: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: BusBoard(arrLabel: 'Arr', minLabel: 'min', thenLabel: (m) => 'then $m min', rows: [
+            BoardRow(service: '10', minutes: 2, info: 'Seats free', note: note, onTap: () {}),
+          ]),
+        ),
+      ),
+    ));
+    await tester.pump();
+    expect(tester.getTopLeft(find.text(note)).dx, greaterThan(tester.getTopRight(find.text('10')).dx));
+  });
+
   testWidgets('Plan a trip: an old Here destination is dropped when the planner opens again', (tester) async {
     await applyCondition(tester, _normal);
     await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
@@ -1038,6 +1088,55 @@ void main() {
     for (final r in board.rows) {
       expect(r.tag, r.dim ? s.tooSoon : isNull);
     }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Bus board at 200% text on 320 dp: words move down whole, never break inside', (tester) async {
+    const big = Condition('big', textScale: 2.0, size: Size(320, 780));
+    await applyCondition(tester, big);
+    // The app's fonts, so words have their real widths (the test font draws every letter 1 em wide).
+    await tester.runAsync(() async {
+      for (final (family, files) in [
+        ('PlusJakartaSans', ['assets/fonts/PlusJakartaSans-Variable.ttf']),
+        ('BarlowCondensed', ['assets/fonts/BarlowCondensed-SemiBold.ttf', 'assets/fonts/BarlowCondensed-Bold.ttf']),
+      ]) {
+        final loader = FontLoader(family);
+        for (final f in files) {
+          loader.addFont(File(f).readAsBytes().then((b) => ByteData.view(b.buffer)));
+        }
+        await loader.load();
+      }
+    });
+    const info = 'Seats free · ♿ Wheelchair · Double deck';
+    const note = '43 stops · 19.5 km · get off at OUE Bayfront';
+    await tester.pumpWidget(MaterialApp(
+      theme: buildTheme(Brightness.dark),
+      home: Scaffold(
+        body: Padding(
+          padding: const EdgeInsets.all(16),
+          child: BusBoard(arrLabel: 'Arr', minLabel: 'min', thenLabel: (m) => 'then $m min', rows: [
+            BoardRow(service: '10', minutes: 2, next: 11, load: 'SEA', info: info, note: note, onTap: () {}),
+          ]),
+        ),
+      ),
+    ));
+    await tester.pump();
+    final scaler = MediaQuery.textScalerOf(tester.element(find.byType(BusBoard)));
+    // Every word of the details fits on a line of its text box.
+    for (final (text, finder) in [
+      (info, find.textContaining('Wheelchair', findRichText: true)),
+      (note, find.text(note)),
+    ]) {
+      final para = tester.renderObject<RenderParagraph>(finder);
+      final style = para.text.style;
+      for (final word in text.split(' ')) {
+        final tp = TextPainter(text: TextSpan(text: word, style: style), textDirection: TextDirection.ltr, textScaler: scaler)
+          ..layout();
+        expect(tp.width, lessThanOrEqualTo(para.size.width), reason: '"$word" is wider than its line');
+      }
+    }
+    // The details sit under the number at full width.
+    expect(tester.getTopLeft(find.text(note)).dx, closeTo(tester.getTopLeft(find.text('10')).dx, 2));
     expect(tester.takeException(), isNull);
   });
 

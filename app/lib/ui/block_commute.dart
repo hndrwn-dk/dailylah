@@ -1,4 +1,4 @@
-// Commute and all-in cost on "Prices, rent and score" (BlockPage): the trip from the block's
+// Commute and all-in cost on "Prices, rent and commute" (BlockPage): the trip from the block's
 // town to the office area nearest the user's work or school (or one picked), the estimated month,
 // and the HDB towns ranked by that trip on the LED board. Rules in logic.dart (wtl*), the same as
 // dailylah.sg/where-to-live; the data is the where-to-live bundle. A block takes its town's

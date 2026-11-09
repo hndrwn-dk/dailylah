@@ -1,6 +1,6 @@
 # DailyLah Privacy Policy
 
-**Last updated: 8 November 2026**
+**Last updated: 9 November 2026**
 App: DailyLah (Android, package `com.tursinalabs.dailylah`)
 Published at: https://www.tursinalabs.com/dailylah/privacy
 
@@ -13,7 +13,7 @@ DailyLah is a free daily companion for people in Singapore. It shows bus arrival
 ## 3. Data stored only on your phone
 - Your saved places (Home, Work, School): the address you chose (label, postal code and coordinates) and the bus stops you picked for it
 - The MRT/LRT lines you selected, your usual departure times, your alert settings, the days and times you go to work or school, starred MRT lines, and how you usually travel to each place (bus/MRT, car, motorbike, bicycle or taxi), and optional extras
-- Favourite hawker centres, saved car parks, and HDB blocks you watch or compare
+- Favourite hawker centres, saved car parks, HDB blocks you watch or compare, and the last few HDB blocks whose page you opened (offered when you add a block to compare)
 - Whether your car is electric and its plug type, if you turned on **My car is electric**
 - A short log of alerts already shown, so the same alert is not sent twice
 - What you choose to log with **Learn my habits**: trips you start and end with "I'm leaving" and "Arrived" (route, start time, minutes, whether it was raining, travel mode and straight-line distance), hawker centres and halal places (name and position) you mark with "Ate here", and the car park, level and lot you save with "I parked here" (and, once you pick the car up, how long you parked there and whether it was an HDB car park, for a cost estimate), and any costs you enter for trips or parking. These are shown on the History tab, where you can remove single entries. You can turn this off and delete it all any time in More > Extras. It is not part of the family share code.
@@ -43,7 +43,7 @@ The app also downloads these public data bundles from our website. Like any web 
 
 The **Home** tab shows your block (or, for a private home, URA sale and rent figures for the project at your address), upgrading and construction work, schools, health and community services, recycling points, parks and parking around your saved home. All of it comes from public data bundles (OneMap, URA and data.gov.sg) downloaded to your phone, and the distances are computed on your phone; your home address is not sent anywhere for this.
 
-On a block's **Prices, rent and score** page, the app also shows the trip from the block's town to an office area, an estimated monthly cost and HDB towns ranked by that trip, from the same public data bundle as the Where to live? page on our website. To pick the office area, the app matches your saved work or school address to the nearest of the six office areas on your phone; the address is not sent to Tursina Labs or anyone else for this. Your choices (office area, rent or buy, flat type) are kept only on your phone, and nothing about them is sent. **More about** a town opens its page on our website in your browser, with only the town's name in the address.
+On a block's **Prices, rent and commute** page, the app also shows the trip from the block's town to an office area, an estimated monthly cost and HDB towns ranked by that trip, from the same public data bundle as the Where to live? page on our website. To pick the office area, the app matches your saved work or school address to the nearest of the six office areas on your phone; the address is not sent to Tursina Labs or anyone else for this. Your choices (office area, rent or buy, flat type) are kept only on your phone, and nothing about them is sent. **More about** a town opens its page on our website in your browser, with only the town's name in the address.
 
 If you turn on **Halal food nearby** (More > Extras), the app shows halal places listed on Muslim.sg from a bundle downloaded to your phone; searching and distances are done on your phone. DailyLah is not affiliated with MUIS.
 
