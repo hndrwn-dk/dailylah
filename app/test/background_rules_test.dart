@@ -194,4 +194,36 @@ void main() {
       expect(f.showHalal, isFalse);
     });
   });
+
+  group('public holidays', () {
+    // Monday 9 Nov 2026 is Deepavali (Observed) in web/data/holidays.json; work leaves at 08:00.
+    final deepavaliMorning = DateTime(2026, 11, 9, 7, 45);
+
+    test('one holiday notification replaces "Time to go", once a day', () async {
+      await _withFavorites(householdFavorites);
+      await runChecks(FakeApi(), deepavaliMorning, bundles: FileBundles());
+      final holiday = shown.where((m) => m['id'] == 20).toList();
+      expect(holiday, hasLength(1));
+      expect('${holiday.single['title']}', contains('Deepavali (Observed)'));
+      expect('${holiday.single['body']}', isNotEmpty);
+      expect(titles, isNot(contains('Time to go')));
+      expect(widgetSaved['dl_trip'], '');
+
+      shown.clear();
+      await runChecks(FakeApi(), deepavaliMorning.add(const Duration(minutes: 10)), bundles: FileBundles());
+      expect(shown.where((m) => m['id'] == 20), isEmpty);
+    });
+
+    test('no holiday notification on a normal workday or with leave alerts off', () async {
+      await _withFavorites(householdFavorites);
+      await runChecks(FakeApi(), DateTime(2026, 11, 10, 7, 45), bundles: FileBundles());
+      expect(shown.where((m) => m['id'] == 20), isEmpty);
+      expect(widgetSaved['dl_trip'], 'To Work · usual 08.00');
+
+      shown.clear();
+      await _withFavorites(householdFavorites.copyWith(leaveAlerts: false));
+      await runChecks(FakeApi(), deepavaliMorning, bundles: FileBundles());
+      expect(shown.where((m) => m['id'] == 20), isEmpty);
+    });
+  });
 }

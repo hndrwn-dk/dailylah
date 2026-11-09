@@ -1081,17 +1081,17 @@ void main() {
       },
     };
     const fav = Favorites(places: {PlaceKind.school: Place(kind: PlaceKind.school, stops: [tampines])});
-    final holidays = [SchoolHoliday(DateTime(2026, 11, 21), DateTime(2026, 12, 31), 'Year-end holidays')];
+    final off = DaysOff(school: [SchoolHoliday(DateTime(2026, 11, 21), DateTime(2026, 12, 31), 'Year-end holidays')]);
     List<AlertKind> kinds(DateTime now) => [
           for (final a in todayAlerts(
-              fav: fav, now: now, s: const S(), wbgt: heat, lightning: lightning, schoolHolidays: holidays))
+              fav: fav, now: now, s: const S(), wbgt: heat, lightning: lightning, off: off))
             a.kind,
         ];
-    expect(isSchoolDay(fav, DateTime(2026, 10, 26), holidays), isTrue); // Monday
+    expect(isSchoolDay(fav, DateTime(2026, 10, 26), off), isTrue); // Monday
     expect(kinds(DateTime(2026, 10, 26, 10)), containsAll([AlertKind.heat, AlertKind.lightning]));
-    expect(isSchoolDay(fav, DateTime(2026, 10, 24), holidays), isFalse); // Saturday
+    expect(isSchoolDay(fav, DateTime(2026, 10, 24), off), isFalse); // Saturday
     expect(kinds(DateTime(2026, 10, 24, 10)), isEmpty);
-    expect(isSchoolDay(fav, DateTime(2026, 11, 23), holidays), isFalse); // Monday, year-end holidays
+    expect(isSchoolDay(fav, DateTime(2026, 11, 23), off), isFalse); // Monday, year-end holidays
     expect(kinds(DateTime(2026, 11, 23, 10)), isEmpty);
   });
 
@@ -1860,6 +1860,107 @@ void main() {
       expect(p.name, 'Putra Minang Restaurant Bencoolen');
       expect(p.hasPoint, isTrue);
       expect(p.needsLink, isFalse);
+    });
+  });
+
+  group('public holidays switch off work and school trips', () {
+    // Monday 9 Nov 2026 is Deepavali (Observed); Monday 23 Nov is in the MOE year-end holidays.
+    final off = DaysOff(
+      holidays: Holiday.fromBundle([
+        {'d': '2026-11-08', 'n': 'Deepavali'},
+        {'d': '2026-11-09', 'n': 'Deepavali (Observed)'},
+      ]),
+      school: [SchoolHoliday(DateTime(2026, 11, 21), DateTime(2026, 12, 31), 'Year-end holidays')],
+    );
+    const work = Place(kind: PlaceKind.work, stops: [raffles], go: TimeOfDayHM(8, 0), back: TimeOfDayHM(18, 0));
+    const school = Place(kind: PlaceKind.school, stops: [raffles], go: TimeOfDayHM(7, 0));
+    const home = Place(kind: PlaceKind.home, stops: [tampines]);
+    const workOnly = Favorites(places: {PlaceKind.home: home, PlaceKind.work: work});
+    const both = Favorites(places: {PlaceKind.home: home, PlaceKind.work: work, PlaceKind.school: school});
+    const schoolOnly = Favorites(places: {PlaceKind.home: home, PlaceKind.school: school});
+    final deepavali = DateTime(2026, 11, 9, 7, 45);
+    final yearEnd = DateTime(2026, 11, 23, 7, 45);
+    final normal = DateTime(2026, 11, 10, 7, 45);
+
+    test('DaysOff.isOff: public holidays stop work and school, school holidays only school', () {
+      expect(off.publicOn(deepavali)!.name, 'Deepavali (Observed)');
+      expect(off.publicOn(normal), isNull);
+      expect(off.isOff(work, deepavali), isTrue);
+      expect(off.isOff(school, deepavali), isTrue);
+      expect(off.isOff(school, yearEnd), isTrue);
+      expect(off.isOff(work, yearEnd), isFalse);
+      expect(off.isOff(work, normal), isFalse);
+      expect(off.isOff(school, normal), isFalse);
+      // Home and custom places never have a day off.
+      expect(off.isOff(home, deepavali), isFalse);
+      expect(const DaysOff().isOff(work, deepavali), isFalse);
+    });
+
+    test('commutePlace skips places that are off today', () {
+      expect(commutePlace(both, deepavali, off), isNull);
+      expect(commutePlace(both, yearEnd, off)!.kind, PlaceKind.work);
+      expect(commutePlace(schoolOnly, yearEnd, off), isNull);
+      expect(commutePlace(both, normal, off)!.kind, PlaceKind.work);
+      // Without DaysOff nothing changes.
+      expect(commutePlace(both, deepavali)!.kind, PlaceKind.work);
+      expect(isCommuteDay(both, deepavali, off), isFalse);
+      expect(isCommuteDay(both, deepavali), isTrue);
+      // The usual times stay, so the morning/evening card does not move.
+      expect(commuteTimes(both, deepavali), (const TimeOfDayHM(8, 0), const TimeOfDayHM(18, 0)));
+    });
+
+    test('no trip, destination or widget trip on a public holiday', () {
+      const s = S();
+      expect(widgetTrip(s, both, deepavali, off: off), '');
+      expect(widgetTrip(s, schoolOnly, yearEnd, off: off), '');
+      expect(widgetTrip(s, both, normal, off: off), isNotEmpty);
+      expect(widgetData(s: s, fav: both, now: deepavali, off: off)['dl_trip'], '');
+      expect(destinationFor(CardKind.morning, both, deepavali, off), isNull);
+      expect(destinationFor(CardKind.morning, both, deepavali), PlaceKind.work);
+      expect(originFor(CardKind.evening, both, DateTime(2026, 11, 9, 18), off), PlaceKind.home);
+      expect(isSchoolDay(schoolOnly, deepavali, off), isFalse);
+      expect(isSchoolDay(schoolOnly, yearEnd, off), isFalse);
+      expect(isSchoolDay(schoolOnly, normal, off), isTrue);
+    });
+
+    test('holidayNote: name, weather near home and the 2 nearest events today', () {
+      const s = S();
+      PublicEvent ev(String n, double lat, double lng, {String day = '2026-11-09'}) =>
+          PublicEvent.fromBundle({'n': n, 'u': 'https://x', 's': '$day 10:00', 'e': '$day 18:00', 'la': lat, 'lo': lng})!;
+      final events = [
+        ev('Lights walk', 1.360, 103.950),
+        ev('Bazaar', 1.355, 103.944),
+        ev('Far fair', 1.354, 104.100), // about 17 km away
+        ev('Tomorrow fair', 1.354, 103.943, day: '2026-11-10'),
+      ];
+      const weather = AreaForecast(area: 'Tampines', forecast: 'Partly Cloudy (Day)');
+      final note = holidayNote(s, workOnly, deepavali, off, homeWeather: weather, events: events)!;
+      expect(note.$1, contains('Deepavali (Observed)'));
+      expect(note.$1, s.holidayTitle('Deepavali (Observed)'));
+      final lines = note.$2.split('\n');
+      expect(lines, hasLength(3));
+      expect(lines.first, 'Tampines: Partly Cloudy (Day)');
+      expect(lines[1], startsWith('Bazaar · '));
+      expect(lines[2], startsWith('Lights walk · '));
+      expect(note.$2, isNot(contains('Far fair')));
+      expect(note.$2, isNot(contains('Tomorrow fair')));
+
+      // Weather only when there is no event; a friendly line when there is nothing at all.
+      expect(holidayNote(s, workOnly, deepavali, off, homeWeather: weather)!.$2, 'Tampines: Partly Cloudy (Day)');
+      expect(holidayNote(s, workOnly, deepavali, off)!.$2, s.holidayEnjoy);
+      // Sunday (no trip anyway), a school holiday, a normal day: no holiday notification.
+      expect(holidayNote(s, workOnly, DateTime(2026, 11, 8, 7, 45), off, homeWeather: weather), isNull);
+      expect(holidayNote(s, both, yearEnd, off, homeWeather: weather), isNull);
+      expect(holidayNote(s, workOnly, normal, off, homeWeather: weather), isNull);
+      expect(holidayNote(s, workOnly, deepavali, const DaysOff(), homeWeather: weather), isNull);
+    });
+
+    test('Today banner text for a public holiday', () {
+      const s = S();
+      expect(s.publicHolidayToday('Deepavali (Observed)'),
+          'Deepavali (Observed): public holiday, no work or school trip today.');
+      expect(s.holidayTitle('Deepavali (Observed)'), 'Happy Deepavali (Observed) · no commute today');
+      expect(s.eventNearby('Bazaar', '850 m'), 'Bazaar · 850 m');
     });
   });
 }

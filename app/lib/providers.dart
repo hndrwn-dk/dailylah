@@ -273,6 +273,16 @@ final eventsProvider = FutureProvider<List<PublicEvent>>((ref) async {
 final schoolHolidaysProvider = FutureProvider<List<SchoolHoliday>>((ref) async =>
     SchoolHoliday.fromBundle(await ref.watch(bundleRepoProvider).load('school_holidays')));
 
+/// MOM public holidays (holidays.json bundle, observed days included).
+final holidaysProvider = FutureProvider<List<Holiday>>((ref) async =>
+    Holiday.fromBundle(await ref.watch(bundleRepoProvider).load('holidays')));
+
+/// Public and school holidays together: which work and school trips are off today.
+final daysOffProvider = Provider<DaysOff>((ref) => DaysOff(
+      holidays: ref.watch(holidaysProvider).value ?? const [],
+      school: ref.watch(schoolHolidaysProvider).value ?? const [],
+    ));
+
 
 final stringsProvider = Provider<S>((ref) => const S());
 
@@ -592,7 +602,7 @@ final todayAlertsProvider = Provider.autoDispose<List<TodayAlert>>((ref) {
     lightning: ref.watch(lightningProvider).value,
     psi: ref.watch(psiProvider).value,
     pm25: ref.watch(pm25Provider).value,
-    schoolHolidays: ref.watch(schoolHolidaysProvider).value ?? const [],
+    off: ref.watch(daysOffProvider),
   );
 });
 
@@ -602,7 +612,7 @@ final widgetDataProvider = Provider.autoDispose<Map<String, String>>((ref) {
   final fav = ref.watch(favoritesProvider);
   if (!fav.isSetUp) return const {};
   final now = nowOf(ref);
-  final origin = fav.places[originFor(cardFor(now, fav), fav, now)];
+  final origin = fav.places[originFor(cardFor(now, fav), fav, now, ref.watch(daysOffProvider))];
   final forecast = ref.watch(forecastProvider).value;
   final train = ref.watch(trainAlertsProvider).value;
   return widgetData(
@@ -612,7 +622,7 @@ final widgetDataProvider = Provider.autoDispose<Map<String, String>>((ref) {
     here: forecast == null || origin == null ? null : forecastNear(forecast, origin.lat, origin.lng),
     lines: train == null ? null : lineStatuses(train, watchedLines(fav)),
     alerts: ref.watch(todayAlertsProvider),
-    schoolHolidays: ref.watch(schoolHolidaysProvider).value ?? const [],
+    off: ref.watch(daysOffProvider),
   );
 });
 

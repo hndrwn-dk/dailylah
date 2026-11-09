@@ -26,12 +26,13 @@ const androidCoverWidgetName = 'DailyLahCoverWidgetProvider';
 
 final notifications = FlutterLocalNotificationsPlugin();
 
-AndroidNotificationDetails _channel(S s) => AndroidNotificationDetails(
+AndroidNotificationDetails _channel(S s, {StyleInformation? styleInformation}) => AndroidNotificationDetails(
       'dailylah_alerts',
       s.channelName,
       channelDescription: s.channelDesc,
       importance: Importance.high,
       priority: Priority.high,
+      styleInformation: styleInformation,
     );
 
 Future<void> initNotifications() async {
@@ -93,6 +94,16 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
   final kind = cardFor(now, fav);
   final quiet = isQuietHour(now);
   final repo = bundles ?? BundleRepository();
+  // Public and school holidays, loaded once for every check below.
+  var off = const DaysOff();
+  try {
+    off = DaysOff(
+      holidays: Holiday.fromBundle(await repo.load('holidays')),
+      school: SchoolHoliday.fromBundle(await repo.load('school_holidays')),
+    );
+  } on Object catch (e) {
+    debugPrint('holidays not loaded: $e');
+  }
 
   Future<void> notify(int id, String title, String body) => notifications.show(
         id: id,
@@ -133,7 +144,7 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
   });
 
   // Rain: only in the hour before the usual departure, once per window, max 3 a day.
-  final origin = fav.places[originFor(kind, fav, now)];
+  final origin = fav.places[originFor(kind, fav, now, off)];
   await guard(() async {
     final body = await api.forecast();
     // Warm the app's cache, so opening the app shows this right away.
@@ -143,7 +154,8 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     if (!fav.rainAlerts || quiet) return;
     final (goAt, backAt) = commuteTimes(fav, now);
     final leave = kind == CardKind.morning ? goAt : backAt;
-    final dest = destinationFor(kind, fav, now);
+    // No destination on a public holiday or day off: only the forecast at home counts.
+    final dest = destinationFor(kind, fav, now, off);
     final destPlace = dest == null ? null : fav.places[dest];
     final checkPlaces = <Place>[
       if (origin != null) origin,
@@ -162,14 +174,36 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
   });
 
   // Leave by: one reminder near the usual departure, for the first bus worth leaving for.
+  // On a public holiday it is replaced by one holiday notification (weather, events nearby).
   await guard(() async {
     if (kind != CardKind.morning || origin == null) return;
     final (goAt, _) = commuteTimes(fav, now);
     if (!inLeaveWindow(now, goAt)) return;
+    if (off.publicOn(now) != null) {
+      if (!fav.leaveAlerts || quiet || await log.alreadySent('holiday:$day')) return;
+      final eventsRaw = await repo.load('events');
+      final note = holidayNote(s, fav, now, off,
+          homeWeather: here,
+          events: [
+            if (eventsRaw is List)
+              for (final r in eventsRaw)
+                if (r is Map<String, dynamic>)
+                  if (PublicEvent.fromBundle(r) case final e?) e,
+          ]);
+      if (note == null) return;
+      await notifications.show(
+        id: 20,
+        title: note.$1,
+        body: note.$2,
+        notificationDetails: NotificationDetails(
+          android: _channel(s, styleInformation: BigTextStyleInformation(note.$2)),
+        ),
+      );
+      await log.markSent('holiday:$day');
+      return;
+    }
     final remind = fav.leaveAlerts && !quiet && !await log.alreadySent('leave:$day');
-    final holiday = schoolHolidayOn(SchoolHoliday.fromBundle(await repo.load('school_holidays')), now);
-    if (holiday != null && commutePlace(fav, now)?.kind == PlaceKind.school) return;
-    final dest = destinationFor(kind, fav, now);
+    final dest = destinationFor(kind, fav, now, off);
     final to = dest == null ? null : fav.places[dest];
     final stops = usableStops(origin);
     if (to == null || stops.isEmpty) return;
@@ -299,8 +333,7 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     final list = raw is Map ? raw['clusters'] : null;
     if (list is! List) return;
     final clusters = [for (final c in list) DengueCluster.fromBundle(c as Map<String, dynamic>)];
-    final holidays = SchoolHoliday.fromBundle(await repo.load('school_holidays'));
-    for (final kindToCheck in [PlaceKind.home, if (isSchoolDay(fav, now, holidays)) PlaceKind.school]) {
+    for (final kindToCheck in [PlaceKind.home, if (isSchoolDay(fav, now, off)) PlaceKind.school]) {
       final p = fav.places[kindToCheck];
       if (p == null) continue;
       for (final (c, _) in dengueNear(clusters, p.lat, p.lng, km: 1)) {
@@ -316,7 +349,7 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
   await guard(() async {
     if (!fav.heatAlerts || now.hour < 7 || now.hour >= 19) return;
     // School while there is class; otherwise home (weekends, school holidays).
-    final schoolDay = isSchoolDay(fav, now, SchoolHoliday.fromBundle(await repo.load('school_holidays')));
+    final schoolDay = isSchoolDay(fav, now, off);
     final p = (schoolDay ? fav.places[PlaceKind.school] : null) ?? fav.places[PlaceKind.home];
     if (p == null) return;
     final place = s.placeLabel(p.kind.name);
@@ -369,7 +402,6 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     List<T> rows<T>(Object? raw, T Function(Map<String, dynamic>) f) =>
         [if (raw is List) for (final r in raw) f(r as Map<String, dynamic>)];
     final dengueRaw = await repo.load('dengue');
-    final holidays = SchoolHoliday.fromBundle(await repo.load('school_holidays'));
     final alerts = todayAlerts(
       fav: fav,
       now: now,
@@ -382,7 +414,7 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
       lightning: lightningBody,
       psi: psiBody,
       pm25: pm25Body,
-      schoolHolidays: holidays,
+      off: off,
     );
     await updateWidget(widgetData(
       s: s,
@@ -393,7 +425,7 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
       alerts: alerts,
       bus: bus,
       busChecked: true,
-      schoolHolidays: holidays,
+      off: off,
     ));
   });
 }

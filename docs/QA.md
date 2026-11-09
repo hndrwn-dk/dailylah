@@ -164,6 +164,8 @@ Writing flows:
 - Flows must pass on any day and at any time. The emulator is set to Singapore time; flow 02 makes
   Work an every-day place (Sat and Sun chips in Setup), so Today shows the commute on weekends too
   instead of the weekend card. Live data that is empty at night (buses stopped) is accepted as an answer.
+- Public holidays (`web/data/holidays.json`) switch off the commute on Today, also for that every-day Work:
+  flow 03 then checks the holiday banner and that no trip shows, and skips the bus steps.
 - Flutter merges the texts of a tile or card into one node, so match with `"(?s).*text.*"`, or
   anchor the start (`"(?s)Appearance.*"`) when a longer node also contains the text.
 - Rows off screen are not in the hierarchy: `scrollUntilVisible` first; add `centerElement: true`
@@ -299,6 +301,7 @@ No promote to production while any of these is open.
 - [ ] Widget buttons Today / Nearby / Home open the app on that tab, also when the app was closed.
 - [ ] Wake me on a locked screen on a real bus ride.
 - [ ] Look at Today and Home once on a small real phone at the largest font size.
+- [ ] Public holiday: set the phone's date to a public holiday on a workday (e.g. Fri 25 Dec 2026) before the usual leave time. Today shows the holiday banner and no trip; the background check sends one "Happy Christmas Day · no commute today" notification and no "Time to go".
 
 ## Run locally
 

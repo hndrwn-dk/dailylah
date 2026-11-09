@@ -240,10 +240,11 @@ double? highCrowdShare(Map<String, dynamic> apiBody) {
 enum CardKind { morning, evening }
 
 /// Work or school place in use today: work if today is one of its days, else school.
-Place? commutePlace(Favorites fav, DateTime now) {
+/// A place that is [off] today (public holiday, or the school's holiday) is skipped.
+Place? commutePlace(Favorites fav, DateTime now, [DaysOff off = const DaysOff()]) {
   for (final k in const [PlaceKind.work, PlaceKind.school]) {
     final p = fav.places[k];
-    if (p != null && p.days.contains(now.weekday)) return p;
+    if (p != null && p.days.contains(now.weekday) && !off.isOff(p, now)) return p;
   }
   return null;
 }
@@ -274,8 +275,9 @@ bool todayBackToTop({
 }) =>
     cardBefore != cardNow || now.difference(awaySince) >= const Duration(minutes: 30);
 
-/// True when today is a work or school day for one of those places.
-bool isCommuteDay(Favorites fav, DateTime now) => commutePlace(fav, now) != null;
+/// True when today is a work or school day for one of those places (and not a day [off]).
+bool isCommuteDay(Favorites fav, DateTime now, [DaysOff off = const DaysOff()]) =>
+    commutePlace(fav, now, off) != null;
 
 /// MRT lines to watch for alerts: the starred ones, or every line when none is starred.
 Set<String> watchedLines(Favorites fav) => fav.lines.isEmpty ? trainLines.keys.toSet() : fav.lines;
@@ -293,17 +295,17 @@ List<int> extrasForToday(Favorites fav, DateTime now) {
 
 /// The place whose stops/weather the card should show: the work/school place on a
 /// commute evening, otherwise home (also on days off).
-PlaceKind originFor(CardKind kind, Favorites fav, [DateTime? now]) {
+PlaceKind originFor(CardKind kind, Favorites fav, [DateTime? now, DaysOff off = const DaysOff()]) {
   if (kind == CardKind.evening) {
-    final p = commutePlace(fav, now ?? DateTime.now());
+    final p = commutePlace(fav, now ?? DateTime.now(), off);
     if (p != null) return p.kind;
   }
   return PlaceKind.home;
 }
 
 /// The place the user is heading to (used for rain at destination), or null on a day off.
-PlaceKind? destinationFor(CardKind kind, Favorites fav, [DateTime? now]) {
-  final p = commutePlace(fav, now ?? DateTime.now());
+PlaceKind? destinationFor(CardKind kind, Favorites fav, [DateTime? now, DaysOff off = const DaysOff()]) {
+  final p = commutePlace(fav, now ?? DateTime.now(), off);
   if (p == null) return null;
   return kind == CardKind.morning ? p.kind : PlaceKind.home;
 }
@@ -717,7 +719,7 @@ List<TodayAlert> todayAlerts({
   Map<String, dynamic>? lightning,
   Map<String, dynamic>? psi,
   Map<String, dynamic>? pm25,
-  List<SchoolHoliday> schoolHolidays = const [],
+  DaysOff off = const DaysOff(),
 }) {
   final out = <TodayAlert>[];
   final kind = cardFor(now, fav);
@@ -736,7 +738,7 @@ List<TodayAlert> todayAlerts({
   }
 
   // School alerts only on days with class; at weekends and in the holidays the school is empty.
-  final school = isSchoolDay(fav, now, schoolHolidays) ? fav.places[PlaceKind.school] : null;
+  final school = isSchoolDay(fav, now, off) ? fav.places[PlaceKind.school] : null;
   final home = fav.places[PlaceKind.home];
   if (lightning != null) {
     final spots = <Place>[if (home != null) home, if (school != null) school];
@@ -746,8 +748,8 @@ List<TodayAlert> todayAlerts({
   }
 
   if (forecast != null) {
-    final dest = destinationFor(kind, fav, now);
-    final candidates = [fav.places[originFor(kind, fav, now)], if (dest != null) fav.places[dest]];
+    final dest = destinationFor(kind, fav, now, off);
+    final candidates = [fav.places[originFor(kind, fav, now, off)], if (dest != null) fav.places[dest]];
     for (final p in candidates) {
       if (p == null) continue;
       final f = forecastNear(forecast, p.lat, p.lng);
@@ -2421,11 +2423,53 @@ SchoolHoliday? schoolHolidayOn(List<SchoolHoliday> all, DateTime now) {
   return null;
 }
 
-/// True when the saved school has class today: one of its days and not a school holiday.
-/// School-only alerts (heat, lightning, dengue at school) are skipped otherwise.
-bool isSchoolDay(Favorites fav, DateTime now, [List<SchoolHoliday> holidays = const []]) {
+/// Public (MOM) and school (MOE) holidays, to tell which trips are off today.
+class DaysOff {
+  const DaysOff({this.holidays = const [], this.school = const []});
+  final List<Holiday> holidays;
+  final List<SchoolHoliday> school;
+
+  /// The public holiday on [now]'s date, or null.
+  Holiday? publicOn(DateTime now) {
+    final d = dateOnly(now);
+    for (final h in holidays) {
+      if (dateOnly(h.date) == d) return h;
+    }
+    return null;
+  }
+
+  /// True when [p] has no trip on [now]: a public holiday (work and school), or a school
+  /// holiday (school only). Home and custom places are never off.
+  bool isOff(Place p, DateTime now) {
+    if (p.kind != PlaceKind.work && p.kind != PlaceKind.school) return false;
+    if (publicOn(now) != null) return true;
+    return p.kind == PlaceKind.school && schoolHolidayOn(school, now) != null;
+  }
+}
+
+/// True when the saved school has class today: one of its days and not a school or public
+/// holiday. School-only alerts (heat, lightning, dengue at school) are skipped otherwise.
+bool isSchoolDay(Favorites fav, DateTime now, [DaysOff off = const DaysOff()]) {
   final p = fav.places[PlaceKind.school];
-  return p != null && p.days.contains(now.weekday) && schoolHolidayOn(holidays, now) == null;
+  return p != null && p.days.contains(now.weekday) && !off.isOff(p, now);
+}
+
+/// The public holiday notification that replaces the morning leave-by reminder:
+/// (title, body), or null when [now] is not a public holiday or there would be no work or
+/// school trip today anyway (Sunday, a day not set for those places). The body is the
+/// forecast near home, then up to 2 events near home today; "Enjoy the day off." without both.
+(String, String)? holidayNote(S s, Favorites fav, DateTime now, DaysOff off,
+    {AreaForecast? homeWeather, List<PublicEvent> events = const []}) {
+  final holiday = off.publicOn(now);
+  if (holiday == null || commutePlace(fav, now) == null) return null;
+  final home = fav.places[PlaceKind.home];
+  final lines = <String>[
+    if (homeWeather != null) '${homeWeather.area}: ${homeWeather.forecast}',
+    if (home != null)
+      for (final (e, d) in eventsNear(events, home.lat, home.lng, now, days: 1, limit: 2))
+        s.eventNearby(e.name, s.metres(d)),
+  ];
+  return (s.holidayTitle(holiday.name), lines.isEmpty ? s.holidayEnjoy : lines.join('\n'));
 }
 
 /// Custom places with a usual time that fits [now] (weekday/weekend) and whose leave window
@@ -2562,11 +2606,10 @@ String weatherKind(String forecast, DateTime now) {
 }
 
 /// Today's usual trip for the widget ("To Work · usual 08.10"), or '' with no commute today
-/// (day off, or the school's holiday).
-String widgetTrip(S s, Favorites fav, DateTime now, {List<SchoolHoliday> schoolHolidays = const []}) {
-  final p = commutePlace(fav, now);
+/// (day off, a public holiday, or the school's holiday).
+String widgetTrip(S s, Favorites fav, DateTime now, {DaysOff off = const DaysOff()}) {
+  final p = commutePlace(fav, now, off);
   if (p == null) return '';
-  if (p.kind == PlaceKind.school && schoolHolidayOn(schoolHolidays, now) != null) return '';
   final (go, back) = commuteTimes(fav, now);
   return cardFor(now, fav) == CardKind.morning
       ? s.widgetTripTo(s.placeLabel(p.kind.name), go.format())
@@ -2586,14 +2629,14 @@ Map<String, String> widgetData({
   List<TodayAlert>? alerts,
   LeaveBy? bus,
   bool busChecked = false,
-  List<SchoolHoliday> schoolHolidays = const [],
+  DaysOff off = const DaysOff(),
 }) {
   final kind = cardFor(now, fav);
   final out = <String, String>{
     'dl_v': '2',
     'dl_updated': '${now.millisecondsSinceEpoch}',
     'dl_card': kind == CardKind.morning ? s.widgetMorning : s.widgetEvening,
-    'dl_trip': widgetTrip(s, fav, now, schoolHolidays: schoolHolidays),
+    'dl_trip': widgetTrip(s, fav, now, off: off),
   };
   if (here != null) {
     out['dl_place'] = here.area;
