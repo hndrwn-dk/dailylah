@@ -81,20 +81,18 @@ rent/resale. Static page and JSON, no browser API calls, no Render. One PR per p
   hndrwn-dk/tursinalabs.com.
 
 ## Place search in Plan a trip (9 Nov 2026, plan: docs/PLACE_SEARCH.md)
-Branch `feat/place-search`: `/v1/places` (Geoapify Autocomplete, Singapore only, key on the server),
-used by the From/To search in Plan a trip; postal codes and block numbers stay on OneMap, and OneMap
-is the fallback. Setup, Nearby and the shared-place picker stay OneMap only.
-- **By hand (Hendrawan):** create a Geoapify API key for DailyLah only (limit it to Render if
-  Geoapify allows), set `GEOAPIFY_API_KEY` on Render (`dailylah-api` > Environment), redeploy, then
-  try 10 common place names in Plan a trip and note the misses on the PR. Without the key
-  `/v1/places` answers 503 and the app searches OneMap.
-- After merge: update the published privacy policy on tursinalabs.com (section 4a and 8).
-- Merged as #142. Live check (9 Nov): 9 of 10 names found; Putra Minang is not in OpenStreetMap.
-- Guards (branch `feat/places-limits`): the Geoapify account is on the Free plan (3,000 credits a
-  day) and shared with Prayer Cast, so `/v1/places` has a daily budget of 2,000 calls
-  (`PLACES_DAILY_BUDGET` on Render), at most 4 calls a second, and a pause after Geoapify refuses.
-  The access log is #143. A per-IP limit is not built: which
-  `X-Forwarded-For` entry Render puts the client in was not checked.
+Done; reaches users with release 2.1.0. The From/To search in Plan a trip finds place names with
+Geoapify through `/v1/places` (Singapore only, key on Render); postal codes and block numbers stay
+on OneMap, and OneMap is the fallback. Setup, Nearby and the shared-place picker stay OneMap only.
+- Merged: #142 (app + backend), #144 (Geoapify guards), #143 (access log without query strings).
+  Privacy policy on tursinalabs.com updated (tursinalabs.com#7). `GEOAPIFY_API_KEY` is set on Render.
+- Live check (9 Nov): 9 of 10 names found; Putra Minang is not in OpenStreetMap.
+- Guards: the Geoapify account is on the Free plan (3,000 credits a day) and shared with Prayer
+  Cast, so `/v1/places` has a daily budget of 2,000 calls (`PLACES_DAILY_BUDGET` on Render), at most
+  4 calls a second, and a pause after Geoapify refuses. If Prayer Cast uses up the account, DailyLah
+  falls back to OneMap.
+- Open (optional): a per-IP limit (which `X-Forwarded-For` entry Render puts the client in was not
+  checked); if Redis fails mid-day, the memory counter starts at 0 and the budget can be passed once.
 
 ## CI/CD hardening (Nov 2026, 8 phases, one PR each)
 Layers: deterministic scans → AI review → a person decides. Existing gates (analyze, test,

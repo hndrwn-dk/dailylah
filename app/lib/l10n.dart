@@ -900,7 +900,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "On public holidays there is no work or school trip and no leave reminder. Instead you get one morning note with the holiday, the weather near home and events nearby. School holidays still switch off only the school trip.",
+        "Plan a trip now finds shops, restaurants and malls by name, not only addresses and postal codes. Type a place name in From or To; postal codes and block numbers work as before.",
       ];
 
   // about
