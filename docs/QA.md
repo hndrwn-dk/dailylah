@@ -302,7 +302,7 @@ No promote to production while any of these is open.
 - [ ] Wake me on a locked screen on a real bus ride.
 - [ ] Look at Today and Home once on a small real phone at the largest font size.
 - [ ] Public holiday: set the phone's date to a public holiday on a workday (e.g. Fri 25 Dec 2026) before the usual leave time. Today shows the holiday banner and no trip; the background check sends one "Happy Christmas Day · no commute today" notification and no "Time to go".
-- [ ] Plan a trip, To: "Putra Minang" finds the restaurant with the Geoapify line under the results; "560201" finds Blk 201 Ang Mo Kio (OneMap, no Geoapify line); "Jewel Changi" finds Jewel. Needs `GEOAPIFY_API_KEY` on Render.
+- [ ] Plan a trip, To: "Lau Pa Sat" finds it at 18 Raffles Quay with the Geoapify line under the results; "560201" finds Blk 201 Ang Mo Kio (OneMap, no Geoapify line); "Jewel Changi" finds Jewel. ("Putra Minang" is not in OpenStreetMap and finds nothing: share it from Google Maps.)
 
 ## Run locally
 
