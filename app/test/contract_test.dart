@@ -95,6 +95,13 @@ final checks = <String, void Function(Map<String, dynamic>)>{
     expect(hit.postal, '560201');
     expect(hit.label, '201 Ang Mo Kio Avenue 3 (Ang Mo Kio View)');
   },
+  'places': (body) {
+    // PlacesApi.search hands the app the whole body; parsePlaces reads "data".
+    final hits = parsePlaces(body);
+    expect(hits.first.label, 'Putra Minang, 51 Bencoolen Street');
+    expect(hits.first.postal, '189630');
+    expect(hits.last.name, 'Jewel Changi Airport');
+  },
   'agent': (body) {
     // Read by _AgentResult in ui/homes.dart.
     final a = (body['data'] as List).first as Map;

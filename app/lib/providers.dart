@@ -18,6 +18,7 @@ Duration? noRetry(int retryCount, Object error) => null;
 
 final apiProvider = Provider((ref) => DailyLahApi());
 final oneMapProvider = Provider((ref) => OneMapApi());
+final placesProvider = Provider((ref) => PlacesApi());
 final mapsLinksProvider = Provider((ref) => MapsLinks());
 final bundleRepoProvider = Provider((ref) => BundleRepository());
 final busStopRepoProvider = Provider((ref) => BusStopRepository.fromBundles(ref.watch(bundleRepoProvider)));
@@ -630,6 +631,24 @@ final widgetDataProvider = Provider.autoDispose<Map<String, String>>((ref) {
 final addressSearchProvider = FutureProvider.autoDispose.family<List<AddressHit>, String>((ref, q) async {
   if (q.trim().length < 3) return const [];
   return parseOneMap(await ref.watch(oneMapProvider).search(q.trim()));
+});
+
+/// Plan a trip search (From and To): addresses (`looksLikeAddress`) on OneMap, place names on
+/// Geoapify through /v1/places, and OneMap again when that finds nothing or fails.
+final placeSearchProvider = FutureProvider.autoDispose.family<PlaceHits, String>((ref, q) async {
+  final query = q.trim();
+  if (query.length < 3) return const PlaceHits([]);
+  final oneMap = ref.watch(oneMapProvider);
+  final places = ref.watch(placesProvider);
+  if (!looksLikeAddress(query)) {
+    try {
+      final hits = parsePlaces(await places.search(query));
+      if (hits.isNotEmpty) return PlaceHits(hits, geoapify: true);
+    } on Object {
+      // Server asleep, no key on the server, Geoapify down: OneMap below.
+    }
+  }
+  return PlaceHits(parseOneMap(await oneMap.search(query)));
 });
 
 /// Selected bottom tab: 0 Today, 1 Nearby, 2 Home, 3 History, 4 More.

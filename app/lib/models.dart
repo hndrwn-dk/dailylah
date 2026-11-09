@@ -50,7 +50,7 @@ TravelMode travelModeFrom(String v) =>
 /// When a custom place is usually visited.
 enum PlaceWhen { anytime, weekdays, weekends }
 
-/// One OneMap search result.
+/// One address search result (OneMap) or place search result (Geoapify, with [name]).
 class AddressHit {
   const AddressHit({
     required this.label,
@@ -60,6 +60,7 @@ class AddressHit {
     required this.postal,
     required this.lat,
     required this.lng,
+    this.name,
   });
 
   final String label;
@@ -69,6 +70,17 @@ class AddressHit {
   final String postal;
   final double lat;
   final double lng;
+
+  /// The place's own name ("Putra Minang") for place search hits; null for OneMap addresses.
+  final String? name;
+}
+
+/// Results of the Plan a trip search; [geoapify] when they came from place search, which
+/// asks for an attribution line (Geoapify, OpenStreetMap).
+class PlaceHits {
+  const PlaceHits(this.hits, {this.geoapify = false});
+  final List<AddressHit> hits;
+  final bool geoapify;
 }
 
 /// A saved place: an address (from OneMap or the phone's location) and/or up to two

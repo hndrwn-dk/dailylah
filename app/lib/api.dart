@@ -101,6 +101,24 @@ class OneMapApi {
   }
 }
 
+/// Place names (shops, restaurants, malls) for Plan a trip, through our API, which holds the
+/// Geoapify key: it never ships in the app, so there is no direct fallback. Only the typed text
+/// is sent. A failure throws; [placeSearchProvider] then searches OneMap instead.
+class PlacesApi {
+  PlacesApi([Dio? dio])
+      : _dio = dio ??
+            Dio(BaseOptions(
+              connectTimeout: const Duration(seconds: 20),
+              receiveTimeout: const Duration(seconds: 20),
+            ));
+
+  final Dio _dio;
+
+  /// The whole answer, {"fetched_at": ..., "data": [{name, address, postal, lat, lng, type}]}.
+  Future<Map<String, dynamic>> search(String query) async =>
+      (await _dio.get<Map<String, dynamic>>('$apiUrl/v1/places', queryParameters: {'q': query})).data!;
+}
+
 /// Static data bundles listed in /data/manifest.json. Each file is cached on the
 /// device and downloaded again only when its sha256 in the manifest changes.
 /// Tries each base URL in [webUrls] until one answers.

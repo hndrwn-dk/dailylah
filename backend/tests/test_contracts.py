@@ -47,6 +47,7 @@ UPSTREAM = {
     "parking": (f"{LTA}/CarParkAvailabilityv2", None),
     "traffic_incidents": (f"{LTA}/TrafficIncidents", None),
     "search": (ONEMAP_SEARCH, None),
+    "places": ("https://api.geoapify.com/v1/geocode/autocomplete", None),
     "agent": ("https://data.gov.sg/api/action/datastore_search", None),
 }
 NAMES = sorted(p.stem for p in CONTRACTS.glob("*.json"))
@@ -111,6 +112,7 @@ def client(monkeypatch):
     monkeypatch.setenv("LTA_ACCOUNT_KEY", "test-key")
     monkeypatch.setenv("ONEMAP_EMAIL", "dev@example.com")
     monkeypatch.setenv("ONEMAP_PASSWORD", "x")
+    monkeypatch.setenv("GEOAPIFY_API_KEY", "test-key")
     monkeypatch.delenv("REDIS_URL", raising=False)
     get_settings.cache_clear()
     with TestClient(app) as c:

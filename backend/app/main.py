@@ -15,6 +15,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 
 from .cache import Cache
 from .config import Settings, get_settings
+from .geoapify import Geoapify, GeoapifyError
 from .onemap import OneMap
 from .sources import (
     CEA_REG_RE,
@@ -46,6 +47,7 @@ async def lifespan(app: FastAPI):
     app.state.cache = Cache(s.redis_url)
     app.state.sources = Sources(s, app.state.http)
     app.state.onemap = OneMap(app.state.http, s.onemap_email, s.onemap_password)
+    app.state.geoapify = Geoapify(app.state.http, s.geoapify_api_key)
     app.state.last_poll: dict[str, float] = {}
     app.state.locks: dict[str, asyncio.Lock] = {}
     yield
@@ -66,6 +68,10 @@ def sources(request: Request) -> Sources:
 
 def onemap(request: Request) -> OneMap:
     return request.app.state.onemap
+
+
+def geoapify(request: Request) -> Geoapify:
+    return request.app.state.geoapify
 
 
 @app.get("/health")
@@ -212,6 +218,34 @@ async def search(
         raise HTTPException(502, "upstream OneMap error") from e
     data = {"fetched_at": int(time.time()), "data": body}
     c.set_memory_only(key, data, s.search_ttl)
+    return data
+
+
+@app.get("/v1/places")
+async def places(
+    q: str,
+    c: Cache = Depends(cache),
+    geo: Geoapify = Depends(geoapify),
+    s: Settings = Depends(get_settings),
+) -> dict:
+    """Place names (shops, restaurants, malls) in Singapore on Geoapify, for Plan a trip.
+    Like /v1/search: the query is not logged and results stay in memory only for a day.
+    The answer is cut down to name, address, postal, lat, lng and type."""
+    query = " ".join(q.split())
+    if not 2 <= len(query) <= 80:
+        raise HTTPException(422, "query must be 2 to 80 characters")
+    if not geo.configured:
+        raise HTTPException(503, "place search not configured")
+    key = f"geoapify:places:{query.upper()}"
+    hit = c.get_memory(key)
+    if hit is not None:
+        return hit
+    try:
+        rows = await geo.autocomplete(query)
+    except GeoapifyError:
+        raise HTTPException(502, "upstream Geoapify error") from None
+    data = {"fetched_at": int(time.time()), "data": rows}
+    c.set_memory_only(key, data, s.places_ttl)
     return data
 
 

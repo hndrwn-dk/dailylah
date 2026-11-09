@@ -9,10 +9,14 @@ import '../providers.dart';
 import 'widgets.dart';
 
 /// Search an address on OneMap (postal code, block and street, or building), or use the
-/// phone's location. Pops with an [AddressHit].
+/// phone's location. Pops with an [AddressHit]. With [places] (Plan a trip only) place names
+/// are searched too (`placeSearchProvider`).
 class AddressPickerPage extends ConsumerStatefulWidget {
-  const AddressPickerPage({super.key, required this.title, this.note});
+  const AddressPickerPage({super.key, required this.title, this.note, this.places = false});
   final String title;
+
+  /// Also find shops and restaurants by name (Geoapify through /v1/places), with attribution.
+  final bool places;
 
   /// Shown above the search box, e.g. when a place shared from Google Maps came without an address.
   final String? note;
@@ -77,7 +81,12 @@ class _AddressPickerPageState extends ConsumerState<AddressPickerPage> {
   Widget build(BuildContext context) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    final results = _query.length < 3 ? null : ref.watch(addressSearchProvider(_query));
+    final places = widget.places;
+    final AsyncValue<PlaceHits>? results = _query.length < 3
+        ? null
+        : places
+            ? ref.watch(placeSearchProvider(_query))
+            : ref.watch(addressSearchProvider(_query)).whenData(PlaceHits.new);
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
       body: ListView(
@@ -90,7 +99,7 @@ class _AddressPickerPageState extends ConsumerState<AddressPickerPage> {
           TextField(
             autofocus: true,
             textInputAction: TextInputAction.search,
-            decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: s.addressHint),
+            decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: places ? s.placeHint : s.addressHint),
             onChanged: _onChanged,
             onSubmitted: (v) => setState(() => _query = v.trim()),
           ),
@@ -109,32 +118,38 @@ class _AddressPickerPageState extends ConsumerState<AddressPickerPage> {
             results.when(
               loading: () => const Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator()),
               error: (_, __) => Panel(child: EmptyNote(s.serverWaking)),
-              data: (hits) => hits.isEmpty
+              data: (found) => found.hits.isEmpty
                   ? Panel(
                       child: EmptyNote(
                         s.noAddressFound,
                         action: Padding(
                           padding: const EdgeInsets.only(top: 4),
-                          child: Text(s.noAddressTips, style: t.bodySmall),
+                          child: Text(places ? s.noPlaceTips : s.noAddressTips, style: t.bodySmall),
                         ),
                       ),
                     )
                   : Panel(
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          for (final h in hits.take(12))
+                          for (final h in found.hits.take(12))
                             ListTile(
                               leading: const Icon(Icons.place_outlined),
                               title: Text(h.label),
                               subtitle: h.postal.isEmpty ? null : Text('Singapore ${h.postal}'),
                               onTap: () => popAfterKeyboard(context, h),
                             ),
+                          if (found.geoapify)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                              child: Text(s.placesAttribution, style: t.bodySmall),
+                            ),
                         ],
                       ),
                     ),
             ),
           const SizedBox(height: 8),
-          Text(s.addressPrivacy, style: t.bodySmall),
+          Text(places ? s.placePrivacy : s.addressPrivacy, style: t.bodySmall),
         ],
       ),
     );

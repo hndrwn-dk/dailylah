@@ -824,6 +824,43 @@ List<AddressHit> parseOneMap(Map<String, dynamic> body) {
   return out;
 }
 
+/// Plan a trip: a query that starts with a number ("560201", "201 Ang Mo Kio") or "Blk"/"Block"
+/// and a number is an address for OneMap; anything else is a place name for place search.
+bool looksLikeAddress(String q) => RegExp(r'^\s*(\d|(blk|block)\s*\d)', caseSensitive: false).hasMatch(q);
+
+/// Results of /v1/places (Geoapify, cut down on our server), de-duplicated. The label is the
+/// name and the street ("Putra Minang, 51 Bencoolen Street"); the postal code is shown apart,
+/// so "Singapore" and "Singapore 189630" are left out of the street.
+List<AddressHit> parsePlaces(Map<String, dynamic> body) {
+  final out = <AddressHit>[];
+  final seen = <String>{};
+  final rows = body['data'];
+  for (final r in rows is List ? rows : const []) {
+    if (r is! Map) continue;
+    final lat = r['lat'], lng = r['lng'];
+    final name = '${r['name'] ?? ''}'.trim();
+    if (lat is! num || lng is! num || name.isEmpty) continue;
+    final road = '${r['address'] ?? ''}'
+        .split(',')
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty && !RegExp(r'^Singapore( \d{6})?$', caseSensitive: false).hasMatch(p))
+        .join(', ');
+    final label = road.isEmpty || road.toLowerCase() == name.toLowerCase() ? name : '$name, $road';
+    if (!seen.add(label)) continue;
+    out.add(AddressHit(
+      label: label,
+      block: '',
+      road: road,
+      building: name,
+      postal: '${r['postal'] ?? ''}'.trim(),
+      lat: lat.toDouble(),
+      lng: lng.toDouble(),
+      name: name,
+    ));
+  }
+  return out;
+}
+
 /// The HDB block matching a OneMap hit: same block number, closest within 250 m.
 HdbBlock? blockForAddress(List<HdbBlock> blocks, AddressHit hit) {
   HdbBlock? best;

@@ -48,8 +48,14 @@ feature, screen, provider or rule moves, appears or goes away.
   loop services that go the long way are dropped, `tripRides`). Bus/MRT also shows the nearest MRT
   station at each end from the `mrt_stations.json` bundle (`mrtPlan`). "Plan a trip" (`TripPlannerPage`,
   `GoSomewhere`) is one route card: From on top, To below, both with the same choices (Here, Home, Work,
-  School, saved places, and an address search field, `goAdhocFromProvider`/`goAdhocDestProvider`) and a
-  swap button between; picking on one end what the other has swaps them (`pickTripEnd`); the location
+  School, saved places, and a search field, `goAdhocFromProvider`/`goAdhocDestProvider`) and a
+  swap button between. That search (`AddressPickerPage(places: true)`, `placeSearchProvider`) also finds
+  shops and restaurants by name: a query that starts with a number or "Blk"/"Block" and a number goes to
+  OneMap (`looksLikeAddress`), anything else to Geoapify through `/v1/places` (`PlacesApi`, `parsePlaces`;
+  the key stays on the server), and to OneMap when that finds nothing or fails. Geoapify results carry
+  "Powered by Geoapify · © OpenStreetMap contributors" (`S.placesAttribution`), and the end takes the
+  place's own name (`AddressHit.name`). Other address pickers (setup, Nearby) stay OneMap only
+  (docs/PLACE_SEARCH.md); picking on one end what the other has swaps them (`pickTripEnd`); the location
   arriving late never undoes a pick (`goPicksProvider`). The tip about
   saving places sits small at the end, only while none beyond Home/Work/School is saved. On each bus card
   ("From stop: <name>") the bus to leave for is a mint card on top ("Leave in 7 min to catch 36"), then
@@ -227,7 +233,7 @@ feature, screen, provider or rule moves, appears or goes away.
   (`S.noAddressTips`).
 - Static bundles (where they are fetched from, how the phone saves them) and the OneMap token:
   `backend/CLAUDE.md` "Data pipeline". The app reaches bundles only through `webUrls` in
-  `lib/api.dart` and searches OneMap only through `/v1/search`.
+  `lib/api.dart`, searches OneMap only through `/v1/search` and place names only through `/v1/places`.
 
 ## Build, CI and release
 - The `app` workflow runs analyze and tests on every push and pull request; failures are emitted as

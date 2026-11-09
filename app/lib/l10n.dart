@@ -316,7 +316,7 @@ class S {
       : '$walk min walk to the stop\u00A0· bus\u00A0in\u00A0$bus\u00A0min';
   String fromStop(String name) => noOrphan('From stop: $name');
   String get swapEnds => 'Swap From and To';
-  String get searchAddressHint => 'Search an address or postal code';
+  String get searchAddressHint => 'Search a place, address or postal code';
   String get clearSearch => 'Clear';
   String get weekendCard => 'This weekend near home';
   String get weekendIndoor => 'Rain or haze around: indoor ideas first.';
@@ -942,6 +942,13 @@ class S {
   String sharedNotFound(String postal) => 'Postal code $postal was not found. Search for the address instead.';
   String get findingShared => 'Finding the shared place…';
   String get addressPrivacy => 'Search uses OneMap (Singapore Land Authority). Your saved address stays on this phone.';
+  String get placeHint => 'Place name, postal code or address';
+  String get noPlaceTips =>
+      'Try the postal code or the building name, or open the place in Google Maps, tap Share and pick DailyLah.';
+  String get placesAttribution => 'Powered by Geoapify · © OpenStreetMap contributors';
+  String get placePrivacy =>
+      'Place names are searched with Geoapify, addresses with OneMap (Singapore Land Authority). '
+      'Your places stay on this phone.';
   String get busStopsHere => 'Bus stops';
   String get stopsAutoPicked => 'Nearest stops picked for you. Change them any time.';
   String get pickAddressFirst => 'Set your home address first.';

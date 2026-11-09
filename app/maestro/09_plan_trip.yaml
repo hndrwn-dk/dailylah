@@ -61,7 +61,7 @@ name: 09 Plan a trip
       - swipe:
           direction: DOWN
 - tapOn:
-    text: "(?s).*Search an address or postal code.*"
+    text: "(?s).*Search a place, address or postal code.*"
     index: 0
 - runFlow:
     file: common/search_address.yaml

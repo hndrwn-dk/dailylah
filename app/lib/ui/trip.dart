@@ -1185,12 +1185,12 @@ class GoSomewhere extends ConsumerWidget {
   Future<void> _search(BuildContext context, WidgetRef ref, {required bool isFrom, required String from}) async {
     final s = ref.read(stringsProvider);
     final hit = await Navigator.of(context).push<AddressHit>(
-      MaterialPageRoute(builder: (_) => AddressPickerPage(title: s.searchPlace)),
+      MaterialPageRoute(builder: (_) => AddressPickerPage(title: s.searchPlace, places: true)),
     );
     if (hit == null) return;
     (isFrom ? ref.read(goAdhocFromProvider.notifier) : ref.read(goAdhocDestProvider.notifier)).state = Place(
       kind: PlaceKind.other,
-      name: shortAddress(hit.label),
+      name: hit.name ?? shortAddress(hit.label),
       address: hit.label,
       postal: hit.postal.isEmpty ? null : hit.postal,
       addrLat: hit.lat,
