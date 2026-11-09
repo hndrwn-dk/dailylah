@@ -709,6 +709,10 @@ class S {
   String get clearTime => 'Clear';
   String leaveForPlace(String place, String line) => '$place: $line';
   String schoolHolidayToday(String name) => '$name: no school today, so no school trip.';
+  String publicHolidayToday(String name) => '$name: public holiday, no work or school trip today.';
+  String holidayTitle(String name) => 'Happy $name · no commute today';
+  String get holidayEnjoy => 'Enjoy the day off.';
+  String eventNearby(String name, String distance) => '$name · $distance';
   String get studentCare => 'Student care';
   String get familyServices => 'Family services';
   String get recyclingTitle => 'Recycling';

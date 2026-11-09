@@ -29,12 +29,15 @@ class TodayPage extends ConsumerWidget {
     final fav = ref.watch(favoritesProvider);
     final kind = ref.watch(cardKindProvider);
     final now = ref.watch(clockProvider).value ?? DateTime.now();
-    final origin = fav.places[originFor(kind, fav, now)];
-    // MOE school holidays: no school trip (work trips are not affected).
-    final holiday = schoolHolidayOn(ref.watch(schoolHolidaysProvider).value ?? const [], now);
-    final schoolOff = holiday != null && commutePlace(fav, now)?.kind == PlaceKind.school;
-    final commute = isCommuteDay(fav, now) && !schoolOff;
-    final destKind = destinationFor(kind, fav, now);
+    // Public holidays switch off work and school trips; MOE school holidays only the school trip.
+    final off = ref.watch(daysOffProvider);
+    final origin = fav.places[originFor(kind, fav, now, off)];
+    final usual = commutePlace(fav, now);
+    final publicHoliday = usual == null ? null : off.publicOn(now);
+    final schoolHoliday =
+        publicHoliday == null && usual?.kind == PlaceKind.school ? schoolHolidayOn(off.school, now) : null;
+    final commute = isCommuteDay(fav, now, off);
+    final destKind = destinationFor(kind, fav, now, off);
     final dest = destKind == null ? null : fav.places[destKind];
     final alerts = ref.watch(todayAlertsProvider);
     final t = Theme.of(context).textTheme;
@@ -68,7 +71,10 @@ class TodayPage extends ConsumerWidget {
     final dests = <Widget>[
       if (whatsNewDue(fav, ref.watch(releaseVersionProvider))) const WhatsNewCard(),
       for (final a in alerts) AlertBanner(icon: _alertIcon(a.kind), text: a.text),
-      if (schoolOff) AlertBanner(icon: Icons.beach_access_outlined, tone: AlertTone.info, text: s.schoolHolidayToday(holiday.name)),
+      if (publicHoliday != null)
+        AlertBanner(icon: Icons.celebration_outlined, tone: AlertTone.info, text: s.publicHolidayToday(publicHoliday.name)),
+      if (schoolHoliday != null)
+        AlertBanner(icon: Icons.beach_access_outlined, tone: AlertTone.info, text: s.schoolHolidayToday(schoolHoliday.name)),
       if (origin != null) _WeatherTiles(origin: origin),
       if (commute && origin != null && dest != null)
         TripSection(
@@ -168,7 +174,7 @@ class _HeroWeather extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final fav = ref.watch(favoritesProvider);
-    final dest = destinationFor(kind, fav, ref.watch(clockProvider).value);
+    final dest = destinationFor(kind, fav, ref.watch(clockProvider).value, ref.watch(daysOffProvider));
     final destPlace = dest == null ? null : fav.places[dest];
     final body = ref.watch(forecastProvider);
     final t = Theme.of(context).textTheme;

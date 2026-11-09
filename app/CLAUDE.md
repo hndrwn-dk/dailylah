@@ -147,8 +147,14 @@ feature, screen, provider or rule moves, appears or goes away.
 - Habits (`Habits` in models.dart, `HabitsStore` in store.dart, `habitsProvider`): parked car, trips
   logged with I'm leaving/Arrived (`tripStats`), "Ate here" meals (`mealNudge`). On the phone only,
   behind `Favorites.learnHabits`, never in the share code. Weekly Sunday digest (`weeklyDigest`)
-  uses the `holidays.json` bundle (MOM public holidays). `school_holidays.json` (MOE, kept by hand,
-  see web/data/README.md) turns off the school trip and its reminder on school holidays. Custom
+  uses the `holidays.json` bundle (MOM public holidays). Days off are one rule, `DaysOff` (logic.dart;
+  `holidaysProvider` + `schoolHolidaysProvider` = `daysOffProvider`, loaded once per background pass):
+  a public holiday (observed days included) turns off the work and school trips, `school_holidays.json`
+  (MOE, kept by hand, see web/data/README.md) only the school trip (`commutePlace`, `isCommuteDay`,
+  `originFor`, `destinationFor`, `isSchoolDay`, `widgetTrip` take it). On a public holiday that would be a
+  trip day, Today shows a banner (`S.publicHolidayToday`) and the morning leave-by reminder becomes one
+  holiday notification (ID 20, once a day `holiday:<day>`; `holidayNote`: the holiday's name, weather near
+  home, up to 2 events near home today from `eventsNear`). School holidays get only the banner. Custom
   places can carry a usual time (`Place.go`) for a leave-by reminder (`extrasDueNow`).
 - Weekend card on Today (days without a work/school trip) and Home > Weekend: places (`weekendPicks`)
   and events (`eventsNear`) from `events.json`, built daily by `backend/app/events.py` from
@@ -162,7 +168,7 @@ feature, screen, provider or rule moves, appears or goes away.
 - Prayer times (`prayer.json`): this year's and next year's MUIS timetables, found by name in data.gov.sg
   collection 2312 (`build_prayer`); next year appears once MUIS publishes it.
 - School alerts (heat, lightning, dengue at school) only fire on school days (`isSchoolDay`: the school's
-  days and not a school holiday); otherwise the heat/lightning checks use home.
+  days and not a school or public holiday); otherwise the heat/lightning checks use home.
 - Where to live? (rules in logic.dart, ported from web/where-to-live/logic.js with the same cases in
   `test/where_to_live_test.dart`): the `where-to-live` bundle (`whereToLiveProvider`, `WhereToLive` in
   data.dart; HDB medians each with its own quarter, weekday 08:30 trips to six office areas, the same

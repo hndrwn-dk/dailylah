@@ -652,6 +652,24 @@ void main() {
     expect(saved?.seenVersion, '1.6.0');
   });
 
+  testWidgets('A public holiday on a workday: no trip on Today, a holiday banner instead', (tester) async {
+    const s = S();
+    final banner = s.publicHolidayToday('Deepavali (Observed)');
+    await applyCondition(tester, _normal);
+    // Monday 9 Nov 2026, Deepavali (Observed) in web/data/holidays.json.
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, DateTime(2026, 11, 9, 7, 30)));
+    await settle(tester);
+    expect(find.textContaining(banner), findsOneWidget);
+    expect(find.byType(TripSection), findsNothing);
+    expect(find.textContaining('Heading to'), findsNothing);
+
+    // The next day is a normal workday: the trip is back and there is no banner.
+    await tester.pumpWidget(KeyedSubtree(key: UniqueKey(), child: appUnder(_normal, householdFavorites, DateTime(2026, 11, 10, 7, 30))));
+    await settle(tester);
+    expect(find.textContaining(banner), findsNothing);
+    expect(find.byType(TripSection), findsOneWidget);
+  });
+
   test("The What's new card says the same as the Play release notes", () {
     final notes = File('../docs/store/whatsnew/whatsnew-en-US')
         .readAsLinesSync()

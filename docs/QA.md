@@ -299,6 +299,7 @@ No promote to production while any of these is open.
 - [ ] Widget buttons Today / Nearby / Home open the app on that tab, also when the app was closed.
 - [ ] Wake me on a locked screen on a real bus ride.
 - [ ] Look at Today and Home once on a small real phone at the largest font size.
+- [ ] Public holiday: set the phone's date to a public holiday on a workday (e.g. Fri 25 Dec 2026) before the usual leave time. Today shows the holiday banner and no trip; the background check sends one "Happy Christmas Day · no commute today" notification and no "Time to go".
 
 ## Run locally
 
