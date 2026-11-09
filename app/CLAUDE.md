@@ -173,7 +173,7 @@ feature, screen, provider or rule moves, appears or goes away.
   `wtlHighlights`, `wtlCompareIds` / `wtlToggleCompare` (max `wtlMaxCompare`) and `wtlCompareTable`
   (best per line; the office area's own town is "in this area" and takes no part, and all-in/hours
   mark no best while it is compared). No page of its own: it lives on the block page "Prices, rent and
-  score" (`BlockPage` in `ui/homes.dart`), built from `ui/block_commute.dart`. A block takes its town's
+  commute" (`BlockPage` in `ui/homes.dart`), built from `ui/block_commute.dart`. A block takes its town's
   numbers from the town's MRT station (`wtlTownFor`, HDB town name to bundle town). `BlockCommute`: office
   area, rent/buy and flat type (kept in `Favorites` `wtlArea`, `wtlMode`, `wtlFlat`; `wtlChoiceFor`), then
   a 2×2 grid (minutes | transfers, fare a trip | hours a month) and the all-in month as the main figure with

@@ -118,7 +118,8 @@ class BlockSearchPage extends ConsumerWidget {
 /// Takes the favourites notifier, not a `WidgetRef`: the snackbar that calls it can outlive the page.
 Future<bool> pickBlockToCompare(NavigatorState nav, FavoritesNotifier favorites) async {
   final picked = await nav.push<HdbBlock>(MaterialPageRoute(
-    builder: (route) => BlockSearchPage(onPick: (b) => Navigator.of(route).pop(b)),
+    // Like the other pickers: close the keyboard first, then pop (no blank area left where it was).
+    builder: (route) => BlockSearchPage(onPick: (b) => popAfterKeyboard(route, b)),
   ));
   if (picked == null) return false;
   await favorites.addCompare(picked.key);
