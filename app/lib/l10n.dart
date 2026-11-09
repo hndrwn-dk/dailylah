@@ -900,7 +900,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Plan a trip is clearer: from and to in one card and the bus to catch first. Compare any blocks side by side, and Prices, rent and commute now focuses on prices and your trip to work.",
+        "On public holidays there is no work or school trip and no leave reminder. Instead you get one morning note with the holiday, the weather near home and events nearby. School holidays still switch off only the school trip.",
       ];
 
   // about
