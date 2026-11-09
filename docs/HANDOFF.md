@@ -80,6 +80,16 @@ rent/resale. Static page and JSON, no browser API calls, no Render. One PR per p
   The published privacy policy on tursinalabs.com is updated from `docs/legal/privacy.md` in
   hndrwn-dk/tursinalabs.com.
 
+## Place search in Plan a trip (9 Nov 2026, plan: docs/PLACE_SEARCH.md)
+Branch `feat/place-search`: `/v1/places` (Geoapify Autocomplete, Singapore only, key on the server),
+used by the From/To search in Plan a trip; postal codes and block numbers stay on OneMap, and OneMap
+is the fallback. Setup, Nearby and the shared-place picker stay OneMap only.
+- **By hand (Hendrawan):** create a Geoapify API key for DailyLah only (limit it to Render if
+  Geoapify allows), set `GEOAPIFY_API_KEY` on Render (`dailylah-api` > Environment), redeploy, then
+  try 10 common place names in Plan a trip and note the misses on the PR. Without the key
+  `/v1/places` answers 503 and the app searches OneMap.
+- After merge: update the published privacy policy on tursinalabs.com (section 4a and 8).
+
 ## CI/CD hardening (Nov 2026, 8 phases, one PR each)
 Layers: deterministic scans → AI review → a person decides. Existing gates (analyze, test,
 emulator e2e, Play upload gate) stay as they are.
