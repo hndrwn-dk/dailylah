@@ -15,11 +15,18 @@ name: 03 Today bus arrivals
     timeout: 30000
     centerElement: true
 # Arrivals come from the API on Render (LTA DataMall); wait for an answer, not the spinner. A bus
-# row ("88 / Arr / then 7 min") counts too: the board can push its hint below the screen.
+# row ("88 / Arr / then 7 min") counts too: the board can push its hint below the screen. So does
+# the card on top of it ("Leave in 12 min to catch 88"), which can push the whole board below.
 - extendedWaitUntil:
-    visible: "(?s)(.*(Tap a bus to see where it is|No direct bus|No buses right now|Buses have stopped|Bus times not available).*|\\w+\\n(Arr|\\d+ min)\\n.*)"
+    visible: "(?s)(.*(Tap a bus to see where it is|No direct bus|No buses right now|Buses have stopped|Bus times not available|Leave (now|in \\d+ min) to catch).*|\\w+\\n(Arr|\\d+ min)\\n.*)"
     timeout: 90000
 - assertNotVisible: "(?s).*Bus times not available.*"
+# Bring the board on screen when the leave card pushed it down.
+- scrollUntilVisible:
+    element: "(?s)(.*(Tap a bus to see where it is|No direct bus|No buses right now|Buses have stopped).*|\\w+\\n(Arr|\\d+ min)\\n.*)"
+    direction: DOWN
+    timeout: 15000
+    optional: true
 - runFlow:
     when:
       visible: "(?s)\\w+\\n(Arr|\\d+ min)\\n.*"

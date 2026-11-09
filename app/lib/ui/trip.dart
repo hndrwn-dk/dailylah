@@ -38,7 +38,11 @@ class TripSection extends ConsumerWidget {
     required this.modePlace,
     this.fromLabel,
     this.commute = false,
+    this.startsHere = false,
   });
+
+  /// The trip starts from the phone's location: within [arrivedMetres] it says "You're here".
+  final bool startsHere;
 
   /// The daily trip to work or school (its History key is "home>work"). Every trip has
   /// I'm leaving; the running trip and Arrived live in [TripBanner] above the tabs.
@@ -66,7 +70,13 @@ class TripSection extends ConsumerWidget {
     final modes = [...modePlace.modes, ...TravelMode.values.where((m) => !modePlace.modes.contains(m))];
 
     final body = switch (mode) {
-      TravelMode.transit => _TransitBlock(fromKey: fromKey, from: from, to: to, toLabel: toLabel),
+      TravelMode.transit => _TransitBlock(
+          fromKey: fromKey,
+          from: from,
+          fromName: fromLabel ?? placeTitle(s.placeLabel, from),
+          to: to,
+          toLabel: toLabel,
+          startsHere: startsHere),
       TravelMode.car => _DriveBlock(from: from, to: to, toLabel: toLabel, lotType: 'C'),
       TravelMode.motorcycle => _DriveBlock(from: from, to: to, toLabel: toLabel, lotType: 'Y'),
       TravelMode.bicycle => _CycleBlock(to: to, toLabel: toLabel),
@@ -144,17 +154,17 @@ class _TripTimer extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-              stats.usual == null
-                  ? s.tripLearnHint
-                  : [
-                      s.usualTrip(stats.usual!, stats.count),
-                      if (stats.rainy != null) s.rainyTrip(stats.rainy!),
-                      if (usual != null) s.arriveAbout(clockLabel(now.add(Duration(minutes: usual)))),
-                    ].join(' '),
-              style: stats.usual == null ? t.bodySmall : t.bodyMedium,
-          ),
-          const SizedBox(height: 8),
+          if (stats.usual != null) ...[
+            Text(
+              [
+                s.usualTrip(stats.usual!, stats.count),
+                if (stats.rainy != null) s.rainyTrip(stats.rainy!),
+                if (usual != null) s.arriveAbout(clockLabel(now.add(Duration(minutes: usual)))),
+              ].join(' '),
+              style: t.bodyMedium,
+            ),
+            const SizedBox(height: 8),
+          ],
           OutlinedButton.icon(
             icon: const Icon(Icons.timer_outlined),
             onPressed: () => ref.read(habitsProvider.notifier).startTrip(
@@ -166,6 +176,12 @@ class _TripTimer extends ConsumerWidget {
                 ),
             label: Text(s.imLeaving),
           ),
+          // How it works, small and under the button, until this trip has been learned.
+          if (stats.usual == null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
+              child: Text(s.tripLearnHint, style: t.bodySmall),
+            ),
         ],
       ),
     );
@@ -199,9 +215,18 @@ IconData _adviceIcon(TripAdvice a) => switch (a) {
 // ---------------------------------------------------------------- bus / MRT
 
 class _TransitBlock extends ConsumerWidget {
-  const _TransitBlock({required this.fromKey, required this.from, required this.to, required this.toLabel});
+  const _TransitBlock({
+    required this.fromKey,
+    required this.from,
+    required this.fromName,
+    required this.to,
+    required this.toLabel,
+    required this.startsHere,
+  });
+  final bool startsHere;
   final String? fromKey;
   final Place from;
+  final String fromName;
   final Place to;
   final String toLabel;
 
@@ -231,6 +256,7 @@ class _TransitBlock extends ConsumerWidget {
           toLabel: toLabel,
           suggestedMetres: trip.suggested ? distanceMeters(from.lat, from.lng, st.lat, st.lng) : null,
           from: from,
+          fromName: fromName,
         ),
     ];
     final mrt = _MrtOption(from: from, to: to);
@@ -240,7 +266,7 @@ class _TransitBlock extends ConsumerWidget {
     final bad = planDisruption(plan, ref.watch(trainAlertsProvider).value);
 
     // Already there (e.g. "Here" after the ride): no walk or buses to suggest.
-    if (fromKey == null && straight < arrivedMetres) {
+    if (startsHere && straight < arrivedMetres) {
       return Panel(
         color: DL.mint,
         child: Padding(
@@ -644,6 +670,63 @@ class MrtLineSheet extends ConsumerWidget {
   }
 }
 
+/// The bus to leave for, on top of a trip card: "Leave in 7 min to catch 36", in the "go" colour.
+class _LeaveCard extends ConsumerWidget {
+  const _LeaveCard({required this.lb});
+  final LeaveBy lb;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    // The plate scales down rather than wrap "970A" inside it.
+    final plate = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 96),
+      child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: BusPlate(lb.service)),
+    );
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(s.leaveInHead(lb.service, lb.leaveIn),
+            style: t.titleLarge?.copyWith(color: DL.ink, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 2),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 1, right: 4),
+              child: Icon(Icons.directions_walk, size: 18, color: DL.ink),
+            ),
+            Expanded(
+              child: Text(s.walkToStopThenBus(lb.walk, lb.leaveIn + lb.walk), style: t.bodyMedium?.copyWith(color: DL.ink)),
+            ),
+          ],
+        ),
+      ],
+    );
+    return Panel(
+      margin: const EdgeInsets.only(top: 4, bottom: 10),
+      color: DL.mint,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
+        // Large text or a narrow card: the plate goes on top, so "catch 190" and "bus in 11 min"
+        // get the whole width and never break inside a word or number.
+        child: LayoutBuilder(
+          builder: (context, box) => MediaQuery.textScalerOf(context).scale(16) > 20 || box.maxWidth < 260
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [plate, const SizedBox(height: 8), text],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [plate, const SizedBox(width: 12), Expanded(child: text)],
+                ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Buses at one stop, split into those that go to the destination and the rest.
 class TripBusCard extends ConsumerWidget {
   const TripBusCard({
@@ -654,10 +737,14 @@ class TripBusCard extends ConsumerWidget {
     required this.toLabel,
     this.suggestedMetres,
     this.from,
+    this.fromName,
   });
 
   /// Where the trip starts, for "leave in N min" (walk to the stop plus live arrivals).
   final Place? from;
+
+  /// The start as shown ("Here", "Home", a searched address), for "… from Home".
+  final String? fromName;
 
   /// Set when this is a nearby stop suggested instead of the saved ones.
   final double? suggestedMetres;
@@ -687,7 +774,7 @@ class TripBusCard extends ConsumerWidget {
     final byCode = ref.watch(busStopsByCodeProvider);
     String? live(BusEta e) => s.busLive(e, busWhere(e, stop.code, routes, byCode));
     final rides = routes.routes.isEmpty ? null : tripRides(routes, stop, to, destinationStops(to, all));
-    final fromName = fromKey == null ? s.hereNow : s.placeLabel(fromKey!);
+    final startName = fromName ?? (fromKey == null ? s.hereNow : s.placeLabel(fromKey!));
 
     return Panel(
       child: Padding(
@@ -702,9 +789,9 @@ class TripBusCard extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(rides == null ? s.busFrom(stop.name) : s.busesTo(toLabel), style: t.titleMedium),
-                      Text(stop.name, style: t.bodyMedium),
+                      Text(s.fromStop(stop.name), style: t.bodyMedium),
                       if (suggestedMetres != null)
-                        Text(s.suggestedStop(s.metres(suggestedMetres!), fromName), style: t.bodySmall),
+                        Text(s.suggestedStop(s.metres(suggestedMetres!), startName), style: t.bodySmall),
                     ],
                   ),
                 ),
@@ -757,52 +844,45 @@ class TripBusCard extends ConsumerWidget {
                             child: Text(s.routeInMaps),
                           ),
                         ),
-                      if (direct.isNotEmpty && from != null)
-                        if (leaveBy(direct, null, walkMinutesTo(distanceMeters(from!.lat, from!.lng, stop.lat, stop.lng))) case final lb?
-                            when distanceMeters(from!.lat, from!.lng, stop.lat, stop.lng) < 1500)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: Row(
-                              children: [
-                                Icon(Icons.directions_walk, size: 20, color: DL.goText(context)),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                      direct.first.$1.service != lb.service && direct.first.$1.minutes < lb.walk
-                                          ? s.tooSoonThen(direct.first.$1.service, s.leaveIn(lb.service, lb.leaveIn, lb.walk))
-                                          : s.leaveIn(lb.service, lb.leaveIn, lb.walk),
-                                      style: t.titleSmall?.copyWith(color: DL.goText(context))),
+                      if (direct.isNotEmpty) ...() {
+                        // The bus to leave for comes first and stands out; buses that come before
+                        // the walk to the stop is done are dimmed as "Too soon", at the end.
+                        final walkM = from == null ? null : distanceMeters(from!.lat, from!.lng, stop.lat, stop.lng);
+                        // At the stop already (within atStopMetres): no walk, so the bus there now can be caught.
+                        final walk = walkM == null || walkM >= 1500 ? null : (walkM < atStopMetres ? 0 : walkMinutesTo(walkM));
+                        final lb = walk == null ? null : leaveBy(direct, null, walk);
+                        return [
+                          if (lb != null) _LeaveCard(lb: lb),
+                          BusBoard(
+                            arrLabel: s.minutesAway(0),
+                            minLabel: s.min,
+                            thenLabel: s.thenIn,
+                            hint: s.tapBusHint,
+                            rows: [
+                              for (final r in tripBoard(direct, lb, walk).take(6))
+                                BoardRow(
+                                  service: r.eta.service,
+                                  minutes: r.eta.minutes,
+                                  next: r.next,
+                                  live: live(r.eta),
+                                  load: r.eta.load,
+                                  dim: r.tooSoon,
+                                  tag: r.tooSoon ? s.tooSoon : null,
+                                  info: [s.loadLabel(r.eta.load), s.busExtras(r.eta)].where((x) => x.isNotEmpty).join(' · '),
+                                  note: s.rideInfo(
+                                    rides[r.eta.service]!.stops,
+                                    rides[r.eta.service]!.km,
+                                    names[rides[r.eta.service]!.alightAt] ?? rides[r.eta.service]!.alightAt,
+                                  ),
+                                  onTap: () => showWhereBus(context,
+                                      stop: stop,
+                                      service: r.eta.service,
+                                      toName: names[rides[r.eta.service]!.alightAt] ?? ''),
                                 ),
-                              ],
-                            ),
+                            ],
                           ),
-                      if (direct.isNotEmpty)
-                        BusBoard(
-                          arrLabel: s.minutesAway(0),
-                          minLabel: s.min,
-                          thenLabel: s.thenIn,
-                          hint: s.tapBusHint,
-                          rows: [
-                            for (final (e, next) in direct.take(6))
-                              BoardRow(
-                                service: e.service,
-                                minutes: e.minutes,
-                                next: next,
-                                live: live(e),
-                                load: e.load,
-                                info: [s.loadLabel(e.load), s.busExtras(e)].where((x) => x.isNotEmpty).join(' · '),
-                                note: s.rideInfo(
-                                  rides[e.service]!.stops,
-                                  rides[e.service]!.km,
-                                  names[rides[e.service]!.alightAt] ?? rides[e.service]!.alightAt,
-                                ),
-                                onTap: () => showWhereBus(context,
-                                    stop: stop,
-                                    service: e.service,
-                                    toName: names[rides[e.service]!.alightAt] ?? ''),
-                              ),
-                          ],
-                        ),
+                        ];
+                      }(),
                       if (direct.isNotEmpty)
                         Builder(builder: (context) {
                           // One choice per direct service: the rider picks the bus they boarded,
@@ -1043,7 +1123,9 @@ class _TaxiBlock extends ConsumerWidget {
 
 // ---------------------------------------------------------------- go somewhere
 
-/// Pick any saved place and see how to get there now, from Home or from where you are.
+/// Plan a trip: one route card with From on top and To below (the same choices on both ends:
+/// Here, Home, Work, School, saved places and an address search), a swap button between them,
+/// then how to get there now.
 class GoSomewhere extends ConsumerWidget {
   const GoSomewhere({super.key, this.showTitle = true});
   final bool showTitle;
@@ -1072,13 +1154,15 @@ class GoSomewhere extends ConsumerWidget {
     }
   }
 
-  Future<void> _search(BuildContext context, WidgetRef ref) async {
+  /// The address search for one end; the hit becomes that end's one-off place and is picked
+  /// there, also when that end already had a searched place.
+  Future<void> _search(BuildContext context, WidgetRef ref, {required bool isFrom, required String from}) async {
     final s = ref.read(stringsProvider);
     final hit = await Navigator.of(context).push<AddressHit>(
       MaterialPageRoute(builder: (_) => AddressPickerPage(title: s.searchPlace)),
     );
     if (hit == null) return;
-    ref.read(goAdhocDestProvider.notifier).state = Place(
+    (isFrom ? ref.read(goAdhocFromProvider.notifier) : ref.read(goAdhocDestProvider.notifier)).state = Place(
       kind: PlaceKind.other,
       name: shortAddress(hit.label),
       address: hit.label,
@@ -1086,7 +1170,37 @@ class GoSomewhere extends ConsumerWidget {
       addrLat: hit.lat,
       addrLng: hit.lng,
     );
-    ref.read(goKeyProvider.notifier).state = 'adhoc';
+    _pick(ref, isFrom: isFrom, key: 'adhoc', from: from);
+  }
+
+  /// [from] is the start as shown, which may be a saved place standing in for "Here" while the
+  /// location is unknown, so a pick works on what the user sees.
+  void _pick(WidgetRef ref, {required bool isFrom, required String key, required String from, String fallback = 'here'}) {
+    final to = ref.read(goKeyProvider);
+    final next = pickTripEnd(
+      isFrom: isFrom,
+      key: key,
+      from: from,
+      to: to,
+      fallback: fallback,
+    );
+    ref.read(goPicksProvider.notifier).state++;
+    // A pick that swaps the ends carries the searched places along, like the swap button (two
+    // searched ends both read "adhoc": a new search there is no swap).
+    if (to != null && next.from != next.to && next.from == to && next.to == from) return _swap(ref, from, to);
+    // The start is written only when the pick changes it: a start set meanwhile (Here, once the
+    // location came in while the address picker was open) is kept.
+    if (next.from != from) ref.read(goFromKeyProvider.notifier).state = next.from;
+    ref.read(goKeyProvider.notifier).state = next.to;
+  }
+
+  void _swap(WidgetRef ref, String from, String to) {
+    ref.read(goPicksProvider.notifier).state++;
+    final adhocFrom = ref.read(goAdhocFromProvider);
+    ref.read(goAdhocFromProvider.notifier).state = ref.read(goAdhocDestProvider);
+    ref.read(goAdhocDestProvider.notifier).state = adhocFrom;
+    ref.read(goFromKeyProvider.notifier).state = to;
+    ref.read(goKeyProvider.notifier).state = from;
   }
 
   @override
@@ -1097,37 +1211,70 @@ class GoSomewhere extends ConsumerWidget {
     final now = ref.watch(clockProvider).value ?? DateTime.now();
     final key = ref.watch(goKeyProvider);
     final here = ref.watch(goFromHereProvider);
-    final adhoc = ref.watch(goAdhocDestProvider);
+    final adhocTo = ref.watch(goAdhocDestProvider);
+    final adhocFrom = ref.watch(goAdhocFromProvider);
     var fromKey = ref.watch(goFromKeyProvider);
 
+    // The same choices on both ends: "Here" first (away from home, starting from where you
+    // are is the usual case), then saved places. The address search is its own field.
     final options = <(String, IconData, String)>[
-      for (final i in extrasForToday(fav, now)) ('extra:$i', Icons.star_outline, placeTitle(s.placeLabel, fav.extraPlaces[i])),
-      for (final k in [PlaceKind.work, PlaceKind.school, PlaceKind.home])
-        if (fav.places[k] != null) (k.name, PlaceSelector.iconOf(k), s.placeLabel(k.name)),
-      if (adhoc != null) ('adhoc', Icons.place_outlined, adhoc.name ?? s.anyAddress),
-      ('search', Icons.search, s.anyAddress),
-    ];
-    Place? dest;
-    if (key == 'adhoc') {
-      dest = adhoc;
-    } else if (key != null && key.startsWith('extra:')) {
-      final i = int.tryParse(key.substring(6)) ?? -1;
-      if (i >= 0 && i < fav.extraPlaces.length) dest = fav.extraPlaces[i];
-    } else if (key != null) {
-      dest = fav.places[PlaceKind.values.byName(key)];
-    }
-
-    // Where the trip starts: a saved place (not the destination itself) or "here".
-    // "Here" first: away from home, starting from where you are is the usual case.
-    final starts = <(String, IconData, String)>[
       ('here', Icons.my_location, s.hereNow),
       for (final k in [PlaceKind.home, PlaceKind.work, PlaceKind.school])
-        if (fav.places[k] != null && k.name != key) (k.name, PlaceSelector.iconOf(k), s.placeLabel(k.name)),
+        if (fav.places[k] != null) (k.name, PlaceSelector.iconOf(k), s.placeLabel(k.name)),
+      for (final i in extrasForToday(fav, now)) ('extra:$i', Icons.star_outline, placeTitle(s.placeLabel, fav.extraPlaces[i])),
     ];
-    if (!starts.any((o) => o.$1 == fromKey) || (fromKey == 'here' && here == null)) {
-      fromKey = starts.length > 1 && here == null ? starts[1].$1 : starts.first.$1;
+    Place? placeFor(String? k, Place? adhoc) {
+      if (k == null) return null;
+      if (k == 'here') return here;
+      if (k == 'adhoc') return adhoc;
+      if (k.startsWith('extra:')) {
+        final i = int.tryParse(k.substring(6)) ?? -1;
+        return i >= 0 && i < fav.extraPlaces.length ? fav.extraPlaces[i] : null;
+      }
+      return fav.places[PlaceKind.values.asNameMap()[k]];
     }
-    final from = fromKey == 'here' ? here : fav.places[PlaceKind.values.byName(fromKey)];
+
+    final dest = placeFor(key, adhocTo);
+    // No location yet (or a saved place since removed): start from the first saved place
+    // that is not the destination.
+    // The same place on both ends (Here picked as To while the start waited for the location)
+    // falls back the same way, so a trip never goes from a place to itself.
+    if (placeFor(fromKey, adhocFrom) == null || (fromKey == key && key != 'adhoc')) {
+      final saved = options.where((o) => o.$1 != 'here' && o.$1 != key).firstOrNull;
+      if (saved != null) fromKey = saved.$1;
+    }
+    final from = placeFor(fromKey, adhocFrom);
+    // Where the start goes when it is picked as the destination before one was set.
+    String fallback(String not) => options.where((o) => o.$1 != not).firstOrNull?.$1 ?? 'here';
+
+    Widget end({required bool isFrom}) {
+      final selected = isFrom ? fromKey : key;
+      final adhoc = isFrom ? adhocFrom : adhocTo;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _Label(isFrom ? s.from : s.to),
+          PillRow(
+            items: options,
+            selected: selected ?? '',
+            onTap: (k) {
+              _pick(ref, isFrom: isFrom, key: k, from: fromKey, fallback: fallback(k));
+              if (k == 'here' && here == null) _useHere(context, ref);
+            },
+          ),
+          const SizedBox(height: 6),
+          _SearchField(
+            label: selected == 'adhoc' ? adhoc?.name : null,
+            hint: s.searchAddressHint,
+            clearLabel: s.clearSearch,
+            onTap: () => _search(context, ref, isFrom: isFrom, from: fromKey),
+            onClear: () => isFrom
+                ? _pick(ref, isFrom: true, key: fallback(key ?? ''), from: fromKey)
+                : ref.read(goKeyProvider.notifier).state = null,
+          ),
+        ],
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1137,49 +1284,126 @@ class GoSomewhere extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(4, 10, 4, 4),
             child: Text(s.goSomewhere, style: t.titleLarge),
           ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
-          child: Text(fav.extraPlaces.isEmpty ? s.addPlacesHint : s.goSomewhereHint, style: t.bodySmall),
-        ),
-        _Label(s.to),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: PillRow(
-            items: options,
-            selected: key ?? '',
-            onTap: (k) {
-              if (k == 'search') {
-                _search(context, ref);
-              } else {
-                ref.read(goKeyProvider.notifier).state = key == k ? null : k;
-              }
-            },
+        Panel(
+          margin: const EdgeInsets.only(top: 4, bottom: 12),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                end(isFrom: true),
+                Row(
+                  children: [
+                    const Expanded(child: Divider()),
+                    IconButton.outlined(
+                      tooltip: s.swapEnds,
+                      icon: const Icon(Icons.swap_vert),
+                      onPressed: key == null ? null : () => _swap(ref, fromKey, key),
+                    ),
+                    const Expanded(child: Divider()),
+                  ],
+                ),
+                end(isFrom: false),
+              ],
+            ),
           ),
         ),
-        if (dest != null) ...[
-          _Label(s.from),
+        if (dest == null)
           Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: PillRow(
-              items: starts,
-              selected: fromKey,
-              onTap: (k) {
-                ref.read(goFromKeyProvider.notifier).state = k;
-                if (k == 'here') _useHere(context, ref);
-              },
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
+            child: Text(s.goSomewhereHint, style: t.bodyMedium),
+          ),
+        if (dest != null && from != null)
+          TripSection(
+            fromKey: fromKey == 'here' || fromKey == 'adhoc' ? null : fromKey,
+            from: from,
+            fromLabel: fromKey == 'here' ? s.hereNow : null,
+            startsHere: fromKey == 'here',
+            to: dest,
+            modeKey: key!,
+            modePlace: dest,
+          ),
+        // A small tip at the end, only until a place of one's own (beyond Home and Work) is saved.
+        if (fav.extraPlaces.isEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 16, 4, 0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.lightbulb_outline, size: 18, color: DL.muted(context)),
+                const SizedBox(width: 6),
+                Expanded(child: Text(s.addPlacesHint, style: t.bodySmall)),
+              ],
             ),
           ),
-          if (from != null)
-            TripSection(
-              fromKey: fromKey == 'here' ? null : fromKey,
-              from: from,
-              fromLabel: fromKey == 'here' ? s.hereNow : null,
-              to: dest,
-              modeKey: key!,
-              modePlace: dest,
-            ),
-        ],
       ],
+    );
+  }
+}
+
+/// The address search on one end of the route card. It looks like a search box and opens the
+/// address picker; once a searched place is picked it shows it, selected, with Clear.
+class _SearchField extends StatelessWidget {
+  const _SearchField({
+    required this.label,
+    required this.hint,
+    required this.clearLabel,
+    required this.onTap,
+    required this.onClear,
+  });
+
+  /// The searched place on this end when it is the one picked, else null (shows [hint]).
+  final String? label;
+  final String hint;
+  final String clearLabel;
+  final VoidCallback onTap;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    final picked = label != null;
+    return Material(
+      color: picked ? scheme.primaryContainer : scheme.surfaceContainerHighest,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: picked ? DL.edge(context) : scheme.outline, width: picked ? DL.stroke : 1),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+            child: Row(
+              children: [
+                Icon(picked ? Icons.place_outlined : Icons.search,
+                    color: picked ? scheme.onPrimaryContainer : scheme.onSurfaceVariant),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      label ?? hint,
+                      style: picked
+                          ? t.titleSmall?.copyWith(color: scheme.onPrimaryContainer)
+                          : t.bodyLarge?.copyWith(color: scheme.onSurfaceVariant),
+                    ),
+                  ),
+                ),
+                if (picked)
+                  IconButton(
+                    tooltip: clearLabel,
+                    icon: Icon(Icons.close, color: scheme.onPrimaryContainer),
+                    onPressed: onClear,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1207,6 +1431,9 @@ class _TripPlannerPageState extends ConsumerState<TripPlannerPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _useShared(shared));
     }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // A pick the user makes while the location is coming in wins over what follows here.
+      final picksBefore = ref.read(goPicksProvider);
+      final toBefore = ref.read(goKeyProvider);
       try {
         final perm = await Geolocator.checkPermission();
         if (perm != LocationPermission.always && perm != LocationPermission.whileInUse) return;
@@ -1216,6 +1443,10 @@ class _TripPlannerPageState extends ConsumerState<TripPlannerPage> {
         if (!mounted) return;
         ref.read(goFromHereProvider.notifier).state =
             Place(kind: PlaceKind.other, name: ref.read(stringsProvider).hereNow, addrLat: pos.latitude, addrLng: pos.longitude);
+        if (ref.read(goPicksProvider) != picksBefore) return;
+        // A Here destination from an earlier visit was where the phone was then, not now: drop it.
+        // (Only while it still is: a shared place may have become the destination meanwhile.)
+        if (toBefore == 'here' && ref.read(goKeyProvider) == 'here') ref.read(goKeyProvider.notifier).state = null;
         ref.read(goFromKeyProvider.notifier).state = 'here';
       } on Object {
         // No location: the planner starts from a saved place.

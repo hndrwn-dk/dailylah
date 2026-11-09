@@ -1,6 +1,7 @@
 import 'package:dailylah/api.dart';
 import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
+import 'package:dailylah/l10n.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/about.dart';
 import 'package:flutter/material.dart';
@@ -105,7 +106,7 @@ void main() {
     expect(find.text('Good morning'), findsOneWidget);
     expect(find.text('Bring an umbrella'), findsOneWidget);
     expect(find.text('Running normally'), findsOneWidget);
-    expect(find.text('Tampines Int'), findsWidgets);
+    expect(find.text(const S().fromStop('Tampines Int')), findsWidgets);
     expect(find.text('Home → Work'), findsOneWidget);
     expect(find.text('Plan a trip'), findsOneWidget);
     // Taxis and hawkers live in Nearby now, not at the bottom of Today.

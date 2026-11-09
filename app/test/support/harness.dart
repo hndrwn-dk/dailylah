@@ -1,3 +1,4 @@
+import 'dart:async';
 // Shared fakes and set-up for the regression tests (see docs/QA.md).
 //
 // Bundles are read from the committed copies in ../web/data, so screens render with
@@ -254,8 +255,11 @@ class NoBundles extends BundleRepository {
 
 /// Location with a chosen permission answer. Granted = standing at Tampines Int.
 class FakeGeolocator extends GeolocatorPlatform {
-  FakeGeolocator(this.permission);
+  FakeGeolocator(this.permission, {this.gate});
   final LocationPermission permission;
+
+  /// When set, the current position comes only once the test completes it (a slow GPS fix).
+  final Completer<void>? gate;
 
   Position get _here => Position.fromMap({
         'latitude': tampinesInt.lat,
@@ -277,6 +281,7 @@ class FakeGeolocator extends GeolocatorPlatform {
   @override
   Future<Position> getCurrentPosition({LocationSettings? locationSettings}) async {
     if (!_ok) throw const PermissionDeniedException('denied (test)');
+    if (gate case final g?) await g.future;
     return _here;
   }
 

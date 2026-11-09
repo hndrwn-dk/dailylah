@@ -1,6 +1,7 @@
 // Feature tests: one per user-facing feature, driving the real widgets the way a user
 // would (tap, sheet, button) with the fakes in support/harness.dart. Every feature PR adds
 // its test here (see CLAUDE.md, "Testing a feature").
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -24,6 +25,7 @@ import 'package:dailylah/ui/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:geolocator/geolocator.dart' show GeolocatorPlatform, LocationPermission;
 
 import 'support/harness.dart';
 
@@ -108,6 +110,25 @@ class GpsApi extends FakeApi {
             'NextBus': {'EstimatedArrival': at(9), 'Load': 'SEA', 'Latitude': '0.0', 'Longitude': '0.0', 'Monitored': 0},
           },
         ],
+      },
+    };
+  }
+}
+
+/// Arrivals relative to the real clock (bus times are parsed against now): at Tampines Int, a
+/// 5 min walk from home, the first 10 (the direct bus to work) comes in 1 min, too soon.
+class _SoonApi extends FakeApi {
+  @override
+  Future<Map<String, dynamic>> busArrival(String stopCode) async {
+    String at(int min) => DateTime.now().add(Duration(minutes: min, seconds: 20)).toIso8601String();
+    Map<String, dynamic> bus(String no, int a, int b) => {
+          'ServiceNo': no,
+          'NextBus': {'EstimatedArrival': at(a), 'Load': 'SEA', 'Feature': 'WAB', 'Type': 'DD'},
+          'NextBus2': {'EstimatedArrival': at(b), 'Load': 'SEA', 'Feature': 'WAB', 'Type': 'DD'},
+        };
+    return {
+      'data': {
+        'Services': [bus('10', 1, 12), bus('12', 2, 4), bus('14', 9, 20), bus('858', 1, 2), bus('293', 12, 25)],
       },
     };
   }
@@ -199,7 +220,7 @@ void main() {
     ));
     await settle(tester);
 
-    expect(find.textContaining('Now near ${stop['n']} · 3 stops away', findRichText: true), findsOneWidget);
+    expect(find.textContaining('Now near ${stop['n']} · 3\u00A0stops\u00A0away', findRichText: true), findsOneWidget);
     expect(find.textContaining('Timetable estimate, no live GPS', findRichText: true), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -637,6 +658,435 @@ void main() {
         .map((l) => l.startsWith('- ') ? l.substring(2) : l)
         .toList();
     expect(const S().whatsNewNotes, notes);
+  });
+
+  testWidgets('Plan a trip: From above To in one route card, the same choices on both, swap and search',
+      (tester) async {
+    await applyCondition(tester, _normal);
+    final oneMap = _OneMap();
+    await tester.pumpWidget(_appWithOneMap(oneMap));
+    await settle(tester);
+    final box = containerOf(tester);
+    const s = S();
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+
+    // Location is allowed, so the trip starts Here. From is on top, To below, the swap between.
+    expect(box.read(goFromKeyProvider), 'here');
+    final fromY = tester.getTopLeft(find.text(s.from)).dy;
+    final swapY = tester.getTopLeft(find.byTooltip(s.swapEnds)).dy;
+    final toY = tester.getTopLeft(find.text(s.to)).dy;
+    expect(fromY < swapY && swapY < toY, isTrue);
+    // Both ends offer Here, Home, Work, School, the saved Gym and a search field (not a chip).
+    for (final label in ['Here', 'Home', 'Work', 'School', 'Gym']) {
+      expect(find.text(label), findsNWidgets(2), reason: label);
+    }
+    expect(find.text(s.searchAddressHint), findsNWidgets(2));
+    expect(find.text(s.anyAddress), findsNothing);
+    // Gym is saved, so the tip about adding places is not shown.
+    expect(find.text(s.addPlacesHint), findsNothing);
+    expect(find.text(s.goSomewhereHint), findsOneWidget);
+
+    // To: Work. The summary title stays "From → To".
+    await tester.tap(find.text('Work').at(1));
+    await settle(tester);
+    expect(box.read(goKeyProvider), 'work');
+    expect(find.text('Here → Work'), findsOneWidget);
+
+    // Swap: Work → Here.
+    await tester.tap(find.byTooltip(s.swapEnds));
+    await settle(tester);
+    expect(box.read(goFromKeyProvider), 'work');
+    expect(box.read(goKeyProvider), 'here');
+    expect(find.text('Work → Here'), findsOneWidget);
+
+    // Picking on one end what the other end has swaps them, so a trip never goes to itself.
+    await tester.tap(find.text('Work').at(1));
+    await settle(tester);
+    expect(box.read(goFromKeyProvider), 'here');
+    expect(box.read(goKeyProvider), 'work');
+
+    // From: a searched address. The field shows it, selected, and the trip starts there.
+    await tester.tap(find.text(s.searchAddressHint).first);
+    await settle(tester);
+    expect(find.byType(AddressPickerPage), findsOneWidget);
+    await tester.enterText(find.descendant(of: find.byType(AddressPickerPage), matching: find.byType(TextField)), '189630');
+    await tester.pump(const Duration(milliseconds: 500));
+    await settle(tester);
+    await tester.tap(find.textContaining('51 Bencoolen Street'));
+    await settle(tester);
+    expect(box.read(goFromKeyProvider), 'adhoc');
+    expect(box.read(goAdhocFromProvider)!.postal, '189630');
+    final name = box.read(goAdhocFromProvider)!.name!;
+    expect(find.text(name), findsWidgets);
+    expect(find.text('$name → Work'), findsOneWidget);
+    expect(find.text(s.searchAddressHint), findsOneWidget); // To still offers the search
+
+    // Swap carries the searched address to the other end.
+    await tester.tap(find.byTooltip(s.swapEnds));
+    await settle(tester);
+    expect(box.read(goKeyProvider), 'adhoc');
+    expect(box.read(goAdhocDestProvider)!.postal, '189630');
+    expect(find.text('Work → $name'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Plan a trip: a second search for To replaces it, and Clear empties it', (tester) async {
+    await applyCondition(tester, _normal);
+    final oneMap = _OneMap();
+    await tester.pumpWidget(_appWithOneMap(oneMap));
+    await settle(tester);
+    final box = containerOf(tester);
+    const s = S();
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    Future<void> searchTo() async {
+      await tester.tap(find.text(s.searchAddressHint).last); // the To field
+      await settle(tester);
+      await tester.enterText(find.descendant(of: find.byType(AddressPickerPage), matching: find.byType(TextField)), '189630');
+      await tester.pump(const Duration(milliseconds: 500));
+      await settle(tester);
+      await tester.tap(find.textContaining('51 Bencoolen Street'));
+      await settle(tester);
+    }
+
+    await searchTo();
+    expect(box.read(goKeyProvider), 'adhoc');
+    final name = box.read(goAdhocDestProvider)!.name!;
+    // Searching again on the same end (the field now shows the place) keeps a destination.
+    await tester.tap(find.text(name).last);
+    await settle(tester);
+    expect(find.byType(AddressPickerPage), findsOneWidget);
+    await tester.enterText(find.descendant(of: find.byType(AddressPickerPage), matching: find.byType(TextField)), '189630');
+    await tester.pump(const Duration(milliseconds: 500));
+    await settle(tester);
+    await tester.tap(find.textContaining('51 Bencoolen Street'));
+    await settle(tester);
+    expect(box.read(goKeyProvider), 'adhoc');
+    expect(find.text('Here → $name'), findsOneWidget);
+
+    await tester.tap(find.byTooltip(s.clearSearch));
+    await settle(tester);
+    expect(box.read(goKeyProvider), isNull);
+    expect(find.text(s.goSomewhereHint), findsOneWidget);
+  });
+
+  testWidgets('Plan a trip: picking the other end swaps the searched place along', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    const searched = Place(kind: PlaceKind.other, name: 'Bencoolen', addrLat: 1.29661, addrLng: 103.85220);
+    box.read(goAdhocFromProvider.notifier).state = searched;
+    box.read(goFromKeyProvider.notifier).state = 'adhoc';
+    box.read(goKeyProvider.notifier).state = 'home';
+    await settle(tester);
+    expect(find.text('Bencoolen → Home'), findsOneWidget);
+    // Home on From: the ends swap, and the searched place goes to To with them.
+    await tester.tap(find.text('Home').first);
+    await settle(tester);
+    expect(box.read(goFromKeyProvider), 'home');
+    expect(box.read(goKeyProvider), 'adhoc');
+    expect(box.read(goAdhocDestProvider)?.name, 'Bencoolen');
+    expect(find.text('Home → Bencoolen'), findsOneWidget);
+  });
+
+  testWidgets("Plan a trip: \"You're here\" only when the trip starts Here", (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    const s = S();
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    // A destination 50 m from the phone (Tampines Int).
+    final near = Place(kind: PlaceKind.other, name: 'Near', addrLat: tampinesInt.lat + 0.00045, addrLng: tampinesInt.lng);
+    box.read(goAdhocDestProvider.notifier).state = near;
+    box.read(goKeyProvider.notifier).state = 'adhoc';
+    box.read(modeOverrideProvider.notifier).state = {'adhoc': TravelMode.transit};
+    await settle(tester);
+    expect(box.read(goFromKeyProvider), 'here');
+    expect(find.text(s.youAreHere), findsOneWidget);
+    // The same spot as a searched start is a start, not "you are here".
+    box.read(goAdhocFromProvider.notifier).state =
+        Place(kind: PlaceKind.other, name: 'Searched', addrLat: tampinesInt.lat, addrLng: tampinesInt.lng);
+    box.read(goFromKeyProvider.notifier).state = 'adhoc';
+    await settle(tester);
+    expect(find.text('Searched → Near'), findsOneWidget);
+    expect(find.text(s.youAreHere), findsNothing);
+  });
+
+  testWidgets('Plan a trip: with both ends searched, a new search changes only its own end', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(_appWithOneMap(_OneMap()));
+    await settle(tester);
+    final box = containerOf(tester);
+    const s = S();
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    box.read(goAdhocFromProvider.notifier).state = const Place(kind: PlaceKind.other, name: 'Start A', addrLat: 1.30, addrLng: 103.85);
+    box.read(goAdhocDestProvider.notifier).state = const Place(kind: PlaceKind.other, name: 'End B', addrLat: 1.35, addrLng: 103.94);
+    box.read(goFromKeyProvider.notifier).state = 'adhoc';
+    box.read(goKeyProvider.notifier).state = 'adhoc';
+    await settle(tester);
+    expect(find.text('Start A → End B'), findsOneWidget);
+    await tester.tap(find.text('End B').last);
+    await settle(tester);
+    await tester.enterText(find.descendant(of: find.byType(AddressPickerPage), matching: find.byType(TextField)), '189630');
+    await tester.pump(const Duration(milliseconds: 500));
+    await settle(tester);
+    await tester.tap(find.textContaining('51 Bencoolen Street'));
+    await settle(tester);
+    expect(box.read(goAdhocFromProvider)!.name, 'Start A');
+    expect(box.read(goAdhocDestProvider)!.postal, '189630');
+    expect(find.textContaining(RegExp(r'^Start A → ')), findsOneWidget);
+    expect(find.text(s.searchAddressHint), findsNothing);
+  });
+
+  testWidgets('Trip buses at 200% text on 320 dp: the bus plate sits above the leave line', (tester) async {
+    const big = Condition('big', textScale: 2.0, size: Size(320, 780));
+    await applyCondition(tester, big);
+    await tester.pumpWidget(ProviderScope(retry: noRetry, overrides: [
+      initialFavoritesProvider.overrideWithValue(householdFavorites),
+      apiProvider.overrideWithValue(_SoonApi()),
+      bundleRepoProvider.overrideWithValue(FileBundles()),
+      clockProvider.overrideWith((ref) => Stream.value(tuesdayMorning)),
+    ], child: const DailyLahApp()));
+    await settle(tester);
+    final box = containerOf(tester);
+    const s = S();
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    box.read(goFromKeyProvider.notifier).state = 'home';
+    box.read(goKeyProvider.notifier).state = 'work';
+    box.read(modeOverrideProvider.notifier).state = {'work': TravelMode.transit};
+    await settle(tester);
+    final leave = find.text(s.leaveInHead('10', 7));
+    await tester.ensureVisible(leave);
+    await tester.pump();
+    final card = find.ancestor(of: leave, matching: find.byType(Panel)).first;
+    final plate = find.descendant(of: card, matching: find.byType(BusPlate));
+    expect(tester.getBottomLeft(plate).dy, lessThanOrEqualTo(tester.getTopLeft(leave).dy));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Plan a trip: an old Here destination is dropped when the planner opens again', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    const s = S();
+    final nav = Navigator.of(tester.element(find.byType(TodayPage)));
+    nav.push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    await tester.tap(find.text('Work').at(1));
+    await settle(tester);
+    await tester.tap(find.byTooltip(s.swapEnds));
+    await settle(tester);
+    expect(find.text('Work → Here'), findsOneWidget);
+    nav.pop();
+    await settle(tester);
+
+    nav.push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    // Here is wherever the phone is now: the old destination is gone and the trip starts Here.
+    expect(box.read(goKeyProvider), isNull);
+    expect(box.read(goFromKeyProvider), 'here');
+    expect(find.text('Here → Here'), findsNothing);
+    expect(find.text(const S().goSomewhereHint), findsOneWidget);
+  });
+
+  testWidgets('Plan a trip: picks made while the location is coming in are kept', (tester) async {
+    await applyCondition(tester, _normal);
+    final gps = Completer<void>();
+    GeolocatorPlatform.instance = FakeGeolocator(LocationPermission.whileInUse, gate: gps);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    final nav = Navigator.of(tester.element(find.byType(TodayPage)));
+    nav.push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    // The fix is slow: the user picks Work as the start and School as the destination first.
+    await tester.tap(find.text('Work').first);
+    await tester.tap(find.text('School').last);
+    await settle(tester);
+    gps.complete();
+    await settle(tester);
+    expect(box.read(goFromKeyProvider), 'work');
+    expect(box.read(goKeyProvider), 'school');
+    expect(find.text('Work → School'), findsOneWidget);
+    nav.pop();
+    await settle(tester);
+  });
+
+  testWidgets('Plan a trip: a place shared in while the location is coming in stays the destination', (tester) async {
+    await applyCondition(tester, _normal);
+    final gps = Completer<void>();
+    GeolocatorPlatform.instance = FakeGeolocator(LocationPermission.whileInUse, gate: gps);
+    await tester.pumpWidget(_appWithOneMap(_OneMap()));
+    await settle(tester);
+    final box = containerOf(tester);
+    // Left from an earlier visit: a trip back to Here.
+    box.read(goKeyProvider.notifier).state = 'here';
+    final shared = parseSharedPlace('Somerset Bencoolen\nSingapore 189630\nhttps://maps.app.goo.gl/AbC123')!;
+    Navigator.of(tester.element(find.byType(TodayPage)))
+        .push(MaterialPageRoute<void>(builder: (_) => TripPlannerPage(shared: shared)));
+    await settle(tester);
+    expect(box.read(goKeyProvider), 'adhoc');
+    gps.complete();
+    await settle(tester);
+    expect(box.read(goKeyProvider), 'adhoc');
+    expect(box.read(goAdhocDestProvider)!.postal, '189630');
+    expect(box.read(goFromKeyProvider), 'here');
+  });
+
+  testWidgets('Plan a trip: Here on both ends never makes a trip to itself', (tester) async {
+    const denied = Condition('denied', location: LocationPermission.deniedForever);
+    await applyCondition(tester, denied);
+    await tester.pumpWidget(appUnder(denied, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    // The start waits on Here; the location then comes for a Here destination.
+    box.read(goFromKeyProvider.notifier).state = 'here';
+    box.read(goKeyProvider.notifier).state = 'here';
+    box.read(goFromHereProvider.notifier).state =
+        Place(kind: PlaceKind.other, name: 'Here', addrLat: tampinesInt.lat, addrLng: tampinesInt.lng);
+    await settle(tester);
+    expect(find.text('Here → Here'), findsNothing);
+    expect(find.text('Home → Here'), findsOneWidget);
+  });
+
+  testWidgets('Plan a trip: without location, picks work on the start shown on screen', (tester) async {
+    const denied = Condition('denied', location: LocationPermission.deniedForever);
+    await applyCondition(tester, denied);
+    await tester.pumpWidget(appUnder(denied, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    // Here was the last start, but there is no location: the screen starts from Home.
+    box.read(goFromKeyProvider.notifier).state = 'here';
+    await settle(tester);
+    await tester.tap(find.text('Work').at(1));
+    await settle(tester);
+    expect(find.text('Home → Work'), findsOneWidget);
+    // Picking Work as the start swaps with what is shown: Work → Home.
+    await tester.tap(find.text('Work').first);
+    await settle(tester);
+    expect(box.read(goFromKeyProvider), 'work');
+    expect(box.read(goKeyProvider), 'home');
+    expect(find.text('Work → Home'), findsOneWidget);
+  });
+
+  testWidgets('Plan a trip: the tip about saving places shows only while none beyond Home and Work is saved',
+      (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites.copyWith(extraPlaces: const []), tuesdayMorning));
+    await settle(tester);
+    const s = S();
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    final tip = find.text(s.addPlacesHint);
+    expect(tip, findsOneWidget);
+    // Small and at the end, under the route card.
+    expect(tester.getTopLeft(tip).dy, greaterThan(tester.getTopLeft(find.text(s.to)).dy));
+    expect(tester.widget<Text>(tip).style?.fontSize, Theme.of(tester.element(tip)).textTheme.bodySmall?.fontSize);
+  });
+
+  testWidgets('Trip buses: the bus to leave for is on top, buses too soon are dimmed at the end', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(ProviderScope(retry: noRetry, overrides: [
+      initialFavoritesProvider.overrideWithValue(householdFavorites),
+      apiProvider.overrideWithValue(_SoonApi()),
+      bundleRepoProvider.overrideWithValue(FileBundles()),
+      clockProvider.overrideWith((ref) => Stream.value(tuesdayMorning)),
+    ], child: const DailyLahApp()));
+    await settle(tester);
+    final box = containerOf(tester);
+    const s = S();
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    box.read(goFromKeyProvider.notifier).state = 'home';
+    box.read(goKeyProvider.notifier).state = 'work';
+    box.read(modeOverrideProvider.notifier).state = {'work': TravelMode.transit};
+    await settle(tester);
+
+    // The start stop is labelled.
+    expect(find.text(s.fromStop('Tampines Int')), findsOneWidget);
+    final board = tester.widget<BusBoard>(find.byType(BusBoard).first);
+    final leave = find.textContaining(RegExp(r'^Leave (now|in \d+ min) to catch'));
+    expect(leave, findsOneWidget);
+    final service = RegExp(r'catch\s(\S+)$').firstMatch(tester.widget<Text>(leave).data!)!.group(1);
+    // The suggestion sits above the board, and its bus is the board's first row, never dimmed.
+    expect(tester.getTopLeft(leave).dy, lessThan(tester.getTopLeft(find.byType(BusBoard).first).dy));
+    expect(board.rows.first.service, service);
+    expect(board.rows.first.dim, isFalse);
+    // Rows too soon to catch carry the label and come after every catchable one.
+    final dims = [for (final r in board.rows) r.dim];
+    expect(dims.skipWhile((d) => !d).every((d) => d), isTrue);
+    // 10 is the only direct bus: its first one comes before the 5 min walk is done, so the card
+    // says to leave for the next one (in 12 min: leave in 7).
+    expect(tester.widget<Text>(leave).data, s.leaveInHead('10', 7));
+    expect(find.text(s.walkToStopThenBus(5, 12)), findsOneWidget);
+    // The board: the 10 in 12 min on top, the 10 in 1 min dimmed "Too soon" at the end.
+    expect((board.rows.first.minutes, board.rows.first.dim), (12, false));
+    expect((board.rows.last.service, board.rows.last.minutes, board.rows.last.tag), ('10', 1, s.tooSoon));
+    for (final r in board.rows) {
+      expect(r.tag, r.dim ? s.tooSoon : isNull);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Bus board: a bus too soon to catch is drawn dim with its label', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: buildTheme(Brightness.dark),
+      home: Scaffold(
+        body: BusBoard(arrLabel: 'Arr', minLabel: 'min', thenLabel: (m) => 'then $m min', rows: const [
+          BoardRow(service: '36', minutes: 9),
+          BoardRow(service: '15', minutes: 1, dim: true, tag: 'Too soon'),
+        ]),
+      ),
+    ));
+    Color? colorOf(String text) => tester.widget<Text>(find.text(text)).style?.color;
+    expect(colorOf('36'), DL.led);
+    expect(colorOf('15'), DL.ledDim);
+    expect(colorOf('1 min'), DL.ledDim);
+    expect(find.text('Too soon'), findsOneWidget);
+    // Dim, not hidden: the label keeps the board's small-text contrast.
+    await expectLater(tester, meetsGuideline(textContrastGuideline));
+  });
+
+  testWidgets("I'm leaving: the how-to is small under the button and goes once the trip is learned", (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    const s = S();
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    box.read(goFromKeyProvider.notifier).state = 'home';
+    box.read(goKeyProvider.notifier).state = 'work';
+    await settle(tester);
+
+    final hint = find.text(s.tripLearnHint);
+    final button = find.text(s.imLeaving);
+    expect(hint, findsOneWidget);
+    expect(tester.getTopLeft(hint).dy, greaterThan(tester.getTopLeft(button).dy));
+    expect(tester.widget<Text>(hint).style?.fontSize, Theme.of(tester.element(hint)).textTheme.bodySmall?.fontSize);
+
+    // Three trips on this route: the card says how long it usually takes, and the how-to is gone.
+    await box.read(habitsProvider.notifier).restore(Habits(trips: [
+      for (final m in [40, 42, 45])
+        TripLog(route: 'home>work', start: tuesdayMorning.subtract(Duration(days: m - 39)), minutes: m),
+    ]));
+    await settle(tester);
+    expect(find.text(s.tripLearnHint), findsNothing);
+    expect(find.textContaining(s.usualTrip(42, 3)), findsOneWidget);
+    expect(find.text(s.imLeaving), findsOneWidget);
   });
 
   testWidgets('A place shared from Google Maps opens the planner with it as the destination', (tester) async {

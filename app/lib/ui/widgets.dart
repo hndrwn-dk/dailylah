@@ -778,9 +778,17 @@ class BoardRow {
     this.load = '',
     this.info = '',
     this.onTap,
+    this.dim = false,
+    this.tag,
   });
   final String service;
   final int minutes;
+
+  /// Drawn in the dim LED colour, for a bus the rider cannot catch.
+  final bool dim;
+
+  /// A short label next to the arrival, e.g. "Too soon".
+  final String? tag;
   final int? next;
   final String note;
 
@@ -881,7 +889,7 @@ class BusBoard extends StatelessWidget {
                         child: FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.topLeft,
-                          child: Text(r.service, style: led.copyWith(fontSize: 30)),
+                          child: Text(r.service, style: led.copyWith(fontSize: 30, color: r.dim ? DL.ledDim : DL.led)),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -893,9 +901,20 @@ class BusBoard extends StatelessWidget {
                               spacing: 10,
                               crossAxisAlignment: WrapCrossAlignment.end,
                               children: [
-                                Text(r.minutes == 0 ? arrLabel : '${r.minutes} $minLabel', style: led.copyWith(fontSize: 30)),
+                                Text(r.minutes == 0 ? arrLabel : '${r.minutes} $minLabel',
+                                    style: led.copyWith(fontSize: 30, color: r.dim ? DL.ledDim : DL.led)),
                                 if (r.next != null)
                                   Text(thenLabel(r.next!), style: led.copyWith(fontSize: 18, color: DL.ledDim)),
+                                if (r.tag case final tag?)
+                                  Container(
+                                    margin: const EdgeInsets.only(bottom: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: DL.ledDim),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(tag, style: small),
+                                  ),
                               ],
                             ),
                             if (r.live != null)
@@ -912,7 +931,7 @@ class BusBoard extends StatelessWidget {
                                     ),
                                     TextSpan(text: r.live),
                                   ]),
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: DL.led),
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: r.dim ? DL.ledDim : DL.led),
                                 ),
                               ),
                             if (r.info.isNotEmpty)

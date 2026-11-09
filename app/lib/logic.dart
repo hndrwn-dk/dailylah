@@ -1873,6 +1873,9 @@ Set<String> mrtPlanLines(MrtPlan plan) => {
 
 // ---------------------------------------------------------------- leave by
 
+/// Within this distance of a stop the rider is at the stop: no walk before the bus.
+const atStopMetres = 80.0;
+
 /// Walking minutes for a straight-line distance (1.3 detour, 80 m a minute), at least 1.
 int walkMinutesTo(double metres) => math.max(1, (metres * 1.3 / 80).round());
 
@@ -1899,6 +1902,56 @@ LeaveBy? leaveBy(List<(BusEta, int?)> grouped, Set<String>? services, int walk) 
     }
   }
   return best;
+}
+
+/// One direct bus on a trip card. [tooSoon]: it comes before the walk to the stop is done.
+typedef TripBoardRow = ({BusEta eta, int? next, bool tooSoon});
+
+/// Order of the direct buses on a trip card: the bus to leave for ([lb]) first, then the others
+/// that can still be caught, then the ones that come too soon ([walk] minutes to the stop; null
+/// when the start is not near the stop, then nothing is too soon and the order stays). When the
+/// bus to leave for is the next one of a service whose first bus is too soon, the two get a row
+/// each: the next one on top (no load, position, wheelchair or deck: LTA sends those per bus, and
+/// the grouped arrivals keep only the first bus's), the first one dimmed at the end.
+List<TripBoardRow> tripBoard(List<(BusEta, int?)> direct, LeaveBy? lb, int? walk) {
+  final rows = <TripBoardRow>[];
+  for (final (e, next) in direct) {
+    final soon = walk != null && e.minutes < walk;
+    if (e.service == lb?.service && soon && next != null) {
+      rows
+        ..add((eta: BusEta(service: e.service, minutes: next, load: ''), next: null, tooSoon: false))
+        ..add((eta: e, next: null, tooSoon: true));
+    } else {
+      rows.add((eta: e, next: next, tooSoon: soon));
+    }
+  }
+  int rank(TripBoardRow r) => r.tooSoon ? 2 : (r.eta.service == lb?.service ? 0 : 1);
+  // List.sort is not stable; the index keeps the arrival order within each group.
+  final indexed = rows.indexed.toList()
+    ..sort((a, b) {
+      final c = rank(a.$2).compareTo(rank(b.$2));
+      return c != 0 ? c : a.$1.compareTo(b.$1);
+    });
+  return [for (final (_, r) in indexed) r];
+}
+
+/// Keys of the trip planner's ends: "here", "home", "work", "school", "extra:<i>" or "adhoc"
+/// (a searched address; each end has its own). Picking [key] for one end when the other end
+/// already has it swaps the two, so a trip never goes from a place to itself; when the
+/// destination was not picked yet, the start moves to [fallback] instead. Tapping the picked
+/// destination again clears it, except "adhoc": a new search on the same end replaces it.
+({String from, String? to}) pickTripEnd({
+  required bool isFrom,
+  required String key,
+  required String from,
+  required String? to,
+  required String fallback,
+}) {
+  final clash = key != 'adhoc' && key == (isFrom ? to : from);
+  if (isFrom) return (from: key, to: clash ? from : to);
+  // Tapping the picked destination again clears it; a searched address is picked anew each time.
+  if (to == key && key != 'adhoc') return (from: from, to: null);
+  return (from: clash ? (to ?? fallback) : from, to: key);
 }
 
 /// Morning leave-by reminder window: from 25 minutes before the usual departure
