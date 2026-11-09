@@ -151,6 +151,12 @@
   .screens li { scroll-snap-align: start; }
   .screens img { display: block; width: 100%; height: auto; border: 2.5px solid var(--edge); border-radius: 18px;
                  box-shadow: 4px 5px 0 var(--shadow); background: var(--card); }
+  /* Wide screens with a mouse: a screenshot lifts like a sticker under the pointer. Nothing moves
+     until then; no motion with reduced motion. */
+  @media (min-width: 1000px) and (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .screens img { transition: transform 0.2s ease-out, box-shadow 0.2s ease-out; }
+    .screens li:hover img { transform: translate(-3px, -6px) rotate(-1deg); box-shadow: 8px 11px 0 var(--shadow); }
+  }
   /* On a phone (under 1000 px) /shared/screens.js turns the row into a deck: one screen at a time,
      the next one peeking behind, playing in turn with tabs and a progress bar; tap a tab or swipe.
      Without JS it stays the sideways row above. */
