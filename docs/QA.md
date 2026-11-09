@@ -164,6 +164,8 @@ Writing flows:
 - Flows must pass on any day and at any time. The emulator is set to Singapore time; flow 02 makes
   Work an every-day place (Sat and Sun chips in Setup), so Today shows the commute on weekends too
   instead of the weekend card. Live data that is empty at night (buses stopped) is accepted as an answer.
+- Public holidays (`web/data/holidays.json`) switch off the commute on Today, also for that every-day Work:
+  flow 03 then checks the holiday banner and that no trip shows, and skips the bus steps.
 - Flutter merges the texts of a tile or card into one node, so match with `"(?s).*text.*"`, or
   anchor the start (`"(?s)Appearance.*"`) when a longer node also contains the text.
 - Rows off screen are not in the hierarchy: `scrollUntilVisible` first; add `centerElement: true`
