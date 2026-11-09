@@ -4,6 +4,6 @@
   "description": "Layout checks of dailylah.sg in a real browser (web.yml). Only playwright-core, pinned; CI uses the runner's Chrome, no browser download.",
   "type": "module",
   "dependencies": {
-    "playwright-core": "1.63.0"
+    "playwright-core": "1.64.1"
   }
 }
