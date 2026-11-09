@@ -2090,6 +2090,23 @@ void main() {
           ['Stop C']);
     });
 
+    test('bus: a fix before the nearest stop keeps that stop ahead', () {
+      final toilets = [
+        near(byCode['D']!, 0.0003, 'D mall', ToiletKind.mall),
+        near(byCode['E']!, 0.0003, 'E mall', ToiletKind.mall),
+      ];
+      // 60% of the way from C to D: nearest to D, but the bus has not reached it yet.
+      final c = byCode['C']!, d = byCode['D']!;
+      final lat = c.lat + (d.lat - c.lat) * 0.6;
+      final out = toiletsAheadBus(routes, '10', byCode['B']!, byCode['E']!, byCode, toilets, lat: lat, lng: d.lng);
+      expect([for (final t in out) t.at], ['Stop D', 'Stop E']);
+      expect(out.first.rideMinutes, 2);
+      // Just before the alight stop: it is still ahead.
+      final e = byCode['E']!;
+      final late = toiletsAheadBus(routes, '10', byCode['B']!, e, byCode, toilets, lat: e.lat - 0.0005, lng: e.lng);
+      expect([for (final t in late) t.at], ['Stop E']);
+    });
+
     test('bus: at most [limit] stops, the soonest first', () {
       final toilets = [for (final s in line) near(s, 0.0003, 'T ${s.code}', ToiletKind.other)];
       final out = toiletsAheadBus(routes, '10', byCode['A']!, byCode['F']!, byCode, toilets);

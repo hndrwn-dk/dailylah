@@ -967,3 +967,48 @@ async def test_build_keeps_previous_toilets_when_geoapify_fails(tmp_path, monkey
     report = json.loads((tmp_path.parent / "build_report.json").read_text())
     assert "secret-key" not in json.dumps(report)
     get_settings.cache_clear()
+
+
+@respx.mock
+async def test_build_keeps_previous_park_toilets_when_nparks_fails(tmp_path, monkeypatch):
+    monkeypatch.setenv("LTA_ACCOUNT_KEY", "test-key")
+    monkeypatch.setenv("GEOAPIFY_API_KEY", "secret-key")
+    get_settings.cache_clear()
+    b.LAST_PARK_TOILETS[:] = [{"n": "Stale", "la": 1.2, "lo": 103.7, "k": "park"}]
+    stops = [
+        {
+            "BusStopCode": f"{i:05d}",
+            "Description": "S",
+            "RoadName": "R",
+            "Latitude": 1.3,
+            "Longitude": 103.8,
+        }
+        for i in range(4100)
+    ]
+    respx.get(f"{LTA}/BusStops").mock(
+        side_effect=lambda r: httpx.Response(
+            200,
+            json={"value": stops[int(r.url.params["$skip"]) : int(r.url.params["$skip"]) + 500]},
+        )
+    )
+    respx.get(b.DATASTORE_URL).mock(return_value=httpx.Response(500))
+    respx.get(url__startswith="https://api-open.data.gov.sg/v1/public/api/datasets/").mock(
+        return_value=httpx.Response(500)
+    )
+    respx.get(b.ONEMAP_SEARCH_URL).mock(return_value=httpx.Response(200, json={"results": []}))
+    respx.get(b.GEOAPIFY_PLACES_URL).mock(return_value=httpx.Response(200, json=_places_page(350)))
+    old = [
+        {"n": "Bishan Park", "la": 1.36, "lo": 103.84, "k": "park"},
+        {"n": "Old mall", "la": 1.3, "lo": 103.8, "k": "mall"},
+    ]
+    (tmp_path / "toilets.json").write_text(json.dumps(old))
+
+    async with httpx.AsyncClient() as c:
+        await build_static.build(tmp_path, c, geocode_cache=None, pause=0, today=date(2026, 10, 20))
+    out = json.loads((tmp_path / "toilets.json").read_text())
+    names = {t["n"] for t in out}
+    assert len(out) == 351  # today's Geoapify toilets + yesterday's park toilet
+    assert "Bishan Park" in names  # NParks failed today: yesterday's park toilets stay
+    assert "Old mall" not in names  # the rest is today's data
+    assert "Stale" not in names  # nothing left over from an earlier build in this process
+    get_settings.cache_clear()

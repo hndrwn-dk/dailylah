@@ -1609,7 +1609,8 @@ List<(Toilet, double)> toiletsNear(List<Toilet> all, double lat, double lng, {in
 
 /// On the bus ("Wake me at my stop"): the stops after [from] up to [alight] on [service]'s route
 /// (`bus_routes`), each with its best toilet within [radius] m; stops without one are skipped. A
-/// GPS fix ([lat], [lng]) within 500 m of the route moves the start to the nearest stop on it.
+/// GPS fix ([lat], [lng]) within 500 m of the route moves the start to the nearest stop on it, or to
+/// the stop before when the bus has not reached that one yet.
 /// About [feederMinutesPerStop] minutes a stop, plus the walk ([walkMinutesTo]).
 List<ToiletStop> toiletsAheadBus(
   BusRoutes routes,
@@ -1647,6 +1648,16 @@ List<ToiletStop> toiletsAheadBus(
       if (d < bestD) {
         bestD = d;
         cur = k;
+      }
+    }
+    // Nearest is not passed: when the fix is still closer to the stop before than [cur] is, the
+    // bus has not reached [cur] yet, so it stays ahead.
+    if (cur > bi) {
+      final st = stops[route[cur].$1], prev = stops[route[cur - 1].$1];
+      if (st != null &&
+          prev != null &&
+          distanceMeters(lat, lng, prev.lat, prev.lng) < distanceMeters(st.lat, st.lng, prev.lat, prev.lng)) {
+        cur--;
       }
     }
   }

@@ -142,7 +142,7 @@ feature, screen, provider or rule moves, appears or goes away.
   (`ToiletsNearby`, a section like the others, for the place picked). Data: the `toilets` bundle (`Toilet`,
   `ToiletKind` in data.dart, `toiletsProvider`; built daily by `build_toilets`, backend/CLAUDE.md). Rules in logic.dart,
   all on the phone: `toiletsAheadBus` (the stops after the boarding stop, or after the route stop nearest the last
-  GPS fix, up to the alight stop on the `bus_routes` route; best toilet within 250 m of each stop; stops without
+  GPS fix, or the stop before it when the bus has not reached it, up to the alight stop on the `bus_routes` route; best toilet within 250 m of each stop; stops without
   one are skipped; `feederMinutesPerStop` a stop plus `walkMinutesTo`; `busToiletsProvider` in wake_session.dart,
   which now keeps the boarding stop `WakeState.from` and the last fix in memory), `toiletsAheadMrt` (the stations
   after the ride's estimated position, best toilet within 250 m of the station point, else `assumed`: "Stations

@@ -154,6 +154,7 @@ async def build(
                     settings.eventfinda_password,
                 ),
             )
+            b.LAST_PARK_TOILETS.clear()  # set by build_poi when NParks answers
             await attempt("poi", b.build_poi(dg, geo))
 
             def previous(name: str) -> list:
@@ -164,13 +165,17 @@ async def build(
                 return data if isinstance(data, list) else []
 
             hawkers = results.get("hawkers")
+            # NParks failed today: keep yesterday's park toilets rather than drop them all.
+            parks = b.LAST_PARK_TOILETS or [
+                t for t in previous("toilets") if isinstance(t, dict) and t.get("k") == "park"
+            ]
             await attempt(
                 "toilets",
                 b.build_toilets(
                     client,
                     settings.geoapify_api_key,
                     hawkers if isinstance(hawkers, list) else previous("hawkers"),
-                    b.LAST_PARK_TOILETS,
+                    parks,
                 ),
             )
             await attempt("emergency", b.build_emergency(dg, geo))

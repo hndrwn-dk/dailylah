@@ -80,7 +80,7 @@ relative to `backend/` when they start with `app/`. Endpoint index: `docs/REPO_M
   `toilets.json` in the daily `data.yml` from Geoapify Places (`/v2/places`,
   `categories=amenity.toilet`, Singapore rect, 500 a page until a short or empty page, max 20
   pages), the NParks park toilets that `build_poi` finds in Park Facilities
-  (`park_toilet_points`, `LAST_PARK_TOILETS`) and every hawker centre (yesterday's
+  (`park_toilet_points`, `LAST_PARK_TOILETS`; yesterday's park toilets when NParks fails) and every hawker centre (yesterday's
   `hawkers.json` when today's hawker build failed). Points closer than 30 m are one toilet
   (`merge_toilets`: clearest name, a specific kind wins over "other"); each has a kind `k`
   (`toilet_kind`: mall, station, hawker, park, other, from the name, then Geoapify's categories).
