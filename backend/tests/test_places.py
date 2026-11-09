@@ -194,6 +194,17 @@ def test_httpx_request_log_hides_the_key(client, caplog):
     respx.get(AUTOCOMPLETE_URL).mock(return_value=httpx.Response(200, json=RESULTS))
     with caplog.at_level(logging.DEBUG, logger="httpx"):
         client.get("/v1/places", params={"q": "jewel"})
-    line = next(m for m in caplog.messages if "api.geoapify.com" in m)
+    line = next(m for m in caplog.messages if "/v1/geocode/autocomplete" in m)
     assert "apiKey=***" in line and "text=***" in line
     assert KEY not in caplog.text
+
+
+def test_redaction_leaves_other_log_lines_alone():
+    from app.geoapify import _RedactKey
+
+    rec = logging.LogRecord("httpx", logging.INFO, "", 0, "GET %s", ("/v1/search?q=x",), None)
+    assert _RedactKey().filter(rec)
+    assert rec.getMessage() == "GET /v1/search?q=x"
+    rec = logging.LogRecord("httpx", logging.INFO, "", 0, "GET %s", ("/a?apiKey=k1&text=t",), None)
+    _RedactKey().filter(rec)
+    assert rec.getMessage() == "GET /a?apiKey=***&text=***"

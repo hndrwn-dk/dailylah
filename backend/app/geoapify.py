@@ -26,12 +26,14 @@ class GeoapifyError(Exception):
 
 
 class _RedactKey(logging.Filter):
-    """httpx logs every request URL at INFO; mask the key and the typed text of Geoapify calls."""
+    """httpx logs every request URL at INFO; mask the key and the typed text (Geoapify's
+    `apiKey` and `text` parameters) wherever they appear."""
 
     def filter(self, record: logging.LogRecord) -> bool:
         msg = record.getMessage()
-        if "api.geoapify.com" in msg:
-            record.msg = _SECRET_PARAMS.sub(r"\1***", msg)
+        redacted = _SECRET_PARAMS.sub(r"\1***", msg)
+        if redacted != msg:
+            record.msg = redacted
             record.args = ()
         return True
 
