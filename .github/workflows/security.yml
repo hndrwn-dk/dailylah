@@ -72,7 +72,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         if: matrix.language == 'java-kotlin'
         with:
           distribution: temurin
@@ -83,7 +83,7 @@ jobs:
           channel: stable
           # No cache: this job has security-events: write.
           cache: false
-      - uses: github/codeql-action/init@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+      - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ env.BUILD_MODE }}
@@ -97,7 +97,7 @@ jobs:
           printf 'org.gradle.daemon=false\norg.gradle.caching=false\n' >> ~/.gradle/gradle.properties
           flutter pub get --enforce-lockfile
           flutter build apk --debug
-      - uses: github/codeql-action/analyze@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+      - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         id: analyze
         with:
           category: /language:${{ matrix.language }}
@@ -161,7 +161,7 @@ jobs:
           # 0 = clean, 1 = vulnerabilities found (judged below); anything else is a scanner error.
           [ "$rc" -le 1 ] || { echo "::error::osv-scanner failed (exit $rc)"; exit "$rc"; }
           python3 scripts/osv_gate.py osv.json
-      - uses: github/codeql-action/upload-sarif@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+      - uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         if: always() && hashFiles('osv.sarif') != ''
         with:
           sarif_file: osv.sarif
@@ -198,7 +198,7 @@ jobs:
             14) echo "::error::zizmor found a High finding (see annotations)"; exit 1 ;;
             *) echo "::error::zizmor failed (exit $rc)"; exit "$rc" ;;
           esac
-      - uses: github/codeql-action/upload-sarif@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+      - uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         if: always() && hashFiles('zizmor.sarif') != ''
         with:
           sarif_file: zizmor.sarif
