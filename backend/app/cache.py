@@ -7,10 +7,13 @@ Upstash free tier = 500K commands/month (~16K/day), so:
 
 import hashlib
 import json
+import logging
 import time
 from typing import Any
 
 import redis.asyncio as redis
+
+log = logging.getLogger("dailylah.cache")
 
 # Render free has 512 MB; per-query entries (search, agent) must not grow without bound.
 MAX_MEMORY_KEYS = 5000
@@ -21,6 +24,7 @@ class Cache:
         self._mem: dict[str, tuple[float, Any]] = {}
         self._hash: dict[str, str] = {}
         self._redis = redis.from_url(redis_url, decode_responses=True) if redis_url else None
+        self._counts: dict[str, tuple[float, int]] = {}
 
     async def get(self, key: str) -> Any | None:
         hit = self._mem.get(key)
@@ -62,6 +66,24 @@ class Cache:
                 # Oldest expiry first; datasets refresh well before theirs.
                 del self._mem[min(self._mem, key=lambda k: self._mem[k][0])]
         self._mem[key] = (time.monotonic() + ttl, value)
+
+    async def incr(self, key: str, ttl: int) -> int:
+        """Add one to a counter and return it. Redis when configured (one INCR, plus EXPIRE the
+        first time), so the count survives restarts; memory when Redis is off or fails."""
+        if self._redis is not None:
+            try:
+                n = int(await self._redis.incr(key))
+                if n == 1:
+                    await self._redis.expire(key, ttl)
+                return n
+            except Exception as e:  # any Redis failure: count in memory instead
+                log.warning("Redis counter failed: %s", type(e).__name__)
+        now = time.monotonic()
+        exp, n = self._counts.get(key, (0.0, 0))
+        if exp <= now:
+            exp, n = now + ttl, 0
+        self._counts[key] = (exp, n + 1)
+        return n + 1
 
     async def close(self) -> None:
         if self._redis is not None:
