@@ -87,12 +87,26 @@ class TripSection extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(4, 6, 4, 8),
       child: Text(title, style: t.titleLarge),
     );
+    final timer = _TripTimer(
+      route: commute
+          ? tripRouteKey(from.kind.name, to.kind.name)
+          : tripRouteKey(
+              fromLabel ?? (from.kind == PlaceKind.other ? placeTitle(s.placeLabel, from) : from.kind.name),
+              to.kind == PlaceKind.other ? toLabel : to.kind.name),
+      from: from,
+      to: to,
+      mode: mode,
+    );
     // From and To at the same spot (e.g. a searched start that is the destination): nothing to plan,
-    // no "0 min walk · 0 m" or buses.
+    // no "0 min walk · 0 m" or buses. A trip being timed still shows, with Arrived.
     if (distanceMeters(from.lat, from.lng, to.lat, to.lng) < samePlaceMetres) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [heading, _ThereNote(title: s.alreadyThere, sub: s.arrivedAt(toLabel))],
+        children: [
+          heading,
+          if (ref.watch(habitsProvider).tripStart != null) timer,
+          _ThereNote(title: s.alreadyThere, sub: s.arrivedAt(toLabel)),
+        ],
       );
     }
 
@@ -113,16 +127,7 @@ class TripSection extends ConsumerWidget {
             },
           ),
         ),
-        _TripTimer(
-          route: commute
-              ? tripRouteKey(from.kind.name, to.kind.name)
-              : tripRouteKey(
-                  fromLabel ?? (from.kind == PlaceKind.other ? placeTitle(s.placeLabel, from) : from.kind.name),
-                  to.kind == PlaceKind.other ? toLabel : to.kind.name),
-          from: from,
-          to: to,
-          mode: mode,
-        ),
+        timer,
         body,
       ],
     );

@@ -13,6 +13,9 @@ import 'widgets.dart';
 
 final _homesQueryProvider = StateProvider.autoDispose<String>((ref) => '');
 
+/// The search when picking a block to compare: its own text, apart from a block search open below.
+final _pickQueryProvider = StateProvider.autoDispose<String>((ref) => '');
+
 /// Homes: HDB block search, watched blocks, comparison and the CEA agent check.
 /// Search any HDB block by street, block or postal code.
 class BlockSearchPage extends ConsumerWidget {
@@ -25,7 +28,8 @@ class BlockSearchPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final query = ref.watch(_homesQueryProvider);
+    final queryProvider = onPick == null ? _homesQueryProvider : _pickQueryProvider;
+    final query = ref.watch(queryProvider);
     final blocks = ref.watch(hdbBlocksProvider);
     final t = Theme.of(context).textTheme;
 
@@ -56,7 +60,7 @@ class BlockSearchPage extends ConsumerWidget {
                 const SizedBox(height: 18),
                 TextField(
                   autofocus: true,
-                  onChanged: (v) => ref.read(_homesQueryProvider.notifier).state = v,
+                  onChanged: (v) => ref.read(queryProvider.notifier).state = v,
                   textInputAction: TextInputAction.search,
                   decoration: InputDecoration(
                     hintText: s.blockSearchHint,
@@ -111,12 +115,13 @@ class BlockSearchPage extends ConsumerWidget {
 }
 
 /// The block search in pick mode: the block picked joins the comparison. Returns whether one was.
-Future<bool> pickBlockToCompare(BuildContext context, WidgetRef ref) async {
-  final picked = await Navigator.of(context).push<HdbBlock>(MaterialPageRoute(
+/// Takes the favourites notifier, not a `WidgetRef`: the snackbar that calls it can outlive the page.
+Future<bool> pickBlockToCompare(NavigatorState nav, FavoritesNotifier favorites) async {
+  final picked = await nav.push<HdbBlock>(MaterialPageRoute(
     builder: (route) => BlockSearchPage(onPick: (b) => Navigator.of(route).pop(b)),
   ));
   if (picked == null) return false;
-  await ref.read(favoritesProvider.notifier).addCompare(picked.key);
+  await favorites.addCompare(picked.key);
   return true;
 }
 
@@ -313,6 +318,7 @@ class BlockPage extends ConsumerWidget {
                           }
                           final messenger = ScaffoldMessenger.of(context);
                           final nav = Navigator.of(context);
+                          final favorites = ref.read(favoritesProvider.notifier);
                           await ref.read(favoritesProvider.notifier).toggleCompare(block.key);
                           if (comparing) return;
                           final n = ref.read(favoritesProvider).compareBlocks.length;
@@ -322,7 +328,7 @@ class BlockPage extends ConsumerWidget {
                             s.compareAdded(n),
                             actionLabel: n < maxCompareBlocks ? s.add : s.open,
                             onAction: () async {
-                              if (n < maxCompareBlocks && !await pickBlockToCompare(nav.context, ref)) return;
+                              if (n < maxCompareBlocks && !await pickBlockToCompare(nav, favorites)) return;
                               await nav.push(MaterialPageRoute(builder: (_) => const ComparePage()));
                             },
                           );
@@ -716,7 +722,7 @@ class ComparePage extends ConsumerWidget {
 
     // While there is room: a column that adds a block (search, watched and recently viewed blocks).
     final canAdd = chosen.length < maxCompareBlocks;
-    void add() => pickBlockToCompare(context, ref);
+    void add() => pickBlockToCompare(Navigator.of(context), ref.read(favoritesProvider.notifier));
     final addHead = Padding(
       padding: const EdgeInsets.all(8),
       child: OutlinedButton(

@@ -894,6 +894,32 @@ void main() {
     expect(find.textContaining('0 min'), findsNothing);
     expect(find.byType(BusBoard), findsNothing);
     expect(find.text(s.imLeaving), findsNothing);
+
+    // A trip being timed still shows on the page, with Arrived.
+    await box.read(habitsProvider.notifier).startTrip('home>work', tuesdayMorning);
+    await settle(tester);
+    expect(find.byType(TripBanner), findsOneWidget);
+    expect(find.text(s.alreadyThere), findsOneWidget);
+  });
+
+  testWidgets('Bus board at 100% text on 360 dp: details stay beside the number', (tester) async {
+    const phone = Condition('phone', size: Size(360, 780));
+    await applyCondition(tester, phone);
+    const note = '43 stops · 19.5 km · get off at OUE Bayfront';
+    // Inside the page and card paddings, as in Nearby and the planner (about 267 dp wide).
+    await tester.pumpWidget(MaterialApp(
+      theme: buildTheme(Brightness.light),
+      home: Scaffold(
+        body: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: BusBoard(arrLabel: 'Arr', minLabel: 'min', thenLabel: (m) => 'then $m min', rows: [
+            BoardRow(service: '10', minutes: 2, info: 'Seats free', note: note, onTap: () {}),
+          ]),
+        ),
+      ),
+    ));
+    await tester.pump();
+    expect(tester.getTopLeft(find.text(note)).dx, greaterThan(tester.getTopRight(find.text('10')).dx));
   });
 
   testWidgets('Plan a trip: an old Here destination is dropped when the planner opens again', (tester) async {

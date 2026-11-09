@@ -981,8 +981,9 @@ class _BoardRowLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     final scale = MediaQuery.textScalerOf(context).scale(16) / 16;
     return LayoutBuilder(builder: (context, box) {
-      // The number takes up to 96 dp, the gap 10 and the chevron about 24.
-      final beside = box.maxWidth - 96 - 10 - 24 >= 150 * scale;
+      // The number takes 62 dp at normal text (more only at large text), the gap 10 and the chevron
+      // about 24: beside it on phones from 320 dp at 100% text, as before.
+      final beside = box.maxWidth - 62 - 10 - 24 >= 150 * scale;
       final top = Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

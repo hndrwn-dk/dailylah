@@ -125,6 +125,46 @@ void main() {
     expect(find.byType(ComparePage), findsOneWidget);
   });
 
+  testWidgets('picking a block has its own search, apart from a block search open below', (tester) async {
+    await _open(tester, householdFavorites.copyWith(compareBlocks: ['508|TAMPINES CTRL 1']), const BlockSearchPage());
+    await tester.enterText(find.byType(TextField), 'bedok north');
+    await settle(tester);
+    expect(find.text(_s.watched), findsNothing);
+    final nav = Navigator.of(tester.element(find.byType(BlockSearchPage)));
+    nav.push(MaterialPageRoute<void>(builder: (_) => ComparePage()));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('compare-add')));
+    await settle(tester);
+    // The pick page starts empty: watched blocks on offer, not the search below's results.
+    expect(find.text(_s.addBlockTitle), findsOneWidget);
+    expect(find.text(_s.watched), findsOneWidget);
+    expect(find.text('TAMPINES ST 12'), findsOneWidget);
+  });
+
+  testWidgets('Add in the snackbar still works after leaving the block page', (tester) async {
+    await _open(tester, householdFavorites.copyWith(compareBlocks: const []), const Scaffold(body: Text('start')));
+    final box = containerOf(tester);
+    final nav = Navigator.of(tester.element(find.text('start')));
+    nav.push(MaterialPageRoute<void>(builder: (_) => const BlockPage(block: _tampines)));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('block-compare')));
+    await tester.pump();
+    nav.pop(); // back, the snackbar still up
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byType(BlockPage), findsNothing);
+    expect(find.widgetWithText(SnackBarAction, _s.add), findsOneWidget);
+    await tester.tap(find.widgetWithText(SnackBarAction, _s.add));
+    await settle(tester);
+    await tester.enterText(find.byType(TextField), '101 Ang Mo Kio Ave 3');
+    await settle(tester);
+    await tester.tap(find.text('ANG MO KIO AVE 3').first);
+    await settle(tester);
+    expect(box.read(favoritesProvider).compareBlocks, [_tampines.key, '101|ANG MO KIO AVE 3']);
+    expect(find.byType(ComparePage), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('the block page is about prices, rent and commute; Compare keeps the daily life lines', (tester) async {
     await _open(tester, householdFavorites, const BlockPage(block: _tampines));
     // Scroll to the end: no Daily life section anywhere on the page.
