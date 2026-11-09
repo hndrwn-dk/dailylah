@@ -285,13 +285,14 @@ test("the Play link and its steps live only in shared/cta.js", () => {
 test("the landing page hero and tagline stay as they are", () => {
   const html = read("index.html");
   assert.match(html, /<h1>Know before you go lah\.<\/h1>/);
-  for (const line of [
+  // Each question may be wrapped in a <span class="q"> for the hero animation; the words stay.
+  const asks = html.slice(html.indexOf('<ul class="asks">'), html.indexOf("</ul>", html.indexOf('<ul class="asks">')));
+  const lines = [...asks.matchAll(/<li>(.*?)<\/li>/g)].map((m) => m[1].replace(/<[^>]+>/g, ""));
+  assert.deepEqual(lines, [
     "Need umbrella meh? Hawker closed ah?",
     "Haze bad or not? Makan where?",
     "Bus coming? MRT delay? Alamak...",
-  ]) {
-    assert.ok(html.includes(`<li>${line}</li>`), line);
-  }
+  ]);
   // The hero still comes first; the Where to live? teaser sits after the tabs.
   assert.ok(html.indexOf('class="hero"') < html.indexOf('class="tool sticker"'));
 });
@@ -320,10 +321,12 @@ test("footers are short and the full sources live in the Terms", () => {
   assert.equal((wtlFooter.match(/<a /g) ?? []).length, 3);
 });
 
-test("home: real screenshots with size and alt, the day timeline and three questions", () => {
+test("home: one real screenshot per tab with size and alt, the day timeline and the questions", () => {
   const html = read("index.html");
   const imgs = [...html.matchAll(/<img src="\/brand\/screens\/([a-z-]+\.webp)"([^>]*)>/g)];
-  assert.deepEqual(imgs.map((m) => m[1]), ["today.webp", "wake-me.webp", "plan-b.webp", "nearby.webp"]);
+  assert.deepEqual(imgs.map((m) => m[1]), ["today.webp", "nearby.webp", "home.webp", "history.webp"]);
+  const tabs = [...html.matchAll(/<figcaption><h3>([^<]+)<\/h3>/g)].map((m) => m[1]);
+  assert.deepEqual(tabs, ["Today", "Nearby", "Home", "History"]);
   for (const [, file, attrs] of imgs) {
     assert.match(attrs, /width="540" height="960"/, file);
     assert.match(attrs, /alt="[^"]{20,}"/, file);
@@ -332,10 +335,26 @@ test("home: real screenshots with size and alt, the day timeline and three quest
   }
   const day = html.slice(html.indexOf('class="timeline"'), html.indexOf("</ol>", html.indexOf('class="timeline"')));
   assert.equal((day.match(/<li>/g) ?? []).length, 8);
-  const faq = html.slice(html.indexOf('class="faq"'));
-  assert.equal((faq.match(/<details>/g) ?? []).length, 3);
-  // History card: only categories the app has (trips, parking, meals counted, not priced).
-  assert.match(html, /<span>Meals<\/span><b>5 logged<\/b>/);
+  // Questions in three groups; privacy answers keep the policy's limits (docs/legal/privacy.md).
+  const faq = html.slice(html.indexOf('class="faq"'), html.indexOf("</section>", html.indexOf('class="faq"')));
+  assert.deepEqual([...faq.matchAll(/<h3[^>]*>([^<]+)<\/h3>/g)].map((m) => m[1]), ["Getting DailyLah", "Privacy and safety", "Using it"]);
+  assert.ok((faq.match(/<details>/g) ?? []).length >= 12);
+  assert.match(faq, /bus stop code/);
+  // Everything the app sends for live data (privacy.md section 5), EV and agent lookups included.
+  const q = "What does the app send to get live data?";
+  assert.ok(faq.includes(`<summary>${q}</summary>`));
+  const sees = faq.slice(faq.indexOf(q), faq.indexOf("</details>", faq.indexOf(q)));
+  assert.doesNotMatch(faq, /server/);
+  for (const what of [/bus stop code/, /MRT line code/, /address you search \(not logged\)/, /postal code of an EV charging location/, /registration number of a property agent/]) {
+    assert.match(sees, what);
+  }
+  assert.match(faq, /Android backup/);
+  assert.match(faq, /No contacts, photos, microphone or camera/);
+  // The privacy card links to the privacy questions.
+  assert.match(html, /<a href="#privacy">/);
+  assert.match(faq, /<h3 id="privacy">Privacy and safety<\/h3>/);
+  // History: only categories the app has (trips, parking, meals), and fares are called estimates.
+  assert.match(html, /<h3>History<\/h3><p>[^<]*trips, parking and meals[^<]*estimated/);
   assert.doesNotMatch(html, /<span>MRT<\/span>|<span>Bus<\/span>/);
 });
 

@@ -83,32 +83,67 @@
   }
   .load { font: 500 13px/1.3 var(--body); color: var(--led-dim); grid-column: 2 / 4; margin-top: -4px; }
 
-  /* ---------------- tabs */
+  /* Beside "Know": one small scene per question in the tagline, in turn (umbrella, hawker closed,
+     haze, makan, bus 36 arriving, MRT delay, alamak), 3 s each, while that question is marked in the
+     list below. Pure CSS, same 21 s clock for both. With reduced motion: bus 36 only, nothing marked. */
+  body { overflow-x: clip; }
+  .headline { position: relative; font: 700 clamp(52px, 9vw, 92px)/0.92 var(--display); }
+  .scenes { position: absolute; top: 0.02em; left: 2.2em; width: 1.95em; height: 0.9em; overflow: visible; }
+  .scenes .ink { stroke: var(--edge); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+  .scenes .card { fill: var(--card); } .scenes .teal { fill: var(--teal); } .scenes .amber { fill: var(--amber); }
+  .scenes .sky { fill: var(--sky); } .scenes .red { fill: var(--stop); } .scenes .boardc { fill: var(--board); }
+  .scenes .dark { fill: var(--ink); } .scenes .none { fill: none; } .scenes .mist { fill: var(--mist); }
+  .scenes .t { font: 700 12px/1 var(--display); fill: #fff; } .scenes .led { fill: var(--led); }
+  .scenes .say { font: 700 22px/1 var(--display); fill: var(--ink); }
+  .scenes .drop { stroke: #2B7BB0; stroke-width: 3; stroke-linecap: round; }
+  .scenes .steam { fill: none; stroke: var(--mist); stroke-width: 2.5; stroke-linecap: round; }
+  .scenes .haze { fill: var(--mist); opacity: 0.45; }
+  .scenes .puff { fill: var(--mist); opacity: 0; }
+  .q { white-space: nowrap; }
+  .scene { opacity: 0; }
+  .scene.bus { opacity: 1; }
+  @media (prefers-reduced-motion: no-preference) {
+    .scene, .scene.bus { transform-box: fill-box; transform-origin: center; animation: scene 21s linear calc(var(--i) * 3s) infinite backwards; }
+    @keyframes scene { 0% { opacity: 0; transform: translateY(5px) scale(0.9); } 1.5% { opacity: 1; transform: none; }
+                       12.8% { opacity: 1; transform: none; } 14.28% { opacity: 0; transform: translateY(-5px); } 100% { opacity: 0; } }
+    .scenes .arrive { animation: arrive 21s cubic-bezier(.15,.75,.3,1) calc(var(--i) * 3s) infinite backwards; }
+    @keyframes arrive { 0% { transform: translateX(150px); } 6% { transform: translateX(-3px) rotate(-1.5deg); } 7.5%, 100% { transform: none; } }
+    .scenes .fall { animation: fall 0.8s linear infinite; } .scenes .fall:nth-child(2) { animation-delay: 0.27s; } .scenes .fall:nth-child(3) { animation-delay: 0.54s; }
+    @keyframes fall { from { transform: translateY(-6px); opacity: 0; } 30% { opacity: 1; } to { transform: translateY(8px); opacity: 0; } }
+    .scenes .open { transform-box: fill-box; transform-origin: bottom; animation: open 21s ease-out 0.4s infinite backwards; }
+    @keyframes open { 0% { transform: scaleY(0.1); } 3%, 100% { transform: none; } }
+    .scenes .swing { transform-box: view-box; transform-origin: 65px 20px; animation: swing 1.4s ease-in-out infinite alternate; }
+    @keyframes swing { from { transform: rotate(-7deg); } to { transform: rotate(7deg); } }
+    .scenes .drift { animation: drift 2.4s ease-in-out infinite alternate; } .scenes .drift + .drift { animation-delay: -1.2s; }
+    @keyframes drift { from { transform: translateX(-8px); } to { transform: translateX(8px); } }
+    .scenes .steam { animation: rise 1.5s ease-out infinite; } .scenes .steam:nth-child(2) { animation-delay: 0.5s; } .scenes .steam:nth-child(3) { animation-delay: 1s; }
+    @keyframes rise { from { transform: translateY(4px); opacity: 0; } 40% { opacity: 1; } to { transform: translateY(-8px); opacity: 0; } }
+    .scenes .spin { transform-box: fill-box; transform-origin: center; animation: spin 0.35s linear infinite; }
+    @keyframes spin { to { transform: rotate(-360deg); } }
+    .scenes .puff { transform-box: fill-box; transform-origin: center; animation: puff 1.6s ease-out infinite; }
+    .scenes .puff:nth-of-type(2) { animation-delay: 0.5s; } .scenes .puff:nth-of-type(3) { animation-delay: 1s; }
+    @keyframes puff { 0% { opacity: 0.7; transform: scale(0.4); } 100% { opacity: 0; transform: translate(14px, -6px) scale(1.4); } }
+    .scenes .blink { animation: blink2 0.6s steps(1) infinite; }
+    @keyframes blink2 { 50% { opacity: 0.2; } }
+    .scenes .wobble { transform-box: fill-box; transform-origin: 30% 100%; animation: wobble 0.5s ease-in-out infinite alternate; }
+    @keyframes wobble { from { transform: rotate(-4deg); } to { transform: rotate(4deg) scale(1.04); } }
+    /* the question being shown gets an amber marker */
+    .q { white-space: nowrap; background: linear-gradient(var(--amber), var(--amber)) no-repeat 0 92% / 0% 0.3em;
+         animation: mark 21s ease-out calc(var(--i) * 3s) infinite backwards; }
+    @keyframes mark { 0% { background-size: 0% 0.3em; color: inherit; } 2% { background-size: 100% 0.3em; color: var(--ink); }
+                      12.8% { background-size: 100% 0.3em; color: var(--ink); } 14.28%, 100% { background-size: 0% 0.3em; color: inherit; } }
+  }
+
   h2 { font: 700 clamp(36px, 5vw, 52px)/1 var(--display); margin: 0 0 10px; }
   .lead { color: var(--mist); max-width: 60ch; margin: 0 0 32px; }
-  .tabs { display: grid; gap: 22px; padding-bottom: 72px; }
-  @media (min-width: 760px) { .tabs { grid-template-columns: repeat(2, 1fr); } }
-  .tab { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
-  .tab h3 { font: 700 30px/1 var(--display); margin: 0; }
-  .tab p { margin: 0; color: var(--mist); font-size: 16px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .line { font: 700 15px/1 var(--display); color: #fff; padding: 6px 9px; border-radius: 8px; border: 2px solid var(--edge); }
-  .note { border-radius: 12px; padding: 10px 12px; font-weight: 600; font-size: 15px; border: 2px solid var(--edge); color: #0F1618; }
-  .note.look { background: var(--amber); }
-  .note.go { background: var(--mint); color: var(--ink); }
-  .blk { font: 700 64px/0.9 var(--display); color: var(--teal-text); }
-  .blk small { display: block; font: 600 15px/1.3 var(--body); color: var(--mist); margin-top: 6px; }
-  .order { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .spend { display: grid; gap: 6px; }
-  .spend-total { font: 700 44px/0.95 var(--display); color: var(--teal-text); }
-  .spend-total small { display: block; font: 600 15px/1.3 var(--body); color: var(--mist); margin-top: 4px; }
-  .spend-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 12px; border-radius: 10px;
-               border: 2px solid var(--edge); background: var(--sky); font-weight: 600; font-size: 15px; color: var(--ink); }
-  .spend-row b { font-family: var(--display); font-size: 19px; }
-  .order span { text-align: center; padding: 8px; border-radius: 10px; border: 2px solid var(--edge); background: var(--sky); font-weight: 700; font-size: 15px; color: var(--ink); }
 
-  /* ---------------- see it on your phone: real store screenshots, swipe sideways on a phone */
-  .phone { margin-bottom: 48px; }
+  /* ---------------- four tabs: one real store screenshot per tab with what the tab holds. A sideways
+     row without JS; a deck on a phone with JS (below); 4 across on a wide screen. */
+  .phone { margin-bottom: 56px; }
+  .phone .lead { margin-bottom: 0; }
+  .screens figure { margin: 0; }
+  .screens figcaption h3 { font: 700 26px/1 var(--display); margin: 14px 0 4px; }
+  .screens figcaption p { margin: 0; color: var(--mist); font-size: 15px; line-height: 1.5; }
   .screens { list-style: none; margin: 18px 0 0; padding: 4px 4px 12px; display: grid; grid-auto-flow: column;
              grid-auto-columns: min(62vw, 240px); gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory;
              overscroll-behavior-x: contain; }
@@ -116,16 +151,109 @@
   .screens li { scroll-snap-align: start; }
   .screens img { display: block; width: 100%; height: auto; border: 2.5px solid var(--edge); border-radius: 18px;
                  box-shadow: 4px 5px 0 var(--shadow); background: var(--card); }
-  /* ---------------- a day with DailyLah */
+  /* On a phone (under 1000 px) /shared/screens.js turns the row into a deck: one screen at a time,
+     the next one peeking behind, playing in turn with tabs and a progress bar; tap a tab or swipe.
+     Without JS it stays the sideways row above. */
+  .shot-tabs, .shot-cap { display: none; }
+  @media (max-width: 999px) {
+    .screens.deck { display: block; position: relative; width: min(66vw, 250px); aspect-ratio: 540 / 960; margin: 22px auto 0;
+                    padding: 0; overflow: visible; touch-action: pan-y; }
+    .screens.deck figcaption { display: none; }
+    .screens.deck li { position: absolute; inset: 0; opacity: 0; transform: translateY(16px) scale(0.94); pointer-events: none; z-index: 0; }
+    .screens.deck li.next { opacity: 1; transform: translate(14px, 10px) rotate(4deg) scale(0.95); z-index: 1; }
+    .screens.deck li.next img { filter: brightness(0.93); }
+    .screens.deck li.cur { opacity: 1; transform: none; pointer-events: auto; z-index: 2; }
+    .screens.deck li.gone { opacity: 0; transform: translate(-40px, -6px) rotate(-6deg) scale(0.96); z-index: 3; }
+    .shot-tabs { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 26px 0 0; }
+    .shot-tabs button { position: relative; overflow: hidden; font: 700 14px/1 var(--body); color: var(--ink); padding: 10px 10px;
+                        min-height: 44px; background: var(--card); border: 2px solid var(--edge); border-radius: 12px; cursor: pointer; }
+    .shot-tabs button[aria-pressed="true"] { background: var(--mint); }
+    .shot-tabs button:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
+    .shot-tabs i { position: absolute; left: 0; bottom: 0; height: 4px; width: 0; background: var(--teal); }
+    .shot-cap { display: block; text-align: center; color: var(--mist); font-size: 15px; line-height: 1.5; margin: 12px auto 0; max-width: 40ch; min-height: 4.5em; }
+  }
+  @media (max-width: 999px) and (prefers-reduced-motion: no-preference) {
+    .screens.deck li { transition: opacity 0.45s, transform 0.5s cubic-bezier(.2,.8,.2,1); }
+    .shot-tabs .run i { animation: fillbar var(--dwell) linear forwards; }
+    @keyframes fillbar { to { width: 100%; } }
+  }
+  /* ---------------- a day with DailyLah: drawn as an MRT line. Each time is a station; the line fills
+     and a train rides down it as you scroll (/shared/day.js). Every card carries a small picture of
+     what the app shows at that moment. Without JS or with reduced motion everything is simply shown. */
   .day { margin-bottom: 56px; }
-  .timeline { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 10px; max-width: 760px; }
-  .timeline li { display: grid; grid-template-columns: 56px 1fr; column-gap: 12px; font-size: 15px; line-height: 1.45; }
-  .timeline time { grid-row: span 2; font: 700 22px/1.1 var(--display); color: var(--teal-text); }
-  .timeline b { display: block; }
+  .mrtline { --p: 0; position: relative; margin: 20px 0 0; padding-left: 46px; }
+  .timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; }
+  .mrtline::before, .rail { content: ""; position: absolute; left: 15px; top: 14px; bottom: 14px; width: 8px; border-radius: 4px; }
+  .mrtline::before { background: var(--sky); border: 2px solid var(--edge); }
+  .rail { background: var(--teal); border: 2px solid var(--edge); transform-origin: top; transform: scaleY(var(--p)); }
+  .train { position: absolute; left: 3px; top: calc(14px + (100% - 28px) * var(--p) - 16px); width: 32px; height: 32px; border-radius: 10px;
+           background: var(--amber); border: 2.5px solid var(--edge); box-shadow: 2px 2px 0 var(--shadow); display: grid; place-items: center; z-index: 2; }
+  .timeline li { position: relative; }
+  .timeline li::before { content: ""; position: absolute; left: -38px; top: 6px; width: 16px; height: 16px; border-radius: 50%;
+                         background: var(--card); border: 3px solid var(--edge); z-index: 1; transition: background 0.3s; }
+  .timeline li.on::before { background: var(--teal); }
+  .timeline time { display: inline-block; font: 700 24px/1 var(--display); color: var(--teal-text); margin: 2px 0 8px; }
+  .dcard { padding: 14px 16px; display: grid; gap: 12px; font-size: 15px; line-height: 1.45; }
+  .dcard p { margin: 0; }
+  .dcard b { display: block; font-size: 16px; }
+  @media (min-width: 760px) {
+    .timeline li { display: grid; grid-template-columns: 64px 1fr; column-gap: 14px; }
+    .dcard { grid-template-columns: 1fr auto; align-items: center; column-gap: 18px; }
+  }
+
+  /* small pictures inside the cards */
+  .mini { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font: 600 14px/1.2 var(--body); color: #0F1618; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px; border: 2px solid var(--edge); white-space: nowrap; }
+  .pill.amber { background: var(--amber); }
+  .pill.mint { background: var(--mint); color: var(--ink); }
+  .pill.sky { background: var(--sky); color: var(--ink); }
+  .pill.red { background: var(--stop); color: #fff; }
+  .pill.teal { background: #0A7068; color: #fff; }
+  .pill.board { background: var(--board); color: var(--led); font: 700 18px/1 var(--display); }
+  .pill .big { font: 700 18px/1 var(--display); }
+  .drop { width: 3px; height: 8px; border-radius: 2px; background: #1F5F8B; display: inline-block; }
+  .psi { position: relative; width: 120px; height: 12px; border-radius: 6px; border: 2px solid var(--edge);
+         background: linear-gradient(90deg, #3BB273 0 33%, #EDAD2B 33% 66%, #DC4A37 66%); }
+  .psi i { position: absolute; top: -6px; left: 80%; width: 6px; height: 20px; margin-left: -3px; background: var(--ink); border-radius: 3px; }
+  .x { text-decoration: line-through 2px; }
+  .bars { display: flex; align-items: flex-end; gap: 4px; height: 42px; }
+  .bars span { width: 12px; border: 2px solid var(--edge); border-radius: 4px 4px 2px 2px; background: var(--teal); }
+  .bars span:nth-child(6), .bars span:nth-child(7) { background: var(--sky); }
+  .therm { width: 12px; height: 34px; border: 2px solid var(--edge); border-radius: 6px; background: var(--card); position: relative; overflow: hidden; }
+  .therm::after { content: ""; position: absolute; inset: auto 0 0; height: 85%; background: var(--stop); }
+
+  /* motion: only when day.js is running (it adds .moving) and the reader has not asked for less */
+  @media (prefers-reduced-motion: no-preference) {
+    .moving li .dcard { opacity: 0; transform: translateY(18px); transition: opacity 0.5s, transform 0.5s cubic-bezier(.2,.8,.2,1); }
+    .moving li.on .dcard { opacity: 1; transform: none; }
+    .moving .train { transition: top 0.12s linear; }
+    .moving li.on .drop { animation: fall 0.9s linear infinite; }
+    .moving li.on .drop:nth-child(2) { animation-delay: 0.3s; }
+    .moving li.on .drop:nth-child(3) { animation-delay: 0.6s; }
+    @keyframes fall { from { transform: translateY(-6px); opacity: 0; } 30% { opacity: 1; } to { transform: translateY(8px); opacity: 0; } }
+    .moving li .psi i { left: 10%; transition: left 1.2s cubic-bezier(.3,1.4,.5,1) 0.3s; }
+    .moving li.on .psi i { left: 80%; }
+    .moving li.on .tap { animation: tap 2.4s ease-in-out 0.4s infinite; }
+    @keyframes tap { 0%, 70%, 100% { transform: none; box-shadow: 3px 3px 0 var(--shadow); } 78% { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--shadow); } }
+    .moving li.on .alert { animation: pulse 1.2s ease-in-out infinite; }
+    @keyframes pulse { 50% { opacity: 0.55; } }
+    .moving li.on .buzz { animation: buzz 1.6s ease-in-out 0.4s infinite; }
+    @keyframes buzz { 0%, 40%, 100% { transform: none; } 5%, 15%, 25% { transform: rotate(-12deg); } 10%, 20%, 30% { transform: rotate(12deg); } }
+    .moving li .stamp { transform: scale(1.6) rotate(-10deg); opacity: 0; transition: transform 0.35s cubic-bezier(.3,1.6,.5,1) 0.5s, opacity 0.2s 0.5s; }
+    .moving li.on .stamp { transform: rotate(-4deg); opacity: 1; }
+    .moving li .therm::after { height: 10%; transition: height 1.4s ease-out 0.3s; }
+    .moving li.on .therm::after { height: 85%; }
+    .moving li .bars span { transform: scaleY(0.1); transform-origin: bottom; transition: transform 0.6s cubic-bezier(.2,.8,.2,1); }
+    .moving li.on .bars span { transform: none; }
+    .moving li.on .bars span:nth-child(2) { transition-delay: 0.08s; } .moving li.on .bars span:nth-child(3) { transition-delay: 0.16s; }
+    .moving li.on .bars span:nth-child(4) { transition-delay: 0.24s; } .moving li.on .bars span:nth-child(5) { transition-delay: 0.32s; }
+    .moving li.on .bars span:nth-child(6) { transition-delay: 0.40s; } .moving li.on .bars span:nth-child(7) { transition-delay: 0.48s; }
+  }
   /* ---------------- questions */
   .faq { margin: -40px 0 56px; max-width: 760px; }
   .faq details { border-top: 2px solid var(--edge); padding: 10px 0; }
-  .faq details:last-child { border-bottom: 2px solid var(--edge); }
+  .faq h3 { font: 700 24px/1.1 var(--display); margin: 26px 0 8px; color: var(--teal-text); }
+  .faq details:last-of-type, .faq details:has(+ h3) { border-bottom: 2px solid var(--edge); }
   .faq summary { font-weight: 700; cursor: pointer; }
   .faq summary:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
   .faq p { margin: 6px 0 0; color: var(--mist); }
@@ -148,6 +276,8 @@
   .private h2 { margin: 0; }
   .private ul { margin: 0; padding-left: 20px; }
   .private li + li { margin-top: 6px; }
+  .private .more { margin: 14px 0 0; font-weight: 700; }
+  .faq h3[id] { scroll-margin-top: 16px; }
 
   /* Footer: one line of credits and one line of links. Full sources and the halal note are in the Terms. */
   /* The credit line and the links flow as one paragraph: about 3 lines on a 360 px phone. */
@@ -157,17 +287,73 @@
   footer nav a + a::before { content: "·"; color: var(--mist); padding: 0 7px; display: inline-block; }
 </style>
 <script type="module" src="/shared/cta.js"></script>
+<script type="module" src="/shared/day.js"></script>
+<script type="module" src="/shared/screens.js"></script>
 </head>
 <body>
 <main class="wrap">
   <section class="hero">
     <div>
       <img class="logo" src="/brand/wordmark.png" width="383" height="266" alt="DailyLah">
-      <h1>Know before you go lah.</h1>
+      <div class="headline">
+        <h1>Know before you go lah.</h1>
+        <svg class="scenes" viewBox="0 0 130 60" aria-hidden="true" focusable="false">
+          <g class="scene" style="--i:0">
+            <path class="card ink" d="M30 34a9 9 0 0 1 2-18 14 14 0 0 1 27-6 11 11 0 0 1 20 7 8.5 8.5 0 0 1 0 17z"/>
+            <g><line class="drop fall" x1="40" y1="40" x2="38" y2="46"/><line class="drop fall" x1="55" y1="40" x2="53" y2="46"/><line class="drop fall" x1="70" y1="40" x2="68" y2="46"/></g>
+            <g class="open"><path class="amber ink" d="M88 34a17 15 0 0 1 34 0z"/><path class="none ink" d="M105 34v16a3 3 0 0 1-6 0"/></g>
+          </g>
+          <g class="scene" style="--i:1">
+            <rect class="card ink" x="34" y="34" width="62" height="18" rx="2"/>
+            <path class="none ink" d="M38 20v14M92 20v14"/>
+            <path class="amber ink" d="M28 8h74l4 12H24z"/><path class="card" d="M46 9.5h9l1.5 9h-12zM74 9.5h9l2 9h-12.5z"/><path class="none ink" d="M28 8h74l4 12H24z"/>
+            <g class="swing"><path class="none ink" d="M55 20l10-6 10 6"/><rect class="red ink" x="44" y="20" width="42" height="15" rx="3"/><text class="t" x="65" y="31.5" text-anchor="middle">CLOSED</text></g>
+          </g>
+          <g class="scene" style="--i:2">
+            <rect class="card ink" x="18" y="16" width="20" height="38" rx="2"/><rect class="card ink" x="42" y="26" width="18" height="28" rx="2"/><rect class="card ink" x="64" y="10" width="22" height="44" rx="2"/>
+            <path class="none ink" d="M24 24h8M24 32h8M24 40h8M47 34h8M47 42h8M70 18h10M70 26h10M70 34h10M70 42h10"/>
+            <rect class="haze drift" x="6" y="22" width="96" height="10" rx="5"/><rect class="haze drift" x="12" y="38" width="92" height="10" rx="5"/>
+            <rect class="red ink blink" x="92" y="6" width="34" height="16" rx="4"/><text class="t" x="109" y="18" text-anchor="middle">PSI</text>
+          </g>
+          <g class="scene" style="--i:3">
+            <g><path class="steam" d="M48 18c-4-4 4-6 0-10"/><path class="steam" d="M62 18c-4-4 4-6 0-10"/><path class="steam" d="M76 18c-4-4 4-6 0-10"/></g>
+            <path class="none ink" d="M96 2L70 26M106 6L76 27"/>
+            <path class="amber ink" d="M34 27c6-5 10 3 16-2s10 3 16-2 10 3 16-2 8 2 12 4z"/>
+            <path class="teal ink" d="M28 28h74a37 24 0 0 1-74 0z"/>
+            <rect class="dark" x="55" y="50" width="20" height="4" rx="2"/>
+          </g>
+          <g class="scene bus" style="--i:4">
+            <circle class="puff" cx="118" cy="46" r="5"/><circle class="puff" cx="120" cy="44" r="6"/><circle class="puff" cx="117" cy="47" r="4"/>
+            <g class="arrive" style="--i:4">
+              <path class="teal ink" d="M10 8h88a8 8 0 0 1 8 8v28a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V18a10 10 0 0 1 8-10z"/>
+              <rect class="boardc ink" x="8" y="12" width="26" height="12" rx="2"/><text class="t led" x="21" y="22" text-anchor="middle">36</text>
+              <rect class="sky ink" x="40" y="13" width="18" height="14" rx="2"/><rect class="sky ink" x="62" y="13" width="18" height="14" rx="2"/><rect class="sky ink" x="84" y="13" width="16" height="14" rx="2"/>
+              <rect class="sky ink" x="8" y="27" width="12" height="16" rx="2"/>
+              <rect class="amber" x="24" y="33" width="80" height="5"/>
+              <g class="spin"><circle class="dark" cx="28" cy="49" r="8"/><circle class="card" cx="28" cy="49" r="3"/><rect class="card" x="27" y="42" width="2" height="4"/></g>
+              <g class="spin"><circle class="dark" cx="86" cy="49" r="8"/><circle class="card" cx="86" cy="49" r="3"/><rect class="card" x="85" y="42" width="2" height="4"/></g>
+            </g>
+          </g>
+          <g class="scene" style="--i:5">
+            <g class="arrive" style="--i:5">
+              <path class="card ink" d="M22 12h96v38H6V30a18 18 0 0 1 16-18z"/>
+              <path class="sky ink" d="M14 28a12 12 0 0 1 10-9h6v12H14z"/>
+              <rect class="sky ink" x="40" y="19" width="16" height="12" rx="2"/><rect class="sky ink" x="62" y="19" width="16" height="12" rx="2"/><rect class="sky ink" x="84" y="19" width="16" height="12" rx="2"/>
+              <rect x="6" y="37" width="112" height="5" style="fill:#009645"/>
+              <path class="none ink" d="M2 56h126"/>
+            </g>
+            <g class="blink"><circle class="red ink" cx="118" cy="10" r="9"/><text class="t" x="118" y="14.5" text-anchor="middle">!</text></g>
+          </g>
+          <g class="scene" style="--i:6">
+            <g class="wobble"><path class="card ink" d="M16 6h96a8 8 0 0 1 8 8v22a8 8 0 0 1-8 8H44l-14 12 2-12H16a8 8 0 0 1-8-8V14a8 8 0 0 1 8-8z"/>
+            <text class="say" x="64" y="33" text-anchor="middle">Alamak!</text></g>
+          </g>
+        </svg>
+      </div>
       <ul class="asks">
-        <li>Need umbrella meh? Hawker closed ah?</li>
-        <li>Haze bad or not? Makan where?</li>
-        <li>Bus coming? MRT delay? Alamak...</li>
+        <li><span class="q" style="--i:0">Need umbrella meh?</span> <span class="q" style="--i:1">Hawker closed ah?</span></li>
+        <li><span class="q" style="--i:2">Haze bad or not?</span> <span class="q" style="--i:3">Makan where?</span></li>
+        <li><span class="q" style="--i:4">Bus coming?</span> <span class="q" style="--i:5">MRT delay?</span> <span class="q" style="--i:6">Alamak...</span></li>
       </ul>
       <!-- Filled by /shared/cta.js (one place for the Play link, label and steps). -->
       <div class="cta" data-cta>
@@ -197,68 +383,53 @@
     </figure>
   </section>
 
-  <section class="phone" aria-labelledby="phone-title">
-    <h2 id="phone-title">See it on your phone</h2>
-    <ul class="screens">
-      <li><img src="/brand/screens/today.webp" width="540" height="960" loading="lazy" decoding="async" alt="Today tab: your morning in one card, with buses to work, leave in 6 min and the I'm leaving button."></li>
-      <li><img src="/brand/screens/wake-me.webp" width="540" height="960" loading="lazy" decoding="async" alt="Wake me at my stop: on bus 858 to Fullerton Sq, 2.3 km to go, with a Stop button."></li>
-      <li><img src="/brand/screens/plan-b.webp" width="540" height="960" loading="lazy" decoding="async" alt="Plan B: East-West Line disrupted on your way, with a direct bus to take instead."></li>
-      <li><img src="/brand/screens/nearby.webp" width="540" height="960" loading="lazy" decoding="async" alt="Nearby tab: parks near you with their facilities, and showers expected today."></li>
+  <section class="phone" aria-labelledby="tabs-title">
+    <h2 id="tabs-title">Four tabs for your day</h2>
+    <p class="lead">Each tab answers one question, so you can check it in a few seconds and get going.</p>
+    <ul class="screens" data-shots>
+      <li><figure>
+        <img src="/brand/screens/today.webp" width="540" height="960" loading="lazy" decoding="async" alt="Today tab: your morning in one card, with buses to work, leave in 6 min and the I'm leaving button.">
+        <figcaption><h3>Today</h3><p>Your trip to work or school, the weather on the way and your MRT lines. In the evening it flips to the trip home.</p></figcaption>
+      </figure></li>
+      <li><figure>
+        <img src="/brand/screens/nearby.webp" width="540" height="960" loading="lazy" decoding="async" alt="Nearby tab: parks near you with their facilities, and showers expected today.">
+        <figcaption><h3>Nearby</h3><p>Wherever you are now: the next buses at the stops around you, food, parks, car parks with free lots, taxis and the nearest AED.</p></figcaption>
+      </figure></li>
+      <li><figure>
+        <img src="/brand/screens/home.webp" width="540" height="960" loading="lazy" decoding="async" alt="Home tab: Blk 156 Tampines St 12, built 1983 with 56 years of lease left, and buttons for upgrading, schools, health, recycling and more.">
+        <figcaption><h3>Home</h3><p>About your block: upgrading works, schools, clinics, prices, recycling and where to go in an emergency.</p></figcaption>
+      </figure></li>
+      <li><figure>
+        <img src="/brand/screens/history.webp" width="540" height="960" loading="lazy" decoding="async" alt="History tab: 8 trips, 2 parkings and about $24.90 spent, with today's parking at Blk 156.">
+        <figcaption><h3>History</h3><p>Where your transport money goes: trips, parking and meals by week or month. Fares and parking are estimated; tap one to enter what you paid.</p></figcaption>
+      </figure></li>
     </ul>
-  </section>
-
-  <h2>Four tabs for your day</h2>
-  <p class="lead">Each tab answers one question, so you can check it in a few seconds and get going.</p>
-  <section class="tabs">
-    <article class="tab sticker">
-      <h3>Today</h3>
-      <p>Your trip to work or school, the weather on the way and your MRT lines. In the evening it flips to the trip home.</p>
-      <div class="chips" aria-label="MRT lines">
-        <span class="line" style="background:#D42E12">NSL</span><span class="line" style="background:#009645">EWL</span>
-        <span class="line" style="background:#9D5B25">TEL</span><span class="line" style="background:#005EC4">DTL</span>
-      </div>
-      <div class="note look">Rain from 6 pm near your office. Bring an umbrella.</div>
-    </article>
-
-    <article class="tab sticker">
-      <h3>Nearby</h3>
-      <p>Wherever you are now: the next buses at the stops around you, food, car parks with free lots, taxis and the nearest AED.</p>
-      <div class="note go">Golden Mile Food Centre is open today, 400 m away.</div>
-      <div class="order" aria-label="Order in when it rains"><span>GrabFood</span><span>foodpanda</span></div>
-    </article>
-
-    <article class="tab sticker">
-      <h3>Home</h3>
-      <p>About your block: upgrading works, schools, clinics, dengue clusters, recycling and where to go in an emergency.</p>
-      <div class="blk">BLK 123<small>Your HDB block</small></div>
-      <div class="note look">Lift upgrading at your block</div>
-    </article>
-
-    <article class="tab sticker">
-      <h3>History</h3>
-      <p>Where your transport money goes: the trips you logged, your parking and your meals, by week or month.</p>
-      <div class="spend" aria-label="Example week of transport costs">
-        <div class="spend-total">&asymp; $24.60<small>This week, estimated</small></div>
-        <div class="spend-row"><span>Trips by bus and MRT</span><b>&asymp; $17.60</b></div>
-        <div class="spend-row"><span>HDB parking</span><b>&asymp; $7.00</b></div>
-        <div class="spend-row"><span>Meals</span><b>5 logged</b></div>
-      </div>
-      <p>Trips and parking are estimated from distance and published fares and parking rates; meals are counted. Tap a trip to enter what it really cost. Kept on your phone only.</p>
-    </article>
   </section>
 
   <section class="day" aria-labelledby="day-title">
     <h2 id="day-title">A day with DailyLah</h2>
-    <ol class="timeline">
-      <li><time>7:00</time><b>Rain before you leave.</b> Rain near your office from 6 pm. Bring an umbrella.</li>
-      <li><time>7:05</time><b>Haze bad or not?</b> When the PSI is unhealthy, Today says so, with when to wear an N95 mask.</li>
-      <li><time>7:40</time><b>I'm leaving.</b> Tap it, and DailyLah learns how long your trip really takes.</li>
-      <li><time>7:55</time><b>MRT delay? Plan B.</b> Buses first when your line is disrupted on your way.</li>
-      <li><time>8:20</time><b>Wake me at my stop.</b> Buzzes before your stop, even with the screen off.</li>
-      <li><time>12:30</time><b>Makan where?</b> Your favourite hawker closed? You hear the day before, and Nearby shows what is open today.</li>
-      <li><time>15:00</time><b>Heat stress high.</b> Bring water and take the sheltered way. UV is on Today too.</li>
-      <li><time>Sun</time><b>Your week.</b> Hawker closures, works at your block and holidays ahead; History adds up your trips and parking and counts your meals.</li>
+    <div class="mrtline" data-day>
+      <span class="rail" aria-hidden="true"></span>
+      <span class="train" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="#0F1618" d="M4 16c0 .9.4 1.7 1 2.2V20a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h8v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1.8c.6-.5 1-1.3 1-2.2V6c0-3.5-3.6-4-8-4S4 2.5 4 6v10zm3.5 1a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm9 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM18 11H6V6h12v5z"/></svg></span>
+      <ol class="timeline">
+      <li><time>7:00</time>
+        <div class="dcard sticker"><p><b>Rain before you leave.</b> Rain near your office from 6 pm. Bring an umbrella.</p><div class="mini" aria-hidden="true"><span class="pill amber">&#9730; Rain from 6 pm <span class="drop"></span><span class="drop"></span><span class="drop"></span></span></div></div></li>
+      <li><time>7:05</time>
+        <div class="dcard sticker"><p><b>Haze bad or not?</b> When the PSI is unhealthy, Today says so, with when to wear an N95 mask.</p><div class="mini" aria-hidden="true"><span class="psi"><i></i></span><span class="pill red"><span class="big">PSI 128</span> Unhealthy</span></div></div></li>
+      <li><time>7:40</time>
+        <div class="dcard sticker"><p><b>I'm leaving.</b> Tap it, and DailyLah learns how long your trip really takes.</p><div class="mini" aria-hidden="true"><span class="pill teal tap">I&rsquo;m leaving</span><span class="pill sky">Usually 38 min</span></div></div></li>
+      <li><time>7:55</time>
+        <div class="dcard sticker"><p><b>MRT delay? Plan B.</b> Buses first when your line is disrupted on your way.</p><div class="mini" aria-hidden="true"><span class="pill" style="background:#009645;color:#fff"><span class="big x">EWL</span></span><span class="pill red alert">Disrupted</span><span aria-hidden="true">&rarr;</span><span class="pill board">858</span></div></div></li>
+      <li><time>8:20</time>
+        <div class="dcard sticker"><p><b>Wake me at my stop.</b> Buzzes before your stop, even with the screen off.</p><div class="mini" aria-hidden="true"><span class="pill amber"><span class="buzz" style="display:inline-flex"><svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M7 1h10a2 2 0 0 1 2 2v18a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2zm0 4v14h10V5H7z"/></svg></span> Your stop is next</span></div></div></li>
+      <li><time>12:30</time>
+        <div class="dcard sticker"><p><b>Makan where?</b> Your favourite hawker closed? You hear the day before, and Nearby shows what is open today.</p><div class="mini" aria-hidden="true"><span class="pill red stamp">Closed tomorrow</span><span class="pill mint">Open today, 400 m</span></div></div></li>
+      <li><time>15:00</time>
+        <div class="dcard sticker"><p><b>Heat stress high.</b> Bring water and take the sheltered way. UV is on Today too.</p><div class="mini" aria-hidden="true"><span class="therm"></span><span class="pill red">Heat stress High</span><span class="pill amber">UV 11</span></div></div></li>
+      <li><time>Sun</time>
+        <div class="dcard sticker"><p><b>Your week.</b> Hawker closures, works at your block and holidays ahead; History adds up your trips and parking and counts your meals.</p><div class="mini" aria-hidden="true"><span class="bars"><span style="height:60%"></span><span style="height:85%"></span><span style="height:55%"></span><span style="height:95%"></span><span style="height:70%"></span><span style="height:25%"></span><span style="height:15%"></span></span><span class="pill sky"><span class="big">&asymp; $24.60</span> this week</span></div></div></li>
     </ol>
+    </div>
   </section>
 
   <section class="tool sticker">
@@ -269,19 +440,36 @@
 
   <section class="private sticker">
     <h2>Your places stay on your phone</h2>
-    <ul>
-      <li>No sign-up and no account.</li>
-      <li>Home, work and school are saved on your phone only, never on our server.</li>
-      <li>Alerts are worked out on your phone: rain before you leave, MRT disruptions, your favourite hawker closed tomorrow.</li>
-      <li>No ads and no tracking.</li>
-    </ul>
+    <div>
+      <ul>
+        <li>No account, no ads and no tracking.</li>
+        <li>Your saved addresses (home, work, school) stay on your phone. They are not sent to us or backed up to your Google account.</li>
+        <li>Alerts are worked out on your phone.</li>
+      </ul>
+      <p class="more"><a href="#privacy">How we handle your data</a></p>
+    </div>
   </section>
 
   <section class="faq" aria-labelledby="faq-title">
     <h2 id="faq-title">Questions</h2>
+    <h3>Getting DailyLah</h3>
     <details><summary>Is there an iPhone version?</summary><p>Not yet: DailyLah is for Android 10 and newer.</p></details>
     <details><summary>Why is it a beta?</summary><p>DailyLah is in closed testing on Google Play before its public release, so you join the testers group first.</p></details>
     <details><summary>Is it free?</summary><p>Yes, DailyLah is free, with no ads and no account.</p></details>
+    <details><summary>Where does the information come from?</summary><p>Public data from LTA DataMall, data.gov.sg, OneMap and URA. DailyLah is not affiliated with the Singapore Government. When a live reading is old, the app shows the time it was last updated.</p></details>
+    <h3 id="privacy">Privacy and safety</h3>
+    <details><summary>Does DailyLah track me?</summary><p>No. There are no analytics, tracking or advertising SDKs, and no device ID is sent to us. For live bus times the app sends only the bus stop code, never where you are. Like any web service, our hosting keeps short-lived request logs (IP address and time), which we do not use to identify you.</p></details>
+    <details><summary>When does it use my location?</summary><p>Only when you tap Here, “Nearest stops to my location” or “Use my current location”. Your position is used on the phone to find what is around you, then discarded. It is not stored and not sent to us. You can say no and still pick a saved place or search an address.</p></details>
+    <details><summary>Does it follow me in the background?</summary><p>Only while Wake me at my stop or I’m on the train is running. You see an ongoing notification, and it stops when the ride ends. Your position is compared with your stop on the phone and is never stored or sent.</p></details>
+    <details><summary>What does the app send to get live data?</summary><p>Live bus times, crowd levels and address search come from public sources such as LTA and OneMap. To ask for them, the app sends only the bus stop code, the MRT line code or the address you search (not logged), and, if you use them, the postal code of an EV charging location or the registration number of a property agent you check. Never your saved places, your home or work, or where you are.</p></details>
+    <details><summary>Is my data backed up to Google?</summary><p>No. DailyLah turns off Android backup and phone-to-phone transfer, so your places and history stay on this phone only. To set up another phone, use Share with family: a QR code with your bus stops, MRT lines and times that you show or send yourself.</p></details>
+    <details><summary>How do I delete my data?</summary><p>Trips, meals and parking you logged: More &gt; Extras &gt; Delete my history. Everything else: clear the app’s storage or uninstall. With no account, there is nothing to delete on our side.</p></details>
+    <details><summary>What permissions does it ask for?</summary><p>Location (only when you use it) and notifications. No contacts, photos, microphone or camera.</p></details>
+    <h3>Using it</h3>
+    <details><summary>How do alerts work without an account?</summary><p>Your phone checks the latest public data about every 15 minutes and decides itself: rain before you leave, MRT disruptions, your hawker closed tomorrow, your bus to catch. The notification is made on your phone; no push service is involved. Turn alerts off any time in the app or in Android settings.</p></details>
+    <details><summary>Will it drain my battery?</summary><p>The 15-minute check is short and run by Android. GPS is used only while Wake me at my stop or I’m on the train is on, and stops when the ride ends.</p></details>
+    <details><summary>Does it work without internet?</summary><p>Your saved places, the downloaded public data (hawker centres, schools, parks, car parks and more) and the last live readings stay on your phone. Live bus times and train alerts need a connection.</p></details>
+    <details><summary>How do I report a problem or suggest something?</summary><p>Email <a href="mailto:support@tursinalabs.com">support@tursinalabs.com</a>, or tap Contact us in the app’s About page.</p></details>
   </section>
 </main>
 
