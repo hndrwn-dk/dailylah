@@ -83,13 +83,23 @@ class TripSection extends ConsumerWidget {
       TravelMode.taxi => _TaxiBlock(from: from),
     };
 
+    final heading = Padding(
+      padding: const EdgeInsets.fromLTRB(4, 6, 4, 8),
+      child: Text(title, style: t.titleLarge),
+    );
+    // From and To at the same spot (e.g. a searched start that is the destination): nothing to plan,
+    // no "0 min walk · 0 m" or buses.
+    if (distanceMeters(from.lat, from.lng, to.lat, to.lng) < samePlaceMetres) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [heading, _ThereNote(title: s.alreadyThere, sub: s.arrivedAt(toLabel))],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 6, 4, 8),
-          child: Text(title, style: t.titleLarge),
-        ),
+        heading,
         for (final a in _advice(ref, mode, from))
           AlertBanner(icon: _adviceIcon(a), text: s.tripAdvice(a)),
         Padding(
@@ -115,6 +125,39 @@ class TripSection extends ConsumerWidget {
         ),
         body,
       ],
+    );
+  }
+}
+
+/// "You're here" / "You're already there": the trip needs no planning.
+class _ThereNote extends StatelessWidget {
+  const _ThereNote({required this.title, required this.sub});
+  final String title;
+  final String sub;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Panel(
+      color: DL.mint,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            const Icon(Icons.where_to_vote_outlined, color: DL.ink),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: t.titleMedium?.copyWith(color: DL.ink)),
+                  Text(sub, style: t.bodyMedium?.copyWith(color: DL.ink)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -266,29 +309,7 @@ class _TransitBlock extends ConsumerWidget {
     final bad = planDisruption(plan, ref.watch(trainAlertsProvider).value);
 
     // Already there (e.g. "Here" after the ride): no walk or buses to suggest.
-    if (startsHere && straight < arrivedMetres) {
-      return Panel(
-        color: DL.mint,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              const Icon(Icons.where_to_vote_outlined, color: DL.ink),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(s.youAreHere, style: t.titleMedium?.copyWith(color: DL.ink)),
-                    Text(s.arrivedAt(toLabel), style: t.bodyMedium?.copyWith(color: DL.ink)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    if (startsHere && straight < arrivedMetres) return _ThereNote(title: s.youAreHere, sub: s.arrivedAt(toLabel));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

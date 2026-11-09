@@ -126,6 +126,9 @@ const busRefreshEvery = Duration(seconds: 30);
 /// Within this distance of the destination the trip is done: say "You're here".
 const arrivedMetres = 150.0;
 
+/// From and To closer than this are the same place: a planned trip says "You're already there".
+const samePlaceMetres = 50.0;
+
 /// What a "Wake me" position update means for the rider.
 enum WakeEvent { none, wake, passed }
 
@@ -3105,7 +3108,7 @@ class WtlLine {
 
 // ---------------------------------------------------------------- where to live on a block's page
 //
-// "Prices, rent and score" (BlockPage) and the block comparison use the rules above for the
+// "Prices, rent and commute" (BlockPage) and the block comparison use the rules above for the
 // block's own HDB town: the block takes its town's numbers, from the town's MRT station.
 
 /// The where-to-live town of an HDB town name as the block bundles spell it ("KALLANG/WHAMPOA").
@@ -3205,4 +3208,27 @@ List<WtlLine> wtlBlockLines(WhereToLive data, WtlChoice c, List<String> hdbTowns
           for (final t in towns) t == null || col[t.id] == null ? WtlCell(WtlCellKind.unknown) : line.cells[col[t.id]!],
         ]),
   ];
+}
+
+// ---------------------------------------------------------------- compare blocks
+
+/// Blocks a comparison can hold side by side.
+const maxCompareBlocks = 3;
+
+/// [key] first in the recently viewed blocks, without repeats, at most [max].
+List<String> withRecentBlock(List<String> recent, String key, {int max = 6}) =>
+    [key, ...recent.where((k) => k != key)].take(max).toList();
+
+/// Blocks offered when adding one to the comparison: watched ones first, then the recently viewed,
+/// without the ones already compared or repeats.
+List<String> compareCandidates({
+  required Iterable<String> watched,
+  required List<String> recent,
+  required List<String> compared,
+}) {
+  final out = <String>[];
+  for (final k in [...watched, ...recent]) {
+    if (!compared.contains(k) && !out.contains(k)) out.add(k);
+  }
+  return out;
 }

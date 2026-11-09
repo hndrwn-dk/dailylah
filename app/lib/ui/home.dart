@@ -509,7 +509,7 @@ class _MyBlock extends ConsumerWidget {
     final t = Theme.of(context).textTheme;
     final resale = ref.watch(resaleProvider).value;
     final stats = [...?resale?.blocks[block.key]]..sort((a, b) => b.count.compareTo(a.count));
-    // The same rent as "Prices, rent and score": the town's quarterly median when known.
+    // The same rent as "Prices, rent and commute": the town's quarterly median when known.
     final rents = townRents(ref.watch(whereToLiveProvider).value, ref.watch(rentProvider).value, block.town);
     final topRent = townRentFor(rents, stats.isEmpty ? null : stats.first.flatType);
     final watching = ref.watch(favoritesProvider).watchedBlocks.containsKey(block.key);

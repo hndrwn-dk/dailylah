@@ -1,0 +1,43 @@
+# Compare any blocks: Compare on the saved block's page (Blk 201 Ang Mo Kio Ave 3, flow 01), then
+# Add in the snackbar picks a second block by postal code and opens the comparison, which still
+# has room for a third ("Add block") and keeps the daily life lines.
+appId: com.tursinalabs.dailylah
+name: 10 Compare blocks
+---
+- launchApp:
+    stopApp: true
+    permissions:
+      notifications: deny
+- startRecording: 10_compare_blocks
+- tapOn: "(?s)Home.*"
+- extendedWaitUntil:
+    visible: "(?is).*Ang Mo Kio Av.*3.*"
+    timeout: 30000
+- scrollUntilVisible:
+    element: "(?s).*Prices, rent and commute.*"
+    direction: DOWN
+    centerElement: true
+- tapOn: "(?s).*Prices, rent and commute.*"
+- tapOn: "Compare"
+- extendedWaitUntil:
+    visible: "(?s).*Added\\. Add another block to compare.*"
+    timeout: 10000
+- tapOn: "Add"
+- extendedWaitUntil:
+    visible: "(?s).*Add a block to compare.*"
+    timeout: 10000
+# The search field has focus when the page opens.
+- inputText: "310201"
+- extendedWaitUntil:
+    visible: "(?s).*TOA PAYOH NTH.*"
+    timeout: 30000
+- tapOn: "(?s).*TOA PAYOH NTH.*"
+- extendedWaitUntil:
+    visible: "(?s).*Add block.*"
+    timeout: 20000
+- assertVisible: "(?s).*Resale median.*"
+- scrollUntilVisible:
+    element: "(?s).*Hawkers ≤ 1 km.*"
+    direction: DOWN
+    timeout: 20000
+- stopRecording

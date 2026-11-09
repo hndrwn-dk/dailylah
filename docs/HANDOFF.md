@@ -69,7 +69,7 @@ rent/resale. Static page and JSON, no browser API calls, no Render. One PR per p
   production is live (above), then Phase 4 (launch with production). Related app backlog: the
   optional meal price in History ("Open ideas" below).
 - App (8 Nov): #127 (bundle model and the ported rules) and #128 (commute and all-in cost on
-  "Prices, rent and score", Compare commute rows) are merged. The 2.0.0 release PR follows
+  "Prices, rent and commute", Compare commute rows) are merged. The 2.0.0 release PR follows
   (version 2.0.0, What's new for this feature only). After that merge, the `app` workflow uploads
   2.0.0 to closed testing (`alpha`) and tags `v2.0.0`. Testers check it on real phones. Then, after
   the checklist in docs/QA.md "Before promoting a release to production", promote **the same
