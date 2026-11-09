@@ -170,7 +170,8 @@ feature, screen, provider or rule moves, appears or goes away.
   Park Facilities attached per park in `poi.json` (`attach_facilities`, key `f`; unmapped CLASS values are
   logged in the data build and listed in `backend/data/build_report.json` as `park_facility_unknown`), shown as icons in lists (`FacilityIcons`, `facilityIcon` in widgets.dart) and
   as chips on the place sheet, and a "good time to go?" line (`parkTime`, `parkTimeProvider`) from
-  lightning, rain, haze, heat stress, UV and the forecast.
+  lightning, rain, haze, heat stress, UV and the forecast. After dark (`isParkNight`, 7.30 pm to 7 am)
+  the warnings still show, heat stress is skipped, and a clear night says so (`ParkTime.goodNight`).
 - Prayer times (`prayer.json`): this year's and next year's MUIS timetables, found by name in data.gov.sg
   collection 2312 (`build_prayer`); next year appears once MUIS publishes it.
 - School alerts (heat, lightning, dengue at school) only fire on school days (`isSchoolDay`: the school's

@@ -1869,9 +1869,16 @@ OrderInReason? orderInReason({double? rainMm, AirLevel? air, bool nearestHawkerC
 
 // ---------------------------------------------------------------- parks: good time to go?
 
+/// Dark in Singapore: from 7.30 pm to 7 am (sunset and sunrise stay near 7 all year).
+bool isParkNight(DateTime now) {
+  final m = now.hour * 60 + now.minute;
+  return m >= 19 * 60 + 30 || m < 7 * 60;
+}
+
 /// One line on whether to head to a park now, worst first: lightning within 5 km, rain
-/// at the nearest gauge, unhealthy air, high heat stress, very high UV (8+) between 10 am
-/// and 4 pm, then showers in today's forecast.
+/// at the nearest gauge, unhealthy air, high heat stress (daytime only), very high UV (8+)
+/// between 10 am and 4 pm, then showers in today's forecast. A clear night is
+/// [ParkTime.goodNight], so the line says it is dark instead of a plain "good time".
 ParkTime parkTime({
   required DateTime now,
   bool lightning = false,
@@ -1884,10 +1891,11 @@ ParkTime parkTime({
   if (lightning) return ParkTime.lightning;
   if ((rainMm ?? 0) > 0) return ParkTime.rain;
   if (air != null && air.index >= AirLevel.unhealthy.index) return ParkTime.haze;
-  if (isHighHeat(heat)) return ParkTime.heat;
+  final night = isParkNight(now);
+  if (!night && isHighHeat(heat)) return ParkTime.heat;
   if ((uv ?? 0) >= 8 && now.hour >= 10 && now.hour < 16) return ParkTime.uv;
   if (showersForecast) return ParkTime.showers;
-  return ParkTime.good;
+  return night ? ParkTime.goodNight : ParkTime.good;
 }
 
 // ---------------------------------------------------------------- night: no trains

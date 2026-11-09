@@ -260,7 +260,7 @@ No new secrets are needed for Phase 1.
   - Eventbrite was removed: it has no public search. The unused `EVENTBRITE_TOKEN` secret can be deleted.
 - #42: parks.
   - Facility chips from NParks Park Facilities (`attach_facilities`, key `f` in poi.json).
-  - "Good time to go?" line (`parkTime`).
+  - "Good time to go?" line (`parkTime`); after dark a clear night says so (`ParkTime.goodNight`).
   - Spelled-out names (`expandPlaceName`).
   - 2-line details in lists.
   - **Check after the data build:** confirm the facility chips actually appear. The CLASS values in

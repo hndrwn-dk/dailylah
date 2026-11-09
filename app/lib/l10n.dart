@@ -13,7 +13,7 @@ enum AirLevel { good, moderate, unhealthy, veryUnhealthy, hazardous }
 enum OrderInReason { rain, haze, hawkerClosed }
 
 /// Whether now is a good time for a park (see parkTime in logic.dart).
-enum ParkTime { lightning, rain, haze, heat, uv, showers, good }
+enum ParkTime { lightning, rain, haze, heat, uv, showers, good, goodNight }
 
 /// Weather tips for the chosen way of travelling (see tripAdvice in logic.dart).
 enum TripAdvice { lightningRide, lightningWalk, rainRide, rainDrive, rainTaxi, heat, haze }
@@ -900,7 +900,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Plan a trip now finds shops, restaurants and malls by name, not only addresses and postal codes. Type a place name in From or To; postal codes and block numbers work as before.",
+        "The park line on the weekend card now says it is for parks, and after dark it tells you it is night: fine for an evening walk or BBQ, keep to lit paths. Lightning, rain and haze warnings still show at night.",
       ];
 
   // about
@@ -983,7 +983,8 @@ class S {
         ParkTime.heat => 'High heat now. Go before 10 am or after 5 pm.',
         ParkTime.uv => 'UV is very high. Pick shade, bring a hat and water.',
         ParkTime.showers => 'Showers expected today. Bring an umbrella.',
-        ParkTime.good => 'Good time to go.',
+        ParkTime.good => 'Good time for a park or walk.',
+        ParkTime.goodNight => 'Clear tonight. Fine for an evening walk or BBQ, keep to lit paths.',
       };
   String get facilities => 'Facilities';
   String get orderInNote => 'Opens the app on your phone. DailyLah does not take orders.';
