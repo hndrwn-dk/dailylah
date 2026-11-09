@@ -26,12 +26,13 @@ const androidCoverWidgetName = 'DailyLahCoverWidgetProvider';
 
 final notifications = FlutterLocalNotificationsPlugin();
 
-AndroidNotificationDetails _channel(S s) => AndroidNotificationDetails(
+AndroidNotificationDetails _channel(S s, {StyleInformation? styleInformation}) => AndroidNotificationDetails(
       'dailylah_alerts',
       s.channelName,
       channelDescription: s.channelDesc,
       importance: Importance.high,
       priority: Priority.high,
+      styleInformation: styleInformation,
     );
 
 Future<void> initNotifications() async {
@@ -195,12 +196,7 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
         title: note.$1,
         body: note.$2,
         notificationDetails: NotificationDetails(
-          android: AndroidNotificationDetails(
-            'dailylah_alerts',
-            s.channelName,
-            channelDescription: s.channelDesc,
-            styleInformation: BigTextStyleInformation(note.$2),
-          ),
+          android: _channel(s, styleInformation: BigTextStyleInformation(note.$2)),
         ),
       );
       await log.markSent('holiday:$day');
