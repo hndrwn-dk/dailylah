@@ -6,7 +6,7 @@
 pytest==9.2.0
 pytest-asyncio==1.4.1.post1
 respx==0.23.1
-ruff==0.17.3
+ruff==0.17.4
 pip-audit==2.10.1
 # The tests parse the workflow files (tests/test_push_data.py); same version as requirements.txt.
 pyyaml==6.0.3
