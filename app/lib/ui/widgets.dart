@@ -1022,7 +1022,7 @@ class ParkTimeBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final good = time == ParkTime.good;
+    final good = time == ParkTime.good || time == ParkTime.goodNight;
     return Panel(
       margin: margin,
       color: good ? DL.mint : DL.attention,
@@ -1037,6 +1037,7 @@ class ParkTimeBanner extends StatelessWidget {
                 ParkTime.haze => Icons.masks_outlined,
                 ParkTime.heat || ParkTime.uv => Icons.wb_sunny_outlined,
                 ParkTime.good => Icons.check_circle_outline,
+                ParkTime.goodNight => Icons.nightlight_outlined,
               },
               color: good ? DL.tealText : DL.ink,
             ),

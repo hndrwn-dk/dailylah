@@ -1094,6 +1094,25 @@ void main() {
       expect(parkTime(now: DateTime(2026, 10, 24, 17), uv: 9), ParkTime.good);
       expect(parkTime(now: noon, uv: 5, showersForecast: true), ParkTime.showers);
     });
+
+    test('parkTime says it is night when the weather is fine after dark', () {
+      DateTime at(int h, int m) => DateTime(2026, 11, 9, h, m);
+      expect(isParkNight(at(19, 29)), isFalse);
+      expect(isParkNight(at(19, 30)), isTrue);
+      expect(isParkNight(at(2, 0)), isTrue);
+      expect(isParkNight(at(6, 59)), isTrue);
+      expect(isParkNight(at(7, 0)), isFalse);
+      expect(parkTime(now: at(19, 29)), ParkTime.good);
+      expect(parkTime(now: at(20, 30)), ParkTime.goodNight);
+      expect(parkTime(now: at(5, 0)), ParkTime.goodNight);
+      // Weather warnings still come first at night.
+      expect(parkTime(now: at(21, 0), lightning: true), ParkTime.lightning);
+      expect(parkTime(now: at(21, 0), rainMm: 0.4), ParkTime.rain);
+      expect(parkTime(now: at(21, 0), air: AirLevel.unhealthy), ParkTime.haze);
+      expect(parkTime(now: at(21, 0), showersForecast: true), ParkTime.showers);
+      // Heat stress is a daytime tip ("go after 5 pm"), not shown after dark.
+      expect(parkTime(now: at(21, 0), heat: 'High'), ParkTime.goodNight);
+    });
   });
 
   test('school alerts only on days with class', () {
