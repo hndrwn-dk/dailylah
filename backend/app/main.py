@@ -40,8 +40,40 @@ WEATHER_KEYS = {
 }
 
 
+# Path parts that are user input the server must not log: bus stop codes, EV postal codes
+# and CEA registration numbers. The endpoint name stays, the value becomes "*".
+_PRIVATE_PATH = re.compile(r"^(/v1/(?:bus-arrival|ev|agent))/[^/]+")
+
+
+def redact_access_path(path: str) -> str:
+    """The path as the access log may show it: no query string, no private path value."""
+    return _PRIVATE_PATH.sub(r"\1/*", path.split("?", 1)[0])
+
+
+class _RedactAccessLog(logging.Filter):
+    """Uvicorn's access log writes each request line with its full path and query string,
+    which hold search text (/v1/search?q=, /v1/places?q=) and the codes above. Keep the
+    client, method, endpoint and status; redact the rest."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        if isinstance(args, tuple) and len(args) == 5 and isinstance(args[2], str):
+            record.args = (args[0], args[1], redact_access_path(args[2]), args[3], args[4])
+        return True
+
+
+def install_access_log_filter() -> None:
+    access = logging.getLogger("uvicorn.access")
+    if not any(isinstance(f, _RedactAccessLog) for f in access.filters):
+        access.addFilter(_RedactAccessLog())
+
+
+install_access_log_filter()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    install_access_log_filter()
     s = get_settings()
     app.state.http = httpx.AsyncClient(timeout=s.http_timeout)
     app.state.cache = Cache(s.redis_url)
