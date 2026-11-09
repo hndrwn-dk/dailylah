@@ -322,11 +322,15 @@ void main() {
         // Same place twice: kept once.
         {'name': 'Putra Minang', 'address': '51 Bencoolen Street, Singapore 189630, Singapore', 'postal': '189630', 'lat': 1.29942, 'lng': 103.85051},
         {'name': 'Singapore Zoo', 'address': 'Singapore Zoo', 'postal': '', 'lat': 1.4043, 'lng': 103.793},
+        // Two outlets of one chain on the same street: both kept (the postal code tells them apart).
+        {'name': 'Toast Box', 'address': 'Orchard Road, Singapore 238839, Singapore', 'postal': '238839', 'lat': 1.3005, 'lng': 103.8452},
+        {'name': 'Toast Box', 'address': 'Orchard Road, Singapore 238801, Singapore', 'postal': '238801', 'lat': 1.3021, 'lng': 103.8371},
         {'name': 'Nowhere', 'address': 'x', 'postal': ''},
         'junk',
       ],
     });
-    expect(hits, hasLength(2));
+    expect(hits, hasLength(4));
+    expect(hits.where((h) => h.label == 'Toast Box, Orchard Road').map((h) => h.postal), ['238839', '238801']);
     final putra = hits.first;
     expect(putra.label, 'Putra Minang, 51 Bencoolen Street');
     expect(putra.name, 'Putra Minang');
@@ -336,7 +340,7 @@ void main() {
     expect(putra.postal, '189630');
     expect((putra.lat, putra.lng), (1.29942, 103.85051));
     // The address repeats the name: only the name.
-    expect(hits.last.label, 'Singapore Zoo');
+    expect(hits[1].label, 'Singapore Zoo');
     expect(parsePlaces({'data': 'x'}), isEmpty);
     expect(parsePlaces({}), isEmpty);
   });

@@ -828,7 +828,8 @@ List<AddressHit> parseOneMap(Map<String, dynamic> body) {
 /// and a number is an address for OneMap; anything else is a place name for place search.
 bool looksLikeAddress(String q) => RegExp(r'^\s*(\d|(blk|block)\s*\d)', caseSensitive: false).hasMatch(q);
 
-/// Results of /v1/places (Geoapify, cut down on our server), de-duplicated. The label is the
+/// Results of /v1/places (Geoapify, cut down on our server), de-duplicated by label and postal code
+/// (or position): two outlets of a chain on one street stay apart. The label is the
 /// name and the street ("Putra Minang, 51 Bencoolen Street"); the postal code is shown apart,
 /// so "Singapore" and "Singapore 189630" are left out of the street.
 List<AddressHit> parsePlaces(Map<String, dynamic> body) {
@@ -846,13 +847,14 @@ List<AddressHit> parsePlaces(Map<String, dynamic> body) {
         .where((p) => p.isNotEmpty && !RegExp(r'^Singapore( \d{6})?$', caseSensitive: false).hasMatch(p))
         .join(', ');
     final label = road.isEmpty || road.toLowerCase() == name.toLowerCase() ? name : '$name, $road';
-    if (!seen.add(label)) continue;
+    final postal = '${r['postal'] ?? ''}'.trim();
+    if (!seen.add('$label|${postal.isEmpty ? '$lat,$lng' : postal}')) continue;
     out.add(AddressHit(
       label: label,
       block: '',
       road: road,
       building: name,
-      postal: '${r['postal'] ?? ''}'.trim(),
+      postal: postal,
       lat: lat.toDouble(),
       lng: lng.toDouble(),
       name: name,
