@@ -28,20 +28,6 @@ from .sources import (
 )
 
 log = logging.getLogger("dailylah")
-
-
-class _HideQuery(logging.Filter):
-    """uvicorn's access log writes each request line with its query string, which for /v1/search
-    and /v1/places is what the user typed (privacy.md 4a: never logged). Keep the path only."""
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        args = record.args
-        if isinstance(args, tuple) and len(args) == 5 and isinstance(args[2], str):
-            record.args = (*args[:2], args[2].split("?", 1)[0], *args[3:])
-        return True
-
-
-logging.getLogger("uvicorn.access").addFilter(_HideQuery())
 STOP_RE = re.compile(r"^\d{5}$")
 POSTAL_RE = re.compile(r"^\d{6}$")
 WEATHER_KEYS = {

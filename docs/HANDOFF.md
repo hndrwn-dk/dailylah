@@ -93,7 +93,7 @@ is the fallback. Setup, Nearby and the shared-place picker stay OneMap only.
 - Guards (branch `feat/places-limits`): the Geoapify account is on the Free plan (3,000 credits a
   day) and shared with Prayer Cast, so `/v1/places` has a daily budget of 2,000 calls
   (`PLACES_DAILY_BUDGET` on Render), at most 4 calls a second, and a pause after Geoapify refuses.
-  uvicorn's access log no longer writes query strings. A per-IP limit is not built: which
+  The access log is #143. A per-IP limit is not built: which
   `X-Forwarded-For` entry Render puts the client in was not checked.
 
 ## CI/CD hardening (Nov 2026, 8 phases, one PR each)

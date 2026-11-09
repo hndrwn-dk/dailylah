@@ -1,8 +1,6 @@
 """Guards on /v1/places so DailyLah cannot use up the Geoapify credits it shares with another
 app: a daily budget, a per-second cap and a pause after Geoapify refuses (docs/PLACE_SEARCH.md)."""
 
-import logging
-
 import httpx
 import pytest
 import respx
@@ -12,7 +10,7 @@ from app.cache import Cache
 from app.config import get_settings
 from app.geoapify import AUTOCOMPLETE_URL
 from app.limits import Breaker, RateGate, budget_key
-from app.main import _HideQuery, app
+from app.main import app
 
 ROW = {"name": "Lau Pa Sat", "address_line2": "18 Raffles Quay", "lat": 1.28, "lon": 103.85}
 OK = httpx.Response(200, json={"results": [ROW]})
@@ -161,34 +159,3 @@ def test_server_error_does_not_pause(make_client):
         assert client.get("/v1/places", params={"q": "lau pa sat"}).status_code == 502
         assert client.get("/v1/places", params={"q": "jewel"}).status_code == 200
         assert route.call_count == 2
-
-
-# ------------------------------------------------------------------ access log
-
-
-def access_record(path: str) -> logging.LogRecord:
-    return logging.LogRecord(
-        "uvicorn.access",
-        logging.INFO,
-        "",
-        0,
-        '%s - "%s %s HTTP/%s" %d',
-        ("1.2.3.4:5", "GET", path, "1.1", 200),
-        None,
-    )
-
-
-def test_access_log_keeps_path_but_not_query():
-    rec = access_record("/v1/places?q=my+home+address")
-    assert _HideQuery().filter(rec)
-    assert rec.getMessage() == '1.2.3.4:5 - "GET /v1/places HTTP/1.1" 200'
-    rec = access_record("/v1/search?q=560201")
-    _HideQuery().filter(rec)
-    assert "560201" not in rec.getMessage()
-    rec = access_record("/health")
-    _HideQuery().filter(rec)
-    assert rec.getMessage() == '1.2.3.4:5 - "GET /health HTTP/1.1" 200'
-
-
-def test_access_log_filter_is_installed():
-    assert any(isinstance(f, _HideQuery) for f in logging.getLogger("uvicorn.access").filters)

@@ -32,8 +32,6 @@ relative to `backend/` when they start with `app/`. Endpoint index: `docs/REPO_M
   (`places_daily_budget` = 2,000, counted per UTC day with `Cache.incr`: one Redis INCR per
   Geoapify call, memory when Redis is off or fails, and no Redis at all once the day's budget is
   spent). `PLACES_DAILY_BUDGET` / `PLACES_PER_SECOND` on Render change them without a code change.
-- uvicorn's access log keeps the path but drops the query string (`_HideQuery` in `main.py`), so
-  search text from `/v1/search` and `/v1/places` is never written to the logs.
 - Every new endpoint gets a pytest test with `respx` mocks; no real network calls in tests.
 - Every `/v1/*` endpoint has an example in `contracts/v1/` (request, upstream, response), checked by
   `tests/test_contracts.py` and by the app's `test/contract_test.dart`. A new endpoint adds one and
