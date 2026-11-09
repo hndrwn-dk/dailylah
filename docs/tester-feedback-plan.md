@@ -38,6 +38,7 @@ Problem: OneMap search finds postal codes, HDB blocks, buildings, schools and MR
 4. Measurement: backend counts searches and zero-result searches per screen (onboarding / plan_trip). Counts only, never the query text. Note in docs/legal/privacy.md if needed.
 
 ### v1.1 (only if Plan a trip zero-result rate is high after 2-3 weeks)
+- **Replaced (9 Nov 2026) by Geoapify place search, docs/PLACE_SEARCH.md.** The Google Places notes below are kept for the record only.
 - Google Places as fallback only for the Plan a trip destination field. Onboarding stays OneMap.
 - Called only through the backend (key never in the APK), and only when OneMap returns nothing or the user taps "Search more places".
 - Autocomplete with session tokens + debounce; minimal field masks.

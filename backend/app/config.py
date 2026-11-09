@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     onemap_password: str | None = None
     search_ttl: int = 86400
 
+    # Geoapify (place names for Plan a trip, /v1/places). Server only, never in the app.
+    geoapify_api_key: str | None = None
+    places_ttl: int = 86400
+
     # URA Data Service (private property); a daily token is requested from the key.
     ura_access_key: str | None = None
     # Events for the weekend card (daily build only).

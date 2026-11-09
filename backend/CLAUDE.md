@@ -19,6 +19,12 @@ relative to `backend/` when they start with `app/`. Endpoint index: `docs/REPO_M
 - Public endpoints under `/v1/*`, read-only, return `{"fetched_at": <unix>, "data": <upstream>}`.
 - `/internal/*` endpoints require a valid `Upstash-Signature` (QStash) outside `ENV=dev`.
 - Upstream headers: data.gov.sg uses `x-api-key` (optional, higher limits); LTA uses `AccountKey`.
+- Geoapify (`app/geoapify.py`, env `GEOAPIFY_API_KEY`, Render only, never in the app): `/v1/places`
+  searches place names for Plan a trip (Autocomplete, `filter=countrycode:sg`, no location bias),
+  cuts each answer down to name, address, postal, lat, lng and type, and keeps it in memory only
+  (`places_ttl`). Geoapify takes the key in the URL, so errors are re-raised as `GeoapifyError`
+  without the httpx exception and the httpx request log line is redacted (key and typed text).
+  No key: 503; Geoapify error, timeout or 429: 502. The app then searches OneMap instead.
 - Every new endpoint gets a pytest test with `respx` mocks; no real network calls in tests.
 - Every `/v1/*` endpoint has an example in `contracts/v1/` (request, upstream, response), checked by
   `tests/test_contracts.py` and by the app's `test/contract_test.dart`. A new endpoint adds one and

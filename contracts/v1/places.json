@@ -1,0 +1,56 @@
+{
+  "request": "/v1/places?q=putra%20minang",
+  "upstream": {
+    "results": [
+      {
+        "name": "Putra Minang",
+        "address_line1": "Putra Minang",
+        "address_line2": "51 Bencoolen Street, Singapore 189630, Singapore",
+        "postcode": "189630",
+        "country_code": "sg",
+        "lat": 1.29942,
+        "lon": 103.85051,
+        "result_type": "amenity",
+        "place_id": "51abc"
+      },
+      {
+        "name": "Jewel Changi Airport",
+        "address_line1": "Jewel Changi Airport",
+        "address_line2": "78 Airport Boulevard, Singapore 819666, Singapore",
+        "postcode": "819666",
+        "country_code": "sg",
+        "lat": 1.36036,
+        "lon": 103.98966,
+        "result_type": "amenity",
+        "place_id": "51def"
+      }
+    ],
+    "query": {
+      "text": "putra minang",
+      "parsed": {
+        "expected_type": "unknown"
+      }
+    }
+  },
+  "response": {
+    "fetched_at": 1793850000,
+    "data": [
+      {
+        "name": "Putra Minang",
+        "address": "51 Bencoolen Street, Singapore 189630, Singapore",
+        "postal": "189630",
+        "lat": 1.29942,
+        "lng": 103.85051,
+        "type": "amenity"
+      },
+      {
+        "name": "Jewel Changi Airport",
+        "address": "78 Airport Boulevard, Singapore 819666, Singapore",
+        "postal": "819666",
+        "lat": 1.36036,
+        "lng": 103.98966,
+        "type": "amenity"
+      }
+    ]
+  }
+}

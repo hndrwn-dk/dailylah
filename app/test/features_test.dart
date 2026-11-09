@@ -74,10 +74,34 @@ class _RouteLink extends MapsLinks {
   }
 }
 
-Widget _appWithOneMap(OneMapApi oneMap, {MapsLinks? links}) => ProviderScope(retry: noRetry,
+/// /v1/places (Geoapify) that knows one restaurant by name.
+class _Places extends PlacesApi {
+  final queries = <String>[];
+  @override
+  Future<Map<String, dynamic>> search(String query) async {
+    queries.add(query);
+    return {
+      'fetched_at': 0,
+      'data': [
+        if (query.toLowerCase().contains('putra'))
+          {
+            'name': 'Putra Minang',
+            'address': '51 Bencoolen Street, Singapore 189630, Singapore',
+            'postal': '189630',
+            'lat': 1.29942,
+            'lng': 103.85051,
+            'type': 'amenity',
+          },
+      ],
+    };
+  }
+}
+
+Widget _appWithOneMap(OneMapApi oneMap, {MapsLinks? links, PlacesApi? places}) => ProviderScope(retry: noRetry,
       overrides: [
         ...overridesFor(_normal, householdFavorites, tuesdayMorning),
         oneMapProvider.overrideWithValue(oneMap),
+        placesProvider.overrideWithValue(places ?? _Places()),
         mapsLinksProvider.overrideWithValue(links ?? _NoMapsLinks()),
       ],
       child: const DailyLahApp(),
@@ -749,6 +773,73 @@ void main() {
     expect(box.read(goAdhocDestProvider)!.postal, '189630');
     expect(find.text('Work → $name'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Plan a trip: a restaurant name is found by place search, with attribution', (tester) async {
+    await applyCondition(tester, _normal);
+    final oneMap = _OneMap();
+    final places = _Places();
+    await tester.pumpWidget(_appWithOneMap(oneMap, places: places));
+    await settle(tester);
+    final box = containerOf(tester);
+    const s = S();
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+
+    await tester.tap(find.text(s.searchAddressHint).last); // the To field
+    await settle(tester);
+    expect(find.text(s.placeHint), findsOneWidget);
+    await tester.enterText(find.descendant(of: find.byType(AddressPickerPage), matching: find.byType(TextField)), 'putra minang');
+    await tester.pump(const Duration(milliseconds: 500));
+    await settle(tester);
+    expect(places.queries, ['putra minang']);
+    expect(oneMap.queries, isEmpty);
+    expect(find.text(s.placesAttribution), findsOneWidget);
+    await tester.tap(find.text('Putra Minang, 51 Bencoolen Street'));
+    await settle(tester);
+
+    expect(find.byType(AddressPickerPage), findsNothing);
+    expect(box.read(goKeyProvider), 'adhoc');
+    final dest = box.read(goAdhocDestProvider)!;
+    expect(dest.name, 'Putra Minang'); // the place name, not the whole address
+    expect(dest.postal, '189630');
+    expect(dest.addrLat, closeTo(1.29942, 1e-6));
+
+    // A postal code still goes to OneMap, and OneMap results carry no attribution.
+    await tester.tap(find.text(s.searchAddressHint).first); // the From field
+    await settle(tester);
+    await tester.enterText(find.descendant(of: find.byType(AddressPickerPage), matching: find.byType(TextField)), '189630');
+    await tester.pump(const Duration(milliseconds: 500));
+    await settle(tester);
+    expect(places.queries, ['putra minang']);
+    expect(oneMap.queries, ['189630']);
+    expect(find.textContaining('51 Bencoolen Street'), findsOneWidget);
+    expect(find.text(s.placesAttribution), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('The address picker outside Plan a trip (setup) never calls place search', (tester) async {
+    await applyCondition(tester, _normal);
+    final oneMap = _OneMap();
+    final places = _Places();
+    const s = S();
+    await tester.pumpWidget(ProviderScope(retry: noRetry,
+      overrides: [
+        ...overridesFor(_normal, householdFavorites, tuesdayMorning),
+        oneMapProvider.overrideWithValue(oneMap),
+        placesProvider.overrideWithValue(places),
+      ],
+      child: MaterialApp(theme: buildTheme(Brightness.light), home: AddressPickerPage(title: s.addressFor('Home'))),
+    ));
+    await settle(tester);
+    expect(find.text(s.addressHint), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'putra minang');
+    await tester.pump(const Duration(milliseconds: 500));
+    await settle(tester);
+    expect(places.queries, isEmpty);
+    expect(oneMap.queries, ['putra minang']);
+    expect(find.text(s.noAddressTips), findsOneWidget);
+    expect(find.text(s.placesAttribution), findsNothing);
   });
 
   testWidgets('Plan a trip: a second search for To replaces it, and Clear empties it', (tester) async {
