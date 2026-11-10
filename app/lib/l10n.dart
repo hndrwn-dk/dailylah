@@ -920,7 +920,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Need a toilet? On Wake me at my stop and On the train, one tap lists the next stops or stations with a toilet close by and how many minutes away. Nearby has a new Toilets chip with the three nearest toilets. It is all worked out on your phone; your location is not sent. Toilet data from OpenStreetMap, NParks and NEA hawker centres.",
+        "Need a toilet? On Wake me at my stop and On the train, one tap shows where to get off for a toilet and how many minutes away. Nearby has a new Toilets chip with the three best toilets close by. It is all worked out on your phone; your location is not sent. Toilet data from OpenStreetMap, NParks and NEA hawker centres.",
       ];
 
   // about
