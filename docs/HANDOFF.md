@@ -95,19 +95,18 @@ on OneMap, and OneMap is the fallback. Setup, Nearby and the shared-place picker
   checked); if Redis fails mid-day, the memory counter starts at 0 and the budget can be passed once.
 
 ## Need a toilet? (9 Nov 2026, plan: docs/TOILETS.md)
-One PR (branch `feat/toilets`): `toilets.json` built daily in `data.yml` (`build_toilets`: Geoapify
-Places `amenity.toilet` + NParks park toilets + hawker centres, one per 30 m), and on the phone
-`ToiletSheet` from Wake me and On the train, plus the Toilets chip in Nearby. Reaches users with the
-next release (no version bump in the feature PR).
-- **By hand, before the first data run:** GitHub > Settings > Secrets and variables > Actions >
-  New repository secret `GEOAPIFY_API_KEY` (the Render key or a second key for CI). Without it the
-  build skips the bundle ("no GEOAPIFY_API_KEY" in `backend/data/build_report.json` errors).
-- **After merge:** Actions > data > Run workflow on main once; check that `web/data/toilets.json`
-  is pushed (300+ toilets, else the build keeps the old file and says "too small") and that the
-  manifest lists it. Then Nearby > Toilets in a release build shows toilets.
-- Credits: the daily run uses a few hundred Geoapify credits from the same Free account as
-  `/v1/places` (2,000 a day budget) and Prayer Cast. If the account runs out, lower
-  `PLACES_DAILY_BUDGET` on Render; the toilet build then keeps yesterday's file.
+Done; reaches users with release 2.2.0. `toilets.json` is built daily in `data.yml` (`build_toilets`:
+Geoapify Places `amenity.toilet` + NParks park toilets + hawker centres, one per 30 m); on the phone
+`ToiletSheet` from Wake me and On the train, plus the Toilets chip in Nearby.
+- Merged: #147. `GEOAPIFY_API_KEY` is a GitHub Actions secret (and on Render for `/v1/places`).
+- First run (data, 10 Nov, after #147): 634 toilets (402 other, 122 park, 108 hawker, 1 mall,
+  1 station) from 2 Geoapify requests; the key shows as `apiKey=***` in the log.
+- Most OpenStreetMap toilets have no name ("Toilet, <street>", kind other), so the "mall first on a
+  tie" rule rarely applies. Possible follow-up: take the kind from the nearest MRT station or mall.
+- Credits: the Geoapify account allows 3,000 credits a day and DailyLah's key is capped at 2,000
+  (the rest is Prayer Cast). That cap covers both `/v1/places` (`PLACES_DAILY_BUDGET` = 2,000 calls)
+  and the daily toilet build (2 requests). If the cap is reached the toilet build fails and keeps
+  yesterday's file; a lower `PLACES_DAILY_BUDGET` on Render (e.g. 1,900) leaves room for it.
 
 ## CI/CD hardening (Nov 2026, 8 phases, one PR each)
 Layers: deterministic scans → AI review → a person decides. Existing gates (analyze, test,

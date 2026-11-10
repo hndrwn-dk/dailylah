@@ -25,9 +25,9 @@ relative to `backend/` when they start with `app/`. Endpoint index: `docs/REPO_M
   (`places_ttl`). Geoapify takes the key in the URL, so errors are re-raised as `GeoapifyError`
   without the httpx exception and the httpx request log line is redacted (key and typed text).
   No key: 503; Geoapify error, timeout or 429: 502. The app then searches OneMap instead.
-  The Geoapify account (Free plan, 3,000 credits a day, 5 requests a second) is shared with
-  another app, so a call that is not cached first passes three guards (`app/limits.py`), each
-  answering 503: a pause after Geoapify refuses (`Breaker`: 60 s after 429, 10 min after
+  The Geoapify account (Free plan, 3,000 credits a day, 5 requests a second; DailyLah's key is
+  capped at 2,000 a day) is shared with another app, so a call that is not cached first passes
+  three guards (`app/limits.py`), each answering 503: a pause after Geoapify refuses (`Breaker`: 60 s after 429, 10 min after
   401/403), a per-second cap (`RateGate`, `places_per_second` = 4) and a daily budget
   (`places_daily_budget` = 2,000, counted per UTC day with `Cache.incr`: one Redis INCR per
   Geoapify call, memory when Redis is off or fails, and no Redis at all once the day's budget is
@@ -88,8 +88,8 @@ relative to `backend/` when they start with `app/`. Endpoint index: `docs/REPO_M
   this bundle, never in the app); without it, or when Geoapify fails, the previous file stays.
   Geoapify takes the key in the URL, so errors are raised without the httpx exception and the
   httpx request log line is redacted (`app/geoapify.py`, imported by `bundles.py`). Places is
-  billed by places returned (about 1 credit per 20): a full run is a few hundred credits a day
-  from the account shared with `/v1/places` (3,000 a day). Data is OpenStreetMap (ODbL): the app
+  billed by places returned: a full run is 2 requests a day under DailyLah's 2,000-credit daily
+  cap, which `/v1/places` shares (the account allows 3,000; the rest is Prayer Cast). Data is OpenStreetMap (ODbL): the app
   shows "Powered by Geoapify · © OpenStreetMap contributors" with it.
 - OneMap needs a token: the backend (`app/onemap.py`) logs in with `ONEMAP_EMAIL` /
   `ONEMAP_PASSWORD` (Render env and GitHub secrets) and renews it; the app searches via
