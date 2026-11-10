@@ -6,10 +6,10 @@ on:
   workflow_dispatch:
     inputs:
       play_track:
-        description: "Upload the signed AAB to this Google Play track (none = build only)"
+        description: "Upload the signed AAB to this Google Play track (none = analyze and tests only; manual = sign, tag and keep it in a draft GitHub Release, no upload)"
         type: choice
         default: alpha
-        options: [none, internal, alpha, beta, production]
+        options: [none, manual, internal, alpha, beta, production]
 # Read-only by default; no job here writes to the repo. Google Play uses its own service account.
 permissions:
   contents: read
@@ -51,9 +51,12 @@ jobs:
       base_ref: ${{ steps.base.outputs.ref }}
     env:
       # A push to main is a release only when it bumps `version:` in pubspec.yaml (new feature or
-      # bug fix); it then goes to closed testing (alpha) once the on-device tests pass (jobs e2e
-      # and play). A manual run picks its track. Pull requests and other branches only build.
-      PLAY_TRACK: ${{ github.event_name == 'workflow_dispatch' && inputs.play_track || (github.event_name == 'push' && github.ref == 'refs/heads/main' && 'alpha') || 'none' }}
+      # bug fix). Where it goes is the repository variable PLAY_PUSH_TRACK: `alpha` uploads to
+      # closed testing once the on-device tests pass (jobs e2e and play); unset or `manual` signs,
+      # tags and keeps the AAB in a draft GitHub Release for an upload by hand, and never calls
+      # Google Play (docs/QA.md "Manual releases"). A manual run picks its track. Pull requests
+      # and other branches only build.
+      PLAY_TRACK: ${{ github.event_name == 'workflow_dispatch' && inputs.play_track || (github.event_name == 'push' && github.ref == 'refs/heads/main' && (vars.PLAY_PUSH_TRACK || 'manual')) || 'none' }}
     defaults:
       run:
         working-directory: app
@@ -69,6 +72,10 @@ jobs:
           BEFORE: ${{ github.event.before }}
         run: |
           track="$PLAY_TRACK"
+          case "$track" in
+            none|manual|internal|alpha|beta|production) ;;
+            *) echo "::error::Unknown track '$track' (repository variable PLAY_PUSH_TRACK: manual, internal, alpha, beta or production)."; exit 1 ;;
+          esac
           if [ "$GITHUB_EVENT_NAME" = push ] && [ "$track" != none ]; then
             ver() { sed -n 's/^version:[[:space:]]*\([^[:space:]]*\).*/\1/p'; }
             new=$(ver < app/pubspec.yaml)
@@ -79,6 +86,8 @@ jobs:
             elif [ -z "$(git diff --name-only "$BEFORE" HEAD -- docs/store/whatsnew)" ]; then
               echo "::error file=docs/store/whatsnew/whatsnew-en-US::version $old -> $new but the release notes were not changed. Write what is new in $new only."
               exit 1
+            elif [ "$track" = manual ]; then
+              echo "::notice title=Release (manual upload)::$old -> $new is signed, tagged and kept in a draft GitHub Release after the on-device tests; nothing is sent to Google Play."
             else
               echo "::notice title=Release::$old -> $new goes to $track after the on-device tests."
             fi
@@ -237,7 +246,8 @@ jobs:
     # Only a signed AAB, only after the on-device tests. The Play key lives in environment "play"
     # (or "play-production", which waits for the owner's approval).
     needs: [analyze, sign, e2e]
-    if: needs.analyze.outputs.track != 'none' && needs.sign.result == 'success'
+    # Track `manual` never reaches this job, so the Play key is not read at all.
+    if: needs.analyze.outputs.track != 'none' && needs.analyze.outputs.track != 'manual' && needs.sign.result == 'success'
     runs-on: ubuntu-latest
     environment: ${{ needs.analyze.outputs.track == 'production' && 'play-production' || 'play' }}
     # One upload at a time; a second release waits instead of cancelling the first.
@@ -290,14 +300,18 @@ jobs:
           tracks: ${{ env.PLAY_TRACK }}
           status: ${{ env.PLAY_TRACK == 'production' && 'draft' || 'completed' }}
 
-  # After a successful upload: tag the commit v<versionName> (the base of the next release's
-  # upgrade test) and, for production, keep the AAB and R8 mapping in a draft GitHub Release
-  # (the run artifact expires after 30 days). The only job here that writes to the repo; the
-  # token goes only to the step that needs it.
+  # After a successful upload, or after sign and e2e for track `manual` (no upload): tag the
+  # commit v<versionName> (the base of the next release's upgrade test) and, for production and
+  # manual, keep the AAB, R8 mapping and release notes in a draft GitHub Release (the run
+  # artifact expires after 30 days). The only job here that writes to the repo; the token goes
+  # only to the steps that need it.
   release-tag:
     name: tag the release
-    needs: [analyze, play]
-    if: needs.analyze.outputs.track != 'none'
+    needs: [analyze, sign, e2e, play]
+    if: >-
+      ${{ !failure() && !cancelled() && needs.analyze.outputs.track != 'none'
+      && needs.sign.result == 'success' && needs.e2e.result == 'success'
+      && (needs.play.result == 'success' || (needs.analyze.outputs.track == 'manual' && needs.play.result == 'skipped')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -330,23 +344,41 @@ jobs:
           echo "::notice title=Release tag::$tag on ${GITHUB_SHA::7}"
           echo "- Tagged $tag on ${GITHUB_SHA::7}" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        if: env.PLAY_TRACK == 'production' && steps.tag.outputs.moved != 'no'
+        if: (env.PLAY_TRACK == 'production' || env.PLAY_TRACK == 'manual') && steps.tag.outputs.moved != 'no'
         with:
           name: dailylah-aab
           path: app/build
-      - name: Draft GitHub Release with the AAB and mapping (production)
-        if: env.PLAY_TRACK == 'production' && steps.tag.outputs.moved != 'no'
+      - name: Draft GitHub Release with the AAB, mapping and release notes (production, manual)
+        if: (env.PLAY_TRACK == 'production' || env.PLAY_TRACK == 'manual') && steps.tag.outputs.moved != 'no'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
+          notes=docs/store/whatsnew/whatsnew-en-US
+          n=$(python3 -c "import sys; print(len(open(sys.argv[1], encoding='utf-8').read().strip()))" "$notes")
+          [ "$n" -le 500 ] || { echo "::error file=$notes::Release notes are $n characters; Google Play allows 500."; exit 1; }
+          cp "$notes" app/build/whatsnew-en-US
+          files=(app/build/dailylah.aab app/build/dailylah-mapping.txt app/build/whatsnew-en-US)
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" app/build/dailylah.aab app/build/dailylah-mapping.txt --clobber
+            gh release upload "$TAG" "${files[@]}" --clobber
           else
-            gh release create "$TAG" app/build/dailylah.aab app/build/dailylah-mapping.txt \
-              --draft --verify-tag --title "DailyLah ${TAG#v}" --notes-file docs/store/whatsnew/whatsnew-en-US
+            gh release create "$TAG" "${files[@]}" \
+              --draft --verify-tag --title "DailyLah ${TAG#v}" --notes-file "$notes"
           fi
-          echo "- Draft release $TAG with dailylah.aab and dailylah-mapping.txt" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Draft release $TAG with dailylah.aab, dailylah-mapping.txt and whatsnew-en-US" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$PLAY_TRACK" = manual ]; then
+            echo "::notice title=Manual upload::Nothing was sent to Google Play. Upload dailylah.aab from the draft release $TAG in Play Console, with dailylah-mapping.txt (App bundle explorer > ReTrace mapping file) and whatsnew-en-US as the release notes."
+          fi
+      # The same three files as a run artifact (30 days), next to `dailylah-aab`.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: env.PLAY_TRACK == 'manual' && steps.tag.outputs.moved != 'no'
+        with:
+          name: dailylah-release
+          path: |
+            app/build/dailylah.aab
+            app/build/dailylah-mapping.txt
+            app/build/whatsnew-en-US
+          retention-days: 30
 
   # The one check to require for this workflow: fails if any job failed or was cancelled,
   # passes when they passed or were skipped (no app change).

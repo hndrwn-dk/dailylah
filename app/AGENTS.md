@@ -269,16 +269,18 @@ feature, screen, provider or rule moves, appears or goes away.
   notes of earlier releases; max 500 characters, plain text, one file per store language), and puts the
   same lines in `S.whatsNewNotes` for the What's new card (a test checks they match). Other PRs
   (docs, tests, CI, data) leave both alone. On a push to `main` the `app` workflow builds the AAB and
-  uploads only when `version:` changed (otherwise it runs analyze and tests only), and fails if it
+  releases only when `version:` changed (otherwise it runs analyze and tests only), and fails if it
   changed without new release notes. A release runs: build (`analyze`), then the whole `emulator` workflow on that commit
   (`e2e`, a reusable call: flows on API 29/35/36; upgrade test from the last release tag `v*`; Maestro
-  flows on a universal APK made from the very AAB that is uploaded), and only if all of it passes the
-  `play` job uploads to `alpha` (closed testing, the testers for the 14-day production requirement);
-  `release-tag` then tags the commit `v<versionName>`, and a production upload keeps the AAB and
-  mapping in a draft GitHub Release (docs/QA.md "Release tags").
+  flows on a universal APK made from the very AAB that is uploaded), and only if all of it passes it
+  is released to the track in the repository variable `PLAY_PUSH_TRACK`: unset or `manual` uploads
+  nothing (the owner uploads by hand, docs/QA.md "Manual releases"); `alpha` makes the `play` job
+  upload to closed testing. `release-tag` then tags the commit `v<versionName>`, and a production
+  upload or a `manual` release keeps the AAB, mapping and `whatsnew-en-US` in a draft GitHub Release
+  (docs/QA.md "Release tags").
   Promote a tested release to production in Play Console only after the checklist in docs/QA.md
   "Before promoting a release to production" (security green, real-phone check in closed testing, /vuln-scan) is done. A manual run of `app` on `main` can pick
-  another `play_track` (internal, beta, production as draft); it runs the same tests first. A flaky emulator
+  another `play_track` (manual, internal, beta, production as draft); it runs the same tests first. A flaky emulator
   job blocks the upload: re-run failed jobs and `play` follows. The upload sends the AAB, mapping file
   and release notes with the service account in secret `PLAY_SERVICE_ACCOUNT_JSON` (environment `play`,
   or `play-production`, which waits for the owner's approval; upload action pinned by commit). The emulator `release` job (`scripts/emulator_release.sh`)

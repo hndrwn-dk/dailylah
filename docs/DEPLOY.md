@@ -54,6 +54,17 @@ Set up by hand under Settings > Environments, each limited to `main` with no adm
 - `play-production`: `PLAY_SERVICE_ACCOUNT_JSON`, required reviewer: the repo owner (prevent
   self-review off).
 
+## Release track for a version bump
+Repository variable `PLAY_PUSH_TRACK` (Settings > Secrets and variables > Actions > Variables tab)
+decides what a version bump on `main` does (docs/QA.md "Manual releases"):
+- Not set, or `manual`: build, test, sign, tag `v<version>` and a draft GitHub Release with the AAB,
+  mapping and release notes. No Google Play upload; the owner uploads in Play Console by hand.
+- `alpha`: the same, and the `play` job uploads to closed testing (the setup before 2.3.0).
+- Switch the automatic upload back on: New repository variable (or edit), Name `PLAY_PUSH_TRACK`,
+  Value `alpha`, Add variable. Turn it off again: set it to `manual` or delete it.
+- Check it on the next release: the `analyze` job says `Release (manual upload)` or
+  `Release ... goes to alpha`, and `upload to Google Play (…)` is skipped or runs.
+
 ## Rulesets
 Set up by hand: Settings > Rules > Rulesets > New.
 

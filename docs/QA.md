@@ -20,7 +20,7 @@ This file maps that plan to the automated tests in this repo and lists what is s
 | AI review (advisory) `.claude/skills/review-pr` | a Claude Code session, on request | "review PR #N" or "security gate for PR #N" before a merge | bugs, CLAUDE.md rules and security on a PR; one comment, never blocks; see "AI review" below |
 | Web check `scripts/web_check.sh` | GitHub Actions `web-check` | daily 07:23 Singapore time, and by hand | dailylah.sg opens, /privacy and /terms redirect to the policy pages, `data/manifest.json` valid on all three hosts, one bundle matches its sha256; see "Web check" below |
 | Feature tests `app/test/features_test.dart` | GitHub Actions `app` (flutter test) | every PR | each feature through the real widgets: Ate here at halal places, meal time in History, live bus position |
-| Release gate | GitHub Actions `app` jobs `e2e` + `play` + `release-tag` | every push to `main` and manual releases | the whole `emulator` workflow must pass on the commit before the AAB goes to Google Play (closed testing by default); one upload at a time; the uploaded commit is tagged `v<versionName>` |
+| Release gate | GitHub Actions `app` jobs `e2e` + `play` + `release-tag` | every version bump on `main` and manual releases | the whole `emulator` workflow must pass on the commit before the AAB is tagged or goes to Google Play; where a version bump goes is the repository variable `PLAY_PUSH_TRACK` (unset = `manual`: no upload, see "Manual releases"); one upload at a time; the released commit is tagged `v<versionName>` |
 | Security scans `security.yml` | GitHub Actions `security` | every PR, push to `main`, Mondays | CodeQL (actions, python, java-kotlin), osv-scanner (dependencies), zizmor (workflows); see below |
 | Backend security `backend.yml` | GitHub Actions `backend` | every push touching `backend/` | ruff bandit rules (`S`), `pip-audit` on the installed dependency tree |
 | Agent docs `docs.yml` | GitHub Actions `docs` | every PR and push to `main` | `docs/REPO_MAP.md` and every `AGENTS.md` match the code and CLAUDE.md (`scripts/repo_map.py --check`) |
@@ -28,10 +28,39 @@ This file maps that plan to the automated tests in this repo and lists what is s
 The screen matrix uses the bundles committed in `web/data/`, so screens render with real data.
 The API, location and storage are faked. A test fails on any exception or layout overflow.
 
+## Manual releases (no Play upload)
+
+What a version bump on `main` does is set by the repository variable `PLAY_PUSH_TRACK`
+(Settings > Secrets and variables > Actions > Variables):
+
+| `PLAY_PUSH_TRACK` | A version bump on `main` |
+| --- | --- |
+| not set, or `manual` | analyze, tests, unsigned AAB, `sign` (with the `UPLOAD_CERT_SHA256` check), `e2e` (flows, upgrade from the last tag, Maestro on the signed AAB), then `release-tag`: tag `v<versionName>` and a draft GitHub Release with `dailylah.aab`, `dailylah-mapping.txt` and `whatsnew-en-US`. `play` is skipped and never reads the Play key. |
+| `alpha` (or `internal`, `beta`) | the same tests, then `play` uploads to that track, then `release-tag` tags the commit. |
+
+A manual run (Actions > app > Run workflow on `main`) offers the same `manual` choice next to the
+Play tracks; `none` there means analyze and tests only.
+
+Uploading a `manual` release by hand:
+1. Actions > the `app` run > its summary: the `Manual upload` notice names the draft release. The
+   three files are also the run artifact `dailylah-release` (30 days).
+2. Releases > the draft `v<versionName>` > download `dailylah.aab`, `dailylah-mapping.txt` and
+   `whatsnew-en-US`.
+3. Play Console > Test and release > the track (e.g. Production) > Create new release > upload
+   `dailylah.aab`; paste `whatsnew-en-US` into the release notes (en-US).
+4. Play Console > App bundle explorer > that version > Downloads > ReTrace mapping file > upload
+   `dailylah-mapping.txt`.
+5. Review and roll out in Play Console. Leave the GitHub Release as a draft, or publish it by hand.
+
+Switching the automatic upload back on: set the repository variable `PLAY_PUSH_TRACK` to `alpha`
+(New repository variable, or edit it). The next version bump on `main` uploads to closed testing
+again. Setting it back to `manual`, or deleting it, turns the upload off again. Nothing in the
+repository changes.
+
 ## Release tags
 
-Every upload to Google Play tags its commit `v<versionName>` (`app` job `release-tag`, after
-`play`). The tags mark what users really run:
+Every release tags its commit `v<versionName>` (`app` job `release-tag`, after `play`, or after
+`sign` and `e2e` for a `manual` release). The tags mark what users really run:
 - A release tests the upgrade from the nearest tag below its commit (`git describe` on `HEAD^`),
   not from the commit before it, which may never have shipped. With no tag yet, it falls back to
   that commit with a `No release tag` warning.
@@ -40,15 +69,16 @@ Every upload to Google Play tags its commit `v<versionName>` (`app` job `release
   creations open; it only blocks moving and deleting a tag).
 - Pull requests still test the upgrade from `origin/main`: that catches a broken format before
   it reaches a release.
-- The tag is the last upload to any track, closed testing included. Users on production can be a
-  version behind until it is promoted.
+- The tag is the last release to any track, closed testing included, or the last `manual` release
+  (which the owner uploads by hand). Users on production can be a version behind until it is
+  promoted or uploaded.
 - The old version is built with its own `pubspec.lock` (`--enforce-lockfile`); a tag from before
   the lockfile was committed (v1.9.1 and older) resolves its dependencies fresh, with a warning.
 - A tag is never moved. Uploading again without a new `version:` (a manual run on another track)
   keeps the tag on the first commit and says so in a warning.
-- A production upload also keeps the AAB and `dailylah-mapping.txt` in a draft GitHub Release of
-  that tag, since run artifacts expire after 30 days. Drafts are visible only to the owner; publish
-  it by hand if wanted.
+- A production upload or a `manual` release also keeps the AAB, `dailylah-mapping.txt` and
+  `whatsnew-en-US` in a draft GitHub Release of that tag, since run artifacts expire after 30 days.
+  Drafts are visible only to the owner; publish it by hand if wanted.
 
 ## Release signing
 
@@ -67,8 +97,8 @@ The upload key never reaches a job that runs third-party build code:
 - `e2e` tests `dailylah-aab` on main, so Maestro runs the very file that goes to Play; a manual run
   on another branch skips `sign` and tests `dailylah-aab-unsigned`. A failed `sign` stops the run.
 - `play` (environment `play`, or `play-production` with the owner's approval) and `release-tag`
-  (draft Release for production) only ever take `dailylah-aab`, so nothing unsigned is uploaded or
-  archived.
+  (draft Release for production and `manual`) only ever take `dailylah-aab`, so nothing unsigned is
+  uploaded or archived.
 - This protects the keys. It does not prove what is inside the AAB: Gradle plugins and pub packages
   still build it; the tests, R8 checks and Maestro are what catch a bad build.
 - `jarsigner -verify -strict` is not used: an upload certificate is self-signed, which `-strict`
