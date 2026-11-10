@@ -8,8 +8,8 @@
   "dengue": 10,
   "emergency": 11452,
   "ev": 2821,
-  "events": 17,
-  "halal": 3693,
+  "events": 18,
+  "halal": 3692,
   "hawkers": 108,
   "hdb_blocks": 10731,
   "hdb_rent": 26,
@@ -19,7 +19,8 @@
   "poi": 5709,
   "prayer": 365,
   "private_homes": 4786,
-  "taxi_stands": 316
+  "taxi_stands": 316,
+  "toilets": 634
  },
  "datagov_key_rejected": false,
  "errors": {},
