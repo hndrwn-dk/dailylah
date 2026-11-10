@@ -11,6 +11,13 @@ No account, no tracking. Saved places stay on the phone, and alerts are made on 
 
 **Status:** closed testing on Google Play since 26 Oct 2026. Website: [dailylah.sg](https://dailylah.sg).
 
+[![dailylah.sg](https://img.shields.io/website?url=https%3A%2F%2Fdailylah.sg&label=dailylah.sg&up_message=up&down_message=down)](https://dailylah.sg)
+[![web-check](https://github.com/hndrwn-dk/dailylah/actions/workflows/web-check.yml/badge.svg)](https://github.com/hndrwn-dk/dailylah/actions/workflows/web-check.yml)
+
+The first badge checks the site when the page loads. `web-check` runs every morning at 07:23
+Singapore time and also checks the policy redirects and the data manifest on all three hosts
+([docs/QA.md](docs/QA.md), "Web check").
+
 <p>
   <img src="docs/store/screenshots/01-today.png" width="180" alt="Today tab with the morning card">
   <img src="docs/store/screenshots/03-planb.png" width="180" alt="Plan B buses when an MRT line is disrupted">
