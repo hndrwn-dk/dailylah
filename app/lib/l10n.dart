@@ -68,7 +68,8 @@ class S {
   String get historyParking => 'Parking';
   String get historyMeals => 'Meals';
   String get historySpent => 'Spent';
-  String get historyCostNote => '≈ is an estimate (adult card fare, HDB parking rates). Tap a trip or parking to enter what you paid, or a meal to change its time.';
+  String get historyCostNote => '≈ is an estimate (adult card fare, HDB parking rates). Meals count only when they have a price. Tap a trip or parking to enter what you paid, or a meal to set its price or time.';
+  String mealsPriced(int priced, int meals, int cents) => '${money(cents)} · $priced of $meals meals priced';
   String get historyAll => 'All';
   String historyRemoveShown(int n) => n == 1 ? 'Remove this entry' : 'Remove these $n entries';
   String historyRemoveAsk(int n) => n == 1 ? 'Remove this entry from History?' : 'Remove these $n entries from History?';
@@ -87,6 +88,16 @@ class S {
   String get yesterday => 'Yesterday';
   String get historyDeleted => 'Removed from History';
   String get mealTimeHelp => 'When did you eat?';
+  String get mealPrice => 'Price (optional)';
+  String get mealPriceOther => 'Other';
+  String get mealPriceAsk => 'What did it cost?';
+  String get mealPriceInvalid => 'Enter an amount from \$0.01 to \$200.00, e.g. 5.50';
+  String get mealPriceClear => 'No price';
+  String mealTimeAt(String time) => 'Eaten at $time';
+  String get mealChangeTime => 'Change time';
+
+  /// "$4" for whole dollars, else "$5.50" (the meal price chips).
+  String moneyShort(int cents) => cents % 100 == 0 ? '\$${cents ~/ 100}' : money(cents);
   String get mealTimeFuture => 'That time has not come yet today.';
   String get undo => 'Undo';
   String money(int cents) => '\$${(cents / 100).toStringAsFixed(2)}';
@@ -268,6 +279,9 @@ class S {
   String get legendStand => 'Taxi stand';
   String get legendYou => 'You';
   String get taxiTapHint => 'Tap a taxi or a stand for details.';
+  String taxiRadarLabel(int n) => n == 0
+      ? 'Taxi map: no free taxi within 1 km.'
+      : 'Taxi map: ${n == 1 ? '1 free taxi' : '$n free taxis'} within 1 km. Double-tap for the nearest one.';
   List<String> get compassNames =>
       const ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
   String freeTaxiAt(double m, int dir) => 'Free taxi · ${metres(m)} ${compassNames[dir]} · ${walkMinutes(m)}';
@@ -920,7 +934,8 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Need a toilet? On Wake me at my stop and On the train, one tap shows where to get off for a toilet and how many minutes away. Nearby has a new Toilets chip with the three best toilets close by. It is all worked out on your phone; your location is not sent. Toilet data from OpenStreetMap, NParks and NEA hawker centres.",
+        r"Meal prices in History: when you tap Ate here, pick $4, $6 or $8, type what you paid, or skip it. History adds priced meals to what you spent and says how many meals have a price. It remembers your last price at each place. Prices stay on your phone.",
+        "Better with large text and TalkBack: bus, charger and bus route rows no longer get cut off, and small buttons are bigger and read out properly.",
       ];
 
   // about

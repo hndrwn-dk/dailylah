@@ -60,6 +60,31 @@ void main() {
     expect(fav.onboarded, isFalse);
   });
 
+  test('History saved by 2.2.0 (meals without a price) loads unchanged in 2.3.0', () async {
+    // What 2.2.0 wrote under habits.v1: a hawker meal, a halal place with its name, a trip.
+    const v220 = {
+      'trips': [
+        {'r': 'home>work', 's': '2026-11-03T07:30:00.000', 'm': 40},
+      ],
+      'meals': [
+        {'h': 'h1', 'at': '2026-11-03T12:00:00.000'},
+        {'h': 'p:1.35000,103.94000', 'at': '2026-11-04T13:00:00.000', 'n': 'Test Kitchen'},
+      ],
+    };
+    SharedPreferences.setMockInitialValues({'habits.v1': jsonEncode(v220)});
+    final h = await HabitsStore().load();
+    expect(h.meals.map((m) => (m.hawkerId, m.name, m.priceCents)), [
+      ('h1', null, null),
+      ('p:1.35000,103.94000', 'Test Kitchen', null),
+    ]);
+    expect(h.meals.first.at, DateTime(2026, 11, 3, 12));
+    expect(h.trips, hasLength(1));
+    // Saved again by 2.3.0 it keeps the same keys, so going back to 2.2.0 still reads it.
+    await HabitsStore().save(h);
+    final raw = jsonDecode((await SharedPreferences.getInstance()).getString('habits.v1')!) as Map;
+    expect(raw['meals'], v220['meals']);
+  });
+
   test('alert history keeps working after an upgrade (no repeat notifications)', () async {
     SharedPreferences.setMockInitialValues({
       'alerts.sent': ['2026-10-20:rain:morning', 'mrt:2026-10-20:123'],

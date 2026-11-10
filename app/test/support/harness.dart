@@ -322,6 +322,7 @@ const conditions = [
   Condition('text 200%', textScale: 2.0, size: Size(360, 780)),
   Condition('dark mode', dark: true),
   Condition('small screen 320dp', size: Size(320, 568)),
+  Condition('text 200% on 320dp', textScale: 2.0, size: Size(320, 640)),
 ];
 
 /// Applies a condition to the test view and fakes. Call at the start of each test.

@@ -175,21 +175,25 @@ class _StripRow extends StatelessWidget {
                   child: Container(width: 5, color: lineColor),
                 ),
                 if (busHere != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: DL.amber,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: DL.ink, width: 2),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.directions_bus, size: 14, color: DL.ink),
-                        const SizedBox(width: 2),
-                        Text(busHere!,
-                            style: const TextStyle(fontFamily: DL.display, fontWeight: FontWeight.w700, fontSize: 15, color: DL.ink)),
-                      ],
+                  // Scales down to the 64 dp column at 200% text instead of overflowing it.
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: DL.amber,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: DL.ink, width: 2),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.directions_bus, size: 14, color: DL.ink),
+                          const SizedBox(width: 2),
+                          Text(busHere!,
+                              style: const TextStyle(fontFamily: DL.display, fontWeight: FontWeight.w700, fontSize: 15, color: DL.ink)),
+                        ],
+                      ),
                     ),
                   )
                 else
@@ -219,13 +223,17 @@ class _StripRow extends StatelessWidget {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.only(left: 8, top: 12),
-            child: Text(
-              tag,
-              style: t.labelMedium?.copyWith(
-                color: last ? DL.goText(context) : busHere != null ? DL.nearText(context) : DL.muted(context),
-                fontWeight: last || busHere != null ? FontWeight.w800 : null,
+          // Flexible: at 200% text on a 320 dp phone the tag ("in 3 min") wraps instead of overflowing.
+          Flexible(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 8, top: 12),
+              child: Text(
+                tag,
+                textAlign: TextAlign.end,
+                style: t.labelMedium?.copyWith(
+                  color: last ? DL.goText(context) : busHere != null ? DL.nearText(context) : DL.muted(context),
+                  fontWeight: last || busHere != null ? FontWeight.w800 : null,
+                ),
               ),
             ),
           ),

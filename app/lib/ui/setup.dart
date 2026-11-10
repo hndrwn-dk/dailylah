@@ -133,23 +133,27 @@ class SetupPage extends ConsumerWidget {
                 onTap: () => _pickAddress(context, ref, kind),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.place_outlined, size: 20),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: place?.hasAddress == true
-                            ? Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(place!.address ?? s.myLocation, style: t.titleSmall),
-                                  if (place.postal != null) Text('Singapore ${place.postal}', style: t.bodySmall),
-                                ],
-                              )
-                            : Text(s.setAddress, style: t.labelLarge?.copyWith(color: Theme.of(context).colorScheme.primary)),
-                      ),
-                      Icon(place?.hasAddress == true ? Icons.edit_outlined : Icons.chevron_right, size: 18),
-                    ],
+                  // 6 + 36 + 6: a 48 dp tap target even with one line of text.
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 36),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.place_outlined, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: place?.hasAddress == true
+                              ? Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(place!.address ?? s.myLocation, style: t.titleSmall),
+                                    if (place.postal != null) Text('Singapore ${place.postal}', style: t.bodySmall),
+                                  ],
+                                )
+                              : Text(s.setAddress, style: t.labelLarge?.copyWith(color: Theme.of(context).colorScheme.primary)),
+                        ),
+                        Icon(place?.hasAddress == true ? Icons.edit_outlined : Icons.chevron_right, size: 18),
+                      ],
+                    ),
                   ),
                 ),
               ),

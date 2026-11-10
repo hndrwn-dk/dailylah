@@ -361,13 +361,19 @@ class _MrtCard extends ConsumerWidget {
                         child: InkWell(
                           borderRadius: BorderRadius.circular(8),
                           onTap: () => toggle(st.line),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              LineChip(st.line, dense: true),
-                              const SizedBox(width: 3),
-                              const Icon(Icons.circle, size: 8, color: Color(0xFF2E9E5B)),
-                            ],
+                          // 48 dp tap target around the small chip.
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                                minWidth: kMinInteractiveDimension, minHeight: kMinInteractiveDimension),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                LineChip(st.line, dense: true),
+                                const SizedBox(width: 3),
+                                const Icon(Icons.circle, size: 8, color: Color(0xFF2E9E5B)),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -1202,40 +1208,50 @@ class _TaxiRadarState extends ConsumerState<TaxiRadar> {
                   for (final (i, (la, lo)) in widget.taxis.indexed)
                     if ((at(la, lo) - c).distance <= r) (i, at(la, lo)),
                 ];
-                return GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTapUp: (d) {
-                    (int, double)? hit;
-                    for (final (i, p) in cabs) {
-                      final dist = (p - d.localPosition).distance;
-                      if (dist <= 28 && (hit == null || dist < hit.$2)) hit = (i, dist);
-                    }
-                    setState(() => _picked = hit?.$1);
-                  },
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: CustomPaint(
-                          painter: _TaxiRadarPainter(
-                            center: c,
-                            radius: r,
-                            cabs: [for (final (_, p) in cabs) p],
-                            picked: picked == null ? null : at(picked.$1, picked.$2),
-                            labels: [for (final m in TaxiRadar.rings) s.ringMin(m)],
-                          ),
-                        ),
-                      ),
-                      for (final p in widget.stands)
-                        if ((at(p.lat, p.lng) - c).distance <= r)
-                          Positioned(
-                            left: at(p.lat, p.lng).dx - 16,
-                            top: at(p.lat, p.lng).dy - 16,
-                            child: TaxiStandPin(
-                              stand: p,
-                              onTap: () => _openStand(context, s, p, distanceMeters(o.lat, o.lng, p.lat, p.lng), widget.taxis),
+                // TalkBack: the painted map gets a label, and its tap picks the nearest taxi
+                // (the line under the map then says where it is).
+                return Semantics(
+                  container: true,
+                  label: s.taxiRadarLabel(cabs.length),
+                  onTap: cabs.isEmpty
+                      ? null
+                      : () => setState(() => _picked =
+                          cabs.reduce((a, b) => (a.$2 - c).distance <= (b.$2 - c).distance ? a : b).$1),
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTapUp: (d) {
+                      (int, double)? hit;
+                      for (final (i, p) in cabs) {
+                        final dist = (p - d.localPosition).distance;
+                        if (dist <= 28 && (hit == null || dist < hit.$2)) hit = (i, dist);
+                      }
+                      setState(() => _picked = hit?.$1);
+                    },
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: _TaxiRadarPainter(
+                              center: c,
+                              radius: r,
+                              cabs: [for (final (_, p) in cabs) p],
+                              picked: picked == null ? null : at(picked.$1, picked.$2),
+                              labels: [for (final m in TaxiRadar.rings) s.ringMin(m)],
                             ),
                           ),
-                    ],
+                        ),
+                        for (final p in widget.stands)
+                          if ((at(p.lat, p.lng) - c).distance <= r)
+                            Positioned(
+                              left: at(p.lat, p.lng).dx - TaxiStandPin.size / 2,
+                              top: at(p.lat, p.lng).dy - TaxiStandPin.size / 2,
+                              child: TaxiStandPin(
+                                stand: p,
+                                onTap: () => _openStand(context, s, p, distanceMeters(o.lat, o.lng, p.lat, p.lng), widget.taxis),
+                              ),
+                            ),
+                      ],
+                    ),
                   ),
                 );
               }),
@@ -1271,11 +1287,14 @@ class _TaxiRadarState extends ConsumerState<TaxiRadar> {
   }
 }
 
-/// A taxi stand on the radar: a 32 px tap target around the "T" square.
+/// A taxi stand on the radar: a 48 dp tap target around the "T" square.
 class TaxiStandPin extends StatelessWidget {
   const TaxiStandPin({super.key, required this.stand, required this.onTap});
   final EPoint stand;
   final VoidCallback onTap;
+
+  /// The tap target; the painted square stays 18 px.
+  static const size = kMinInteractiveDimension;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -1285,8 +1304,8 @@ class TaxiStandPin extends StatelessWidget {
           behavior: HitTestBehavior.opaque,
           onTap: onTap,
           child: Container(
-            width: 32,
-            height: 32,
+            width: size,
+            height: size,
             alignment: Alignment.center,
             child: Container(
               width: 18,

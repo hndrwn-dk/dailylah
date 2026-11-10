@@ -1284,6 +1284,87 @@ void main() {
     expect(Habits.fromJson({'trips': [], 'meals': []}).parkings, isEmpty);
   });
 
+  test('meal price: saved as cents, optional, and old meals without one load unchanged', () {
+    final at = DateTime(2026, 11, 10, 12, 30);
+    final priced = MealLog(hawkerId: 'h1', at: at, priceCents: 550);
+    expect(priced.toJson()['c'], 550);
+    final back = MealLog.fromJson(priced.toJson());
+    expect((back.hawkerId, back.at, back.priceCents), ('h1', at, 550));
+    // Without a price nothing new is written, so a 2.2.0 build reads it the same way.
+    final plain = MealLog(hawkerId: 'p:1.35000,103.94000', at: at, name: 'Test Kitchen');
+    expect(plain.toJson().keys.toSet(), {'h', 'at', 'n'});
+    expect(MealLog.fromJson(plain.toJson()).priceCents, isNull);
+    // A meal saved by 2.2.0 (no 'c'), and odd values, load without a price instead of failing.
+    final old = MealLog.fromJson({'h': 'h1', 'at': '2026-10-27T12:00:00.000'});
+    expect((old.hawkerId, old.priceCents, old.name), ('h1', null, null));
+    expect(MealLog.fromJson({'h': 'h1', 'at': '2026-10-27T12:00:00.000', 'c': 'x'}).priceCents, isNull);
+    expect(MealLog.fromJson({'h': 'h1', 'at': '2026-10-27T12:00:00.000', 'c': -5}).priceCents, isNull);
+    // Changing the time keeps the price, and the other way round.
+    expect(priced.withTime(at.subtract(const Duration(hours: 1))).priceCents, 550);
+    expect(priced.withPrice(null).priceCents, isNull);
+    expect(plain.withPrice(400).name, 'Test Kitchen');
+    // A whole Habits round trip keeps priced and unpriced meals as they were.
+    final h = Habits.fromJson(Habits(meals: [plain, priced]).toJson());
+    expect(h.meals.map((m) => m.priceCents), [null, 550]);
+  });
+
+  test('meal price: typed amounts, chips and the last price per place', () {
+    expect(parseMealCents('5.5'), 550);
+    expect(parseMealCents(r'$12.80'), 1280);
+    expect(parseMealCents('4,20'), 420);
+    expect(parseMealCents('200'), 20000);
+    expect(parseMealCents('200.01'), isNull, reason: r'more than $200 is a typo');
+    expect(parseMealCents('1.234'), isNull, reason: '2 decimals at most');
+    expect(parseMealCents('0'), isNull);
+    expect(parseMealCents(''), isNull);
+    expect(parseMealCents('abc'), isNull);
+    expect(mealPriceChips, [400, 600, 800]);
+    expect(const S().moneyShort(400), r'$4');
+    expect(const S().moneyShort(550), r'$5.50');
+
+    final t = DateTime(2026, 11, 3, 12);
+    final meals = [
+      MealLog(hawkerId: 'a', at: t, priceCents: 400),
+      MealLog(hawkerId: 'b', at: t.add(const Duration(days: 1)), priceCents: 800),
+      MealLog(hawkerId: 'a', at: t.add(const Duration(days: 2)), priceCents: 600),
+      // The newest meal at 'a' has no price: the last price paid there is still offered.
+      MealLog(hawkerId: 'a', at: t.add(const Duration(days: 3))),
+    ];
+    expect(lastMealPrice(meals, 'a'), 600);
+    expect(lastMealPrice(meals, 'b'), 800);
+    expect(lastMealPrice(meals, 'c'), isNull);
+    // Order in the list does not matter, only when the meal was eaten.
+    expect(lastMealPrice(meals.reversed.toList(), 'a'), 600);
+  });
+
+  test('History week total counts priced meals only and says how many have a price', () {
+    final now = DateTime(2026, 11, 8, 20); // Sunday
+    final h = Habits(
+      trips: [TripLog(route: 'home>work', start: DateTime(2026, 11, 3, 8), minutes: 40, costCents: 200)],
+      meals: [
+        MealLog(hawkerId: 'a', at: DateTime(2026, 11, 3, 12), priceCents: 400),
+        MealLog(hawkerId: 'b', at: DateTime(2026, 11, 4, 12)),
+        MealLog(hawkerId: 'a', at: DateTime(2026, 11, 5, 12), priceCents: 550),
+        MealLog(hawkerId: 'c', at: DateTime(2026, 11, 6, 12)),
+        MealLog(hawkerId: 'b', at: DateTime(2026, 11, 7, 12), priceCents: 800),
+        // Last week: not in this week's total.
+        MealLog(hawkerId: 'a', at: DateTime(2026, 10, 30, 12), priceCents: 1000),
+      ],
+    );
+    final week = historyEntries(h, since: historySince(HistoryPeriod.week, now));
+    final sum = historySummary(week);
+    expect((sum.meals, sum.mealsPriced, sum.mealCents), (5, 3, 1750));
+    expect(sum.costCents, 200 + 1750);
+    expect(const S().mealsPriced(sum.mealsPriced, sum.meals, sum.mealCents), r'$17.50 · 3 of 5 meals priced');
+    // A meal's row shows its own price, never as an estimate.
+    final row = week.firstWhere((e) => e.kind == HistoryKind.meal);
+    expect((row.costCents, row.estimated), (800, false));
+    expect(week.where((e) => e.kind == HistoryKind.meal && e.costCents == null).length, 2);
+    // No priced meal: nothing to add.
+    final none = historySummary(historyEntries(Habits(meals: [MealLog(hawkerId: 'a', at: now)])));
+    expect((none.meals, none.mealsPriced, none.mealCents, none.costCents), (1, 0, 0, 0));
+  });
+
   test('fares, parking and costs on History', () {
     final oct = DateTime(2026, 10, 25);
     expect(adultCardFare(2.0, oct), 128);

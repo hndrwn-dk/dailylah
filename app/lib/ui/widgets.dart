@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../l10n.dart';
 import '../logic.dart';
@@ -27,8 +28,11 @@ class BusPlate extends StatelessWidget {
       child: Center(
         widthFactor: 1,
         heightFactor: 1,
+        // The number is already big (24): it grows with system text up to 130%, so at 200% on a
+        // 320 dp phone the arrival times beside it keep room to be read.
         child: Text(
           service,
+          textScaler: MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 1.3),
           style: TextStyle(
             fontFamily: DL.display,
             fontWeight: FontWeight.w700,
@@ -58,23 +62,31 @@ class LoadMeter extends StatelessWidget {
     };
     final scheme = Theme.of(context).colorScheme;
     final on = level == 3 ? DL.amber : scheme.primary;
+    // A Wrap, so the label goes under the bars at 200% text on a narrow phone instead of
+    // overflowing the row; the label itself wraps too.
     return Semantics(
       label: label,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 8,
         children: [
-          for (var i = 1; i <= 3; i++)
-            Container(
-              width: 7,
-              height: 7 + i * 3.0,
-              margin: const EdgeInsets.only(left: 3),
-              decoration: BoxDecoration(
-                color: i <= level ? on : scheme.outlineVariant,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          const SizedBox(width: 8),
-          Flexible(child: Text(label, style: Theme.of(context).textTheme.bodySmall)),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              for (var i = 1; i <= 3; i++)
+                Container(
+                  width: 7,
+                  height: 7 + i * 3.0,
+                  margin: const EdgeInsets.only(left: 3),
+                  decoration: BoxDecoration(
+                    color: i <= level ? on : scheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+            ],
+          ),
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
         ],
       ),
     );
@@ -187,19 +199,23 @@ class AlertBanner extends StatelessWidget {
           child: InkWell(
             borderRadius: r,
             onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              child: Row(
-                children: [
-                  Icon(icon, size: 20, color: warn ? DL.ink : null),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      text,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(color: warn ? DL.ink : null),
+            // At least 48 dp tall, the tap target TalkBack and Material ask for.
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(
+                  children: [
+                    Icon(icon, size: 20, color: warn ? DL.ink : null),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        text,
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(color: warn ? DL.ink : null),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -302,25 +318,33 @@ class PlaceSelector extends StatelessWidget {
             shape: StadiumBorder(
               side: BorderSide(color: onDark ? Colors.white24 : scheme.outlineVariant, width: p == current ? 0 : 1),
             ),
-            child: InkWell(
-              customBorder: const StadiumBorder(),
-              onTap: () => onChanged(p),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(iconOf(p),
-                        size: 16,
-                        color: p == current ? (onDark ? DL.ink : Colors.white) : (onDark ? Colors.white : null)),
-                    const SizedBox(width: 6),
-                    Text(
-                      labelOf(p),
-                      style: t.labelLarge?.copyWith(
-                        color: p == current ? (onDark ? DL.ink : Colors.white) : (onDark ? Colors.white : null),
-                      ),
+            // TalkBack says which place is on; each pill is at least 48 dp tall.
+            child: Semantics(
+              button: true,
+              selected: p == current,
+              child: InkWell(
+                customBorder: const StadiumBorder(),
+                onTap: () => onChanged(p),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(iconOf(p),
+                            size: 16,
+                            color: p == current ? (onDark ? DL.ink : Colors.white) : (onDark ? Colors.white : null)),
+                        const SizedBox(width: 6),
+                        Text(
+                          labelOf(p),
+                          style: t.labelLarge?.copyWith(
+                            color: p == current ? (onDark ? DL.ink : Colors.white) : (onDark ? Colors.white : null),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -377,7 +401,8 @@ class StickerIconButton extends StatelessWidget {
           child: InkWell(
             borderRadius: r,
             onTap: onPressed,
-            child: SizedBox(width: 44, height: 44, child: Icon(icon, size: 22)),
+            child: SizedBox(
+                width: kMinInteractiveDimension, height: kMinInteractiveDimension, child: Icon(icon, size: 22)),
           ),
         ),
       ),
@@ -563,20 +588,28 @@ class _Pill extends StatelessWidget {
       ),
       child: Material(
         type: MaterialType.transparency,
-        child: InkWell(
-          borderRadius: r,
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 16, color: fg),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: style?.copyWith(color: fg)),
+        // TalkBack says which pill is on; the pill is at least 48 dp tall.
+        child: Semantics(
+          button: true,
+          selected: selected,
+          child: InkWell(
+            borderRadius: r,
+            onTap: onTap,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 16, color: fg),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: style?.copyWith(color: fg)),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -1221,7 +1254,7 @@ class BigNumber extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text(value, style: t.displaySmall?.copyWith(fontSize: 26, height: 1, color: warn ? DL.ink : null)),
-          Text(label, style: t.labelSmall?.copyWith(color: warn ? DL.ink : null)),
+          Text(label, textAlign: TextAlign.end, style: t.labelSmall?.copyWith(color: warn ? DL.ink : null)),
         ],
       ),
     );
@@ -1246,6 +1279,98 @@ class CrowdPeople extends StatelessWidget {
             Icon(i < n ? Icons.person : Icons.person_outline, size: 18, color: i < n ? on : DL.muted(context)),
         ],
       ),
+    );
+  }
+}
+
+/// Optional meal price: quick chips ($4, $6, $8) and "Other" for a typed amount. Amber marks the
+/// picked price (look now); tapping it again clears it. [value] is in cents, null for no price.
+class MealPricePicker extends StatelessWidget {
+  const MealPricePicker({super.key, required this.s, required this.value, required this.onChanged});
+  final S s;
+  final int? value;
+  final ValueChanged<int?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final v = value;
+    final other = v != null && !mealPriceChips.contains(v);
+    Widget chip(String label, bool on, VoidCallback onTap) => ChoiceChip(
+          label: Text(label),
+          selected: on,
+          showCheckmark: false,
+          selectedColor: DL.amber,
+          labelStyle: on ? const TextStyle(color: DL.ink, fontWeight: FontWeight.w700) : null,
+          side: BorderSide(color: DL.edge(context), width: on ? DL.stroke : 1),
+          onSelected: (_) => onTap(),
+        );
+    return Wrap(
+      spacing: 8,
+      runSpacing: 4,
+      children: [
+        for (final c in mealPriceChips) chip(s.moneyShort(c), v == c, () => onChanged(v == c ? null : c)),
+        chip(other ? s.money(v) : s.mealPriceOther, other, () async {
+          final typed = await askMealPrice(context, s, other ? v : null);
+          if (typed != null) onChanged(typed);
+        }),
+      ],
+    );
+  }
+}
+
+/// Asks for a meal price in SGD (2 decimals, up to $200); null when cancelled.
+Future<int?> askMealPrice(BuildContext context, S s, int? initial) =>
+    showDialog<int>(context: context, builder: (_) => _MealPriceDialog(s: s, initial: initial));
+
+class _MealPriceDialog extends StatefulWidget {
+  const _MealPriceDialog({required this.s, required this.initial});
+  final S s;
+  final int? initial;
+
+  @override
+  State<_MealPriceDialog> createState() => _MealPriceDialogState();
+}
+
+class _MealPriceDialogState extends State<_MealPriceDialog> {
+  late final _ctrl = TextEditingController(text: widget.initial == null ? '' : (widget.initial! / 100).toStringAsFixed(2));
+  bool _bad = false;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final c = parseMealCents(_ctrl.text);
+    if (c == null) {
+      setState(() => _bad = true);
+      return;
+    }
+    Navigator.of(context).pop(c);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.s;
+    return AlertDialog(
+      title: Text(s.mealPriceAsk),
+      content: TextField(
+        controller: _ctrl,
+        autofocus: true,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d{0,3}([.,]\d{0,2})?'))],
+        decoration: InputDecoration(prefixText: r'$ ', labelText: s.costLabel, errorText: _bad ? s.mealPriceInvalid : null),
+        onSubmitted: (_) => _save(),
+      ),
+      actions: [
+        DialogButtons(
+          cancelLabel: s.cancel,
+          confirmLabel: s.save,
+          onCancel: () => Navigator.of(context).pop(),
+          onConfirm: _save,
+        ),
+      ],
     );
   }
 }

@@ -8,7 +8,7 @@ This file maps that plan to the automated tests in this repo and lists what is s
 | Layer | Where | When | Covers (plan section) |
 | --- | --- | --- | --- |
 | Logic tests `app/test/logic_test.dart` | GitHub Actions `app` | every push | parsing and rules |
-| Screen matrix `app/test/screens_matrix_test.dart` | GitHub Actions `app` | every push | 2 (every tab, section and page) × 4 (normal, offline with cache, offline first install, location denied, 200% text, dark mode, 320 dp screen) |
+| Screen matrix `app/test/screens_matrix_test.dart` | GitHub Actions `app` | every push | 2 (every tab, section and page) × 4 (normal, offline with cache, offline first install, location denied, 200% text, dark mode, 320 dp screen, 200% text on a 320 dp screen) |
 | Alert rules `app/test/background_rules_test.dart` | GitHub Actions `app` | every push | 2 Notifications, 3B: runs the real `runChecks` pass |
 | Upgrade formats `app/test/upgrade_test.dart` | GitHub Actions `app` | every push | 5: old stored data still loads |
 | On-device flows `app/integration_test/app_test.dart` | GitHub Actions `emulator` (API 29 = minSdk / Android 10, API 35, API 36 = Play's required target) | every PR touching `app/` | 1, 3A, 3B, 3C: real SharedPreferences, notification read back from Android's active notifications, widget provider in the package, location revoked |
@@ -301,6 +301,10 @@ sleeping, and waking it daily would only spend free-tier hours.
 Text overflowed at 200% text or on 320 dp screens in: Setup go/back time buttons, the bus
 load meter, section titles with a trailing button, HDB block tiles, the block page hero chips
 and resale card. Text now wraps or scales down.
+
+200% text on a 320 dp screen (added for 2.3.0) found: the bus plate left no room for the
+arrival times (its number now grows up to 130%), the load meter, the EV charger count and the
+"Where's my bus" stop strip. They now wrap or scale down.
 
 ## Known PRD gaps (tests marked `skip`)
 
