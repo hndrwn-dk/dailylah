@@ -55,8 +55,8 @@ approves or merges anything. Two sources of rules:
      (ISO 8601, +08:00), `reported_link` (the report path).
    - Commit and push the memory repo: `dailylah: PR #<N> review <short sha>`.
 5. PR comment: if a comment by `hndrwn-dk` with the `<!-- dailylah-ai-review` marker exists on the PR,
-   update it; otherwise create one. Security findings appear only as a count. End it with the
-   attribution footer the session requires.
+   update it; otherwise create one. Security findings appear only as a count. No attribution
+   footer: the header already says it is an AI review, and CLAUDE.md forbids AI attribution.
 6. Never push to the PR, approve, request changes, merge, close, label or rerun anything.
 
 ## Security gate before a merge (on request)
