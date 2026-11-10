@@ -69,7 +69,7 @@ Upstream data: data.gov.sg (NEA, HDB, CEA), LTA DataMall, OneMap, URA and Geoapi
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
-cp .env.example .env        # fill in the keys (see Secrets below)
+cp .env.example .env        # fill in the keys (see Secrets); leave QSTASH_* empty locally
 pytest && ruff check . && ruff format --check .
 uvicorn app.main:app --reload
 curl -X POST localhost:8000/internal/poll
@@ -101,15 +101,16 @@ The 360 px layout test in a real browser is in [`CLAUDE.md`](CLAUDE.md) under Co
 
 ## How a release ships
 
-Every pull request runs the app tests (including a screen matrix, golden images and API
-contracts), emulator tests on Android 10, 15 and 16, and security scans (CodeQL, osv-scanner,
-zizmor). Nine of these are required checks on `main`.
+Pull requests that touch the app run the app tests (including a screen matrix, golden images and
+API contracts) and emulator tests on Android 10, 15 and 16. Every pull request runs the security
+scans (CodeQL, osv-scanner, zizmor). Nine checks are required on `main`; docs/QA.md
+"Required checks" lists them.
 
 A push to `main` that raises `version:` in `app/pubspec.yaml` becomes a release:
 
 1. The AAB is built without signing keys, then signed in a separate job.
-2. That signed AAB is tested again: an upgrade from the last release tag, the R8 release build,
-   and 10 Maestro flows.
+2. The emulator tests run again on that commit, including an upgrade from the last release tag
+   and the R8 release build, and 10 Maestro flows run on an APK made from the signed AAB.
 3. It is uploaded to closed testing on Google Play, and the commit is tagged `v<version>`.
 
 Production is a manual run that needs approval and arrives in Play Console as a draft. The full
@@ -127,8 +128,11 @@ process, including the checklist before production, is in [`docs/QA.md`](docs/QA
    `https://dailylah.sg`, then `https://dailylah.tursinalabs.com`, then
    `https://dailylah-web.vercel.app`. To use a single other host, build with
    `--dart-define=WEB_URL=https://<host>`.
-6. **Bus stop bundle**: add the repo secret `LTA_ACCOUNT_KEY`, then run the `data` workflow once
-   (Actions > data > Run workflow). After that it runs daily.
+6. **Data bundles**: add the repo secrets `LTA_ACCOUNT_KEY`, `ONEMAP_EMAIL` and `ONEMAP_PASSWORD`
+   (`DATAGOV_API_KEY` and `GEOAPIFY_API_KEY` are optional; see the header of `data.yml`). The push
+   job also needs the `data-push` environment with its deploy key `DATA_PUSH_SSH_KEY`, set up as in
+   [`docs/HANDOFF.md`](docs/HANDOFF.md). Then run the `data` workflow once (Actions > data > Run
+   workflow). After that it runs daily.
 
 ## Secrets
 
@@ -146,8 +150,9 @@ Backend env vars (see [`backend/.env.example`](backend/.env.example)):
 | `DATABASE_URL` | Neon console |
 | `PUBLIC_BASE_URL` | Your Render service URL |
 
-Never commit `.env`, API keys or keystores. CI secrets live in GitHub environments (`signing`,
-`play`, `play-production`, `data-push`); see "CI security" in [`CLAUDE.md`](CLAUDE.md).
+Never commit `.env`, API keys or keystores. In CI, the data build keys are repo secrets; the
+signing, Play and data-push keys live in their own GitHub environments (`signing`, `play`,
+`play-production`, `data-push`). See "CI security" in [`CLAUDE.md`](CLAUDE.md).
 
 ## Contributing and security
 
