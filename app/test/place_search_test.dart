@@ -1,4 +1,4 @@
-// Place search for Plan a trip (docs/PLACE_SEARCH.md): which search a query goes to, and the
+// Place search for Plan a trip: which search a query goes to, and the
 // fallback to OneMap when place search finds nothing or fails.
 import 'package:dailylah/api.dart';
 import 'package:dailylah/models.dart';

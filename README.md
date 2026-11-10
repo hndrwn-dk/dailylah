@@ -35,7 +35,7 @@ Singapore time and also checks the policy redirects and the data manifest on all
 | `backend/` | Python 3.12 FastAPI service that polls the upstream APIs |
 | `web/` | Static site on Vercel: landing page, "Where to live?", data bundles |
 | `contracts/v1/` | One example per `/v1/*` endpoint, checked by both app and backend tests |
-| `docs/` | Product requirements, QA and release process, legal text, store assets |
+| `docs/` | QA and release process, deploy steps, code index, legal text, store assets |
 | `scripts/` | Ops scripts: app ID check, release signing, data push, repo map |
 | `.github/workflows/` | CI/CD: tests, emulator runs, security scans, Play upload, daily data |
 
@@ -43,7 +43,6 @@ Singapore time and also checks the policy redirects and the data manifest on all
 
 | Read this | For |
 | --- | --- |
-| [`docs/PRD.md`](docs/PRD.md) | Scope, phases and constraints (Bahasa Indonesia) |
 | [`docs/QA.md`](docs/QA.md) | Every test layer, required checks, security scans, and how a release ships |
 | [`docs/REPO_MAP.md`](docs/REPO_MAP.md) | Every file in `app/lib`, every provider and endpoint (generated) |
 | [`CLAUDE.md`](CLAUDE.md) / [`AGENTS.md`](AGENTS.md) | Rules for AI coding agents, plus [`app/CLAUDE.md`](app/CLAUDE.md) and [`backend/CLAUDE.md`](backend/CLAUDE.md) |

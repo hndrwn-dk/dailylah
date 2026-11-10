@@ -1,7 +1,8 @@
 # DailyLah: deploy and secrets
 
-How the hosted parts of DailyLah are set up. The app itself ships through GitHub Actions to
-Google Play (docs/QA.md); this page covers the backend, the website and the data workflow.
+How the hosted parts of DailyLah and the GitHub side of CI are set up. The app ships through
+GitHub Actions to Google Play ([QA.md](QA.md)); this page covers the backend, the website, the data
+workflow, the release environments and the rulesets.
 
 ## Services
 
@@ -18,7 +19,7 @@ Google Play (docs/QA.md); this page covers the backend, the website and the data
 6. **Data bundles**: add the repo secrets `LTA_ACCOUNT_KEY`, `ONEMAP_EMAIL` and `ONEMAP_PASSWORD`
    (`DATAGOV_API_KEY` and `GEOAPIFY_API_KEY` are optional; see the header of `data.yml`). The push
    job also needs the `data-push` environment with its deploy key `DATA_PUSH_SSH_KEY`, set up as in
-   [`docs/HANDOFF.md`](HANDOFF.md). Then run the `data` workflow once (Actions > data > Run
+   [Rulesets](#rulesets) below. Then run the `data` workflow once (Actions > data > Run
    workflow). After that it runs daily.
 
 ## Secrets
@@ -40,3 +41,73 @@ Backend env vars (see [`backend/.env.example`](../backend/.env.example)):
 Never commit `.env`, API keys or keystores. In CI, the data build keys are repo secrets; the
 signing, Play and data-push keys live in their own GitHub environments (`signing`, `play`,
 `play-production`, `data-push`). See "CI security" in [`CLAUDE.md`](../CLAUDE.md).
+
+## Release signing environments
+Set up by hand under Settings > Environments, each limited to `main` with no admin bypass:
+- `signing`: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
+  `ANDROID_KEY_PASSWORD`, and the environment variable `UPLOAD_CERT_SHA256` (checked against
+  keytool and Play Console). Its source in Play Console: Protected with Play > Play Store
+  protection > Manage Play app signing > Upload key certificate > SHA-256. Do not use the
+  "App signing key certificate" on the same page: that is Google's key, and every sign would fail.
+- `play`: `PLAY_SERVICE_ACCOUNT_JSON`.
+- `play-production`: `PLAY_SERVICE_ACCOUNT_JSON`, required reviewer Hendrawan (prevent
+  self-review off).
+
+## Rulesets
+Set up by hand: Settings > Rules > Rulesets > New.
+
+**`main`** (New branch ruleset; Enforcement: Active; Target: Include default branch):
+1. Restrict deletions; Block force pushes.
+2. Require a pull request before merging: required approvals **0** (the owner cannot approve their
+   own PR); Allowed merge methods: **Squash** only.
+3. Require status checks to pass, "Require branches to be up to date" **off**. Add these, source
+   GitHub Actions (names exactly as GitHub shows them; docs/QA.md "Required checks"):
+   `app result`, `emulator result`, `backend result`, `web result`, `repo map and AGENTS.md up to date`, `CodeQL (actions)`, `CodeQL (python)`,
+   `osv-scanner (dependencies)`, `zizmor (workflows)`.
+4. Bypass list: one bypass, Deploy keys (Always). GitHub Actions cannot be a bypass actor on a
+   personal repository, so `data.yml` and `where-to-live.yml` build in a read-only job, then a `push` job in environment
+   `data-push` applies the patch to the newest `main` and pushes over SSH with
+   `scripts/push_data.sh` (GitHub's host key pinned, key file removed after).
+   - The key, set up by hand once: create a pair (`ssh-keygen -t ed25519 -f dailylah-data-push
+     -N ""`, on a laptop or in Termux); Settings > Deploy keys > Add: the `.pub` file, title
+     `data-push`, **Allow write access**; Settings > Environments > New `data-push`: Deployment
+     branches `main` only, no admin bypass; Add secret `DATA_PUSH_SSH_KEY` = the private key file
+     (all lines, including BEGIN and END); then delete both local key files. Never paste the
+     private key in a chat.
+   - Check it: Actions > data > Run workflow, then Actions > where-to-live > Run workflow; the
+     `push` job must say "Pushed: ..." or the build must say "No data changes".
+     `screenshots.yml` never pushes to `main` and `goldens.yml` skips `main`.
+5. Do not add yourself as a bypass actor: merges go through PRs like everything else.
+
+**`v*` tags** (New tag ruleset; Enforcement: Active; Target: Include by pattern `v*`):
+1. Restrict updates (a release tag never moves); Restrict deletions; Block force pushes.
+2. Restrict creations: leave off. `release-tag` creates the tags and GitHub Actions cannot be a
+   bypass actor on a personal repository; only the owner and Actions can write to this repository.
+
+After both are on, check: a docs-only PR shows all nine checks green and can be squash-merged;
+`git push --force` to `main` and `git push --delete origin v1.9.2` are refused.
+
+## GitHub security settings
+Settings > Advanced Security (or Code security):
+1. **Secret scanning**: Enable. Then **Push protection**: Enable.
+2. **Dependabot alerts**: Enable. **Dependabot security updates**: Enable.
+3. **Code scanning**: leave **Default setup** off (or switch it off). `security.yml` is an
+   advanced setup, and GitHub rejects its CodeQL uploads while default setup is on.
+
+## Domains
+- `dailylah.sg` is the website and the first host for data bundles; `dailylah.tursinalabs.com`
+  and `dailylah-web.vercel.app` are fallbacks (same Vercel deployment, `webUrls` in `api.dart`).
+- Privacy and terms stay at `tursinalabs.com/dailylah/privacy` and `/terms`;
+  `dailylah.sg/privacy` and `/terms` redirect there (`web/vercel.json`).
+
+## Build locally
+- App: `cd app && flutter pub get && flutter analyze && flutter test`.
+- Release APK:
+  - Set `ANDROID_KEYSTORE_PATH` (the path to your local upload keystore file),
+    `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD` as env vars. Never commit them.
+  - Run `scripts/build-apk.ps1` (Windows) or `scripts/build-apk.sh`. They pass `APP_VERSION` and
+    `GIT_SHA` so About shows the version and commit, e.g. `2.0.0 (build 294 · a8d2bba)`.
+- Backend: `cd backend && pip install -r requirements-dev.txt && pytest && ruff check .`
+- Bundles:
+  - Run `cd backend && python -m app.build_static`. It needs the secrets in `.env`.
+  - Copy the output into `web/data/` and push.

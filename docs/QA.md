@@ -73,7 +73,7 @@ The upload key never reaches a job that runs third-party build code:
 
 ## Required checks
 
-The `main` ruleset (set up by hand, docs/HANDOFF.md "Rulesets") requires these checks on every
+The `main` ruleset (set up by hand, docs/DEPLOY.md "Rulesets") requires these checks on every
 pull request, by the names GitHub shows:
 
 | Check | Workflow | What it stands for |
@@ -129,7 +129,7 @@ None of these block the Google Play upload; a red `security` run is fixed before
   exactly what Render installs. Without a full lock, osv-scanner guesses transitive versions
   and reports old ones that are never installed (Phase 1 saw 23 such false High findings).
 - GitHub settings that are not in the repo (one-time, by hand): secret scanning, push
-  protection, Dependabot alerts and security updates. See docs/HANDOFF.md.
+  protection, Dependabot alerts and security updates. See docs/DEPLOY.md "GitHub security settings".
 
 ## Maestro (release build, black box)
 

@@ -1,4 +1,4 @@
-"""Place name search for Plan a trip: /v1/places on Geoapify Autocomplete (docs/PLACE_SEARCH.md)."""
+"""Place name search for Plan a trip: /v1/places on Geoapify Autocomplete."""
 
 import logging
 

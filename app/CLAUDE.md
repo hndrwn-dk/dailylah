@@ -55,7 +55,7 @@ feature, screen, provider or rule moves, appears or goes away.
   the key stays on the server), and to OneMap when that finds nothing or fails. Geoapify results carry
   "Powered by Geoapify · © OpenStreetMap contributors" (`S.placesAttribution`), and the end takes the
   place's own name (`AddressHit.name`). Other address pickers (setup, Nearby) stay OneMap only
-  (docs/PLACE_SEARCH.md); picking on one end what the other has swaps them (`pickTripEnd`); the location
+  (plan: agent-handoff `dailylah/plans/PLACE_SEARCH.md`); picking on one end what the other has swaps them (`pickTripEnd`); the location
   arriving late never undoes a pick (`goPicksProvider`). The tip about
   saving places sits small at the end, only while none beyond Home/Work/School is saved. On each bus card
   ("From stop: <name>") the bus to leave for is a mint card on top ("Leave in 7 min to catch 36"), then
@@ -137,7 +137,7 @@ feature, screen, provider or rule moves, appears or goes away.
   saved per trip key (`Favorites.mrtLines`, `mrtRouteKey`, max 20) and the card shows "Today: Green line" with
   Change. The card also shows the boarding station's crowd now (`stationCrowd`, `stationCrowdProvider` on
   `/v1/crowd/{line}`, `CrowdPeople`). No live train positions: LTA does not publish them.
-- Need a toilet? (docs/TOILETS.md): `ToiletSheet` / `showToiletSheet` (`ui/toilets.dart`) from a button on
+- Need a toilet? (plan: agent-handoff `dailylah/plans/TOILETS.md`): `ToiletSheet` / `showToiletSheet` (`ui/toilets.dart`) from a button on
   `WakeMePage` (`ToiletRide.bus`) and `MrtRidePage` (`ToiletRide.train`), and Nearby's Toilets chip
   (`ToiletsNearby`, a section like the others, for the place picked). Data: the `toilets` bundle (`Toilet`,
   `ToiletKind` in data.dart, `toiletsProvider`; built daily by `build_toilets`, backend/CLAUDE.md). Rules in logic.dart,

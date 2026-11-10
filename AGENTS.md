@@ -1,6 +1,8 @@
 # DailyLah — guide for AI coding agents (Cursor, Codex, etc.)
 
-Read `docs/PRD.md` first. It is the source of truth for scope, phases and constraints.
+Read `dailylah/HANDOFF.md` and `dailylah/PRD.md` in the private `hndrwn-dk/agent-handoff` first.
+The PRD is the source of truth for scope, phases and constraints; feature plans are in
+`dailylah/plans/`. Never copy those notes into this public repo: point to them by path only.
 Product: free Android app (Flutter) for Singapore residents. Daily morning/evening cards
 built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of scope.
 
@@ -39,14 +41,15 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - `backend/` — Python 3.12, FastAPI. Deployed to Render (free) via `render.yaml`.
 - `app/` — Flutter app (Riverpod, dio). Platform folders are generated with `flutter create`.
 - `web/` — static site on Vercel, no build step: landing page, the "Where to live?" page
-  (`web/where-to-live/`, docs/WHERE_TO_LIVE.md) and its generated town pages
+  (`web/where-to-live/`) and its generated town pages
   (`web/where-to-live-towns/`, never hand-edited) with their share images (`web/og/where-to-live/`,
   made by `scripts/build_og_images.py`), the shared Play CTA (`web/shared/cta.js`), the landing
   page motion (`web/shared/day.js` timeline, `web/shared/screens.js` tab deck; the hero scenes are CSS
   only; each works without JS and respects reduced motion), vendored Leaflet (`web/vendor/`), static data bundles in `web/data/`, tests in `web/tests/`.
 - `contracts/v1/` — one example per `/v1/*` endpoint, checked by the backend and app tests
   (docs/QA.md "Contract tests").
-- `docs/PRD.md` — product requirements (Bahasa Indonesia).
+- `docs/` — public docs: QA and release process (`QA.md`), setup (`DEPLOY.md`), code index
+  (`REPO_MAP.md`), legal text, store assets.
 - `scripts/` — one-off ops scripts (QStash schedule).
 - Free-tier hard rules for the backend and data (Redis, QStash, Neon, Render, Vercel) are in
   `backend/CLAUDE.md`. Read them before adding features.

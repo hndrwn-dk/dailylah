@@ -1,4 +1,4 @@
-"""Data for the "Where to live?" page on dailylah.sg (docs/WHERE_TO_LIVE.md).
+"""Data for the "Where to live?" page on dailylah.sg.
 
 Run weekly by .github/workflows/where-to-live.yml:
     cd backend && python -m app.where_to_live ../web/data            # writes the files

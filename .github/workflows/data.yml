@@ -102,7 +102,7 @@ jobs:
           PY
 
   # Pushes the patch to main with the deploy key that the main ruleset lets bypass its rules
-  # (docs/HANDOFF.md, "Rulesets", route B). Environment data-push holds DATA_PUSH_SSH_KEY and is
+  # (docs/DEPLOY.md, "Rulesets"). Environment data-push holds DATA_PUSH_SSH_KEY and is
   # limited to main. Only GitHub's own actions and scripts/push_data.sh (with the runner's python3,
   # stdlib only, for its JSON check) run in this job.
   push:
