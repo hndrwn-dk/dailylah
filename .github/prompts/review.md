@@ -19,8 +19,8 @@ lint, known vulnerable versions). Look for what they cannot see.
    stops), CI security (actions pinned by SHA, minimal `permissions`, no `pull_request_target`,
    inputs through `env:`), religion-neutral defaults, every string through `S`, logic outside
    widgets, structure changes update the feature map and `docs/REPO_MAP.md`.
-3. Security is reviewed separately by the owner's `security-reviewer` agent (claude-toolkit in
-   `hndrwn-dk/security-memory`, see `.claude/skills/review-pr/SKILL.md`). Here, only count its
+3. Security is reviewed separately by the owner's `security-reviewer` agent (the owner's private
+   security toolkit, see `.claude/skills/review-pr/SKILL.md`). Here, only count its
    medium+ findings; never describe them.
 
 Do not report style, naming or taste. Do not report something you have not traced in the code.
