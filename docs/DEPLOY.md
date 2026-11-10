@@ -33,6 +33,7 @@ Backend env vars (see [`backend/.env.example`](../backend/.env.example)):
 | `ONEMAP_EMAIL`, `ONEMAP_PASSWORD` | OneMap API registration |
 | `URA_ACCESS_KEY` | URA Data Service |
 | `GEOAPIFY_API_KEY` | Geoapify dashboard (backend only, never in the app) |
+| `PLACES_DAILY_BUDGET` | Optional, default 1,900: place search calls to Geoapify per UTC day. Keep it below the key's daily cap in the Geoapify dashboard (2,000), because the daily data build uses the same key |
 | `REDIS_URL` | Upstash Redis console |
 | `QSTASH_*_SIGNING_KEY` | Upstash QStash console |
 | `DATABASE_URL` | Neon console |

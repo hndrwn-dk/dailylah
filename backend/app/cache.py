@@ -17,6 +17,8 @@ log = logging.getLogger("dailylah.cache")
 
 # Render free has 512 MB; per-query entries (search, agent) must not grow without bound.
 MAX_MEMORY_KEYS = 5000
+# After a failed Redis counter call, skip Redis counters for this long.
+REDIS_RETRY_S = 60
 
 
 class Cache:
@@ -25,6 +27,7 @@ class Cache:
         self._hash: dict[str, str] = {}
         self._redis = redis.from_url(redis_url, decode_responses=True) if redis_url else None
         self._counts: dict[str, tuple[float, int]] = {}
+        self._redis_down_until = 0.0
 
     async def get(self, key: str) -> Any | None:
         hit = self._mem.get(key)
@@ -67,18 +70,30 @@ class Cache:
                 del self._mem[min(self._mem, key=lambda k: self._mem[k][0])]
         self._mem[key] = (time.monotonic() + ttl, value)
 
-    async def incr(self, key: str, ttl: int) -> int:
-        """Add one to a counter and return it. Redis when configured (one INCR, plus EXPIRE the
-        first time), so the count survives restarts; memory when Redis is off or fails."""
-        if self._redis is not None:
-            try:
-                n = int(await self._redis.incr(key))
-                if n == 1:
-                    await self._redis.expire(key, ttl)
-                return n
-            except Exception as e:  # any Redis failure: count in memory instead
-                log.warning("Redis counter failed: %s", type(e).__name__)
+    async def incr_shared(self, key: str, ttl: int) -> int | None:
+        """Add one to a counter in Redis (one INCR, plus EXPIRE the first time) and return it,
+        so the count survives restarts. None when there is no shared count: Redis is not
+        configured, just failed, or failed within the last minute (so an outage does not add a
+        failing Redis call to every request)."""
+        if self._redis is None or time.monotonic() < self._redis_down_until:
+            return None
+        try:
+            n = int(await self._redis.incr(key))
+            if n == 1:
+                await self._redis.expire(key, ttl)
+            return n
+        except Exception as e:  # any Redis failure
+            log.warning("Redis counter failed: %s", type(e).__name__)
+            self._redis_down_until = time.monotonic() + REDIS_RETRY_S
+            return None
+
+    def incr_memory(self, key: str, ttl: int) -> int:
+        """Add one to a counter in this process and return it. Lost on a restart."""
         now = time.monotonic()
+        if len(self._counts) >= MAX_MEMORY_KEYS:
+            self._counts = {k: v for k, v in self._counts.items() if v[0] > now}
+            if len(self._counts) >= MAX_MEMORY_KEYS:  # all live: drop the one ending first
+                del self._counts[min(self._counts, key=lambda k: self._counts[k][0])]
         exp, n = self._counts.get(key, (0.0, 0))
         if exp <= now:
             exp, n = now + ttl, 0

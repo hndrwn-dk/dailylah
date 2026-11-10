@@ -27,11 +27,28 @@ relative to `backend/` when they start with `app/`. Endpoint index: `docs/REPO_M
   No key: 503; Geoapify error, timeout or 429: 502. The app then searches OneMap instead.
   The Geoapify account (Free plan, 3,000 credits a day, 5 requests a second; DailyLah's key is
   capped at 2,000 a day) is shared with another app, so a call that is not cached first passes
-  three guards (`app/limits.py`), each answering 503: a pause after Geoapify refuses (`Breaker`: 60 s after 429, 10 min after
-  401/403), a per-second cap (`RateGate`, `places_per_second` = 4) and a daily budget
-  (`places_daily_budget` = 2,000, counted per UTC day with `Cache.incr`: one Redis INCR per
-  Geoapify call, memory when Redis is off or fails, and no Redis at all once the day's budget is
-  spent). `PLACES_DAILY_BUDGET` / `PLACES_PER_SECOND` on Render change them without a code change.
+  four guards (`app/limits.py`): a pause after Geoapify refuses (`Breaker`: 60 s after 429,
+  10 min after 401/403), a per-second cap (`RateGate`, `places_per_second` = 4), one client's
+  share (`places_client_limit` = 60 per `places_client_window` = 3,600 s) and a daily budget
+  (`places_daily_budget` = 1,900 per UTC day, below the key's cap so the daily data build keeps
+  credits). A client over its share gets 429 with `Retry-After`; the other guards answer 503.
+  - The client is `client_address`: Cloudflare's `CF-Connecting-IP` (Render serves every request
+    through Cloudflare, which overwrites it), else the last public `X-Forwarded-For` entry, else
+    the socket peer; IPv6 by /64. Never read an `X-Forwarded-For` entry further left: the client
+    writes those. Uvicorn's own proxy handling stays off (it trusts 127.0.0.1 only), so
+    `request.client` and the access log show Render's proxy.
+  - Counts are Redis INCRs with an expiry (`Cache.incr_shared`): the client's under a keyed hash
+    of the address (`client_key`, never the address) for one window, the day's for two days.
+    A client over its share is remembered in memory (`Blocked`) and a spent day in
+    `places_spent_day`, so neither costs further Redis commands.
+  - No shared count (Redis off, failing, or failed in the last minute): the day's calls count in
+    memory against `places_memory_budget` = 50 instead of the full budget, because a memory
+    count starts again at every restart.
+  - `PLACES_DAILY_BUDGET`, `PLACES_MEMORY_BUDGET`, `PLACES_PER_SECOND`, `PLACES_CLIENT_LIMIT` and
+    `PLACES_CLIENT_WINDOW` on Render change them without a code change. Keep
+    `places_client_limit * 86400 / places_client_window` below `places_daily_budget`, and
+    `places_daily_budget + places_memory_budget` below the key's cap, with room for the data
+    build (about 30 credits a run).
 - Uvicorn's access log goes through `_RedactAccessLog` (`app/main.py`, installed at import and at
   startup): it keeps client, method, endpoint and status, drops every query string and shows
   `/v1/bus-arrival/*`, `/v1/ev/*` and `/v1/agent/*` without the code. A new endpoint that takes
@@ -89,7 +106,7 @@ relative to `backend/` when they start with `app/`. Endpoint index: `docs/REPO_M
   Geoapify takes the key in the URL, so errors are raised without the httpx exception and the
   httpx request log line is redacted (`app/geoapify.py`, imported by `bundles.py`). Places is
   billed by places returned: a full run is 2 requests a day under DailyLah's 2,000-credit daily
-  cap, which `/v1/places` shares (the account allows 3,000; the rest is Prayer Cast). Data is OpenStreetMap (ODbL): the app
+  cap, which `/v1/places` shares and stays below (`places_daily_budget`; the account allows 3,000, the rest is Prayer Cast). Data is OpenStreetMap (ODbL): the app
   shows "Powered by Geoapify · © OpenStreetMap contributors" with it.
 - OneMap needs a token: the backend (`app/onemap.py`) logs in with `ONEMAP_EMAIL` /
   `ONEMAP_PASSWORD` (Render env and GitHub secrets) and renews it; the app searches via

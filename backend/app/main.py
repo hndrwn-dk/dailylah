@@ -16,7 +16,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from .cache import Cache
 from .config import Settings, get_settings
 from .geoapify import Geoapify, GeoapifyError
-from .limits import Breaker, RateGate, budget_key
+from .limits import Blocked, Breaker, RateGate, budget_key, client_address, client_key
 from .onemap import OneMap
 from .sources import (
     CEA_REG_RE,
@@ -84,6 +84,7 @@ async def lifespan(app: FastAPI):
     app.state.places_gate = RateGate(s.places_per_second)
     app.state.places_breaker = Breaker()
     app.state.places_spent_day = ""  # the UTC day whose budget is used up (skips Redis)
+    app.state.places_blocked = Blocked()  # clients over their share (skips Redis)
     app.state.last_poll: dict[str, float] = {}
     app.state.locks: dict[str, asyncio.Lock] = {}
     yield
@@ -270,8 +271,9 @@ async def places(
     The answer is cut down to name, address, postal, lat, lng and type.
 
     The Geoapify credits are shared with another app, so a call that is not cached first passes
-    a pause after Geoapify refused, a per-second cap and a daily budget (app/limits.py); each
-    answers 503 and the app searches OneMap instead."""
+    a pause after Geoapify refused, a per-second cap, one client's share and a daily budget
+    (app/limits.py). A client over its share gets 429, the other guards answer 503, and the app
+    searches OneMap instead."""
     query = " ".join(q.split())
     if not 2 <= len(query) <= 80:
         raise HTTPException(422, "query must be 2 to 80 characters")
@@ -284,11 +286,38 @@ async def places(
     state = request.app.state
     if state.places_breaker.paused():
         raise HTTPException(503, "place search paused")
+    day = budget_key()
+    if state.places_spent_day == day:
+        raise HTTPException(503, "place search daily limit reached")
+    window = s.places_client_window
+    address = client_address(
+        request.headers.get("cf-connecting-ip"),
+        request.headers.getlist("x-forwarded-for"),
+        request.client.host if request.client else "",
+    )
+    client = client_key(geo.api_key or "", address, window)
+    too_many = HTTPException(429, "too many place searches", {"Retry-After": str(window)})
+    if state.places_blocked.has(client):
+        raise too_many
     if not state.places_gate.take():
         raise HTTPException(503, "place search busy")
-    day = budget_key()
-    if state.places_spent_day == day or await c.incr(day, 2 * 86400) > s.places_daily_budget:
-        state.places_spent_day = day
+    used = await c.incr_shared(client, window)
+    if used is None:
+        used = c.incr_memory(client, window)
+    if used > s.places_client_limit:
+        state.places_blocked.add(client, window)
+        raise too_many
+    # Only the shared count may spend the whole budget; a count kept in this process starts
+    # again at every restart, so it gets a small one.
+    spent = await c.incr_shared(day, 2 * 86400)
+    if spent is None:
+        allowed = min(s.places_memory_budget, s.places_daily_budget)
+        over = c.incr_memory(day + ":memory", 2 * 86400) > allowed
+    else:
+        over = spent > s.places_daily_budget
+        if over:
+            state.places_spent_day = day
+    if over:
         raise HTTPException(503, "place search daily limit reached")
     try:
         rows = await geo.autocomplete(query)
