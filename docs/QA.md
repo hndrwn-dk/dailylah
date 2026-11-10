@@ -35,6 +35,9 @@ Every upload to Google Play tags its commit `v<versionName>` (`app` job `release
 - A release tests the upgrade from the nearest tag below its commit (`git describe` on `HEAD^`),
   not from the commit before it, which may never have shipped. With no tag yet, it falls back to
   that commit with a `No release tag` warning.
+- To fix that warning, tag the last version-bump commit that reached Google Play by hand:
+  `git tag v<versionName> <sha> && git push origin v<versionName>` (the `v*` tag ruleset leaves
+  creations open; it only blocks moving and deleting a tag).
 - Pull requests still test the upgrade from `origin/main`: that catches a broken format before
   it reaches a release.
 - The tag is the last upload to any track, closed testing included. Users on production can be a
