@@ -94,6 +94,21 @@ on OneMap, and OneMap is the fallback. Setup, Nearby and the shared-place picker
 - Open (optional): a per-IP limit (which `X-Forwarded-For` entry Render puts the client in was not
   checked); if Redis fails mid-day, the memory counter starts at 0 and the budget can be passed once.
 
+## Need a toilet? (9 Nov 2026, plan: docs/TOILETS.md)
+One PR (branch `feat/toilets`): `toilets.json` built daily in `data.yml` (`build_toilets`: Geoapify
+Places `amenity.toilet` + NParks park toilets + hawker centres, one per 30 m), and on the phone
+`ToiletSheet` from Wake me and On the train, plus the Toilets chip in Nearby. Reaches users with the
+next release (no version bump in the feature PR).
+- **By hand, before the first data run:** GitHub > Settings > Secrets and variables > Actions >
+  New repository secret `GEOAPIFY_API_KEY` (the Render key or a second key for CI). Without it the
+  build skips the bundle ("no GEOAPIFY_API_KEY" in `backend/data/build_report.json` errors).
+- **After merge:** Actions > data > Run workflow on main once; check that `web/data/toilets.json`
+  is pushed (300+ toilets, else the build keeps the old file and says "too small") and that the
+  manifest lists it. Then Nearby > Toilets in a release build shows toilets.
+- Credits: the daily run uses a few hundred Geoapify credits from the same Free account as
+  `/v1/places` (2,000 a day budget) and Prayer Cast. If the account runs out, lower
+  `PLACES_DAILY_BUDGET` on Render; the toilet build then keeps yesterday's file.
+
 ## CI/CD hardening (Nov 2026, 8 phases, one PR each)
 Layers: deterministic scans → AI review → a person decides. Existing gates (analyze, test,
 emulator e2e, Play upload gate) stay as they are.

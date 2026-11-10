@@ -464,6 +464,26 @@ class S {
   String get wakeStop => 'Stop';
   String get wakeDone => 'Done';
 
+  // ---------------------------------------------------------------- need a toilet
+  String get toiletNeed => 'Need a toilet?';
+  String toiletGetOff(String stop, int minutes) => 'Get off at $stop (in about $minutes min)';
+  String toiletWalk(String toilet, int minutes) => '$toilet, $minutes min walk';
+  String get toiletAssumed => 'Stations usually have a toilet';
+  String toiletNearLine(String kind, String distance, int minutes) => '$kind · $distance · $minutes min walk';
+  String get toiletsNearby => 'Toilets nearby';
+  String get toiletNoneAhead => 'No toilet found near the stops ahead. Try Nearby > Toilets.';
+  String get toiletNoneNear => 'No toilet found nearby.';
+  String get toiletNote => 'Times are estimates. Toilets come from OpenStreetMap, NParks and NEA hawker '
+      'centres; some may be closed or inside paid areas.';
+  String get toiletDirections => 'Walking directions';
+  String toiletKind(ToiletKind k) => switch (k) {
+        ToiletKind.mall => 'Mall',
+        ToiletKind.station => 'Station',
+        ToiletKind.hawker => 'Hawker centre',
+        ToiletKind.park => 'Park',
+        ToiletKind.other => 'Public toilet',
+      };
+
   // ---------------------------------------------------------------- parked car
   String get parkedHere => 'I parked here';
   String get yourCar => 'Your car';
@@ -914,7 +934,7 @@ class S {
   String get termsOfService => 'Terms of service';
   String get contactUs => 'Contact us';
   String get dataSources => 'Data sources';
-  String get dataAttribution => 'Contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, SportSG, PA and MOE accessed through data.gov.sg, made available under the Singapore Open Data Licence. Halal places are listed from Muslim.sg; DailyLah is not affiliated with MUIS. Bus times, crowd levels, forecasts and prices are estimates.';
+  String get dataAttribution => 'Contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, SportSG, PA and MOE accessed through data.gov.sg, made available under the Singapore Open Data Licence. Halal places are listed from Muslim.sg; DailyLah is not affiliated with MUIS. Place names and public toilets include data © OpenStreetMap contributors (ODbL), through Geoapify. Bus times, crowd levels, forecasts and prices are estimates.';
   String get independent => 'DailyLah is an independent app and is not affiliated with LTA, NEA, HDB or the Singapore government.';
   String get openSourceLicences => 'Open-source licences';
   String cannotOpen(String url) => 'Cannot open $url';
@@ -1000,6 +1020,7 @@ class S {
         'taxi' => 'Taxi',
         'prayer' => 'Prayer',
         'help' => 'Help',
+        'toilet' => 'Toilets',
         _ => k,
       };
   String get searchPlace => 'Search';

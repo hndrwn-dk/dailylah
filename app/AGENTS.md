@@ -137,6 +137,19 @@ feature, screen, provider or rule moves, appears or goes away.
   saved per trip key (`Favorites.mrtLines`, `mrtRouteKey`, max 20) and the card shows "Today: Green line" with
   Change. The card also shows the boarding station's crowd now (`stationCrowd`, `stationCrowdProvider` on
   `/v1/crowd/{line}`, `CrowdPeople`). No live train positions: LTA does not publish them.
+- Need a toilet? (docs/TOILETS.md): `ToiletSheet` / `showToiletSheet` (`ui/toilets.dart`) from a button on
+  `WakeMePage` (`ToiletRide.bus`) and `MrtRidePage` (`ToiletRide.train`), and Nearby's Toilets chip
+  (`ToiletsNearby`, a section like the others, for the place picked). Data: the `toilets` bundle (`Toilet`,
+  `ToiletKind` in data.dart, `toiletsProvider`; built daily by `build_toilets`, backend/CLAUDE.md). Rules in logic.dart,
+  all on the phone: `toiletsAheadBus` (the stops after the boarding stop, or after the route stop nearest the last
+  GPS fix, or the stop before it when the bus has not reached it, up to the alight stop on the `bus_routes` route; best toilet within 250 m of each stop; stops without
+  one are skipped; `feederMinutesPerStop` a stop plus `walkMinutesTo`; `busToiletsProvider` in wake_session.dart,
+  which now keeps the boarding stop `WakeState.from` and the last fix in memory), `toiletsAheadMrt` (the stations
+  after the ride's estimated position, best toilet within 250 m of the station point, else `assumed`: "Stations
+  usually have a toilet"; `rideMinutesTo`; `trainToiletsProvider` in mrt_ride.dart), `toiletsNear`
+  (`toiletsNearProvider`) and one order, `toiletRank` (minutes, then mall/hawker/station, then metres); max 3 each.
+  Walking directions open Google Maps with the toilet as destination only (`openDirections`). Every list ends with
+  the estimate note and "Powered by Geoapify · © OpenStreetMap contributors". Tests use `harnessToilets`.
 - History tab (`ui/history.dart`): logged trips, finished parkings (`ParkLog`, written by
   `clearParked`) and meals by day for this week/month/all (`historyEntries`, `historySummary`,
   `historyByDay`); filter by kind, swipe to remove with Undo, or remove all shown. Costs: an

@@ -176,3 +176,14 @@ class RideNotifier extends Notifier<RideState?> {
 }
 
 final rideProvider = NotifierProvider<RideNotifier, RideState?>(RideNotifier.new);
+
+/// "Need a toilet?" on the train: the stations ahead of the estimated position
+/// ([toiletsAheadMrt]), null while the bundle loads or when no ride runs.
+final trainToiletsProvider = Provider.autoDispose<List<ToiletStop>?>((ref) {
+  final st = ref.watch(rideProvider);
+  if (st == null) return null;
+  final toilets = ref.watch(toiletsProvider).value;
+  if (toilets == null) return null;
+  final now = ref.watch(clockProvider).value ?? DateTime.now();
+  return toiletsAheadMrt(st.ride, st.indexAt(now), toilets);
+});

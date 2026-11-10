@@ -15,6 +15,7 @@ import 'home.dart' show NearGroup, NearItem;
 import 'place_sheet.dart';
 import 'today.dart' show TaxiSheet, foodApps, openApp;
 import 'theme.dart';
+import 'toilets.dart';
 import 'widgets.dart';
 
 /// Nearby: what you need right where you are (or at work, school, a saved place):
@@ -123,7 +124,7 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
       ('search', Icons.search, s.searchPlace),
     ];
     // One section at a time, like Home: chips under the place pills.
-    final sections = ['bus', 'eat', 'green', 'park', 'taxi', if (fav.showPrayer) 'prayer', 'help'];
+    final sections = ['bus', 'eat', 'green', 'park', 'taxi', 'toilet', if (fav.showPrayer) 'prayer', 'help'];
     final picked = ref.watch(nearbySectionProvider);
     final section = sections.contains(picked) ? picked : 'bus';
     final selected = key == 'adhoc'
@@ -199,6 +200,7 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
                           'green' => _GreenSection(place: place),
                           'park' => _ParkSection(place: place),
                           'taxi' => _TaxiSection(place: place),
+                          'toilet' => ToiletsNearby(lat: place.lat, lng: place.lng),
                           'prayer' => const _PrayerSection(),
                           'help' => _HelpSection(place: place),
                           _ => _BusSection(place: place),
@@ -220,6 +222,7 @@ const _sectionIcons = <String, IconData>{
   'green': Icons.park_outlined,
   'park': Icons.local_parking,
   'taxi': Icons.local_taxi_outlined,
+  'toilet': Icons.wc,
   'prayer': Icons.mosque_outlined,
   'help': Icons.emergency_outlined,
 };

@@ -21,6 +21,8 @@ Writes (all compact JSON, keys documented in app/lib/data.dart):
     bicycle_racks.json LTA bicycle racks
     mrt_stations.json MRT/LRT stations with line codes (for the MRT part of a trip)
     emergency.json   AEDs, A&E hospitals, fire stations, CHAS clinics, CD shelters
+    toilets.json     public toilets (OpenStreetMap via Geoapify, NParks park toilets, hawker
+                     centres), one per 30 m, with a kind: mall, station, hawker, park, other
     manifest.json    {"version", "files": {name: {path, count, sha256}}}
 
 Optional bundles are best effort: if one upstream fails, the previous file stays.
@@ -63,6 +65,7 @@ MIN_COUNTS = {
     "prayer": 300,
     "holidays": 5,
     "events": 1,
+    "toilets": 300,
 }
 
 
@@ -151,7 +154,30 @@ async def build(
                     settings.eventfinda_password,
                 ),
             )
+            b.LAST_PARK_TOILETS.clear()  # set by build_poi when NParks answers
             await attempt("poi", b.build_poi(dg, geo))
+
+            def previous(name: str) -> list:
+                try:
+                    data = json.loads((out_dir / f"{name}.json").read_text())
+                except (OSError, ValueError):
+                    return []
+                return data if isinstance(data, list) else []
+
+            hawkers = results.get("hawkers")
+            # NParks failed today: keep yesterday's park toilets rather than drop them all.
+            parks = b.LAST_PARK_TOILETS or [
+                t for t in previous("toilets") if isinstance(t, dict) and t.get("k") == "park"
+            ]
+            await attempt(
+                "toilets",
+                b.build_toilets(
+                    client,
+                    settings.geoapify_api_key,
+                    hawkers if isinstance(hawkers, list) else previous("hawkers"),
+                    parks,
+                ),
+            )
             await attempt("emergency", b.build_emergency(dg, geo))
             await attempt("halal", b.build_halal(client))
             await attempt(

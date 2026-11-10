@@ -12,6 +12,7 @@ import 'package:dailylah/logic.dart' show offsetMetres, parseSharedPlace, rideMi
 import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/mrt_ride.dart';
+import 'package:dailylah/wake_session.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/store.dart';
 import 'package:dailylah/ui/address_picker.dart';
@@ -20,7 +21,9 @@ import 'package:dailylah/ui/history.dart';
 import 'package:dailylah/ui/mrt_ride.dart';
 import 'package:dailylah/ui/theme.dart';
 import 'package:dailylah/ui/today.dart';
+import 'package:dailylah/ui/toilets.dart';
 import 'package:dailylah/ui/trip.dart';
+import 'package:dailylah/ui/wake.dart';
 import 'package:dailylah/ui/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -508,6 +511,94 @@ void main() {
       await settle(tester);
       expect(find.text(name).evaluate().length, greaterThan(before));
     }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Need a toilet? on the bus lists the stops ahead with a toilet, soonest first', (tester) async {
+    await applyCondition(tester, _normal);
+    // Bus 10 from Tampines Int towards Changi General Hospital; wake me at Opp Blk 3012.
+    const alight = BusStop(code: '96109', name: 'Opp Blk 3012', road: 'Simei St 1', lat: 1.337371, lng: 103.950673);
+    const before = BusStop(code: '96289', name: 'Changi General Hosp', road: 'Simei St 3', lat: 1.34004, lng: 103.948359);
+    await tester.pumpWidget(pageUnder(_normal, householdFavorites, tuesdayMorning,
+        const WakeMePage(service: '10', alight: alight, before: before, from: tampinesInt)));
+    await settle(tester);
+    final box = containerOf(tester);
+    expect(box.read(wakeProvider)?.from?.code, '75009');
+
+    await tester.tap(find.text('Need a toilet?'));
+    await settle(tester);
+    expect(find.byType(ToiletSheet), findsOneWidget);
+    // Two stops ahead have a toilet within 250 m: Opp Our Tampines Hub and Changi General Hosp.
+    final rows = tester.widgetList<ListTile>(find.descendant(of: find.byType(ToiletSheet), matching: find.byType(ListTile)));
+    expect([for (final r in rows) (r.title as Text).data], [
+      'Get off at Opp Our Tampines Hub (in about 2 min)',
+      'Get off at Changi General Hosp (in about 6 min)',
+    ]);
+    expect(find.text('Our Tampines Hub, 2 min walk'), findsOneWidget); // ~120 m, beats the market (~140 m)
+    expect(find.textContaining('© OpenStreetMap contributors'), findsOneWidget);
+    expect(find.byTooltip('Walking directions'), findsNWidgets(2));
+    box.read(wakeProvider.notifier).stop();
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Need a toilet? on the train lists the next stations, with a mall when one is close', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    box.read(goFromKeyProvider.notifier).state = 'home';
+    box.read(goKeyProvider.notifier).state = 'work';
+    box.read(modeOverrideProvider.notifier).state = {'work': TravelMode.transit};
+    await settle(tester);
+    final onTrain = find.text("I'm on the train");
+    await tester.ensureVisible(onTrain);
+    await tester.pump();
+    await tester.tap(onTrain);
+    await settle(tester);
+    expect(find.byType(MrtRidePage), findsOneWidget);
+
+    final need = find.text('Need a toilet?');
+    await tester.scrollUntilVisible(need, 300,
+        scrollable: find.descendant(of: find.byType(MrtRidePage), matching: find.byType(Scrollable)).first);
+    await tester.tap(need);
+    await settle(tester);
+    expect(find.byType(ToiletSheet), findsOneWidget);
+    final rows = tester.widgetList<ListTile>(find.descendant(of: find.byType(ToiletSheet), matching: find.byType(ListTile)));
+    // Simei and Tanah Merah have no toilet in the data: "Stations usually have a toilet". Bedok has
+    // Bedok Mall, as quick as Kembangan's station toilet, and malls come first.
+    expect([for (final r in rows) (r.title as Text).data], [
+      'Get off at Simei (in about 2 min)',
+      'Get off at Tanah Merah (in about 4 min)',
+      'Get off at Bedok (in about 6 min)',
+    ]);
+    expect(find.text('Stations usually have a toilet'), findsNWidgets(2));
+    expect(find.text('Bedok Mall, 2 min walk'), findsOneWidget);
+    box.read(rideProvider.notifier).stop();
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Nearby > Toilets shows the three best toilets near the place', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    box.read(shellTabProvider.notifier).state = _tabs['Nearby']!;
+    box.read(adhocPlaceProvider.notifier).state = const Place(
+        kind: PlaceKind.other, name: 'Tampines Int', address: 'Tampines Int', addrLat: 1.354076, addrLng: 103.943391);
+    box.read(nearbyKeyProvider.notifier).state = 'adhoc';
+    await settle(tester);
+    await tester.tap(find.text('Toilets'));
+    await settle(tester);
+    expect(find.text('Toilets nearby'), findsOneWidget);
+    final rows = tester.widgetList<ListTile>(find.descendant(of: find.byType(ToiletsNearby), matching: find.byType(ListTile)));
+    // The market is a 1 min walk; the two malls are further.
+    expect([for (final r in rows) (r.title as Text).data], ['Tampines Round Market', 'Tampines Mall', 'Our Tampines Hub']);
+    expect(find.textContaining('Hawker centre · 9'), findsOneWidget);
+    expect(find.textContaining('© OpenStreetMap contributors'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

@@ -9,6 +9,7 @@ import 'package:dailylah/l10n.dart';
 import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
+import 'package:dailylah/wake_session.dart';
 import 'package:dailylah/ui/about.dart';
 import 'package:dailylah/ui/address_picker.dart';
 import 'package:dailylah/ui/bus_sheet.dart';
@@ -19,6 +20,7 @@ import 'package:dailylah/ui/more.dart';
 import 'package:dailylah/ui/setup.dart';
 import 'package:dailylah/ui/stop_picker.dart';
 import 'package:dailylah/ui/today.dart';
+import 'package:dailylah/ui/toilets.dart';
 import 'package:dailylah/ui/trip.dart';
 import 'package:dailylah/ui/wake.dart';
 import 'package:flutter/material.dart';
@@ -30,7 +32,7 @@ import 'support/harness.dart';
 /// Tabs by index in the shell: Today, Nearby, Home, More.
 const _tabs = {'Today': 0, 'Nearby': 1, 'Home': 2, 'History': 3, 'More': 4};
 
-const _nearbySections = ['bus', 'eat', 'green', 'park', 'taxi', 'prayer', 'help'];
+const _nearbySections = ['bus', 'eat', 'green', 'park', 'taxi', 'toilet', 'prayer', 'help'];
 
 const _block156 = HdbBlock(
   block: '156',
@@ -72,6 +74,7 @@ final Map<String, Widget Function()> _pages = {
   'Address search (shared, no address)': () =>
       AddressPickerPage(title: 'Search', note: const S().sharedNoAddress('Putra Minang Restaurant Bencoolen')),
   'Wake me': () => const WakeMePage(service: '10', alight: fullertonSq),
+  'Need a toilet? (bus)': () => const _ToiletSheetOnBus(),
   'Block search': () => const BlockSearchPage(),
   'Block page': () => const BlockPage(block: _block156),
   'Compare blocks': () => const ComparePage(),
@@ -90,6 +93,27 @@ final Map<String, Widget Function()> _pages = {
         ),
       ),
 };
+
+/// "Need a toilet?" on bus 10 from Tampines Int (toilets from the harness).
+class _ToiletSheetOnBus extends ConsumerStatefulWidget {
+  const _ToiletSheetOnBus();
+
+  @override
+  ConsumerState<_ToiletSheetOnBus> createState() => _ToiletSheetOnBusState();
+}
+
+class _ToiletSheetOnBusState extends ConsumerState<_ToiletSheetOnBus> {
+  static const _alight = BusStop(code: '96109', name: 'Opp Blk 3012', road: 'Simei St 1', lat: 1.337371, lng: 103.950673);
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => ref.read(wakeProvider.notifier).start('10', _alight, null, from: tampinesInt));
+  }
+
+  @override
+  Widget build(BuildContext context) => const Scaffold(body: ToiletSheet(ride: ToiletRide.bus));
+}
 
 /// The trip planner with both ends already picked, as after a few taps.
 class _PlannerWith extends ConsumerStatefulWidget {

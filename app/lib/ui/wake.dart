@@ -6,16 +6,20 @@ import '../models.dart';
 import '../providers.dart';
 import '../wake_session.dart';
 import 'theme.dart';
+import 'toilets.dart';
 import 'widgets.dart';
 
 /// "Wake me at my stop": shows the ride kept in [wakeProvider]. Leaving this page does not
 /// stop it; the banner above the tabs does, as does Stop here. Location is used only while a
 /// ride runs (kept alive with the screen off by a foreground notification) and never stored.
 class WakeMePage extends ConsumerStatefulWidget {
-  const WakeMePage({super.key, required this.service, required this.alight, this.before});
+  const WakeMePage({super.key, required this.service, required this.alight, this.before, this.from});
   final String service;
   final BusStop alight;
   final BusStop? before;
+
+  /// The boarding stop, for "Need a toilet?" (the stops ahead).
+  final BusStop? from;
 
   @override
   ConsumerState<WakeMePage> createState() => _WakeMePageState();
@@ -28,7 +32,9 @@ class _WakeMePageState extends ConsumerState<WakeMePage> {
     final now = ref.read(wakeProvider);
     // Opening the page for the ride already running just shows it.
     if (now == null || now.service != widget.service || now.alight.code != widget.alight.code) {
-      Future.microtask(() => ref.read(wakeProvider.notifier).start(widget.service, widget.alight, widget.before));
+      Future.microtask(() => ref
+          .read(wakeProvider.notifier)
+          .start(widget.service, widget.alight, widget.before, from: widget.from));
     }
   }
 
@@ -69,6 +75,15 @@ class _WakeMePageState extends ConsumerState<WakeMePage> {
           ),
           Text(s.wakeHow, style: t.bodySmall),
           const SizedBox(height: 16),
+          if (!done) ...[
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+              icon: const Icon(Icons.wc),
+              label: Text(s.toiletNeed),
+              onPressed: () => showToiletSheet(context, ToiletRide.bus),
+            ),
+            const SizedBox(height: 12),
+          ],
           FilledButton(
             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
             onPressed: () {
@@ -105,7 +120,7 @@ class WakeBanner extends ConsumerWidget {
       color: w.done ? DL.amber : DL.mint,
       child: InkWell(
         onTap: () => Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => WakeMePage(service: w.service, alight: w.alight),
+          builder: (_) => WakeMePage(service: w.service, alight: w.alight, from: w.from),
         )),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),

@@ -1,6 +1,6 @@
 # DailyLah Terms of Service
 
-**Last updated: 8 November 2026**
+**Last updated: 9 November 2026**
 App: DailyLah (Android, package `com.tursinalabs.dailylah`)
 Published at: https://www.tursinalabs.com/dailylah/terms
 
@@ -26,6 +26,7 @@ Sources, each used under its own open data terms:
 - LTA DataMall: bus arrivals, bus stops and routes, train service alerts, taxis and EV chargers.
 - OneMap (Singapore Land Authority): address search, places, map tiles and transit travel times.
 - URA: private property transactions and rentals.
+- OpenStreetMap, through Geoapify: place names in Plan a trip and the public toilet list (with NParks park toilets and NEA hawker centres). © OpenStreetMap contributors, available under the [Open Database License](https://opendatacommons.org/licenses/odbl/). Toilets may be closed, moved or inside paid areas.
 - Muslim.sg: halal listings. DailyLah is not affiliated with MUIS or Muslim.sg; always verify halal status directly with the outlet or MUIS.
 
 ## 6. Acceptable use

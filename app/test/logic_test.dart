@@ -2029,4 +2029,169 @@ void main() {
       expect(s.eventNearby('Bazaar', '850 m'), 'Bazaar · 850 m');
     });
   });
+
+  group('need a toilet', () {
+    BusStop stop(String code, int k) =>
+        BusStop(code: code, name: 'Stop $code', road: 'Road', lat: 1.30 + k * 0.005, lng: 103.80);
+    final line = [for (final (k, c) in ['A', 'B', 'C', 'D', 'E', 'F'].indexed) stop(c, k)];
+    final byCode = {for (final s in line) s.code: s};
+    final routes = BusRoutes({
+      '10|1': [for (final (k, s) in line.indexed) (s.code, k * 0.5)],
+      '10|2': [for (final (k, s) in line.reversed.indexed) (s.code, k * 0.5)],
+      '99|1': [for (final (k, s) in line.indexed) (s.code, k * 0.5)],
+    });
+    Toilet near(BusStop s, double dLat, String name, ToiletKind kind) =>
+        Toilet(name: name, lat: s.lat + dLat, lng: s.lng, kind: kind);
+
+    test('Toilet.fromBundle reads name, position and kind', () {
+      final t = Toilet.fromBundle({'n': 'Jurong Point', 'la': 1.3399, 'lo': 103.7065, 'k': 'mall'});
+      expect((t.name, t.lat, t.lng, t.kind), ('Jurong Point', 1.3399, 103.7065, ToiletKind.mall));
+      expect(Toilet.fromBundle({'n': 'X', 'la': 1, 'lo': 2, 'k': 'spaceport'}).kind, ToiletKind.other);
+      expect(Toilet.fromBundle({'n': 'X', 'la': 1, 'lo': 2}).kind, ToiletKind.other);
+    });
+
+    test('bus: the stops ahead up to the alight stop, in order, stops without a toilet skipped', () {
+      final toilets = [
+        near(byCode['A']!, 0.0003, 'Behind us', ToiletKind.mall), // before boarding
+        near(byCode['B']!, 0.0003, 'At boarding', ToiletKind.mall), // the stop we left
+        near(byCode['C']!, 0.001, 'Junction C', ToiletKind.mall), // ~111 m
+        near(byCode['E']!, 0.00045, 'Toilet', ToiletKind.other), // ~50 m
+        near(byCode['E']!, -0.0011, 'E Food Centre', ToiletKind.hawker), // ~120 m
+        near(byCode['F']!, 0.0003, 'Past the stop', ToiletKind.mall), // after alighting
+      ];
+      final out = toiletsAheadBus(routes, '10', byCode['B']!, byCode['E']!, byCode, toilets);
+      expect([for (final t in out) t.at], ['Stop C', 'Stop E']);
+      expect(out[0].toilet!.name, 'Junction C');
+      expect(out[0].rideMinutes, 2); // one stop at ~2 min a stop
+      expect(out[0].walkMinutes, walkMinutesTo(out[0].metres));
+      expect(out[0].minutes, out[0].rideMinutes + out[0].walkMinutes);
+      expect(out[1].toilet!.name, 'Toilet'); // the nearest toilet at that stop
+      expect(out[1].rideMinutes, 6);
+      expect(out.every((t) => !t.assumed), isTrue);
+    });
+
+    test('bus: the GPS fix moves the start; nothing ahead, wrong way or unknown stops give none', () {
+      final toilets = [
+        near(byCode['C']!, 0.0005, 'C mall', ToiletKind.mall),
+        near(byCode['E']!, 0.0005, 'E mall', ToiletKind.mall),
+      ];
+      final d = byCode['D']!;
+      final out = toiletsAheadBus(routes, '10', byCode['B']!, byCode['E']!, byCode, toilets, lat: d.lat, lng: d.lng);
+      expect([for (final t in out) t.at], ['Stop E']);
+      expect(out.single.rideMinutes, 2);
+      // Too far from the route: the fix is ignored.
+      expect(toiletsAheadBus(routes, '10', byCode['B']!, byCode['E']!, byCode, toilets, lat: 1.45, lng: 103.9),
+          hasLength(2));
+      expect(toiletsAheadBus(routes, '10', byCode['E']!, byCode['E']!, byCode, toilets), isEmpty);
+      expect(toiletsAheadBus(routes, '12', byCode['B']!, byCode['E']!, byCode, toilets), isEmpty);
+      expect(toiletsAheadBus(BusRoutes.empty, '10', byCode['B']!, byCode['E']!, byCode, toilets), isEmpty);
+      // Direction 2 runs F to A: from E to B it passes D, C and B.
+      expect([for (final t in toiletsAheadBus(routes, '10', byCode['E']!, byCode['B']!, byCode, toilets)) t.at],
+          ['Stop C']);
+    });
+
+    test('bus: a fix before the nearest stop keeps that stop ahead', () {
+      final toilets = [
+        near(byCode['D']!, 0.0003, 'D mall', ToiletKind.mall),
+        near(byCode['E']!, 0.0003, 'E mall', ToiletKind.mall),
+      ];
+      // 60% of the way from C to D: nearest to D, but the bus has not reached it yet.
+      final c = byCode['C']!, d = byCode['D']!;
+      final lat = c.lat + (d.lat - c.lat) * 0.6;
+      final out = toiletsAheadBus(routes, '10', byCode['B']!, byCode['E']!, byCode, toilets, lat: lat, lng: d.lng);
+      expect([for (final t in out) t.at], ['Stop D', 'Stop E']);
+      expect(out.first.rideMinutes, 2);
+      // Just before the alight stop: it is still ahead.
+      final e = byCode['E']!;
+      final late = toiletsAheadBus(routes, '10', byCode['B']!, e, byCode, toilets, lat: e.lat - 0.0005, lng: e.lng);
+      expect([for (final t in late) t.at], ['Stop E']);
+    });
+
+    test('bus: at most [limit] stops, the soonest first', () {
+      final toilets = [for (final s in line) near(s, 0.0003, 'T ${s.code}', ToiletKind.other)];
+      final out = toiletsAheadBus(routes, '10', byCode['A']!, byCode['F']!, byCode, toilets);
+      expect([for (final t in out) t.at], ['Stop B', 'Stop C', 'Stop D']);
+      expect(toiletsAheadBus(routes, '10', byCode['A']!, byCode['F']!, byCode, toilets, limit: 1), hasLength(1));
+    });
+
+    final stations = [
+      for (var i = 0; i < 4; i++) MrtStation(name: 'S$i', codes: ['NS${10 + i}'], lat: 1.35 + i * 0.01, lng: 103.85),
+    ];
+    final ride = MrtRide(stations: stations, lines: const {'NSL'});
+
+    test('train: a toilet near the station, else "stations usually have a toilet"', () {
+      final toilets = [
+        Toilet(name: 'S2 Mall', lat: stations[2].lat + 0.0009, lng: 103.85, kind: ToiletKind.mall), // ~100 m
+        Toilet(name: 'Too far', lat: stations[1].lat + 0.0036, lng: 103.85), // ~400 m
+      ];
+      final out = toiletsAheadMrt(ride, 0, toilets);
+      expect([for (final t in out) t.at], ['S1', 'S2', 'S3']);
+      expect(out[0].assumed, isTrue);
+      expect(out[0].toilet, isNull);
+      expect(out[0].minutes, rideMinutesTo(ride, 1));
+      expect(out[1].toilet!.name, 'S2 Mall');
+      expect(out[1].minutes, rideMinutesTo(ride, 2) + walkMinutesTo(out[1].metres));
+      // S2 (mall) and S3 (assumed station) both take 6 min: the mall comes first.
+      expect(out[1].minutes, out[2].minutes);
+      expect(out[2].assumed, isTrue);
+      // Further along the ride only what is still ahead; at the last station, nothing.
+      expect([for (final t in toiletsAheadMrt(ride, 2, toilets)) t.at], ['S3']);
+      expect(toiletsAheadMrt(ride, 2, toilets).single.rideMinutes, rideMinutesPerStop);
+      expect(toiletsAheadMrt(ride, 3, toilets), isEmpty);
+      expect(toiletsAheadMrt(ride, 0, toilets, limit: 2), hasLength(2));
+    });
+
+    test('train: minutes include the change of line', () {
+      final via = MrtRide(stations: stations, lines: const {'NSL', 'EWL'}, viaIndex: 1);
+      expect(toiletsAheadMrt(via, 0, const []).last.rideMinutes, rideMinutesTo(via, 3));
+      expect(rideMinutesTo(via, 3), 3 * rideMinutesPerStop + rideTransferMinutes);
+    });
+
+    test('near me: the three best, by walk then kind then distance', () {
+      const lat = 1.30, lng = 103.80;
+      final toilets = [
+        const Toilet(name: 'Far', lat: lat + 0.02, lng: lng),
+        const Toilet(name: 'Other 45 m', lat: lat + 0.0004, lng: lng),
+        const Toilet(name: 'Mall 60 m', lat: lat - 0.00055, lng: lng, kind: ToiletKind.mall),
+        const Toilet(name: 'Park 500 m', lat: lat + 0.0045, lng: lng, kind: ToiletKind.park),
+      ];
+      final out = toiletsNear(toilets, lat, lng);
+      // 45 m and 60 m are both a 1 min walk: the mall first.
+      expect([for (final (t, _) in out) t.name], ['Mall 60 m', 'Other 45 m', 'Park 500 m']);
+      expect(out.first.$2, closeTo(61, 2));
+      expect(toiletsNear(toilets, lat, lng, limit: 1), hasLength(1));
+      expect(toiletsNear(const [], lat, lng), isEmpty);
+    });
+
+    test('toiletRank: sooner first, then mall, hawker, station, then nearer', () {
+      ToiletStop at(int ride, ToiletKind k, double m) =>
+          ToiletStop(at: '', rideMinutes: ride, toilet: Toilet(name: k.name, lat: 0, lng: 0, kind: k), metres: m);
+      const assumed = ToiletStop(at: 'Station', rideMinutes: 5, assumed: true); // 5 min, no walk
+      final list = [
+        at(4, ToiletKind.other, 10),
+        at(4, ToiletKind.hawker, 10),
+        assumed,
+        at(4, ToiletKind.mall, 70),
+        at(2, ToiletKind.park, 10),
+        at(4, ToiletKind.mall, 30),
+      ]..sort(toiletRank);
+      expect([for (final t in list) t.assumed ? 'assumed' : '${t.toilet!.name} ${t.metres.round()}'], [
+        'park 10',
+        'mall 30',
+        'mall 70',
+        'hawker 10',
+        'assumed',
+        'other 10',
+      ]);
+    });
+
+    test('toilet strings', () {
+      const s = S();
+      expect(s.toiletNeed, 'Need a toilet?');
+      expect(s.toiletGetOff('Bishan Int', 6), 'Get off at Bishan Int (in about 6 min)');
+      expect(s.toiletWalk('Junction 8', 2), 'Junction 8, 2 min walk');
+      expect(s.toiletAssumed, 'Stations usually have a toilet');
+      expect(s.nearbySection('toilet'), 'Toilets');
+    });
+  });
 }

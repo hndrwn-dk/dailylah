@@ -16,6 +16,9 @@ class WakeState {
   const WakeState({
     required this.service,
     required this.alight,
+    this.from,
+    this.lat,
+    this.lng,
     this.left,
     this.closest,
     this.event = WakeEvent.none,
@@ -23,6 +26,13 @@ class WakeState {
   });
   final String service;
   final BusStop alight;
+
+  /// The stop the rider boarded at, when known (for "Need a toilet?": the stops ahead).
+  final BusStop? from;
+
+  /// The last GPS fix, in memory only while the ride runs (never stored or sent).
+  final double? lat;
+  final double? lng;
 
   /// Metres to the alight stop at the last fix, and the closest so far.
   final double? left;
@@ -32,9 +42,13 @@ class WakeState {
 
   bool get done => event != WakeEvent.none;
 
-  WakeState copyWith({double? left, double? closest, WakeEvent? event, String? error}) => WakeState(
+  WakeState copyWith({double? lat, double? lng, double? left, double? closest, WakeEvent? event, String? error}) =>
+      WakeState(
         service: service,
         alight: alight,
+        from: from,
+        lat: lat ?? this.lat,
+        lng: lng ?? this.lng,
         left: left ?? this.left,
         closest: closest ?? this.closest,
         event: event ?? this.event,
@@ -60,10 +74,10 @@ class WakeNotifier extends Notifier<WakeState?> {
   }
 
   /// Starts watching for [alight] on bus [service]; replaces any ride already running.
-  Future<void> start(String service, BusStop alight, BusStop? before) async {
+  Future<void> start(String service, BusStop alight, BusStop? before, {BusStop? from}) async {
     _cancel();
     final s = ref.read(stringsProvider);
-    state = WakeState(service: service, alight: alight);
+    state = WakeState(service: service, alight: alight, from: from);
     try {
       var perm = await Geolocator.checkPermission();
       if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
@@ -99,7 +113,8 @@ class WakeNotifier extends Notifier<WakeState?> {
     if (st == null || st.done) return;
     final d = distanceMeters(p.latitude, p.longitude, st.alight.lat, st.alight.lng);
     final ev = wakeEvent(d, radius, st.closest);
-    state = st.copyWith(left: d, closest: math.min(st.closest ?? d, d), event: ev);
+    state = st.copyWith(
+        lat: p.latitude, lng: p.longitude, left: d, closest: math.min(st.closest ?? d, d), event: ev);
     if (ev == WakeEvent.none) return;
     _cancel();
     final s = ref.read(stringsProvider);
@@ -119,3 +134,16 @@ class WakeNotifier extends Notifier<WakeState?> {
 }
 
 final wakeProvider = NotifierProvider<WakeNotifier, WakeState?>(WakeNotifier.new);
+
+/// "Need a toilet?" on the bus: the stops ahead with a toilet ([toiletsAheadBus]), null while
+/// the bundles load or when no ride runs or its boarding stop is unknown.
+final busToiletsProvider = Provider.autoDispose<List<ToiletStop>?>((ref) {
+  final w = ref.watch(wakeProvider);
+  final from = w?.from;
+  if (w == null || from == null) return null;
+  final routes = ref.watch(busRoutesProvider).value;
+  final toilets = ref.watch(toiletsProvider).value;
+  if (routes == null || toilets == null) return null;
+  return toiletsAheadBus(routes, w.service, from, w.alight, ref.watch(busStopsByCodeProvider), toilets,
+      lat: w.lat, lng: w.lng);
+});

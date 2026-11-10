@@ -17,7 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'support/harness.dart';
 
 const _tabs = {'Today': 0, 'Nearby': 1, 'Home': 2, 'History': 3, 'More': 4};
-const _nearbySections = ['bus', 'eat', 'green', 'park', 'taxi', 'prayer', 'help'];
+const _nearbySections = ['bus', 'eat', 'green', 'park', 'taxi', 'toilet', 'prayer', 'help'];
 
 /// Tall enough that every list fits above the tab bar.
 const _tall = Size(412, 6000);
