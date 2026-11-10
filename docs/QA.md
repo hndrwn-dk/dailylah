@@ -275,6 +275,7 @@ and resale card. Text now wraps or scales down.
 ## Known PRD gaps (tests marked `skip`)
 
 Remove the `skip` when the gap is fixed (or change the PRD and delete the test).
+The PRD is the owner's product requirements document; it is kept outside this repository.
 
 1. Notifications have no "don't show this type again" action. `background_rules_test.dart`
 2. No "last updated" label on real-time data when offline. `screens_matrix_test.dart`

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Upgrade test (docs/QA.md section 5), run inside the Android emulator job.
+# Upgrade test (release test plan section 5; docs/QA.md "What runs where"), run inside the Android emulator job.
 # 1. Build and install the previous version (BASE_REF: the last release tag v* on a release,
 #    origin/main on a pull request), with its committed pubspec.lock.
 # 2. Give it the data a real user would have: a set-up household with a changed toggle.
