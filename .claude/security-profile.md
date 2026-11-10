@@ -27,6 +27,6 @@
 - **Exclude paths:** **/build/, **/.dart_tool/, **/android/.gradle/, **/ios/Pods/, **/*.g.dart, **/*.freezed.dart, **/__pycache__/, **/.venv/, web/data/*.json (generated bundles), app/test/goldens/, app/test_store/goldens/, docs/store/
 - **Test command:** cd app && flutter analyze && flutter test (app; runs in CI, Flutter is not installed in cloud sessions); cd backend && pytest && ruff check . (backend)
 - **Recent commits window:** 7 days
-- **Memory repo:** hndrwn-dk/security-memory (must be private)
+- **Memory repo:** the owner's private security notes repo, named in the owner's private agent config (must be private; never named in this repo)
 - **Reporting:** memory-repo; on a public PR only the verdict and the number of findings per severity, never the details of a Critical/High security finding
 - **Timezone:** Asia/Singapore

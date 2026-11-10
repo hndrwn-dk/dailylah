@@ -13,7 +13,8 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - `.claude/security-profile.md`: threat model (attackers, surfaces, sensitive data, where security
   findings are reported). `.github/prompts/review.md` + `.claude/skills/review-pr`: the advisory AI
   review of PRs (docs/QA.md "AI review"). The repo is public: security findings never go in PR
-  comments or issues, only to the private `hndrwn-dk/security-memory`.
+  comments or issues, only to the owner's private security notes repo (named in the owner's
+  private agent config, never in this repo).
 - `docs/REPO_MAP.md`: every file in `app/lib` with its public classes and functions, every Riverpod
   provider and every backend endpoint. Made by `scripts/repo_map.py`; CI fails when it is out of date.
 - Read the file for the folder you change. A change that touches both app and backend (a new

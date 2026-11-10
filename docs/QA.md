@@ -232,17 +232,16 @@ Claude plan: no secret in GitHub Actions, no workflow, no laptop.
   already run the security gate, so a timed reviewer mostly spent plan usage without new findings.
 - What it checks and how it writes is in `.github/prompts/review.md` (change the prompt there, no
   workflow change needed). It reads `.claude/security-profile.md` for the threat model.
-- Security uses the owner's claude-toolkit in the private `hndrwn-dk/security-memory`
-  (`claude-toolkit/global/`): a fresh `security-reviewer` subagent per PR, the memory format of
-  `/vuln-scan`. The toolkit is read from the clone, not installed into the session (auto mode
+- Security uses the owner's private security toolkit: a fresh `security-reviewer` subagent per PR,
+  the memory format of `/vuln-scan`. Its location is in the owner's private agent config, never in
+  this repo. The toolkit is read from the clone, not installed into the session (auto mode
   blocks writing hooks into `~/.claude`).
 - Security gate before a merge: ask the session for "security gate for PR #N"; it follows the
   toolkit's `/security-gate` and posts `Security gate: pass at <sha>.` on the PR.
 - Output: one comment per PR, updated on each new commit: `SETUJUI` or `PERLU PERUBAHAN`, then
   findings by severity (Kritis, Tinggi, Sedang) with `file:line`.
 - The repository is public, so a security finding shows only as a count in the PR. Its details go
-  to the private repository `hndrwn-dk/security-memory` (`dailylah/reports/` and
-  `dailylah/dailylah---flagged-vulnerabilities.json`).
+  to the owner's private security notes repo.
 - The PR template (`.github/pull_request_template.md`) asks for both on the current head commit:
   the review comment's marker sha, and `Security gate: pass at <short sha>.` when `app/`,
   `backend/`, `.github/` or `.claude/` change. Both count only when posted by `hndrwn-dk` (the repo
@@ -292,7 +291,7 @@ for the release's commit on `main`:
 - [ ] The closed-testing build ran on at least one real phone (yours or a tester's) for a few days
       with no crash in Play Console > Android vitals.
 - [ ] Full security scan: in a Claude Code session ask for "/vuln-scan on main" (the owner's
-      claude-toolkit, details only in the private `hndrwn-dk/security-memory`); no new medium+ issue.
+      security toolkit, details only in the owner's private notes); no new medium+ issue.
 - [ ] The manual checks below.
 No promote to production while any of these is open.
 
