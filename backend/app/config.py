@@ -31,10 +31,17 @@ class Settings(BaseSettings):
     # Geoapify (place names for Plan a trip, /v1/places). Server only, never in the app.
     geoapify_api_key: str | None = None
     places_ttl: int = 86400
-    # The Geoapify account's 3,000 daily credits are shared with another app: DailyLah's share,
-    # and a cap below Geoapify's 5 requests a second. Set on Render to change them.
-    places_daily_budget: int = 2000
+    # The Geoapify account's 3,000 daily credits are shared with another app, and DailyLah's key
+    # is capped at 2,000 a day, which the daily data build also draws on. So: a daily budget
+    # below that cap, a smaller one for a day counted in memory only (no shared Redis count),
+    # a cap below Geoapify's 5 requests a second, and one client's share per window (seconds).
+    # Keep places_client_limit * 86400 / places_client_window below places_daily_budget.
+    # Set on Render to change them.
+    places_daily_budget: int = 1900
+    places_memory_budget: int = 50
     places_per_second: int = 4
+    places_client_limit: int = 60
+    places_client_window: int = 3600
 
     # URA Data Service (private property); a daily token is requested from the key.
     ura_access_key: str | None = None
