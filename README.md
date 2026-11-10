@@ -11,10 +11,12 @@ No account, no tracking. Saved places stay on the phone, and alerts are made on 
 
 **Status:** closed testing on Google Play since 26 Oct 2026. Website: [dailylah.sg](https://dailylah.sg).
 
+[![version](https://img.shields.io/github/v/tag/hndrwn-dk/dailylah?filter=v*&sort=semver&label=version)](https://github.com/hndrwn-dk/dailylah/tags)
 [![dailylah.sg](https://img.shields.io/website?url=https%3A%2F%2Fdailylah.sg&label=dailylah.sg&up_message=up&down_message=down)](https://dailylah.sg)
 [![web-check](https://github.com/hndrwn-dk/dailylah/actions/workflows/web-check.yml/badge.svg)](https://github.com/hndrwn-dk/dailylah/actions/workflows/web-check.yml)
 
-The first badge checks the site when the page loads. `web-check` runs every morning at 07:23
+The version badge shows the latest build sent to Google Play. The dailylah.sg badge checks the
+site when the page loads. `web-check` runs every morning at 07:23
 Singapore time and also checks the policy redirects and the data manifest on all three hosts
 ([docs/QA.md](docs/QA.md), "Web check").
 
@@ -46,6 +48,7 @@ Singapore time and also checks the policy redirects and the data manifest on all
 | [`docs/REPO_MAP.md`](docs/REPO_MAP.md) | Every file in `app/lib`, every provider and endpoint (generated) |
 | [`CLAUDE.md`](CLAUDE.md) / [`AGENTS.md`](AGENTS.md) | Rules for AI coding agents, plus [`app/CLAUDE.md`](app/CLAUDE.md) and [`backend/CLAUDE.md`](backend/CLAUDE.md) |
 | [`docs/legal/`](docs/legal/) | Source of the published privacy policy and terms |
+| [`docs/DEPLOY.md`](docs/DEPLOY.md) | Setting up Render, Upstash, Neon, Vercel, the data workflow and secrets |
 
 ## Stack
 
@@ -69,7 +72,7 @@ Upstream data: data.gov.sg (NEA, HDB, CEA), LTA DataMall, OneMap, URA and Geoapi
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
-cp .env.example .env        # fill in the keys (see Secrets); leave QSTASH_* empty locally
+cp .env.example .env        # fill in the keys (docs/DEPLOY.md); leave QSTASH_* empty locally
 pytest && ruff check . && ruff format --check .
 uvicorn app.main:app --reload
 curl -X POST localhost:8000/internal/poll
@@ -118,41 +121,8 @@ process, including the checklist before production, is in [`docs/QA.md`](docs/QA
 
 ## Deploy
 
-1. **Render**: New > Blueprint > pick this repo (uses `render.yaml`). Set the secret env vars.
-2. **Upstash**: create a Redis database (Singapore region if available) and set `REDIS_URL`.
-   In QStash, copy the signing keys into `QSTASH_CURRENT_SIGNING_KEY` and `QSTASH_NEXT_SIGNING_KEY`.
-3. **Schedule the poller** once Render is live:
-   `QSTASH_TOKEN=... API_URL=https://<your-service>.onrender.com ./scripts/create-qstash-schedule.sh`
-4. **Neon**: create a project, enable PostGIS (`CREATE EXTENSION postgis;`) and set `DATABASE_URL`.
-5. **Vercel**: import the repo, set Root Directory to `web`, no build command. The app tries
-   `https://dailylah.sg`, then `https://dailylah.tursinalabs.com`, then
-   `https://dailylah-web.vercel.app`. To use a single other host, build with
-   `--dart-define=WEB_URL=https://<host>`.
-6. **Data bundles**: add the repo secrets `LTA_ACCOUNT_KEY`, `ONEMAP_EMAIL` and `ONEMAP_PASSWORD`
-   (`DATAGOV_API_KEY` and `GEOAPIFY_API_KEY` are optional; see the header of `data.yml`). The push
-   job also needs the `data-push` environment with its deploy key `DATA_PUSH_SSH_KEY`, set up as in
-   [`docs/HANDOFF.md`](docs/HANDOFF.md). Then run the `data` workflow once (Actions > data > Run
-   workflow). After that it runs daily.
-
-## Secrets
-
-Backend env vars (see [`backend/.env.example`](backend/.env.example)):
-
-| Env var | Where to get it |
-| --- | --- |
-| `DATAGOV_API_KEY` | data.gov.sg developer portal |
-| `LTA_ACCOUNT_KEY` | LTA DataMall account |
-| `ONEMAP_EMAIL`, `ONEMAP_PASSWORD` | OneMap API registration |
-| `URA_ACCESS_KEY` | URA Data Service |
-| `GEOAPIFY_API_KEY` | Geoapify dashboard (backend only, never in the app) |
-| `REDIS_URL` | Upstash Redis console |
-| `QSTASH_*_SIGNING_KEY` | Upstash QStash console |
-| `DATABASE_URL` | Neon console |
-| `PUBLIC_BASE_URL` | Your Render service URL |
-
-Never commit `.env`, API keys or keystores. In CI, the data build keys are repo secrets; the
-signing, Play and data-push keys live in their own GitHub environments (`signing`, `play`,
-`play-production`, `data-push`). See "CI security" in [`CLAUDE.md`](CLAUDE.md).
+Setting up the hosted services (Render, Upstash, Neon, Vercel), the daily data workflow and their
+secrets: [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ## Contributing and security
 

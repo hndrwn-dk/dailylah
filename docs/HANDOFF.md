@@ -91,8 +91,7 @@ on OneMap, and OneMap is the fallback. Setup, Nearby and the shared-place picker
   Cast, so `/v1/places` has a daily budget of 2,000 calls (`PLACES_DAILY_BUDGET` on Render), at most
   4 calls a second, and a pause after Geoapify refuses. If Prayer Cast uses up the account, DailyLah
   falls back to OneMap.
-- Open (optional): a per-IP limit (which `X-Forwarded-For` entry Render puts the client in was not
-  checked); if Redis fails mid-day, the memory counter starts at 0 and the budget can be passed once.
+- Open follow-ups on these guards are in the private security notes (hndrwn-dk/security-memory).
 
 ## Need a toilet? (9 Nov 2026, plan: docs/TOILETS.md)
 Done; reaches users with release 2.2.0. `toilets.json` is built daily in `data.yml` (`build_toilets`:
@@ -299,7 +298,7 @@ No new secrets are needed for Phase 1.
 ## Build locally (if Actions minutes run out again)
 - App: `cd app && flutter pub get && flutter analyze && flutter test`.
 - Release APK:
-  - Set `ANDROID_KEYSTORE_PATH` (`C:\Users\hendr\Deployment\signed\dailylah\dailylah-upload.jks`),
+  - Set `ANDROID_KEYSTORE_PATH` (the path to your local upload keystore file),
     `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD` as env vars. Never commit them.
   - Run `scripts/build-apk.ps1` (Windows) or `scripts/build-apk.sh`. They pass `APP_VERSION` and
     `GIT_SHA` so About shows the version and commit, e.g. `2.0.0 (build 294 · a8d2bba)`.

@@ -1,6 +1,6 @@
 # Tester feedback plan (2 Nov 2026)
 
-Source: Testers Community report for DailyLah (closed testing). No crashes or bugs found; three enhancement points plus generic extras.
+Source: closed testing report for DailyLah. No crashes or bugs found; three enhancement points plus generic extras.
 
 ## Decisions
 - Send feedback stays in About (do not move it).
