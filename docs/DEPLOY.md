@@ -50,7 +50,7 @@ Set up by hand under Settings > Environments, each limited to `main` with no adm
   protection > Manage Play app signing > Upload key certificate > SHA-256. Do not use the
   "App signing key certificate" on the same page: that is Google's key, and every sign would fail.
 - `play`: `PLAY_SERVICE_ACCOUNT_JSON`.
-- `play-production`: `PLAY_SERVICE_ACCOUNT_JSON`, required reviewer Hendrawan (prevent
+- `play-production`: `PLAY_SERVICE_ACCOUNT_JSON`, required reviewer: the repo owner (prevent
   self-review off).
 
 ## Rulesets
