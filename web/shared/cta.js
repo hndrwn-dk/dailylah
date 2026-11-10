@@ -1,7 +1,7 @@
 // The "get the app" call to action, shared by the landing page and /where-to-live.
 // Change it here only. While DailyLah is in closed testing it is the tester flow (Google Group,
-// then opt in on Google Play). When production is live, switch to the public listing
-// (docs/HANDOFF.md): url "https://play.google.com/store/apps/details?id=com.tursinalabs.dailylah",
+// then opt in on Google Play). When production is live, switch to the public listing:
+// url "https://play.google.com/store/apps/details?id=com.tursinalabs.dailylah",
 // label "Get DailyLah", ariaLabel "Get DailyLah on Google Play", and steps [].
 // `label` is short so the button fits one line on a 360 px phone; `ariaLabel` is the full name.
 //

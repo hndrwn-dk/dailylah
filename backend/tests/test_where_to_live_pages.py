@@ -169,7 +169,7 @@ def png_size(path: Path) -> tuple[int, int]:
 
 
 def test_every_town_has_a_share_image():
-    """A town new to the data needs scripts/build_og_images.py run (docs/WHERE_TO_LIVE.md)."""
+    """A town new to the data needs scripts/build_og_images.py run."""
     folder = WEB / p.OG_DIR
     ids = {t["id"] for t in REAL["towns"]}
     assert {f.stem for f in folder.glob("*.png")} == ids

@@ -8,7 +8,7 @@
 <!-- Workflow or release changes only: what runs only on main or on a release, and what to watch on the first one. Otherwise "n/a". -->
 
 ## Settings to do by hand
-<!-- Rulesets, environments, secrets, variables: the steps, also in docs/HANDOFF.md. Otherwise "none". -->
+<!-- Rulesets, environments, secrets, variables: the steps, also in docs/DEPLOY.md. Otherwise "none". -->
 
 ## Checklist
 <!-- Tick what is done; write "n/a" after an item that does not apply. -->

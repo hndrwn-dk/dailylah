@@ -1,6 +1,6 @@
 // Pure logic for /where-to-live: reading the URL, filtering and ranking towns, and labels.
 // No DOM here, so web/tests/logic.test.mjs can run it in Node. Data: /data/where-to-live.json
-// (backend/app/where_to_live.py, docs/WHERE_TO_LIVE.md).
+// (backend/app/where_to_live.py).
 
 export const MODES = ["rent", "buy"];
 export const MAX_MINUTES = [30, 45, 60, 75, 90];

@@ -779,7 +779,7 @@ class WtlTown {
   final Map<String, TownCommute?> commute;
 }
 
-/// web/data/where-to-live.json (backend/app/where_to_live.py, docs/WHERE_TO_LIVE.md): HDB median
+/// web/data/where-to-live.json (backend/app/where_to_live.py): HDB median
 /// rent and resale per town and flat type, each with its own quarter, and the weekday 08:30
 /// transit trip from each town to six office areas. The same file the dailylah.sg page uses.
 class WhereToLive {

@@ -1,8 +1,8 @@
 // /where-to-live: the form, the ranked board and the map. Logic lives in logic.js.
 //
 // Every string from where-to-live.json (town and station names, attribution, ids) reaches the page
-// through textContent, createTextNode or option.text, never innerHTML (docs/WHERE_TO_LIVE.md,
-// Fase 2). Map pills and popups are DOM elements. Query values are checked against the data.
+// through textContent, createTextNode or option.text, never innerHTML.
+// Map pills and popups are DOM elements. Query values are checked against the data.
 
 import {
   MAX_COMPARE,

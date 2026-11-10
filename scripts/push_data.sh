@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Pushes a data update to main with the deploy key that the main ruleset lets bypass its rules
-# (docs/HANDOFF.md, "Rulesets", route B). Used by the push jobs of data.yml and where-to-live.yml,
+# (docs/DEPLOY.md, "Rulesets"). Used by the push jobs of data.yml and where-to-live.yml,
 # which run in environment `data-push` and get the patch from the build job as an artifact, so
 # the key never shares a job with pip or the build's third-party code.
 #
@@ -137,7 +137,7 @@ run_generate() {
 
 check_patch_paths
 if [ -z "${DATA_PUSH_SSH_KEY:-}" ]; then
-  echo "::error::DATA_PUSH_SSH_KEY is not set. Add it to environment data-push (docs/HANDOFF.md, Rulesets)."
+  echo "::error::DATA_PUSH_SSH_KEY is not set. Add it to environment data-push (docs/DEPLOY.md, Rulesets)."
   exit 1
 fi
 

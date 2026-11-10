@@ -102,7 +102,7 @@ jobs:
           else
             if [ "$GITHUB_EVENT_NAME" = push ] && [ -n "$BEFORE" ]; then ref=$BEFORE; else ref=HEAD~1; fi
             if [ "$TRACK" != none ]; then
-              echo "::warning title=No release tag::No v* tag below this commit: the upgrade test runs from $ref, which may never have shipped. Create the tag of the last release (docs/HANDOFF.md)."
+              echo "::warning title=No release tag::No v* tag below this commit: the upgrade test runs from $ref, which may never have shipped. Create the tag of the last release (docs/QA.md, Release tags)."
             else
               echo "No v* tag below this commit; a release from here would test the upgrade from $ref."
             fi

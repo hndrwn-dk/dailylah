@@ -4,7 +4,6 @@ name: where-to-live
 # deploy key in environment data-push, scripts/push_data.sh).
 # Vercel redeploys web/ on push. backend/data/where_to_live_routes.json caches the routes
 # (asked again after 30 days). Secrets: ONEMAP_EMAIL, ONEMAP_PASSWORD; DATAGOV_API_KEY optional.
-# docs/WHERE_TO_LIVE.md
 on:
   schedule:
     - cron: "41 19 * * 0" # Monday 03:41 SGT
@@ -69,11 +68,11 @@ jobs:
           retention-days: 3
 
   # Pushes the patch to main with the deploy key that the main ruleset lets bypass its rules
-  # (docs/HANDOFF.md, "Rulesets", route B). Environment data-push holds DATA_PUSH_SSH_KEY and is
+  # (docs/DEPLOY.md, "Rulesets"). Environment data-push holds DATA_PUSH_SSH_KEY and is
   # limited to main. Only GitHub's own actions and scripts/push_data.sh run in this job, plus main's
   # own backend/app/where_to_live_pages.py (stdlib only, the runner's python3, no pip), which
-  # push_data.sh runs on the patched main to write the "Living in <town>" pages and the sitemap
-  # (docs/WHERE_TO_LIVE.md). The patch itself may carry only the two JSON files.
+  # push_data.sh runs on the patched main to write the "Living in <town>" pages and the sitemap.
+  # The patch itself may carry only the two JSON files.
   push:
     name: where-to-live (push)
     needs: build

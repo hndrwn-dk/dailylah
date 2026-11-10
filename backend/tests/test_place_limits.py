@@ -1,5 +1,5 @@
 """Guards on /v1/places so DailyLah cannot use up the Geoapify credits it shares with another
-app: a daily budget, a per-second cap and a pause after Geoapify refuses (docs/PLACE_SEARCH.md)."""
+app: a daily budget, a per-second cap and a pause after Geoapify refuses."""
 
 import httpx
 import pytest
