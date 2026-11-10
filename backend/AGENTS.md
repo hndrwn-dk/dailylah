@@ -57,7 +57,7 @@ relative to `backend/` when they start with `app/`. Endpoint index: `docs/REPO_M
   Optional bundles are best effort: a failing upstream keeps yesterday's file.
   On the phone `BundleRepository.load` runs one load per bundle at a time, saves a download only when
   it is valid JSON (temp file + rename) and re-downloads a saved copy that does not decode.
-- "Where to live?" (dailylah.sg page; plan: agent-handoff `dailylah/plans/WHERE_TO_LIVE.md`): `app/where_to_live.py` builds
+- "Where to live?" (dailylah.sg page): `app/where_to_live.py` builds
   `web/data/where-to-live.json` weekly in `.github/workflows/where-to-live.yml` from the HDB quarterly
   median rent and resale datasets and OneMap transit routes (weekday 08:30) from 26 town centres to
   6 office areas (`backend/data/where_to_live_points.json`). Routes are cached for 30 days in
@@ -76,7 +76,7 @@ relative to `backend/` when they start with `app/`. Endpoint index: `docs/REPO_M
   and the sitemap (`scripts/push_data.sh --generate/--generated`). Each town page's `og:image` is a
   static PNG in `web/og/where-to-live/` made by hand with `scripts/build_og_images.py` (Pillow, a
   dev tool, not in the requirements) and committed; a new town needs that script run.
-- Toilets ("Need a toilet?"; plan: agent-handoff `dailylah/plans/TOILETS.md`): `build_toilets` in `app/bundles.py` makes
+- Toilets ("Need a toilet?"): `build_toilets` in `app/bundles.py` makes
   `toilets.json` in the daily `data.yml` from Geoapify Places (`/v2/places`,
   `categories=amenity.toilet`, Singapore rect, 500 a page until a short or empty page, max 20
   pages), the NParks park toilets that `build_poi` finds in Park Facilities

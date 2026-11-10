@@ -1,8 +1,5 @@
 # DailyLah — guide for AI coding agents
 
-Read `dailylah/HANDOFF.md` and `dailylah/PRD.md` in the private `hndrwn-dk/agent-handoff` first.
-The PRD is the source of truth for scope, phases and constraints; feature plans are in
-`dailylah/plans/`. Never copy those notes into this public repo: point to them by path only.
 Product: free Android app (Flutter) for Singapore residents. Daily morning/evening cards
 built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of scope.
 
