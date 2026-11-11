@@ -941,6 +941,19 @@ void main() {
     await settle(tester);
     expect(find.byType(LoadMeter), findsWidgets);
 
+    // At normal text the stop names keep the row: the tag beside them stays narrow.
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(pageUnder(
+        _normal, householdFavorites, tuesdayMorning, const Scaffold(body: WhereBusSheet(stop: tampinesInt, service: '10'))));
+    await settle(tester);
+    final rows = find.descendant(of: find.byType(WhereBusSheet), matching: find.byType(IntrinsicHeight));
+    expect(rows, findsWidgets);
+    for (final row in rows.evaluate()) {
+      final name = find.descendant(of: find.byWidget(row.widget), matching: find.byType(Expanded)).first;
+      expect(tester.getSize(name).width, greaterThanOrEqualTo(tester.getSize(find.byWidget(row.widget)).width - 64 - 8 - 104 - 1));
+    }
+    await applyCondition(tester, big);
+
     // EV chargers on Home > Parking.
     await tester.pumpWidget(appUnder(big, householdFavorites, tuesdayMorning));
     await settle(tester);
@@ -999,6 +1012,23 @@ void main() {
     // The map is one TalkBack node: no tap target on the page that TalkBack reads as nothing.
     final taps = find.semantics.byPredicate((n) => n.getSemanticsData().hasAction(SemanticsAction.tap) && n.label.isEmpty && n.tooltip.isEmpty);
     expect(taps, findsNothing);
+
+    // No free taxi, one stand: the stand is still its own button, not part of the map's label.
+    await tester.pumpWidget(pageUnder(
+      _normal,
+      householdFavorites,
+      tuesdayMorning,
+      Scaffold(
+        body: ListView(children: [
+          TaxiRadar(origin: home, taxis: const [], stands: [EPoint(name: 'Test stand', lat: home.lat - 0.002, lng: home.lng)]),
+        ]),
+      ),
+    ));
+    await settle(tester);
+    final stand = find.semantics.byPredicate((n) => n.label.startsWith('Test stand'));
+    expect(stand, findsOneWidget);
+    expect(stand.evaluate().single.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+    expect(find.semantics.byLabel(s.taxiRadarLabel(0)), findsOneWidget);
     semantics.dispose();
   });
 

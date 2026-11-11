@@ -154,6 +154,9 @@ class _StripRow extends StatelessWidget {
   final String? busHere;
   final String tag;
 
+  /// Widest the tag on the right may be, its 8 dp gap included.
+  static const tagMaxWidth = 104.0;
+
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
@@ -223,8 +226,10 @@ class _StripRow extends StatelessWidget {
               ),
             ),
           ),
-          // Flexible: at 200% text on a 320 dp phone the tag ("in 3 min") wraps instead of overflowing.
-          Flexible(
+          // Capped, not Flexible (a Flexible beside the Expanded name would take half the row):
+          // at 200% text on a 320 dp phone the tag ("in 3 min") wraps instead of overflowing.
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: _StripRow.tagMaxWidth),
             child: Padding(
               padding: const EdgeInsets.only(left: 8, top: 12),
               child: Text(

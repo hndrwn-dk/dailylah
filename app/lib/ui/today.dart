@@ -1305,6 +1305,8 @@ class TaxiStandPin extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Semantics(
+        // Its own TalkBack node, also when the map around it has no tap action to keep it apart.
+        container: true,
         button: true,
         label: stand.name,
         child: GestureDetector(
