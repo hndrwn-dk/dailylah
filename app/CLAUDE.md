@@ -166,8 +166,9 @@ feature, screen, provider or rule moves, appears or goes away.
   Meals have an optional price (`MealLog.priceCents`, JSON key `c`, absent on older meals): "Ate here"
   and the History meal sheet (`_MealSheet`: price and `mealTimeOn` time, same day, not in the future,
   saved with `editMeal`) share `MealPricePicker` in widgets.dart (chips `mealPriceChips` $4/$6/$8, Other
-  through `askMealPrice`/`parseMealCents`, max `mealPriceMaxCents` $200); "Ate here" preselects the last
-  price at that place (`lastMealPrice`) and still logs with one tap. `historySummary` adds priced meals
+  through `askMealPrice`/`parseMealCents`, max `mealPriceMaxCents` $200); "Ate here" preselects the price
+  of a meal it corrects (logged in the last 30 min) or else the last price at that place, by name
+  for halal places (`mealPriceToOffer`, `lastMealPrice`), and still logs with one tap. `historySummary` adds priced meals
   to `costCents` and counts them (`mealsPriced`, `mealCents`); the Meals tile says "$x · n of m meals
   priced" and each meal row shows its price.
   Every trip card (commute and "Go somewhere") has I'm leaving; the running trip shows in `TripBanner`

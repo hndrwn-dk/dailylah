@@ -1343,18 +1343,23 @@ void main() {
     expect(lastMealPrice(court, 'p:1.30000,103.90000', name: 'Coffee Bean'), isNull);
   });
 
-  test('meal price: a corrected Ate here tap within 30 min keeps the price typed before', () {
+  test('meal price: Ate here offers the price of the meal it corrects, else the last one there', () {
     final t = DateTime(2026, 11, 3, 12);
-    // $6 at the wrong place, then the right place without a price: one meal, still $6.
-    var meals = addMeal(const [], MealLog(hawkerId: 'a', at: t, priceCents: 600));
-    meals = addMeal(meals, MealLog(hawkerId: 'b', at: t.add(const Duration(minutes: 2))));
-    expect(meals.map((m) => (m.hawkerId, m.priceCents)), [('b', 600)]);
-    // A price on the newer tap wins.
-    meals = addMeal(meals, MealLog(hawkerId: 'c', at: t.add(const Duration(minutes: 4)), priceCents: 800));
-    expect(meals.map((m) => (m.hawkerId, m.priceCents)), [('c', 800)]);
-    // A meal hours later is a new meal and takes nothing over.
-    meals = addMeal(meals, MealLog(hawkerId: 'd', at: t.add(const Duration(hours: 6))));
-    expect(meals.map((m) => (m.hawkerId, m.priceCents)), [('c', 800), ('d', null)]);
+    final meals = [
+      MealLog(hawkerId: 'b', at: t.subtract(const Duration(days: 1)), priceCents: 400),
+      MealLog(hawkerId: 'a', at: t, priceCents: 600),
+    ];
+    // $6 at the wrong place a few minutes ago: the corrected tap at 'b' starts on $6.
+    expect(mealPriceToOffer(meals, 'b', t.add(const Duration(minutes: 5))), 600);
+    // Later that day it is a new meal: the last price at 'b'.
+    expect(mealPriceToOffer(meals, 'b', t.add(const Duration(hours: 5))), 400);
+    expect(mealPriceToOffer(meals, 'c', t.add(const Duration(hours: 5))), isNull);
+    // A recent meal without a price offers none, so a cleared price stays cleared.
+    final cleared = [...meals, MealLog(hawkerId: 'c', at: t.add(const Duration(minutes: 10)))];
+    expect(mealPriceToOffer(cleared, 'c', t.add(const Duration(minutes: 12))), isNull);
+    // The merge itself keeps exactly what the newer tap says.
+    final merged = addMeal(meals, MealLog(hawkerId: 'b', at: t.add(const Duration(minutes: 5))));
+    expect(merged.map((m) => (m.hawkerId, m.priceCents)), [('b', 400), ('b', null)]);
   });
 
   test('History week total counts priced meals only and says how many have a price', () {

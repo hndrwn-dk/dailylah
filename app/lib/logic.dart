@@ -2207,20 +2207,23 @@ DateTime? mealTimeOn(DateTime logged, int hour, int minute, DateTime now) {
   return t.isAfter(now) ? null : t;
 }
 
-/// "Ate here" twice within 30 minutes is one meal: the newer tap replaces the older one (a
-/// tap at the wrong place, corrected). A price typed on the older tap is kept when the newer
-/// one has none.
-List<MealLog> addMeal(List<MealLog> meals, MealLog m) {
-  int? carried;
-  final kept = <MealLog>[];
-  for (final x in meals) {
-    if (m.at.difference(x.at).abs() >= const Duration(minutes: 30)) {
-      kept.add(x);
-    } else {
-      carried = x.priceCents ?? carried;
-    }
+/// "Ate here" twice within 30 minutes is one meal: the newer tap replaces the older one.
+List<MealLog> addMeal(List<MealLog> meals, MealLog m) => [
+      for (final x in meals)
+        if (m.at.difference(x.at).abs() >= const Duration(minutes: 30)) x,
+      m,
+    ];
+
+/// The price "Ate here" starts with at [placeId]: the price of a meal logged in the last 30
+/// minutes, which this tap would replace (a tap at the wrong place, corrected), else the last
+/// price paid there ([lastMealPrice]). The user sees it picked and can clear it.
+int? mealPriceToOffer(List<MealLog> meals, String placeId, DateTime now, {String? name}) {
+  MealLog? recent;
+  for (final m in meals) {
+    if (now.difference(m.at).abs() >= const Duration(minutes: 30)) continue;
+    if (recent == null || !m.at.isBefore(recent.at)) recent = m;
   }
-  return [...kept, if (m.priceCents == null && carried != null) m.withPrice(carried) else m];
+  return recent?.priceCents ?? lastMealPrice(meals, placeId, name: name);
 }
 
 /// Quick price chips for "Ate here" and History, in cents (SGD).

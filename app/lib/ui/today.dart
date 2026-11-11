@@ -1261,9 +1261,13 @@ class _TaxiRadarState extends ConsumerState<TaxiRadar> {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-              child: Text(pickedText(),
-                  style: picked == null ? light : t.bodyMedium?.copyWith(color: DL.led, fontWeight: FontWeight.w700),
-                  textAlign: TextAlign.center),
+              // A live region, so TalkBack reads the picked taxi after a tap on the map.
+              child: Semantics(
+                liveRegion: true,
+                child: Text(pickedText(),
+                    style: picked == null ? light : t.bodyMedium?.copyWith(color: DL.led, fontWeight: FontWeight.w700),
+                    textAlign: TextAlign.center),
+              ),
             ),
             Row(crossAxisAlignment: CrossAxisAlignment.start, children: [count(n200, 200), count(n500, 500), count(n1k, 1000)]),
             const Divider(color: DL.nightEdge, height: 22),

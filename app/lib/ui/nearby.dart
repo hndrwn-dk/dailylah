@@ -496,8 +496,8 @@ class _EatSection extends ConsumerWidget {
 
 /// "Ate here" on a food place's sheet (hawker centre, or with [place] another food place such
 /// as a halal restaurant). Hidden when "Learn my habits" is off. Logs the meal with Undo.
-/// An optional price sits above it, preselected with the last price paid here; one tap on
-/// "Ate here" still logs the meal.
+/// An optional price sits above it, preselected (`mealPriceToOffer`) with the price of a meal
+/// this tap corrects or the last price paid here; one tap on "Ate here" still logs the meal.
 class _AteHereButton extends ConsumerStatefulWidget {
   const _AteHereButton({required this.id, required this.name, this.place = false});
   final String id;
@@ -509,8 +509,8 @@ class _AteHereButton extends ConsumerStatefulWidget {
 }
 
 class _AteHereButtonState extends ConsumerState<_AteHereButton> {
-  late int? _price =
-      lastMealPrice(ref.read(habitsProvider).meals, widget.id, name: widget.place ? widget.name : null);
+  late int? _price = mealPriceToOffer(ref.read(habitsProvider).meals, widget.id, DateTime.now(),
+      name: widget.place ? widget.name : null);
 
   @override
   Widget build(BuildContext context) {

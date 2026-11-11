@@ -994,6 +994,8 @@ void main() {
     tester.semantics.tap(radar);
     await tester.pump();
     expect(find.textContaining('Free taxi · '), findsOneWidget);
+    // TalkBack reads the picked taxi: the line under the map is a live region.
+    expect(tester.getSemantics(find.textContaining('Free taxi · ')), isSemantics(isLiveRegion: true));
     // The map is one TalkBack node: no tap target on the page that TalkBack reads as nothing.
     final taps = find.semantics.byPredicate((n) => n.getSemanticsData().hasAction(SemanticsAction.tap) && n.label.isEmpty && n.tooltip.isEmpty);
     expect(taps, findsNothing);
