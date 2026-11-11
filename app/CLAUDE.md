@@ -69,7 +69,8 @@ feature, screen, provider or rule moves, appears or goes away.
   timer). Short trips (rules in logic.dart, tests in `test/short_trip_test.dart`): Walk is the first mode chip
   (`TravelMode.walk`, `tripModes`; Setup offers the other five, `savedTravelModes`) and is picked by itself when
   the walking route is at most `walkDefaultMaxMetres` or `walkDefaultMaxMinutes` (`walkIsDefault`,
-  `defaultTripMode`; never on the daily commute); a mode picked by hand wins (`modeOverrideProvider`). A bus is
+  `defaultTripMode`; never on the daily commute); a mode picked by hand wins (`modeOverrideProvider`), in the planner for that
+  trip's two ends only (`plannedModeKey`), so it neither follows the next trip nor changes the commute. A bus is
   compared with walking door to door (`busDoorToDoor`: walk to the stop and wait, `feederMinutesPerStop` a stop,
   walk from the alighting stop); when it is no quicker, or rides one stop on a trip under `walkInsteadMetres`
   (`busNotFaster`), there is no "Leave now" card and the buses fold into one line ("Bus 196 · 1 stop · not faster

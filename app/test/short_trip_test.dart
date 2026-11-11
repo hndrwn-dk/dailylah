@@ -4,6 +4,7 @@ import 'package:dailylah/l10n.dart';
 import 'package:dailylah/logic.dart' show routeMetres, walkMinutesTo;
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
+import 'package:dailylah/ui/history.dart';
 import 'package:dailylah/ui/today.dart';
 import 'package:dailylah/ui/trip.dart';
 import 'package:dailylah/ui/widgets.dart';
@@ -138,6 +139,33 @@ void main() {
       expect(launches.single, contains('travelmode=$travel'), reason: label);
       launches.clear();
     }
+  });
+
+  testWidgets('A mode picked by hand belongs to that trip: not to the next place, not to the commute', (tester) async {
+    await _plan(tester, _siglap, _goodwill);
+    await _tapMode(tester, 'Bus/MRT');
+    final box = containerOf(tester);
+    // Another short trip in the same destination slot opens on Walk again.
+    box.read(goAdhocDestProvider.notifier).state =
+        const Place(kind: PlaceKind.other, name: 'Opp Goodwill Ct', addrLat: 1.3132, addrLng: 103.9281);
+    await settle(tester);
+    expect(tester.widget<PillRow>(find.byType(PillRow).last).selected, TravelMode.walk.name);
+    // Walk picked for a short trip does not follow a long one.
+    box.read(goAdhocDestProvider.notifier).state = _stPatricks;
+    await settle(tester);
+    expect(tester.widget<PillRow>(find.byType(PillRow).last).selected, TravelMode.transit.name);
+    // Nothing is kept under the commute's keys.
+    expect(box.read(modeOverrideProvider).keys.every((k) => k.startsWith('plan:')), isTrue);
+  });
+
+  testWidgets('History shows a walked trip with the walking icon', (tester) async {
+    await _plan(tester, _siglap, _goodwill);
+    final box = containerOf(tester);
+    await box.read(habitsProvider.notifier).startTrip('a>b', tuesdayMorning, mode: 'walk', km: 0.4);
+    await box.read(habitsProvider.notifier).finishTrip(tuesdayMorning.add(const Duration(minutes: 9)));
+    await tester.pumpWidget(pageUnder(_normal, householdFavorites, tuesdayMorning, const Scaffold(body: HistoryPage())));
+    await settle(tester);
+    expect(find.byIcon(Icons.directions_walk), findsWidgets);
   });
 
   for (final c in const [

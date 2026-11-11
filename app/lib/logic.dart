@@ -1415,6 +1415,11 @@ bool walkIsDefault(double straightMetres) =>
 TravelMode defaultTripMode(TravelMode saved, double straightMetres, {bool commute = false}) =>
     !commute && walkIsDefault(straightMetres) ? TravelMode.walk : saved;
 
+/// Where the planner keeps a mode picked by hand: this trip's two ends, so the pick neither
+/// follows a later trip to another place nor changes the daily commute (whose key is the place).
+String plannedModeKey(Place from, Place to) =>
+    'plan:${from.lat.toStringAsFixed(4)},${from.lng.toStringAsFixed(4)}>${to.lat.toStringAsFixed(4)},${to.lng.toStringAsFixed(4)}';
+
 /// The mode chips of a trip: Walk first, then the place's own modes in their order, then the rest.
 List<TravelMode> tripModes(List<TravelMode> saved) => [
       TravelMode.walk,
