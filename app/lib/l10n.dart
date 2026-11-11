@@ -376,7 +376,7 @@ class S {
   String get rideTitle => 'On the train';
   String rideRunning(String station) => 'Riding to $station';
   String rideNextStop(String station) => 'Next stop: $station. Get ready to alight.';
-  String rideDisrupted(String line) => 'Delay on the $line. Open DailyLah for Plan B.';
+  String rideDisrupted(String line) => 'Disruption on the $line. Open DailyLah for Plan B.';
   String get imOnTrain => "I'm on the train";
   String get imOnTrainSub => 'Watches the line and tells you before your stop';
   String lineRunningNormally(String line) => '$line running normally';
@@ -387,7 +387,7 @@ class S {
   String get rideOk => 'Running normally';
   String get rideChecking => 'Checking the line…';
   String get rideCheckNote => 'Checked every 2 min while you ride';
-  String rideDelayOn(String line) => 'Delay on the $line';
+  String rideDisruptionOn(String line) => 'Disruption on the $line';
   String get ridePassed => 'passed';
   String get rideAboutHere => 'about here';
   String get rideAlertHere => 'alert here';
@@ -399,8 +399,8 @@ class S {
   String rideAlertSub(String station) => 'At $station, with sound and vibration';
   String get rideStop => 'Stop';
   String get rideArrived => "I've arrived";
-  String rideBannerSub(int left, String eta, String? delay) =>
-      '${left == 1 ? '1 stop' : '$left stops'} left · about $eta · ${delay ?? 'running normally'}';
+  String rideBannerSub(int left, String eta, String? disruption) =>
+      '${left == 1 ? '1 stop' : '$left stops'} left · about $eta · ${disruption ?? 'running normally'}';
   String walkIsQuicker(String minutes, String dist) => '$minutes · $dist';
   String get walkingRoute => 'Walking route';
   String suggestedStop(String dist, String place) => 'Has a direct bus · $dist from $place';
