@@ -16,7 +16,7 @@ enum OrderInReason { rain, haze, hawkerClosed }
 enum ParkTime { lightning, rain, haze, heat, uv, showers, good, goodNight }
 
 /// Weather tips for the chosen way of travelling (see tripAdvice in logic.dart).
-enum TripAdvice { lightningRide, lightningWalk, rainRide, rainDrive, rainTaxi, heat, haze }
+enum TripAdvice { lightningRide, lightningWalk, lightningOnFoot, rainRide, rainWalk, rainDrive, rainTaxi, heat, haze }
 
 class S {
   const S();
@@ -298,6 +298,7 @@ class S {
         'car' => 'Car',
         'motorcycle' => 'Motorbike',
         'bicycle' => 'Bicycle',
+        'walk' => 'Walk',
         _ => 'Taxi',
       };
   String get usuallyBy => 'Usually by';
@@ -313,7 +314,18 @@ class S {
   String tripTitle(String from, String to) => '$from → $to';
   String busesTo(String place) => 'Buses to $place';
   String rideInfo(int stops, double km, String alight) =>
-      '$stops stops · ${km.toStringAsFixed(1)} km · get off at $alight';
+      '${stopsTag(stops)} · ${km.toStringAsFixed(1)} km · get off at $alight';
+  /// The folded bus list on a trip the bus does not shorten.
+  String busNotFaster(String service, int stops) => 'Bus $service · ${stopsTag(stops)} · not faster than walking';
+  String get busNotFasterHint => 'Handy in the rain or with bags. Tap to see the buses.';
+  /// Rough time and distance on a mode card, e.g. "About 10 min by bicycle · 2.4 km".
+  String modeEta(String mode, int minutes, String dist) => switch (mode) {
+        'bicycle' => 'About $minutes min by bicycle · $dist',
+        'motorcycle' => 'About $minutes min by motorbike · $dist',
+        'taxi' => 'About $minutes min by taxi · $dist',
+        _ => 'About $minutes min by car · $dist',
+      };
+  String get modeEtaNote => 'A rough estimate from the distance, without traffic or waiting.';
   String get noDirectBus => 'No direct bus from this stop. Check the full route in Google Maps.';
   String get routeInMaps => 'Route in Google Maps';
   String get otherBuses => 'Other buses at this stop';
@@ -402,6 +414,8 @@ class S {
   String rideBannerSub(int left, String eta, String? disruption) =>
       '${left == 1 ? '1 stop' : '$left stops'} left · about $eta · ${disruption ?? 'running normally'}';
   String walkIsQuicker(String minutes, String dist) => '$minutes · $dist';
+  /// The walk all the way, in the minutes the bus is compared with (`walkMinutesTo`).
+  String walkMin(int minutes) => '$minutes min walk';
   String get walkingRoute => 'Walking route';
   String suggestedStop(String dist, String place) => 'Has a direct bus · $dist from $place';
   String get useThisStop => 'Use this stop';
@@ -412,7 +426,7 @@ class S {
   String get headingHome => 'Heading home';
   String get todayLabel => 'Today';
   String walkTo(String station, String dist) => 'Walk $dist to $station';
-  String rideLine(String line, int? stops) => stops == null ? 'Ride $line' : 'Ride $line · ~$stops stops';
+  String rideLine(String line, int? stops) => stops == null ? 'Ride $line' : 'Ride $line · ~${stopsTag(stops)}';
   String get changeTrains => 'Change trains on the way';
   String alightAt(String station, String dist) => 'Get off at $station · $dist walk';
   String get mrtRouteInMaps => 'MRT route in Google Maps';
@@ -547,7 +561,9 @@ class S {
   String tripAdvice(TripAdvice a) => switch (a) {
         TripAdvice.lightningRide => 'Lightning nearby. Hold off riding until it passes.',
         TripAdvice.lightningWalk => 'Lightning nearby. Wait under shelter before walking to the stop.',
+        TripAdvice.lightningOnFoot => 'Lightning nearby. Wait under shelter until it passes.',
         TripAdvice.rainRide => 'Rain on the way. Bring a rain jacket or wait it out.',
+        TripAdvice.rainWalk => 'Rain on the way. Bring an umbrella or take the sheltered way.',
         TripAdvice.rainDrive => 'Rain on the way. Roads get slower, so allow extra time.',
         TripAdvice.rainTaxi => 'Rain on the way. Taxis get scarce, so book early.',
         TripAdvice.heat => 'High heat. Bring water and take the sheltered way.',

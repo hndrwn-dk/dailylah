@@ -2300,4 +2300,109 @@ void main() {
       expect(s.nearbySection('toilet'), 'Toilets');
     });
   });
+
+  group('short trips: Walk by default, honest bus comparison, plurals', () {
+    test('Walk is the default up to a 1 km walking route or 12 minutes, not beyond', () {
+      // The route is the straight line x 1.3: 555 m straight is a 722 m, 9 minute walk.
+      expect(walkIsDefault(555), isTrue);
+      expect(routeMetres(769), lessThanOrEqualTo(walkDefaultMaxMetres));
+      expect(walkIsDefault(769), isTrue);
+      expect(walkMinutesTo(771), greaterThan(walkDefaultMaxMinutes));
+      expect(walkIsDefault(771), isFalse);
+      expect(walkIsDefault(2000), isFalse);
+      expect(walkDefaultMaxMetres, 1000);
+      expect(walkDefaultMaxMinutes, 12);
+    });
+
+    test('a short planned trip opens on Walk; the commute and longer trips keep the saved mode', () {
+      expect(defaultTripMode(TravelMode.transit, 555), TravelMode.walk);
+      expect(defaultTripMode(TravelMode.car, 555), TravelMode.walk);
+      expect(defaultTripMode(TravelMode.car, 555, commute: true), TravelMode.car);
+      expect(defaultTripMode(TravelMode.transit, 5000), TravelMode.transit);
+      expect(defaultTripMode(TravelMode.taxi, 5000), TravelMode.taxi);
+    });
+
+    test('mode chips: Walk first, then the saved modes in their order, then the rest, each once', () {
+      expect(tripModes(const [TravelMode.transit]).first, TravelMode.walk);
+      final chips = tripModes(const [TravelMode.car, TravelMode.transit]);
+      expect(chips.take(3), [TravelMode.walk, TravelMode.car, TravelMode.transit]);
+      expect(chips.toSet().length, TravelMode.values.length);
+      expect(chips.length, TravelMode.values.length);
+      // Setup offers every mode but Walk.
+      expect(savedTravelModes, isNot(contains(TravelMode.walk)));
+      expect(savedTravelModes.length, TravelMode.values.length - 1);
+    });
+
+    test('a mode picked in the planner is kept per trip, apart from the commute keys', () {
+      const a = Place(kind: PlaceKind.other, addrLat: 1.3139, addrLng: 103.9317);
+      const b = Place(kind: PlaceKind.other, addrLat: 1.3130, addrLng: 103.9279);
+      const c = Place(kind: PlaceKind.other, addrLat: 1.3093, addrLng: 103.9143);
+      expect(plannedModeKey(a, b), isNot(plannedModeKey(a, c)));
+      expect(plannedModeKey(a, b), isNot(plannedModeKey(b, a)));
+      expect(plannedModeKey(a, b), startsWith('plan:'));
+    });
+
+    test('door to door by bus: walk and wait, the ride, the walk from the alighting stop', () {
+      // The case from the phone: 3 min walk, the bus comes in 6, 1 stop, 3 min walk after.
+      expect(busDoorToDoor(walkToStop: 3, busIn: 6, stops: 1, alightMetres: 180), 6 + 2 + 3);
+      // At the stop already and alighting at the door.
+      expect(busDoorToDoor(walkToStop: 0, busIn: 4, stops: 5, alightMetres: 20), 4 + 10);
+      // The walk is longer than the wait: the walk counts.
+      expect(busDoorToDoor(walkToStop: 8, busIn: 8, stops: 3, alightMetres: 0), 8 + 6);
+    });
+
+    test('the bus is folded away for one stop on a walkable trip, or when walking is as quick', () {
+      // 555 m: a 9 minute walk. One stop: never the hero card, however quick.
+      expect(busNotFaster(stops: 1, doorToDoor: 4, straightMetres: 555), isTrue);
+      // Door to door 11 min against 9 on foot.
+      expect(busNotFaster(stops: 2, doorToDoor: 11, straightMetres: 555), isTrue);
+      // Equal is not faster.
+      expect(busNotFaster(stops: 3, doorToDoor: walkMinutesTo(900), straightMetres: 900), isTrue);
+      // The normal case: 5 km is an 81 minute walk, the bus takes 25.
+      expect(busNotFaster(stops: 12, doorToDoor: 25, straightMetres: 5000), isFalse);
+      // One stop on a long trip (an express service) is still a real ride.
+      expect(busNotFaster(stops: 1, doorToDoor: 15, straightMetres: 5000), isFalse);
+      // A bus that takes longer than walking a long way is folded too.
+      expect(busNotFaster(stops: 4, doorToDoor: 40, straightMetres: 2000), isTrue);
+    });
+
+    test('rough minutes per mode: 15 km/h by bicycle, 30 km/h by car, motorbike or taxi', () {
+      // 5 km straight is a 6.5 km route.
+      expect(modeMinutes(TravelMode.bicycle, 5000), 26);
+      expect(modeMinutes(TravelMode.car, 5000), 13);
+      expect(modeMinutes(TravelMode.motorcycle, 5000), 13);
+      expect(modeMinutes(TravelMode.taxi, 5000), 13);
+      expect(modeMinutes(TravelMode.walk, 555), walkMinutesTo(555));
+      expect(modeMinutes(TravelMode.transit, 5000), isNull);
+      expect(modeMinutes(TravelMode.car, 10), 1); // never "0 min"
+    });
+
+    test('weather tips for Walk never mention a bus stop', () {
+      expect(tripAdvice(mode: TravelMode.walk, lightning: true, rainy: true),
+          [TripAdvice.lightningOnFoot, TripAdvice.rainWalk]);
+      expect(tripAdvice(mode: TravelMode.walk, highHeat: true), [TripAdvice.heat]);
+      expect(tripAdvice(mode: TravelMode.transit, lightning: true), [TripAdvice.lightningWalk]);
+      const s = S();
+      for (final a in [TripAdvice.lightningOnFoot, TripAdvice.rainWalk]) {
+        expect(s.tripAdvice(a), isNot(contains('stop')));
+      }
+    });
+
+    test('plurals: 1 stop, 2 stops on the trip card, the MRT card and the folded bus line', () {
+      const s = S();
+      expect(s.rideInfo(1, 0.3, 'Blk 1'), '1 stop · 0.3 km · get off at Blk 1');
+      expect(s.rideInfo(2, 0.8, 'Blk 1'), '2 stops · 0.8 km · get off at Blk 1');
+      expect(s.rideLine('Green line', 1), 'Ride Green line · ~1 stop');
+      expect(s.rideLine('Green line', 4), 'Ride Green line · ~4 stops');
+      expect(s.busNotFaster('196', 1), 'Bus 196 · 1 stop · not faster than walking');
+      expect(s.busNotFaster('196', 3), 'Bus 196 · 3 stops · not faster than walking');
+      expect(s.feederStep('10', 'A', 'B', 1), contains('1 stop'));
+      expect(s.stopsTag(1), '1 stop');
+      // The walking card shows the minutes the bus is compared with.
+      expect(s.walkMin(walkMinutesTo(1010)), '16 min walk');
+      expect(s.modeLabel('walk'), 'Walk');
+      expect(s.modeEta('bicycle', 10, '2.4 km'), 'About 10 min by bicycle · 2.4 km');
+      expect(s.modeEta('car', 8, '3.1 km'), 'About 8 min by car · 3.1 km');
+    });
+  });
 }

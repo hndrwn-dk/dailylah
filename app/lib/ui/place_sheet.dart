@@ -150,6 +150,7 @@ class _PlaceViewState extends ConsumerState<_PlaceView> {
   _Way _defaultWay(double? d) => switch (widget.mode) {
         TravelMode.car || TravelMode.motorcycle || TravelMode.taxi => _Way.car,
         TravelMode.bicycle => _Way.bike,
+        TravelMode.walk => _Way.walk,
         TravelMode.transit => d != null && d <= 1200 ? _Way.walk : _Way.transit,
         null => d != null && d <= 1500 ? _Way.walk : _Way.transit,
       };

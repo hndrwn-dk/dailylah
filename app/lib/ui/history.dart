@@ -243,6 +243,7 @@ class _EntryTile extends ConsumerWidget {
         'motorcycle' => Icons.two_wheeler,
         'bicycle' => Icons.pedal_bike,
         'taxi' => Icons.local_taxi_outlined,
+        'walk' => Icons.directions_walk,
         _ => Icons.directions_bus_outlined,
       };
 

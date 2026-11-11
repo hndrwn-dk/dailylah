@@ -1386,6 +1386,76 @@ String shortPlaceName(String name) {
 /// Walking is the better answer under this straight-line distance.
 const walkInsteadMetres = 1000.0;
 
+// ---------------------------------------------------------------- short trips and rough times
+
+/// A trip whose walking route is at most this long, or takes at most this many minutes, is
+/// walked: Walk is the mode picked for it until the user picks another ([walkIsDefault]).
+const walkDefaultMaxMetres = 1000.0;
+const walkDefaultMaxMinutes = 12;
+
+/// Roads and paths are longer than the straight line: the same 1.3 as [walkMinutesTo] and the
+/// fare estimate.
+const routeDetour = 1.3;
+
+/// Rough speeds for the time on a mode card, in km/h: an easy ride, and a car, motorbike or
+/// taxi in town with its stops at lights.
+const cycleKmh = 15.0;
+const driveKmh = 30.0;
+
+/// The route's length estimated from the straight line between the two ends.
+double routeMetres(double straightMetres) => straightMetres * routeDetour;
+
+/// Walk is picked by itself for this trip: the walking route is short enough, by distance or
+/// by time.
+bool walkIsDefault(double straightMetres) =>
+    routeMetres(straightMetres) <= walkDefaultMaxMetres || walkMinutesTo(straightMetres) <= walkDefaultMaxMinutes;
+
+/// The mode a trip opens on: Walk for a short planned trip, else the place's first mode. The
+/// daily commute keeps the mode saved in Setup.
+TravelMode defaultTripMode(TravelMode saved, double straightMetres, {bool commute = false}) =>
+    !commute && walkIsDefault(straightMetres) ? TravelMode.walk : saved;
+
+/// Where the planner keeps a mode picked by hand: this trip's two ends, so the pick neither
+/// follows a later trip to another place nor changes the daily commute (whose key is the place).
+String plannedModeKey(Place from, Place to) =>
+    'plan:${from.lat.toStringAsFixed(4)},${from.lng.toStringAsFixed(4)}>${to.lat.toStringAsFixed(4)},${to.lng.toStringAsFixed(4)}';
+
+/// The mode chips of a trip: Walk first, then the place's own modes in their order, then the rest.
+List<TravelMode> tripModes(List<TravelMode> saved) => [
+      TravelMode.walk,
+      ...saved.where((m) => m != TravelMode.walk),
+      ...TravelMode.values.where((m) => m != TravelMode.walk && !saved.contains(m)),
+    ];
+
+/// Rough minutes for the trip by [mode], from the straight-line distance: walking as
+/// [walkMinutesTo], [cycleKmh] by bicycle, [driveKmh] by car, motorbike or taxi. Null for
+/// bus/MRT, whose time comes from the live arrivals.
+int? modeMinutes(TravelMode mode, double straightMetres) {
+  int at(double kmh) => math.max(1, (routeMetres(straightMetres) / 1000 / kmh * 60).round());
+  return switch (mode) {
+    TravelMode.walk => walkMinutesTo(straightMetres),
+    TravelMode.bicycle => at(cycleKmh),
+    TravelMode.car || TravelMode.motorcycle || TravelMode.taxi => at(driveKmh),
+    TravelMode.transit => null,
+  };
+}
+
+/// Door to door by bus, in minutes: the walk to the stop and the wait there (together the
+/// later of [walkToStop] and [busIn], the minutes until the bus comes), the ride
+/// ([feederMinutesPerStop] a stop) and the walk from the alighting stop to the destination
+/// ([alightMetres], none within [atStopMetres]).
+int busDoorToDoor({required int walkToStop, required int busIn, required int stops, required double alightMetres}) =>
+    math.max(walkToStop, busIn) +
+    stops * feederMinutesPerStop +
+    (alightMetres < atStopMetres ? 0 : walkMinutesTo(alightMetres));
+
+/// The bus is no help on this trip: it takes at least as long as walking all the way
+/// ([straightMetres] from start to destination), or, on a trip short enough to walk
+/// ([walkInsteadMetres]), it rides a single stop. The card then leads with walking and folds
+/// the buses away.
+bool busNotFaster({required int stops, required int doorToDoor, required double straightMetres}) =>
+    doorToDoor >= walkMinutesTo(straightMetres) || (stops <= 1 && straightMetres < walkInsteadMetres);
+
 // ---------------------------------------------------------------- trips: MRT
 
 /// Line key (as in [trainLines]) for a station code like "TE26" or "CG1".
@@ -2574,13 +2644,16 @@ List<TripAdvice> tripAdvice({
   bool rainy = false,
 }) {
   final riding = mode == TravelMode.bicycle || mode == TravelMode.motorcycle;
+  final onFoot = mode == TravelMode.transit || mode == TravelMode.walk;
   final out = <TripAdvice>[
     if (lightning && riding) TripAdvice.lightningRide,
     if (lightning && mode == TravelMode.transit) TripAdvice.lightningWalk,
+    if (lightning && mode == TravelMode.walk) TripAdvice.lightningOnFoot,
     if (rainy && riding) TripAdvice.rainRide,
+    if (rainy && mode == TravelMode.walk) TripAdvice.rainWalk,
     if (rainy && mode == TravelMode.car) TripAdvice.rainDrive,
     if (rainy && mode == TravelMode.taxi) TripAdvice.rainTaxi,
-    if (highHeat && (riding || mode == TravelMode.transit)) TripAdvice.heat,
+    if (highHeat && (riding || onFoot)) TripAdvice.heat,
     if (air != null && air.index >= AirLevel.unhealthy.index && mode != TravelMode.car && mode != TravelMode.taxi)
       TripAdvice.haze,
   ];
