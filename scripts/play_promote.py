@@ -531,6 +531,9 @@ def run(
                 "thrown away. Nothing changed for users.",
             ]
             return out
+        # From here the edit is Google's: never delete an edit whose commit was sent, even
+        # when the answer is an error or never comes.
+        committed = True
         try:
             api.commit_edit(edit)
         except PromoteError as e:
@@ -538,7 +541,6 @@ def run(
                 f"The commit did not go through: {e} If this was a timeout, run a dry run to "
                 "see what production holds now."
             ) from None
-        committed = True
     finally:
         if not committed:
             try:

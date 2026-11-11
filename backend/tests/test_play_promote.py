@@ -293,7 +293,7 @@ def test_a_failed_commit_is_reported_as_one():
     api.fail_commit = True
     with pytest.raises(pp.CommitError, match="commit did not go through.*permission"):
         promote(api)
-    assert api.did("delete")
+    assert not api.did("delete")  # an edit whose commit was sent is left alone
 
 
 def test_a_commit_that_changed_nothing_fails():
