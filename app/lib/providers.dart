@@ -426,9 +426,16 @@ final tripExtrasProvider = FutureProvider.autoDispose.family<TripExtras, ExtrasQ
       _ => localTripExtras(q.mode, q.lat, q.lng, parking: await api.parking()),
     };
   }
-  final extras = parseTripExtras(await api.tripExtras(q.mode.name, extrasCoord(q.lat), extrasCoord(q.lng)), q.mode);
-  if (extras == null) throw const FormatException('trip extras');
-  return extras;
+  try {
+    final extras = parseTripExtras(await api.tripExtras(q.mode.name, extrasCoord(q.lat), extrasCoord(q.lng)), q.mode);
+    if (extras == null) throw const FormatException('trip extras');
+    return extras;
+  } on Object {
+    // Bicycle racks are also in a bundle on the phone: offline, or with the server asleep,
+    // the card still lists them (without rack type). The other modes have no offline source.
+    if (q.mode != TravelMode.bicycle) rethrow;
+    return localTripExtras(q.mode, q.lat, q.lng, racks: await ref.watch(bicycleRacksProvider.future));
+  }
 });
 
 final incidentsProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).trafficIncidents());

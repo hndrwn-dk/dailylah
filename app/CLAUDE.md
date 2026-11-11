@@ -83,7 +83,8 @@ feature, screen, provider or rule moves, appears or goes away.
   nearest bicycle parking (rack type, racks, sheltered); Taxi the free taxis within 500 m of the start. The point
   is sent rounded to 4 decimals (`extrasCoord`); the phone's own position ("Here", `startsHere`/`endsHere`) is
   never sent: the phone then filters `/v1/parking`, `/v1/taxi` and the bicycle racks bundle itself
-  (`localTripExtras`). On an error the card stays and one line says "Live info unavailable". Board rows put their details (load, wheelchair, stops) under the number at full width when the column
+  (`localTripExtras`). On an error the card stays and one line says "Live info unavailable"; Bicycle falls
+  back to the racks bundle instead. "Use my current location" in the planner's search is Here too (`AddressHit.here`). Board rows put their details (load, wheelchair, stops) under the number at full width when the column
   beside it is too narrow for whole words (`_BoardRowLayout`, large text, small screens). Maestro: `maestro/09_plan_trip.yaml`. Driving uses `/v1/trip-extras`
   (parking) and `/v1/traffic-incidents`.
 - EV charging (opt-in, `Favorites.evPlug`: '' none, 'any', 'Type 2', 'CCS2', 'CHAdeMO'; More > Extras

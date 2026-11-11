@@ -426,6 +426,8 @@ class S {
   String rideBannerSub(int left, String eta, String? delay) =>
       '${left == 1 ? '1 stop' : '$left stops'} left · about $eta · ${delay ?? 'running normally'}';
   String walkIsQuicker(String minutes, String dist) => '$minutes · $dist';
+  /// The walk all the way, in the minutes the bus is compared with (`walkMinutesTo`).
+  String walkMin(int minutes) => '$minutes min walk';
   String get walkingRoute => 'Walking route';
   String suggestedStop(String dist, String place) => 'Has a direct bus · $dist from $place';
   String get useThisStop => 'Use this stop';

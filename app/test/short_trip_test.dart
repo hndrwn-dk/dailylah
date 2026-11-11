@@ -1,7 +1,7 @@
 // Plan a trip for short trips: Walk picked by itself, the bus folded away when it is no quicker
 // than walking, and every mode chip showing its own card before anything opens Google Maps.
 import 'package:dailylah/l10n.dart';
-import 'package:dailylah/logic.dart' show clockLabel, routeMetres, walkMinutesTo;
+import 'package:dailylah/logic.dart' show clockLabel, walkMinutesTo;
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/history.dart';
@@ -73,7 +73,7 @@ void main() {
     final chips = tester.widget<PillRow>(find.byType(PillRow).last);
     expect(chips.items.first.$3, 'Walk');
     expect(chips.selected, TravelMode.walk.name);
-    expect(find.textContaining(_s.walkMinutes(routeMetres(straight))), findsOneWidget);
+    expect(find.textContaining(_s.walkMin(walkMinutesTo(straight))), findsOneWidget);
     expect(find.byType(BusBoard), findsNothing);
     expect(find.textContaining(RegExp(r'to\scatch')), findsNothing);
     expect(launches, isEmpty);
@@ -92,13 +92,13 @@ void main() {
     await _plan(tester, _siglap, _goodwill);
     await _tapMode(tester, 'Bus/MRT');
     // Walking stays on top.
-    expect(find.textContaining(_s.walkMinutes(routeMetres(436))), findsOneWidget);
+    expect(find.textContaining(_s.walkMin(walkMinutesTo(436))), findsOneWidget);
     expect(find.textContaining(RegExp(r'to\scatch')), findsNothing);
     final folded = find.text(_s.busNotFaster('10', 1));
     expect(folded, findsOneWidget);
     expect(find.byType(BusBoard), findsNothing);
     expect(
-      tester.getTopLeft(find.textContaining(_s.walkMinutes(routeMetres(436)))).dy,
+      tester.getTopLeft(find.textContaining(_s.walkMin(walkMinutesTo(436)))).dy,
       lessThan(tester.getTopLeft(folded).dy),
     );
     // Still there for a rainy day: one tap opens the board.
@@ -200,7 +200,11 @@ void main() {
     testWidgets('LTA down: the card keeps its time and distance, with one quiet line', (tester) async {
       await _plan(tester, _siglap, _stPatricks);
       api(tester).extrasDown = true;
-      for (final label in ['Bicycle', 'Car', 'Taxi']) {
+      // Bicycle falls back to the racks bundle on the phone.
+      await _tapMode(tester, 'Bicycle');
+      expect(find.text(_s.liveUnavailable), findsNothing);
+      expect(find.textContaining(RegExp(r'^About \d+ min by bicycle')), findsOneWidget);
+      for (final label in ['Car', 'Taxi']) {
         await _tapMode(tester, label);
         expect(find.text(_s.liveUnavailable), findsOneWidget, reason: label);
         expect(find.textContaining(RegExp('^About \\d+ min by ${label.toLowerCase()}')), findsOneWidget);
@@ -242,6 +246,13 @@ void main() {
       await _tapMode(tester, 'Taxi');
       expect(api(tester).extrasAsked, isEmpty);
       expect(find.textContaining('within 500 m'), findsOneWidget);
+      // Picking it again on the end that is already Here keeps the end.
+      await _tap(tester, find.text(_s.searchAddressHint).first);
+      await settle(tester);
+      await tester.tap(find.text(_s.useMyLocation));
+      await settle(tester);
+      expect(box.read(goFromKeyProvider), 'here');
+      expect(box.read(goKeyProvider), 'adhoc');
     });
 
     testWidgets('pull to refresh and coming back to the app ask for the live details again', (tester) async {

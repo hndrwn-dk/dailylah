@@ -211,6 +211,9 @@ def test_lta_down_is_a_502_without_the_key(client, mode, caplog):
     [
         httpx.Response(200, text="<html>maintenance</html>"),
         httpx.Response(200, json={"value": None}),
+        httpx.Response(200, json={"fault": "quota"}),
+        httpx.Response(200, json={"value": "none"}),
+        httpx.Response(200, json=["x"]),
     ],
 )
 @respx.mock
@@ -219,6 +222,11 @@ def test_a_bicycle_answer_that_is_not_the_documented_list_is_a_502(client, answe
     r = get(client, "bicycle")
     assert r.status_code == 502
     assert "maintenance" not in r.text
+    # Not kept: the next request asks LTA again instead of answering "none here" for a day.
+    respx.get(f"{LTA}/BicycleParkingv2").mock(
+        return_value=httpx.Response(200, json={"value": [rack("AMK HUB", 1.3693, 103.8456)]})
+    )
+    assert get(client, "bicycle").json()["data"]["items"][0]["name"] == "AMK HUB"
 
 
 def test_a_malformed_row_in_the_parking_dataset_is_skipped():
