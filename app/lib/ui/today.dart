@@ -1208,6 +1208,17 @@ class _TaxiRadarState extends ConsumerState<TaxiRadar> {
                   for (final (i, (la, lo)) in widget.taxis.indexed)
                     if ((at(la, lo) - c).distance <= r) (i, at(la, lo)),
                 ];
+                // The taxi drawn within 28 px of [p] (radar coordinates), nearest first, closer than
+                // [within] when given (a stand's centre, so a tap near both picks the nearer one).
+                int? cabNear(Offset p, {double within = 28}) {
+                  (int, double)? hit;
+                  for (final (i, cab) in cabs) {
+                    final dist = (cab - p).distance;
+                    if (dist <= 28 && dist < within && (hit == null || dist < hit.$2)) hit = (i, dist);
+                  }
+                  return hit?.$1;
+                }
+
                 // TalkBack: the painted map gets a label, and its tap picks the nearest taxi
                 // (the line under the map then says where it is).
                 return Semantics(
@@ -1222,14 +1233,7 @@ class _TaxiRadarState extends ConsumerState<TaxiRadar> {
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     excludeFromSemantics: true,
-                    onTapUp: (d) {
-                      (int, double)? hit;
-                      for (final (i, p) in cabs) {
-                        final dist = (p - d.localPosition).distance;
-                        if (dist <= 28 && (hit == null || dist < hit.$2)) hit = (i, dist);
-                      }
-                      setState(() => _picked = hit?.$1);
-                    },
+                    onTapUp: (d) => setState(() => _picked = cabNear(d.localPosition)),
                     child: Stack(
                       children: [
                         Positioned.fill(
@@ -1248,9 +1252,16 @@ class _TaxiRadarState extends ConsumerState<TaxiRadar> {
                             Positioned(
                               left: at(p.lat, p.lng).dx - TaxiStandPin.size / 2,
                               top: at(p.lat, p.lng).dy - TaxiStandPin.size / 2,
+                              // The 48 dp pin covers taxis queuing at the stand: a tap closer to a
+                              // taxi than to the stand's centre picks the taxi.
                               child: TaxiStandPin(
                                 stand: p,
-                                onTap: () => _openStand(context, s, p, distanceMeters(o.lat, o.lng, p.lat, p.lng), widget.taxis),
+                                onTapAt: (global) {
+                                  final local = (context.findRenderObject()! as RenderBox).globalToLocal(global);
+                                  final cab = cabNear(local, within: (local - at(p.lat, p.lng)).distance);
+                                  if (cab != null) return setState(() => _picked = cab);
+                                  _openStand(context, s, p, distanceMeters(o.lat, o.lng, p.lat, p.lng), widget.taxis);
+                                },
                               ),
                             ),
                       ],
@@ -1294,11 +1305,13 @@ class _TaxiRadarState extends ConsumerState<TaxiRadar> {
   }
 }
 
-/// A taxi stand on the radar: a 48 dp tap target around the "T" square.
+/// A taxi stand on the radar: a 48 dp tap target around the "T" square. [onTapAt] gets where it
+/// was tapped (global), so the radar can give the tap to a taxi drawn next to the stand; a
+/// TalkBack tap comes at the pin's centre and so opens the stand.
 class TaxiStandPin extends StatelessWidget {
-  const TaxiStandPin({super.key, required this.stand, required this.onTap});
+  const TaxiStandPin({super.key, required this.stand, required this.onTapAt});
   final EPoint stand;
-  final VoidCallback onTap;
+  final ValueChanged<Offset> onTapAt;
 
   /// The tap target; the painted square stays 18 px.
   static const size = kMinInteractiveDimension;
@@ -1311,7 +1324,7 @@ class TaxiStandPin extends StatelessWidget {
         label: stand.name,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: onTap,
+          onTapUp: (d) => onTapAt(d.globalPosition),
           child: Container(
             width: size,
             height: size,

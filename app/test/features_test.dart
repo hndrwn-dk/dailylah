@@ -1013,6 +1013,31 @@ void main() {
     final taps = find.semantics.byPredicate((n) => n.getSemanticsData().hasAction(SemanticsAction.tap) && n.label.isEmpty && n.tooltip.isEmpty);
     expect(taps, findsNothing);
 
+    // A taxi queuing at a stand: a tap on the taxi's side of the 48 dp pin picks the taxi; a tap on
+    // the stand's centre opens the stand.
+    final cab = (home.lat + 0.0003, home.lng);
+    final queue = EPoint(name: 'Queue stand', lat: home.lat + 0.0003, lng: home.lng + 0.0001);
+    await tester.pumpWidget(pageUnder(
+      _normal,
+      householdFavorites,
+      tuesdayMorning,
+      Scaffold(body: ListView(children: [TaxiRadar(origin: home, taxis: [cab], stands: [queue])])),
+    ));
+    await settle(tester);
+    final pin = find.byType(TaxiStandPin);
+    final pinBox = tester.getRect(pin);
+    final stand = pinBox.center;
+    // The taxi is drawn left of the stand's centre (smaller longitude), inside the pin.
+    await tester.tapAt(Offset(pinBox.left + 4, stand.dy));
+    await tester.pump();
+    expect(find.textContaining('Free taxi · '), findsOneWidget);
+    expect(find.byType(BottomSheet), findsNothing);
+    await tester.tapAt(stand);
+    await settle(tester);
+    expect(find.text('Queue stand'), findsWidgets, reason: 'the stand sheet opens');
+    Navigator.of(tester.element(find.byType(BottomSheet))).pop();
+    await settle(tester);
+
     // No free taxi, one stand: the stand is still its own button, not part of the map's label.
     await tester.pumpWidget(pageUnder(
       _normal,
@@ -1025,9 +1050,9 @@ void main() {
       ),
     ));
     await settle(tester);
-    final stand = find.semantics.byPredicate((n) => n.label.startsWith('Test stand'));
-    expect(stand, findsOneWidget);
-    expect(stand.evaluate().single.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+    final standNode = find.semantics.byPredicate((n) => n.label.startsWith('Test stand'));
+    expect(standNode, findsOneWidget);
+    expect(standNode.evaluate().single.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
     expect(find.semantics.byLabel(s.taxiRadarLabel(0)), findsOneWidget);
     semantics.dispose();
   });
