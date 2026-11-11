@@ -286,10 +286,13 @@ feature, screen, provider or rule moves, appears or goes away.
   flows on a universal APK made from the very AAB that is uploaded), and only if all of it passes it
   is released to the track in the repository variable `PLAY_PUSH_TRACK`: unset or `manual` uploads
   nothing (the owner uploads by hand, docs/QA.md "Manual releases"); `alpha` makes the `play` job
-  upload to closed testing. `release-tag` then tags the commit `v<versionName>`, and a production
-  upload or a `manual` release keeps the AAB, mapping and `whatsnew-en-US` in a draft GitHub Release
-  (docs/QA.md "Release tags").
-  Promote a tested release to production in Play Console only after the checklist in docs/QA.md
+  upload to closed testing. `release-tag` then tags the commit `v<versionName>` and keeps the AAB, mapping and
+  `whatsnew-en-US` in a draft GitHub Release (docs/QA.md "Release tags").
+  Production: the `promote` workflow (`.github/workflows/promote.yml`, `scripts/play_promote.py`,
+  tests in `backend/tests/test_play_promote.py`) moves the versionCode that `alpha` holds to
+  production as a staged rollout (inputs `action` promote/rollout/halt/resume, `version`, `rollout`
+  10/20/50/100, `dry_run`), with no rebuild and no upload, in environment `play-production`
+  (docs/QA.md "Production release from the phone"). Run it only after the checklist in docs/QA.md
   "Before promoting a release to production" (security green, real-phone check in closed testing, /vuln-scan) is done. A manual run of `app` on `main` can pick
   another `play_track` (manual, internal, beta, production as draft); it runs the same tests first. A flaky emulator
   job blocks the upload: re-run failed jobs and `play` follows. The upload sends the AAB, mapping file

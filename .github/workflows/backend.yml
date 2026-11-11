@@ -1,7 +1,7 @@
 name: backend
 on:
   push:
-    paths: ["backend/**", "contracts/**", ".github/workflows/backend.yml"]
+    paths: ["backend/**", "contracts/**", "scripts/play_promote.py", ".github/workflows/promote.yml", ".github/workflows/backend.yml"]
   pull_request:
 permissions:
   contents: read
@@ -30,7 +30,8 @@ jobs:
           if [ "$EVENT" = pull_request ]; then
             files=$(git diff --name-only --no-renames HEAD^1 HEAD)
             printf 'Changed files:\n%s\n' "$files"
-            grep -qE '^(backend/|contracts/|\.github/workflows/backend\.yml$)' <<<"$files" || run=false
+            # scripts/play_promote.py and promote.yml are tested by backend/tests/test_play_promote.py.
+            grep -qE '^(backend/|contracts/|scripts/play_promote\.py$|\.github/workflows/(backend|promote)\.yml$)' <<<"$files" || run=false
           fi
           echo "run=$run" | tee -a "$GITHUB_OUTPUT"
 

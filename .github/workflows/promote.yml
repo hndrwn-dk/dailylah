@@ -1,0 +1,95 @@
+name: promote
+# Production releases from the phone (docs/QA.md "Production release from the phone").
+# Nothing is built or uploaded here: `promote` puts the versionCode that closed testing (alpha)
+# already holds on production through the Play Developer API, as a staged rollout; `rollout`,
+# `halt` and `resume` change that staged release. Run it on main: Actions > promote > Run workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "promote = alpha to production; rollout = raise the fraction; halt / resume = stop or continue the staged rollout"
+        type: choice
+        default: promote
+        options: [promote, rollout, halt, resume]
+      version:
+        description: "promote only: version to promote, e.g. 2.4.0 (empty = the newest v* tag)"
+        type: string
+        default: ""
+      rollout:
+        description: "promote and rollout: percent of users (100 = everyone, release completed)"
+        type: choice
+        default: "20"
+        options: ["10", "20", "50", "100"]
+      dry_run:
+        description: "Dry run: read the tracks and show the plan, change nothing"
+        type: boolean
+        default: false
+permissions: {}
+# Shares the group of the `play` job in app.yml: an upload and a promotion never overlap.
+concurrency:
+  group: play-upload
+  cancel-in-progress: false
+jobs:
+  promote:
+    name: ${{ inputs.action }} on production${{ inputs.dry_run && ' (dry run)' || '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The Play key is only in this environment: main only, and every run (a dry run too) waits
+    # for the owner's approval. The job installs nothing: checkout, git, the runner's python3
+    # (standard library) and openssl.
+    environment: play-production
+    permissions:
+      contents: read
+    steps:
+      - name: Only from main
+        run: |
+          [ "$GITHUB_REF" = refs/heads/main ] \
+            || { echo "::error::Run promote on main (this run is on $GITHUB_REF)."; exit 1; }
+      # Full history for the v* tags; only the script is checked out.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          sparse-checkout: scripts/play_promote.py
+          sparse-checkout-cone-mode: false
+      - id: release
+        name: Version and its release notes
+        if: inputs.action == 'promote'
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          version="${VERSION#v}"
+          if [ -z "$version" ]; then
+            # The newest release: the nearest v* tag below main (tags are never moved).
+            tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD) \
+              || { echo "::error::No v* release tag on main."; exit 1; }
+            version="${tag#v}"
+          fi
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+            || { echo "::error::Version must look like 2.4.0."; exit 1; }
+          tag="v$version"
+          commit=$(git rev-parse -q --verify "refs/tags/$tag^{commit}") \
+            || { echo "::error::No release tag $tag. Release tags: $(git tag -l 'v[0-9]*' --sort=-creatordate | head -5 | tr '\n' ' ')"; exit 1; }
+          git merge-base --is-ancestor "$commit" HEAD \
+            || { echo "::error::$tag (${commit::7}) is not on main."; exit 1; }
+          # Release notes as they were at that release, not as they are on main today.
+          git show "$tag:docs/store/whatsnew/whatsnew-en-US" > "$RUNNER_TEMP/whatsnew-en-US" \
+            || { echo "::error::$tag has no docs/store/whatsnew/whatsnew-en-US."; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "::notice title=Promote::$tag (${commit::7})"
+          echo "::notice title=Release notes (whatsnew-en-US at $tag)::$(tr '\n' ' ' < "$RUNNER_TEMP/whatsnew-en-US")"
+      - name: Google Play production
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          ACTION: ${{ inputs.action }}
+          VERSION: ${{ steps.release.outputs.version }}
+          ROLLOUT: ${{ inputs.rollout }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          args=(--action "$ACTION" --rollout "$ROLLOUT")
+          if [ "$ACTION" = promote ]; then
+            args+=(--version "$VERSION" --notes "$RUNNER_TEMP/whatsnew-en-US")
+          fi
+          if [ "$DRY_RUN" = true ]; then args+=(--dry-run); fi
+          # -I: no site packages from the user or the working directory, no PYTHON* variables.
+          python3 -I scripts/play_promote.py "${args[@]}"

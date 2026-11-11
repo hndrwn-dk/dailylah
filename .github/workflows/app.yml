@@ -54,7 +54,8 @@ jobs:
     env:
       # A push to main is a release only when it bumps `version:` in pubspec.yaml (new feature or
       # bug fix). Where it goes is the repository variable PLAY_PUSH_TRACK: `alpha` uploads to
-      # closed testing once the on-device tests pass (jobs e2e and play); unset or `manual` signs,
+      # closed testing once the on-device tests pass (jobs e2e and play), and promote.yml later
+      # moves that release to production; unset or `manual` signs,
       # tags and keeps the AAB in a draft GitHub Release for an upload by hand, and never calls
       # Google Play (docs/QA.md "Manual releases"). A manual run picks its track. Pull requests
       # and other branches only build.
@@ -290,7 +291,8 @@ jobs:
           done
       - name: Upload to Google Play
         # Closed testing (alpha) on push to main; manual runs can pick another track.
-        # Production goes up as a draft to review and roll out in Play Console.
+        # Production releases normally go through promote.yml (the alpha release, no new upload);
+        # picking `production` here uploads a draft to review and roll out in Play Console.
         # Pinned to v1.1.5 by commit: this step holds the Play service account key.
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
@@ -303,10 +305,11 @@ jobs:
           status: ${{ env.PLAY_TRACK == 'production' && 'draft' || 'completed' }}
 
   # After a successful upload, or after sign and e2e for track `manual` (no upload): tag the
-  # commit v<versionName> (the base of the next release's upgrade test) and, for production and
-  # manual, keep the AAB, R8 mapping and release notes in a draft GitHub Release (the run
-  # artifact expires after 30 days). The only job here that writes to the repo; the token goes
-  # only to the steps that need it.
+  # commit v<versionName> (the base of the next release's upgrade test) and keep the AAB, R8
+  # mapping and release notes in a draft GitHub Release (the run artifact expires after 30 days).
+  # Every track gets one: a closed-testing release is later promoted to production as it is
+  # (promote.yml), so each production version has its files. The only job here that writes to
+  # the repo; the token goes only to the steps that need it.
   release-tag:
     name: tag the release
     needs: [analyze, sign, e2e, play]
@@ -346,12 +349,12 @@ jobs:
           echo "::notice title=Release tag::$tag on ${GITHUB_SHA::7}"
           echo "- Tagged $tag on ${GITHUB_SHA::7}" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        if: (env.PLAY_TRACK == 'production' || env.PLAY_TRACK == 'manual') && steps.tag.outputs.moved != 'no'
+        if: steps.tag.outputs.moved != 'no'
         with:
           name: dailylah-aab
           path: app/build
-      - name: Draft GitHub Release with the AAB, mapping and release notes (production, manual)
-        if: (env.PLAY_TRACK == 'production' || env.PLAY_TRACK == 'manual') && steps.tag.outputs.moved != 'no'
+      - name: Draft GitHub Release with the AAB, mapping and release notes
+        if: steps.tag.outputs.moved != 'no'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.tag.outputs.tag }}

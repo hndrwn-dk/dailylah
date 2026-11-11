@@ -102,7 +102,11 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   `release-tag` writes (`contents: write`, the release tag and draft Release); `play`, which holds
   the Play key, stays read-only. The upload key is only in the `sign` job (environment `signing`:
   sparse checkout of `scripts/sign_aab.sh`, JDK only, no Gradle, pub or cache); the Play key only in
-  `play` (environments `play`/`play-production`). This protects the keys, not the contents of the
+  `play` (environments `play`/`play-production`). `promote.yml` (manual only) moves the alpha
+  release to production and changes its staged rollout: one job in `play-production` (owner
+  approval, also for a dry run), `contents: read`, the secret only on the step that runs
+  `scripts/play_promote.py` (standard library and openssl; no pip, no action besides checkout).
+  This protects the keys, not the contents of the
   AAB, which third-party build code still makes. Never use `pull_request_target`. Expressions from
   inputs, vars or step outputs go through `env:`, not straight into `run:`.
 - Required checks (docs/QA.md "Required checks"): a workflow that may skip work on a pull request

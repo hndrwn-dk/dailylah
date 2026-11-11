@@ -41,7 +41,7 @@ Backend env vars (see [`backend/.env.example`](../backend/.env.example)):
 
 Never commit `.env`, API keys or keystores. In CI, the data build keys are repo secrets; the
 signing, Play and data-push keys live in their own GitHub environments (`signing`, `play`,
-`play-production`, `data-push`). See "CI security" in [`CLAUDE.md`](../CLAUDE.md).
+`play-production`, `data-push`); none of them is a repository secret. See "CI security" in [`CLAUDE.md`](../CLAUDE.md).
 
 ## Release signing environments
 Set up by hand under Settings > Environments, each limited to `main` with no admin bypass:
@@ -50,16 +50,47 @@ Set up by hand under Settings > Environments, each limited to `main` with no adm
   keytool and Play Console). Its source in Play Console: Protected with Play > Play Store
   protection > Manage Play app signing > Upload key certificate > SHA-256. Do not use the
   "App signing key certificate" on the same page: that is Google's key, and every sign would fail.
-- `play`: `PLAY_SERVICE_ACCOUNT_JSON`.
+- `play`: `PLAY_SERVICE_ACCOUNT_JSON` (uploads to the testing tracks, `app.yml`).
 - `play-production`: `PLAY_SERVICE_ACCOUNT_JSON`, required reviewer: the repo owner (prevent
-  self-review off).
+  self-review off). Used by `promote.yml` and by an `app.yml` run with track `production`.
+
+## Production releases from the phone
+One-time settings for docs/QA.md "Production release from the phone". All of them work in a phone
+browser (github.com and play.google.com/console; the GitHub mobile app does not show repository
+settings).
+
+1. **Version bumps go to closed testing.** GitHub > the repository > Settings > Secrets and
+   variables > Actions > Variables tab > New repository variable: Name `PLAY_PUSH_TRACK`, Value
+   `alpha`. (See "Release track for a version bump" below to turn it off again.)
+2. **The service account may release to production.** Play Console > Users and permissions > the
+   service account (its email ends in `.iam.gserviceaccount.com`) > App permissions > DailyLah.
+   Under Releases, tick **"Release to production, exclude devices, and use Play App Signing"**;
+   keep "Release apps to testing tracks" and "View app information and download bulk reports
+   (read-only)". Apply > Save changes. Nothing else is needed (no financial data, no store
+   presence, no admin). Play Console sometimes renames permissions: pick the one in the Releases
+   group that names production.
+   - Better, when there is time: a second service account for production only. The account in
+     environment `play` then keeps only "Release apps to testing tracks", so a job that is not
+     approved by the owner can never reach production; the new account (both release permissions
+     and the view permission) goes only into `play-production` > `PLAY_SERVICE_ACCOUNT_JSON`.
+     Create it in Google Cloud Console > IAM & Admin > Service accounts (no project role), add a
+     JSON key, invite its email in Play Console > Users and permissions, paste the key file into
+     the environment secret, then delete the downloaded file. Never paste the key in a chat.
+3. **`play-production` still asks the owner.** Settings > Environments > `play-production`:
+   Required reviewers lists the owner, "Prevent self-review" is off (the owner starts the run and
+   approves it), Deployment branches is `main` only, "Allow administrators to bypass" is off, and
+   the secret `PLAY_SERVICE_ACCOUNT_JSON` is listed.
+4. **Check it.** GitHub mobile > Actions > promote > Run workflow on `main` with `dry_run` on.
+   The run waits for the approval (a notification; Approve and deploy), then its summary shows
+   what `alpha` and production hold. A permission error from Google here means step 2 is not done.
 
 ## Release track for a version bump
 Repository variable `PLAY_PUSH_TRACK` (Settings > Secrets and variables > Actions > Variables tab)
 decides what a version bump on `main` does (docs/QA.md "Manual releases"):
 - Not set, or `manual`: build, test, sign, tag `v<version>` and a draft GitHub Release with the AAB,
   mapping and release notes. No Google Play upload; the owner uploads in Play Console by hand.
-- `alpha`: the same, and the `play` job uploads to closed testing (the setup before 2.3.0).
+- `alpha`: the same, and the `play` job uploads to closed testing. Production then follows with
+  Actions > promote ("Production releases from the phone" above).
 - Switch the automatic upload back on: New repository variable (or edit), Name `PLAY_PUSH_TRACK`,
   Value `alpha`, Add variable. Turn it off again: set it to `manual` or delete it.
 - Check it on the next release: the `analyze` job says `Release (manual upload)` or
