@@ -468,8 +468,10 @@ def test_the_production_key_must_not_be_the_testing_account():
     with pytest.raises(pp.PromoteError, match="belongs to the testing service account"):
         pp.check_account(key, " testing@p.iam.example ")
     assert pp.check_account(key, "other@p.iam.example") == []
-    (warning,) = pp.check_account(key, "")
+    (warning,) = pp.check_account(key, "", dry_run=True)
     assert "PLAY_TESTING_ACCOUNT is not set" in warning
+    with pytest.raises(pp.PromoteError, match="Only a dry run works without it"):
+        pp.check_account(key, "")
 
 
 def test_a_release_name_cannot_start_a_line_or_add_markdown():
@@ -497,6 +499,7 @@ def cli(tmp_path, monkeypatch, capsys):
     api = play()
     monkeypatch.setenv("PLAY_SERVICE_ACCOUNT_JSON", '{"k": "SECRET-KEY-TEXT"}')
     monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    monkeypatch.setenv("PLAY_TESTING_ACCOUNT", "testing@p.iam.example")
     monkeypatch.setattr(pp, "access_token", lambda account: "tok")
     monkeypatch.setattr(pp, "PlayApi", lambda token: api)
 
@@ -555,10 +558,14 @@ def test_main_refuses_the_testing_accounts_key(cli, monkeypatch):
     assert code == 1 and "testing service account" in summary and not cli.api.calls
 
 
-def test_main_warns_when_it_cannot_check_the_account(cli):
+def test_main_without_the_testing_account_only_does_a_dry_run(cli, monkeypatch):
+    monkeypatch.delenv("PLAY_TESTING_ACCOUNT")
     code, summary, printed = cli("--version", "2.4.0", "--dry-run")
     assert code == 0 and "**Warning:** Repository variable PLAY_TESTING_ACCOUNT" in summary
     assert "::warning title=promote::" in printed
+    code, summary, _ = cli("--version", "2.4.0")
+    assert code == 1 and "Only a dry run works without it" in summary
+    assert not cli.api.did("commit")
 
 
 def test_main_needs_the_secret(cli, monkeypatch):

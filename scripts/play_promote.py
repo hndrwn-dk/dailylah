@@ -138,8 +138,11 @@ def sign_rs256(message: bytes, private_key_pem: str) -> bytes:
     return done.stdout
 
 
-def check_account(account_json: str, testing_account: str) -> list[str]:
+def check_account(account_json: str, testing_account: str, dry_run: bool = False) -> list[str]:
     """The production key must not be the key of the testing account. Returns warning lines.
+
+    A setup guard, not the boundary: the boundary is that the testing account has no production
+    right in Play Console. Without the variable only a dry run goes on, with a warning.
 
     The environment `play` (uploads to the testing tracks) asks nobody for approval. If the same
     service account were used here, that environment could release to production too. The
@@ -151,11 +154,14 @@ def check_account(account_json: str, testing_account: str) -> list[str]:
         email = ""  # token_request reports a bad key file
     testing = testing_account.strip().lower()
     if not testing:
-        return [
-            "Repository variable PLAY_TESTING_ACCOUNT is not set, so this run could not check "
+        missing = (
+            "Repository variable PLAY_TESTING_ACCOUNT is not set, so this run cannot check "
             "that the production key belongs to a service account of its own "
             "(docs/DEPLOY.md, Production releases from the phone)."
-        ]
+        )
+        if not dry_run:
+            raise PromoteError(f"{missing} Only a dry run works without it.")
+        return [missing]
     if email and email == testing:
         raise PromoteError(
             "The key in environment play-production belongs to the testing service account "
@@ -584,7 +590,9 @@ def main(argv: list[str] | None = None) -> int:
         account = os.environ.get("PLAY_SERVICE_ACCOUNT_JSON", "")
         if not account:
             raise PromoteError("Secret PLAY_SERVICE_ACCOUNT_JSON is not set in this environment.")
-        for warning in check_account(account, os.environ.get("PLAY_TESTING_ACCOUNT", "")):
+        for warning in check_account(
+            account, os.environ.get("PLAY_TESTING_ACCOUNT", ""), args.dry_run
+        ):
             print(f"::warning title=promote::{warning}")
             out += [f"**Warning:** {warning}", ""]
         api = PlayApi(access_token(account))

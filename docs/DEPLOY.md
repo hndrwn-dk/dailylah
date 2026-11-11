@@ -83,8 +83,9 @@ settings).
      in a chat. `play` keeps the old key.
    - Settings > Secrets and variables > Actions > Variables > New repository variable: Name
      `PLAY_TESTING_ACCOUNT`, Value the email of the **existing** (testing) service account. It is
-     not a secret. `promote` refuses to run when the production key belongs to that account, and
-     warns while the variable is missing.
+     not a secret. `promote` refuses to run when the production key belongs to that account;
+     while the variable is missing only a dry run works, with a warning. This is a setup check:
+     what keeps the testing account out of production is its Play Console permission above.
 3. **`play-production` still asks the owner.** Settings > Environments > `play-production`:
    Required reviewers lists the owner, "Prevent self-review" is off (the owner starts the run and
    approves it), Deployment branches is `main` only, "Allow administrators to bypass" is off, and

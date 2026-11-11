@@ -105,7 +105,7 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   `play` (environments `play`/`play-production`). `promote.yml` (manual only) moves the alpha
   release to production and changes its staged rollout: one job in `play-production` (owner
   approval, also for a dry run; its key is a production-only service account, never the one in
-  `play`, checked against the variable `PLAY_TESTING_ACCOUNT`), `contents: read`, the secret only on the step that runs
+  `play`, checked against the variable `PLAY_TESTING_ACCOUNT`, without which only a dry run works), `contents: read`, the secret only on the step that runs
   `scripts/play_promote.py` (standard library and openssl; no pip, no action besides checkout).
   This protects the keys, not the contents of the
   AAB, which third-party build code still makes. Never use `pull_request_target`. Expressions from
