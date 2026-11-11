@@ -96,7 +96,12 @@ class HistoryPage extends ConsumerWidget {
                     for (final (icon, value, caption) in [
                       (Icons.route_outlined, s.tripsCount(sum.trips), s.durationShort(sum.tripMinutes)),
                       (Icons.local_parking, s.parkingsCount(sum.parkings), s.durationShort(sum.parkMinutes)),
-                      (Icons.ramen_dining_outlined, s.mealsCount(sum.meals), s.historyMeals),
+                      // Meal spending when any meal has a price; meals without one are not counted.
+                      (
+                        Icons.ramen_dining_outlined,
+                        s.mealsCount(sum.meals),
+                        sum.mealsPriced == 0 ? s.historyMeals : s.mealsPriced(sum.mealsPriced, sum.meals, sum.mealCents),
+                      ),
                       if (sum.costCents > 0) (Icons.payments_outlined, s.money(sum.costCents), s.historySpent),
                     ])
                       ConstrainedBox(
@@ -218,36 +223,19 @@ class _EntryTile extends ConsumerWidget {
           textAlign: TextAlign.end,
           style: Theme.of(context).textTheme.labelMedium,
         ),
-        // Trips and parkings: tap to set what it cost. Meals: tap to set when you ate
-        // (for a meal logged later than it was eaten).
-        onTap: switch (e.source) {
-          final MealLog m => () => _pickMealTime(context, ref, s, m),
-          _ => () => showModalBottomSheet<void>(
-                context: context,
-                isScrollControlled: true,
-                showDragHandle: true,
-                builder: (_) => _CostSheet(entry: e, title: title),
-              ),
-        },
+        // Trips and parkings: tap to set what it cost. Meals: tap to set the price or when you
+        // ate (for a meal logged later than it was eaten).
+        onTap: () => showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              showDragHandle: true,
+              builder: (_) => switch (e.source) {
+                final MealLog m => _MealSheet(meal: m, title: title),
+                _ => _CostSheet(entry: e, title: title),
+              },
+            ),
       ),
     );
-  }
-
-  static Future<void> _pickMealTime(BuildContext context, WidgetRef ref, S s, MealLog m) async {
-    final notifier = ref.read(habitsProvider.notifier);
-    final messenger = ScaffoldMessenger.of(context);
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(m.at),
-      helpText: s.mealTimeHelp,
-    );
-    if (picked == null) return;
-    final at = mealTimeOn(m.at, picked.hour, picked.minute, DateTime.now());
-    if (at == null) {
-      showActionSnackBar(messenger, s.mealTimeFuture);
-      return;
-    }
-    await notifier.setMealTime(m, at);
   }
 
   static IconData _modeIcon(String? mode) => switch (mode) {
@@ -262,6 +250,86 @@ class _EntryTile extends ConsumerWidget {
   static String _route(S s, String route) {
     final ends = tripRouteEnds(route);
     return ends == null ? route : s.routeLabel(s.routeEnd(ends.$1), s.routeEnd(ends.$2));
+  }
+}
+
+/// Edit a logged meal: its optional price (chips or "Other") and when it was eaten.
+class _MealSheet extends ConsumerStatefulWidget {
+  const _MealSheet({required this.meal, required this.title});
+  final MealLog meal;
+  final String title;
+
+  @override
+  ConsumerState<_MealSheet> createState() => _MealSheetState();
+}
+
+class _MealSheetState extends ConsumerState<_MealSheet> {
+  late int? _price = widget.meal.priceCents;
+  late DateTime _at = widget.meal.at;
+
+  Future<void> _pickTime(S s) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_at),
+      helpText: s.mealTimeHelp,
+    );
+    if (picked == null || !mounted) return;
+    final at = mealTimeOn(_at, picked.hour, picked.minute, DateTime.now());
+    if (at == null) {
+      showActionSnackBar(messenger, s.mealTimeFuture);
+      return;
+    }
+    setState(() => _at = at);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final notifier = ref.read(habitsProvider.notifier);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + MediaQuery.of(context).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(widget.title, style: t.titleMedium),
+          const SizedBox(height: 12),
+          Text(s.mealPrice, style: t.labelMedium),
+          const SizedBox(height: 4),
+          MealPricePicker(s: s, value: _price, onChanged: (v) => setState(() => _price = v)),
+          const SizedBox(height: 8),
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            children: [
+              Text(s.mealTimeAt(clockLabel(_at)), style: t.bodyMedium),
+              TextButton.icon(
+                icon: const Icon(Icons.schedule),
+                label: Text(s.mealChangeTime),
+                onPressed: () => _pickTime(s),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          FilledButton(
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            onPressed: () async {
+              final nav = Navigator.of(context);
+              await notifier.editMeal(widget.meal, widget.meal.withTime(_at).withPrice(_price));
+              nav.pop();
+            },
+            child: Text(s.save),
+          ),
+          if (_price != null)
+            TextButton(
+              onPressed: () => setState(() => _price = null),
+              child: Text(s.mealPriceClear),
+            ),
+        ],
+      ),
+    );
   }
 }
 

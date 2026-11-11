@@ -91,7 +91,11 @@ class _EvRow extends ConsumerWidget {
             const SizedBox(width: 8),
             counts == null
                 ? Text('–', style: t.titleLarge?.copyWith(fontFamily: DL.display))
-                : BigNumber(value: '${counts.$1}', label: s.evOfFree(counts.$2), warn: counts.$1 == 0),
+                // Capped so the name keeps room at 200% text on a 320 dp phone; the label wraps.
+                : ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 96),
+                    child: BigNumber(value: '${counts.$1}', label: s.evOfFree(counts.$2), warn: counts.$1 == 0),
+                  ),
           ],
         ),
       ),

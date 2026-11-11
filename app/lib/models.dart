@@ -709,7 +709,7 @@ class ParkLog {
 
 /// One "Ate here" tap at a hawker centre.
 class MealLog {
-  const MealLog({required this.hawkerId, required this.at, this.name});
+  const MealLog({required this.hawkerId, required this.at, this.name, this.priceCents});
 
   /// A hawker centre id, or `mealPlaceId` for other food places (e.g. halal restaurants).
   final String hawkerId;
@@ -719,13 +719,29 @@ class MealLog {
   /// without the bundle.
   final String? name;
 
+  /// What the meal cost in cents (SGD), when the user entered it. Optional: null for meals
+  /// logged without a price and for every meal saved before 2.3.0.
+  final int? priceCents;
+
   /// The same meal at another time (set from History when it was logged late).
-  MealLog withTime(DateTime t) => MealLog(hawkerId: hawkerId, at: t, name: name);
+  MealLog withTime(DateTime t) => MealLog(hawkerId: hawkerId, at: t, name: name, priceCents: priceCents);
 
-  Map<String, dynamic> toJson() => {'h': hawkerId, 'at': at.toIso8601String(), if (name != null) 'n': name};
+  /// The same meal with another price (null clears it).
+  MealLog withPrice(int? cents) => MealLog(hawkerId: hawkerId, at: at, name: name, priceCents: cents);
 
-  factory MealLog.fromJson(Map<String, dynamic> j) =>
-      MealLog(hawkerId: '${j['h']}', at: DateTime.parse('${j['at']}'), name: j['n'] as String?);
+  Map<String, dynamic> toJson() => {
+        'h': hawkerId,
+        'at': at.toIso8601String(),
+        if (name != null) 'n': name,
+        if (priceCents case final c?) 'c': c,
+      };
+
+  factory MealLog.fromJson(Map<String, dynamic> j) => MealLog(
+        hawkerId: '${j['h']}',
+        at: DateTime.parse('${j['at']}'),
+        name: j['n'] as String?,
+        priceCents: switch (j['c']) { final num c when c >= 0 => c.round(), _ => null },
+      );
 }
 
 /// What the user chose to log, kept on the phone for "know me" insights.

@@ -33,7 +33,10 @@ relative to `app/` unless they start with a top-level folder. File and symbol in
   bus plates and the LED `BusBoard` for live arrivals, MRT `StationChip`/`LineChip` in official
   colours, `PaintedBlockNumber` as the Home hero, amber = look now / teal = go and nothing else.
   Layouts must hold at 200% system
-  text (wrap, never fixed widths for text); secondary text keeps 4.5:1 contrast (`DL.mist`).
+  text, also on a 320 dp phone (wrap, never fixed widths for text); secondary text keeps 4.5:1 contrast
+  (`DL.mist`). Tap targets are at least 48 dp (`kMinInteractiveDimension`), also custom ones
+  (`PillRow`, `PlaceSelector`, `StickerIconButton`, `AlertBanner`); a pill tells TalkBack it is
+  selected, and an icon-only tap target has a tooltip or `Semantics` label.
 
 ## Feature map
 Each feature with its screens, rules (logic.dart) and providers. Update it in the same PR when a
@@ -109,7 +112,8 @@ feature, screen, provider or rule moves, appears or goes away.
   (`nearbySectionProvider`: bus, eat, green = parks, park = car parking, taxi, prayer, help). The taxi sheet
   (`TaxiSheet` in `ui/today.dart`) answers first (`TaxiEaseCard`, `taxiEase`), then the nearest stand with
   Walk there (`taxisAround`), then `TaxiRadar` on the dark board (tap a taxi: distance and `compass8`
-  direction; stands are `TaxiStandPin`s that open the stand), then booking apps. Eat offers GrabFood/foodpanda only
+  direction; stands are 48 dp `TaxiStandPin`s that open the stand; for TalkBack the radar has a label
+  and its tap picks the nearest taxi), then booking apps. Eat offers GrabFood/foodpanda only
   when it rains, the air is unhealthy or the nearest hawker is closed (`orderInReason`).
 - Trip extras (`ui/trip.dart`, rules in logic.dart): Plan B when the trip's MRT line is disrupted
   (`planDisruption`), "Leave in N min" (`leaveBy`, plus one background reminder), weather tips per
@@ -159,7 +163,14 @@ feature, screen, provider or rule moves, appears or goes away.
   or parking to enter what it cost. "Ate here" is on the hawker and halal place sheets (not the list
   row), with Undo; taps within 30 min count as one meal (`addMeal`). Halal places have no id, so their
   meals use `mealPlaceId` (position) and keep the name in `MealLog.name`; `mealNudge` counts hawkers only.
-  Tap a meal in History to set when it was eaten (`mealTimeOn`, same day, not in the future).
+  Meals have an optional price (`MealLog.priceCents`, JSON key `c`, absent on older meals): "Ate here"
+  and the History meal sheet (`_MealSheet`: price and `mealTimeOn` time, same day, not in the future,
+  saved with `editMeal`) share `MealPricePicker` in widgets.dart (chips `mealPriceChips` $4/$6/$8, Other
+  through `askMealPrice`/`parseMealCents`, max `mealPriceMaxCents` $200); "Ate here" preselects the price
+  of a meal it corrects (logged in the last 30 min) or else the last price at that place, by name
+  for halal places (`mealPriceToOffer`, `lastMealPrice`), and still logs with one tap. `historySummary` adds priced meals
+  to `costCents` and counts them (`mealsPriced`, `mealCents`); the Meals tile says "$x · n of m meals
+  priced" and each meal row shows its price.
   Every trip card (commute and "Go somewhere") has I'm leaving; the running trip shows in `TripBanner`
   above the tabs (inline on the planner page, which hides the tabs) with Arrived / Stop timing. Commute
   keys stay "home>work"; planned trips keep the names shown (`tripRouteKey`, `S.routeEnd`).

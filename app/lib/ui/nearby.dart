@@ -385,16 +385,19 @@ class _EatSection extends ConsumerWidget {
                   margin: const EdgeInsets.only(bottom: 8),
                   child: InkWell(
                     onTap: () => openApp(id),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                      child: Wrap(
-                        alignment: WrapAlignment.center,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        spacing: 6,
-                        children: [
-                          const Icon(Icons.delivery_dining_outlined, size: 20, color: DL.ink),
-                          Text(name, style: t.titleSmall?.copyWith(color: DL.ink)),
-                        ],
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                        child: Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 6,
+                          children: [
+                            const Icon(Icons.delivery_dining_outlined, size: 20, color: DL.ink),
+                            Text(name, style: t.titleSmall?.copyWith(color: DL.ink)),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -493,30 +496,50 @@ class _EatSection extends ConsumerWidget {
 
 /// "Ate here" on a food place's sheet (hawker centre, or with [place] another food place such
 /// as a halal restaurant). Hidden when "Learn my habits" is off. Logs the meal with Undo.
-class _AteHereButton extends ConsumerWidget {
+/// An optional price sits above it, preselected (`mealPriceToOffer`) with the price of a meal
+/// this tap corrects or the last price paid here; one tap on "Ate here" still logs the meal.
+class _AteHereButton extends ConsumerStatefulWidget {
   const _AteHereButton({required this.id, required this.name, this.place = false});
   final String id;
   final String name;
   final bool place;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_AteHereButton> createState() => _AteHereButtonState();
+}
+
+class _AteHereButtonState extends ConsumerState<_AteHereButton> {
+  late int? _price = mealPriceToOffer(ref.read(habitsProvider).meals, widget.id, DateTime.now(),
+      name: widget.place ? widget.name : null);
+
+  @override
+  Widget build(BuildContext context) {
     if (!ref.watch(favoritesProvider.select((f) => f.learnHabits))) return const SizedBox.shrink();
     final s = ref.watch(stringsProvider);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: OutlinedButton.icon(
-        style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-        icon: const Icon(Icons.ramen_dining_outlined),
-        label: Text(s.ateHere),
-        onPressed: () async {
-          final notifier = ref.read(habitsProvider.notifier);
-          final before = ref.read(habitsProvider);
-          final messenger = ScaffoldMessenger.of(context);
-          Navigator.of(context).pop();
-          await notifier.ateAt(id, DateTime.now(), name: place ? name : null);
-          showActionSnackBar(messenger, s.ateLogged(name), actionLabel: s.undo, onAction: () => notifier.restore(before));
-        },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(s.mealPrice, style: Theme.of(context).textTheme.labelMedium),
+          const SizedBox(height: 4),
+          MealPricePicker(s: s, value: _price, onChanged: (v) => setState(() => _price = v)),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            icon: const Icon(Icons.ramen_dining_outlined),
+            label: Text(s.ateHere),
+            onPressed: () async {
+              final notifier = ref.read(habitsProvider.notifier);
+              final before = ref.read(habitsProvider);
+              final messenger = ScaffoldMessenger.of(context);
+              Navigator.of(context).pop();
+              await notifier.ateAt(widget.id, DateTime.now(), name: widget.place ? widget.name : null, priceCents: _price);
+              showActionSnackBar(messenger, s.ateLogged(widget.name),
+                  actionLabel: s.undo, onAction: () => notifier.restore(before));
+            },
+          ),
+        ],
       ),
     );
   }

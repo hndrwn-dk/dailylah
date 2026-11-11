@@ -19,6 +19,7 @@ import 'package:dailylah/ui/address_picker.dart';
 import 'package:dailylah/ui/bus_sheet.dart';
 import 'package:dailylah/ui/history.dart';
 import 'package:dailylah/ui/mrt_ride.dart';
+import 'package:dailylah/ui/nearby.dart';
 import 'package:dailylah/ui/theme.dart';
 import 'package:dailylah/ui/today.dart';
 import 'package:dailylah/ui/toilets.dart';
@@ -163,6 +164,26 @@ class _SoonApi extends FakeApi {
   }
 }
 
+/// Scrolls [page]'s main list until [target] is built and on screen (large text pushes rows
+/// below the first screen, where a lazy list has not built them yet).
+Future<void> _scrollTo(WidgetTester tester, Finder target, {required Type page}) async {
+  // A `.first` finder throws instead of finding nothing.
+  bool missing() {
+    try {
+      return target.evaluate().isEmpty;
+    } on StateError {
+      return true;
+    }
+  }
+
+  for (var i = 0; i < 30 && missing(); i++) {
+    await tester.drag(find.byType(page), const Offset(0, -300), warnIfMissed: false);
+    await tester.pump();
+  }
+  await tester.ensureVisible(target);
+  await tester.pump();
+}
+
 Object? _bundle(String name) => jsonDecode(File('../web/data/$name.json').readAsStringSync());
 
 void main() {
@@ -182,6 +203,8 @@ void main() {
     final name = ((tester.widget<ListTile>(halalTile).title!) as Text).data!;
     await tester.tap(halalTile);
     await settle(tester);
+    await tester.ensureVisible(find.text('Ate here'));
+    await tester.pump();
     await tester.tap(find.text('Ate here'));
     await settle(tester);
 
@@ -215,6 +238,8 @@ void main() {
     await tester.pump();
     await tester.tap(row);
     await settle(tester);
+    await tester.tap(find.text(const S().mealChangeTime));
+    await settle(tester);
     expect(find.byType(TimePickerDialog), findsOneWidget);
     // Type the time instead of using the dial.
     await tester.tap(find.byIcon(Icons.keyboard_outlined));
@@ -224,10 +249,124 @@ void main() {
     await tester.enterText(fields.at(1), '05');
     await tester.tap(find.text('OK'));
     await settle(tester);
+    expect(find.text(const S().mealTimeAt('6:05')), findsOneWidget);
+    await tester.tap(find.text(const S().save));
+    await settle(tester);
 
     final meal = box.read(habitsProvider).meals.single;
     expect(meal.at, DateTime(2026, 10, 20, 6, 5));
     expect(meal.name, 'Test Kitchen');
+    expect(meal.priceCents, isNull, reason: 'changing the time does not add a price');
+  });
+
+  testWidgets(r'Ate here with a price at 200% text on 320 dp: $6 is logged and offered again next time', (tester) async {
+    const big = Condition('big', textScale: 2.0, size: Size(320, 780));
+    const s = S();
+    await applyCondition(tester, big);
+    await tester.pumpWidget(appUnder(big, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    box.read(shellTabProvider.notifier).state = _tabs['Nearby']!;
+    box.read(nearbySectionProvider.notifier).state = 'eat';
+    await settle(tester);
+
+    final halalTile = find.widgetWithIcon(ListTile, Icons.restaurant_outlined).first;
+    await _scrollTo(tester, halalTile, page: NearbyPage);
+    final name = ((tester.widget<ListTile>(halalTile).title!) as Text).data!;
+    Future<void> openSheet() async {
+      await _scrollTo(tester, halalTile, page: NearbyPage);
+      await tester.tap(halalTile);
+      await settle(tester);
+      await _scrollTo(tester, find.text(s.ateHere), page: BottomSheet);
+    }
+
+    await openSheet();
+    // Nothing is picked the first time: one tap on Ate here would log without a price.
+    expect(find.text(s.mealPrice), findsOneWidget);
+    for (final c in [r'$4', r'$6', r'$8', s.mealPriceOther]) {
+      final chip = tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, c));
+      expect(chip.selected, isFalse);
+      expect(tester.getSize(find.widgetWithText(ChoiceChip, c)).height, greaterThanOrEqualTo(48));
+    }
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.widgetWithText(ChoiceChip, r'$6'));
+    await tester.pump();
+    await tester.tap(find.text(s.ateHere));
+    await settle(tester);
+    expect(box.read(habitsProvider).meals.single.priceCents, 600);
+
+    // Next time at the same place $6 is already picked.
+    await openSheet();
+    expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, r'$6')).selected, isTrue);
+    expect(tester.takeException(), isNull);
+    await tester.tapAt(const Offset(10, 10)); // close the sheet
+    await settle(tester);
+
+    box.read(shellTabProvider.notifier).state = _tabs['History']!;
+    await settle(tester);
+    await _scrollTo(tester, find.text(s.mealsPriced(1, 1, 600)), page: HistoryPage);
+    await _scrollTo(tester, find.descendant(of: find.byType(HistoryPage), matching: find.text(name)), page: HistoryPage);
+    expect(find.text(r'$6.00'), findsWidgets);
+    await scrollThrough(tester);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(r'History: a meal gets a typed price (Other) at 200% text; unpriced meals are not counted', (tester) async {
+    const big = Condition('big', textScale: 2.0, size: Size(320, 780));
+    const s = S();
+    await applyCondition(tester, big);
+    await tester.pumpWidget(appUnder(big, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    await box.read(habitsProvider.notifier).restore(Habits(meals: [
+      MealLog(hawkerId: 'p:1.35000,103.94000', at: DateTime(2026, 10, 20, 6, 30), name: 'Test Kitchen'),
+      MealLog(hawkerId: 'p:1.36000,103.95000', at: DateTime(2026, 10, 20, 12), name: 'Other Kitchen', priceCents: 400),
+    ]));
+    box.read(shellTabProvider.notifier).state = _tabs['History']!;
+    await settle(tester);
+    await _scrollTo(tester, find.text(s.mealsPriced(1, 2, 400)), page: HistoryPage);
+
+    final row = find.text('Test Kitchen');
+    await _scrollTo(tester, row, page: HistoryPage);
+    // Bring the row above the floating tab bar, then tap it.
+    await tester.drag(find.descendant(of: find.byType(HistoryPage), matching: find.byType(Scrollable)).first,
+        const Offset(0, -200), warnIfMissed: false);
+    await tester.pump();
+    await tester.tap(row);
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+
+    // "Other": a wrong amount is refused, a real one is kept.
+    await tester.tap(find.widgetWithText(ChoiceChip, s.mealPriceOther));
+    await settle(tester);
+    await tester.enterText(find.byType(TextField), '250');
+    await tester.tap(find.text(s.save).last);
+    await settle(tester);
+    expect(find.text(s.mealPriceInvalid), findsOneWidget);
+    await tester.enterText(find.byType(TextField), '5.5');
+    await tester.tap(find.text(s.save).last);
+    await settle(tester);
+    expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, r'$5.50')).selected, isTrue);
+    // A typed price clears like the chips do, then goes back on.
+    await tester.tap(find.widgetWithText(ChoiceChip, r'$5.50'));
+    await settle(tester);
+    expect(find.widgetWithText(ChoiceChip, s.mealPriceOther), findsOneWidget);
+    await tester.tap(find.widgetWithText(ChoiceChip, s.mealPriceOther));
+    await settle(tester);
+    await tester.enterText(find.byType(TextField), '5.5');
+    await tester.tap(find.text(s.save).last);
+    await settle(tester);
+    expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, r'$5.50')).selected, isTrue);
+    expect(tester.takeException(), isNull);
+    await tester.ensureVisible(find.text(s.save));
+    await tester.tap(find.text(s.save));
+    await settle(tester);
+
+    final meals = box.read(habitsProvider).meals;
+    expect(meals.map((m) => m.priceCents), [550, 400]);
+    expect(meals.first.at, DateTime(2026, 10, 20, 6, 30), reason: 'the time stays');
+    await _scrollTo(tester, find.text(s.mealsPriced(2, 2, 950)), page: HistoryPage);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Live arrivals say where the bus is now, or that the time is only the timetable', (tester) async {
@@ -783,6 +922,139 @@ void main() {
     await settle(tester);
     expect(find.textContaining(banner), findsNothing);
     expect(find.byType(TripSection), findsOneWidget);
+  });
+
+  testWidgets('200% text on 320 dp: bus rows, the bus route strip and EV chargers fit', (tester) async {
+    const big = Condition('big', textScale: 2.0, size: Size(320, 780));
+    for (final page in <Widget>[
+      const StopArrivalsPage(stop: tampinesInt),
+      const Scaffold(body: WhereBusSheet(stop: tampinesInt, service: '10')),
+    ]) {
+      await applyCondition(tester, big);
+      await tester.pumpWidget(pageUnder(big, householdFavorites, tuesdayMorning, page));
+      await settle(tester);
+      await scrollThrough(tester);
+      expect(tester.takeException(), isNull, reason: '${page.runtimeType}');
+    }
+    // The load meter's label wraps under its bars instead of overflowing.
+    await tester.pumpWidget(pageUnder(big, householdFavorites, tuesdayMorning, const StopArrivalsPage(stop: tampinesInt)));
+    await settle(tester);
+    expect(find.byType(LoadMeter), findsWidgets);
+
+    // At normal text the stop names keep the row: the tag beside them stays narrow.
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(pageUnder(
+        _normal, householdFavorites, tuesdayMorning, const Scaffold(body: WhereBusSheet(stop: tampinesInt, service: '10'))));
+    await settle(tester);
+    final rows = find.descendant(of: find.byType(WhereBusSheet), matching: find.byType(IntrinsicHeight));
+    expect(rows, findsWidgets);
+    for (final row in rows.evaluate()) {
+      final name = find.descendant(of: find.byWidget(row.widget), matching: find.byType(Expanded)).first;
+      expect(tester.getSize(name).width, greaterThanOrEqualTo(tester.getSize(find.byWidget(row.widget)).width - 64 - 8 - 104 - 1));
+    }
+    await applyCondition(tester, big);
+
+    // EV chargers on Home > Parking.
+    await tester.pumpWidget(appUnder(big, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    box.read(shellTabProvider.notifier).state = _tabs['Home']!;
+    box.read(homeSectionProvider.notifier).state = 'parking';
+    await settle(tester);
+    await scrollThrough(tester);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('TalkBack: pills say which one is on and are 48 dp tall; the taxi map can be read and tapped', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await applyCondition(tester, _normal);
+    final home = householdFavorites.places[PlaceKind.home]!;
+    await tester.pumpWidget(pageUnder(
+      _normal,
+      householdFavorites,
+      tuesdayMorning,
+      Scaffold(
+        body: ListView(children: [
+          PillRow(
+            items: const [('all', Icons.list, 'All'), ('trip', Icons.route_outlined, 'Trips')],
+            selected: 'all',
+            onTap: (_) {},
+          ),
+          Center(child: StickerIconButton(icon: Icons.settings_outlined, onPressed: () {}, tooltip: 'Settings')),
+          TaxiRadar(
+            origin: home,
+            taxis: [(home.lat + 0.002, home.lng)],
+            stands: [EPoint(name: 'Test stand', lat: home.lat - 0.002, lng: home.lng)],
+          ),
+        ]),
+      ),
+    ));
+    await settle(tester);
+    expect(tester.getSemantics(find.text('All')), isSemantics(label: 'All', isButton: true, isSelected: true));
+    expect(tester.getSemantics(find.text('Trips')), isSemantics(label: 'Trips', isButton: true, isSelected: false));
+    for (final label in ['All', 'Trips']) {
+      final pill = find.ancestor(of: find.text(label), matching: find.byType(InkWell)).first;
+      expect(tester.getSize(pill).height, greaterThanOrEqualTo(48));
+    }
+    expect(tester.getSize(find.byType(StickerIconButton)), const Size.square(48));
+    expect(tester.getSize(find.byType(TaxiStandPin)), const Size.square(48));
+
+    // The painted radar has a label, and its tap picks the nearest taxi.
+    const s = S();
+    final radar = find.semantics.byLabel(s.taxiRadarLabel(1));
+    expect(radar, findsOneWidget);
+    expect(find.text(s.taxiTapHint), findsOneWidget);
+    tester.semantics.tap(radar);
+    await tester.pump();
+    expect(find.textContaining('Free taxi · '), findsOneWidget);
+    // TalkBack reads the picked taxi: the line under the map is a live region.
+    expect(tester.getSemantics(find.textContaining('Free taxi · ')), isSemantics(isLiveRegion: true));
+    // The map is one TalkBack node: no tap target on the page that TalkBack reads as nothing.
+    final taps = find.semantics.byPredicate((n) => n.getSemanticsData().hasAction(SemanticsAction.tap) && n.label.isEmpty && n.tooltip.isEmpty);
+    expect(taps, findsNothing);
+
+    // A taxi queuing at a stand: a tap on the taxi's side of the 48 dp pin picks the taxi; a tap on
+    // the stand's centre opens the stand.
+    final cab = (home.lat + 0.0003, home.lng);
+    final queue = EPoint(name: 'Queue stand', lat: home.lat + 0.0003, lng: home.lng + 0.0001);
+    await tester.pumpWidget(pageUnder(
+      _normal,
+      householdFavorites,
+      tuesdayMorning,
+      Scaffold(body: ListView(children: [TaxiRadar(origin: home, taxis: [cab], stands: [queue])])),
+    ));
+    await settle(tester);
+    final pin = find.byType(TaxiStandPin);
+    final pinBox = tester.getRect(pin);
+    final stand = pinBox.center;
+    // The taxi is drawn left of the stand's centre (smaller longitude), inside the pin.
+    await tester.tapAt(Offset(pinBox.left + 4, stand.dy));
+    await tester.pump();
+    expect(find.textContaining('Free taxi · '), findsOneWidget);
+    expect(find.byType(BottomSheet), findsNothing);
+    await tester.tapAt(stand);
+    await settle(tester);
+    expect(find.text('Queue stand'), findsWidgets, reason: 'the stand sheet opens');
+    Navigator.of(tester.element(find.byType(BottomSheet))).pop();
+    await settle(tester);
+
+    // No free taxi, one stand: the stand is still its own button, not part of the map's label.
+    await tester.pumpWidget(pageUnder(
+      _normal,
+      householdFavorites,
+      tuesdayMorning,
+      Scaffold(
+        body: ListView(children: [
+          TaxiRadar(origin: home, taxis: const [], stands: [EPoint(name: 'Test stand', lat: home.lat - 0.002, lng: home.lng)]),
+        ]),
+      ),
+    ));
+    await settle(tester);
+    final standNode = find.semantics.byPredicate((n) => n.label.startsWith('Test stand'));
+    expect(standNode, findsOneWidget);
+    expect(standNode.evaluate().single.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+    expect(find.semantics.byLabel(s.taxiRadarLabel(0)), findsOneWidget);
+    semantics.dispose();
   });
 
   test("The What's new card says the same as the Play release notes", () {

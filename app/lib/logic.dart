@@ -2214,6 +2214,46 @@ List<MealLog> addMeal(List<MealLog> meals, MealLog m) => [
       m,
     ];
 
+/// The price "Ate here" starts with at [placeId]: the price of a meal logged in the last 30
+/// minutes, which this tap would replace (a tap at the wrong place, corrected), else the last
+/// price paid there ([lastMealPrice]). The user sees it picked and can clear it.
+int? mealPriceToOffer(List<MealLog> meals, String placeId, DateTime now, {String? name}) {
+  MealLog? recent;
+  for (final m in meals) {
+    if (now.difference(m.at).abs() >= const Duration(minutes: 30)) continue;
+    if (recent == null || !m.at.isBefore(recent.at)) recent = m;
+  }
+  return recent?.priceCents ?? lastMealPrice(meals, placeId, name: name);
+}
+
+/// Quick price chips for "Ate here" and History, in cents (SGD).
+const mealPriceChips = [400, 600, 800];
+
+/// The most a meal price can be ($200): a typo guard for "Other".
+const mealPriceMaxCents = 20000;
+
+/// Cents from a meal price the user typed ("5.5", "\$12.80"): at most 2 decimals and $200,
+/// or null when it is not one.
+int? parseMealCents(String text) {
+  final t = text.trim().replaceAll(r'$', '').replaceAll(',', '.').trim();
+  if (!RegExp(r'^\d{1,3}(\.\d{0,2})?$').hasMatch(t)) return null;
+  final c = parseCents(t);
+  return c == null || c <= 0 || c > mealPriceMaxCents ? null : c;
+}
+
+/// The price of the last meal with a price at [placeId], to preselect next time; null when none.
+/// For places other than hawker centres the id is only a position, which a food court shares
+/// with its neighbours, so [name] must match as well.
+int? lastMealPrice(List<MealLog> meals, String placeId, {String? name}) {
+  MealLog? last;
+  for (final m in meals) {
+    if (m.hawkerId != placeId || m.priceCents == null) continue;
+    if (name != null && m.name != name) continue;
+    if (last == null || !m.at.isBefore(last.at)) last = m;
+  }
+  return last?.priceCents;
+}
+
 /// Minutes of a finished parking, or null when it is not one (under 5 min or over 3 days).
 int? parkMinutes(DateTime start, DateTime end) {
   final m = end.difference(start).inMinutes;
@@ -2341,7 +2381,7 @@ List<HistoryEntry> historyEntries(Habits h, {DateTime? since}) {
     for (final p in h.parkings)
       HistoryEntry(HistoryKind.parking, p.start, p,
           minutes: p.minutes, costCents: p.costCents ?? parkingEstimate(p), estimated: p.costCents == null),
-    for (final m in h.meals) HistoryEntry(HistoryKind.meal, m.at, m),
+    for (final m in h.meals) HistoryEntry(HistoryKind.meal, m.at, m, costCents: m.priceCents),
   ];
   return [
     for (final e in out)
@@ -2357,6 +2397,8 @@ class HistorySummary {
     this.parkings = 0,
     this.parkMinutes = 0,
     this.meals = 0,
+    this.mealsPriced = 0,
+    this.mealCents = 0,
     this.costCents = 0,
   });
   final int trips;
@@ -2365,12 +2407,16 @@ class HistorySummary {
   final int parkMinutes;
   final int meals;
 
-  /// Sum of the costs entered so far.
+  /// Meals with a price, and what they add up to. Meals without a price are not counted.
+  final int mealsPriced;
+  final int mealCents;
+
+  /// Sum of the costs entered so far (trips, parkings and priced meals).
   final int costCents;
 }
 
 HistorySummary historySummary(List<HistoryEntry> entries) {
-  var trips = 0, tripMin = 0, parks = 0, parkMin = 0, meals = 0, cost = 0;
+  var trips = 0, tripMin = 0, parks = 0, parkMin = 0, meals = 0, priced = 0, mealCents = 0, cost = 0;
   for (final e in entries) {
     cost += e.costCents ?? 0;
     switch (e.kind) {
@@ -2382,6 +2428,10 @@ HistorySummary historySummary(List<HistoryEntry> entries) {
         parkMin += e.minutes ?? 0;
       case HistoryKind.meal:
         meals++;
+        if (e.costCents case final c?) {
+          priced++;
+          mealCents += c;
+        }
     }
   }
   return HistorySummary(
@@ -2390,6 +2440,8 @@ HistorySummary historySummary(List<HistoryEntry> entries) {
     parkings: parks,
     parkMinutes: parkMin,
     meals: meals,
+    mealsPriced: priced,
+    mealCents: mealCents,
     costCents: cost,
   );
 }

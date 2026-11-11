@@ -379,24 +379,33 @@ class _MapPanel extends StatelessWidget {
                 Positioned(
                   left: 0,
                   bottom: 0,
-                  child: GestureDetector(
-                    onTap: () => launchUrl(Uri.parse('https://www.onemap.gov.sg/legal/opendatalicence.html'),
-                        mode: LaunchMode.externalApplication),
-                    child: Container(
-                      color: const Color(0xCCFFFFFF),
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Image.network(
-                            'https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png',
-                            height: 14,
-                            errorBuilder: (c, e, st) => const SizedBox.shrink(),
+                  // A 48 dp tap target (transparent above the small credit) that TalkBack reads as a link.
+                  child: Semantics(
+                    link: true,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => launchUrl(Uri.parse('https://www.onemap.gov.sg/legal/opendatalicence.html'),
+                          mode: LaunchMode.externalApplication),
+                      child: Container(
+                        constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
+                        alignment: Alignment.bottomLeft,
+                        child: Container(
+                          color: const Color(0xCCFFFFFF),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Image.network(
+                                'https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png',
+                                height: 14,
+                                errorBuilder: (c, e, st) => const SizedBox.shrink(),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(s.oneMapCredit,
+                                  style: const TextStyle(fontSize: 9, color: DL.ink), textScaler: TextScaler.noScaling),
+                            ],
                           ),
-                          const SizedBox(width: 4),
-                          Text(s.oneMapCredit,
-                              style: const TextStyle(fontSize: 9, color: DL.ink), textScaler: TextScaler.noScaling),
-                        ],
+                        ),
                       ),
                     ),
                   ),
