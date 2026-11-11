@@ -347,6 +347,16 @@ void main() {
     await tester.tap(find.text(s.save).last);
     await settle(tester);
     expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, r'$5.50')).selected, isTrue);
+    // A typed price clears like the chips do, then goes back on.
+    await tester.tap(find.widgetWithText(ChoiceChip, r'$5.50'));
+    await settle(tester);
+    expect(find.widgetWithText(ChoiceChip, s.mealPriceOther), findsOneWidget);
+    await tester.tap(find.widgetWithText(ChoiceChip, s.mealPriceOther));
+    await settle(tester);
+    await tester.enterText(find.byType(TextField), '5.5');
+    await tester.tap(find.text(s.save).last);
+    await settle(tester);
+    expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, r'$5.50')).selected, isTrue);
     expect(tester.takeException(), isNull);
     await tester.ensureVisible(find.text(s.save));
     await tester.tap(find.text(s.save));
@@ -984,6 +994,9 @@ void main() {
     tester.semantics.tap(radar);
     await tester.pump();
     expect(find.textContaining('Free taxi · '), findsOneWidget);
+    // The map is one TalkBack node: no tap target on the page that TalkBack reads as nothing.
+    final taps = find.semantics.byPredicate((n) => n.getSemanticsData().hasAction(SemanticsAction.tap) && n.label.isEmpty && n.tooltip.isEmpty);
+    expect(taps, findsNothing);
     semantics.dispose();
   });
 

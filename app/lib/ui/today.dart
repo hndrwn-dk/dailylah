@@ -1217,8 +1217,11 @@ class _TaxiRadarState extends ConsumerState<TaxiRadar> {
                       ? null
                       : () => setState(() => _picked =
                           cabs.reduce((a, b) => (a.$2 - c).distance <= (b.$2 - c).distance ? a : b).$1),
+                  // excludeFromSemantics: its own TalkBack tap would land on the centre (you) and
+                  // clear the pick; the Semantics above handles TalkBack.
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
+                    excludeFromSemantics: true,
                     onTapUp: (d) {
                       (int, double)? hit;
                       for (final (i, p) in cabs) {

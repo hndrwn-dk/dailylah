@@ -1284,7 +1284,8 @@ class CrowdPeople extends StatelessWidget {
 }
 
 /// Optional meal price: quick chips ($4, $6, $8) and "Other" for a typed amount. Amber marks the
-/// picked price (look now); tapping it again clears it. [value] is in cents, null for no price.
+/// picked price (look now); tapping it again clears it, a typed one too. [value] is in cents,
+/// null for no price.
 class MealPricePicker extends StatelessWidget {
   const MealPricePicker({super.key, required this.s, required this.value, required this.onChanged});
   final S s;
@@ -1310,7 +1311,8 @@ class MealPricePicker extends StatelessWidget {
       children: [
         for (final c in mealPriceChips) chip(s.moneyShort(c), v == c, () => onChanged(v == c ? null : c)),
         chip(other ? s.money(v) : s.mealPriceOther, other, () async {
-          final typed = await askMealPrice(context, s, other ? v : null);
+          if (other) return onChanged(null);
+          final typed = await askMealPrice(context, s, null);
           if (typed != null) onChanged(typed);
         }),
       ],
