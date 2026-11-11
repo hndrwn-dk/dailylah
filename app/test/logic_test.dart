@@ -2333,6 +2333,15 @@ void main() {
       expect(savedTravelModes.length, TravelMode.values.length - 1);
     });
 
+    test('a mode picked in the planner is kept per trip, apart from the commute keys', () {
+      const a = Place(kind: PlaceKind.other, addrLat: 1.3139, addrLng: 103.9317);
+      const b = Place(kind: PlaceKind.other, addrLat: 1.3130, addrLng: 103.9279);
+      const c = Place(kind: PlaceKind.other, addrLat: 1.3093, addrLng: 103.9143);
+      expect(plannedModeKey(a, b), isNot(plannedModeKey(a, c)));
+      expect(plannedModeKey(a, b), isNot(plannedModeKey(b, a)));
+      expect(plannedModeKey(a, b), startsWith('plan:'));
+    });
+
     test('door to door by bus: walk and wait, the ride, the walk from the alighting stop', () {
       // The case from the phone: 3 min walk, the bus comes in 6, 1 stop, 3 min walk after.
       expect(busDoorToDoor(walkToStop: 3, busIn: 6, stops: 1, alightMetres: 180), 6 + 2 + 3);

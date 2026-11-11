@@ -944,6 +944,7 @@ class TripBusCard extends ConsumerWidget {
                   // Honest comparison with walking all the way: the bus to leave for, door to door.
                   // When it is no quicker, there is no "Leave now" card and the buses fold into one line.
                   final byStop = {for (final x in all) x.code: x};
+                  final straight = from == null ? 0.0 : distanceMeters(from!.lat, from!.lng, to.lat, to.lng);
                   final ride = lb == null ? null : rides[lb.service];
                   final alight = ride == null ? null : byStop[ride.alightAt];
                   final slow = from != null &&
@@ -958,7 +959,7 @@ class TripBusCard extends ConsumerWidget {
                           stops: ride.stops,
                           alightMetres: distanceMeters(alight.lat, alight.lng, to.lat, to.lng),
                         ),
-                        straightMetres: distanceMeters(from!.lat, from!.lng, to.lat, to.lng),
+                        straightMetres: straight,
                       );
                   final board = direct.isEmpty
                       ? null
@@ -1054,6 +1055,13 @@ class TripBusCard extends ConsumerWidget {
                             onPressed: () => openDirections(to.lat, to.lng),
                             child: Text(s.routeInMaps),
                           ),
+                        ),
+                      // Past walkInsteadMetres the trip has no walking card of its own: say what
+                      // the bus was compared with.
+                      if (board != null && slow && straight >= walkInsteadMetres)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: _WalkCard(to: to, straight: straight),
                         ),
                       if (board != null && slow)
                         Theme(
@@ -1556,7 +1564,7 @@ class GoSomewhere extends ConsumerWidget {
             startsHere: fromKey == 'here',
             endsHere: key == 'here',
             to: dest,
-            modeKey: key!,
+            modeKey: plannedModeKey(from, dest),
             modePlace: dest,
           ),
         // A small tip at the end, only until a place of one's own (beyond Home and Work) is saved.
