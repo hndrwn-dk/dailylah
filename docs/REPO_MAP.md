@@ -49,7 +49,7 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 - Types: `FavoritesStore`, `HabitsStore`, `AlertLog`, `LiveCache`
 
 ### `lib/ui/about.dart`
-- Types: `AboutDailyLahPage`
+- Types: `DataSource`, `AboutDailyLahPage`
 - Functions: `openPlayListing`, `appVersionLabel`, `openExternal`
 
 ### `lib/ui/address_picker.dart`
