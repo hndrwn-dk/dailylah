@@ -949,7 +949,25 @@ class S {
   String get termsOfService => 'Terms of service';
   String get contactUs => 'Contact us';
   String get dataSources => 'Data sources';
-  String get dataAttribution => 'Contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, SportSG, PA and MOE accessed through data.gov.sg, made available under the Singapore Open Data Licence. Halal places are listed from Muslim.sg; DailyLah is not affiliated with MUIS. Place names and public toilets include data © OpenStreetMap contributors (ODbL), through Geoapify. Bus times, crowd levels, forecasts and prices are estimates.';
+  // The statement the Singapore Open Data Licence asks for: the sources and the licence, in one sentence.
+  String get dataAttribution => 'Contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, SportSG, PA and MOE accessed through data.gov.sg, made available under the Singapore Open Data Licence.';
+  String get sourceLta => 'LTA DataMall';
+  String get sourceLtaSub => 'Bus arrivals, MRT, car parks and taxis';
+  String get sourceDataGov => 'data.gov.sg';
+  String get sourceDataGovSub => 'Weather, hawker centres, libraries, schools, parks and more, from:';
+  /// The agencies whose data.gov.sg datasets the app uses, as named in [dataAttribution].
+  List<String> get dataAgencies => const ['NEA', 'HDB', 'CEA', 'MUIS', 'NParks', 'NLB', 'SportSG', 'PA', 'MOE'];
+  String get sourceMuslimSg => 'Muslim.sg';
+  String get sourceMuslimSgSub => 'Halal places. DailyLah is not affiliated with MUIS.';
+  String get sourceOsm => 'OpenStreetMap via Geoapify';
+  String get sourceOsmSub => 'Place names and public toilets. © OpenStreetMap contributors (ODbL)';
+  String get sourceUra => 'URA';
+  String get sourceUraSub => 'Private home sale prices and rents, from the Urban Redevelopment Authority.';
+  String get sourceOneMap => 'OneMap';
+  String get sourceOneMapSub => 'Address search, maps and commute times. $oneMapCredit';
+  String get estimatesNote => 'Bus times, crowd levels, forecasts and prices are estimates.';
+  String get openDataLicence => 'Singapore Open Data Licence';
+  String get opensWebsite => 'Opens in your browser';
   String get independent => 'DailyLah is an independent app and is not affiliated with LTA, NEA, HDB or the Singapore government.';
   String get openSourceLicences => 'Open-source licences';
   String cannotOpen(String url) => 'Cannot open $url';
