@@ -206,6 +206,29 @@ def test_lta_down_is_a_502_without_the_key(client, mode, caplog):
         assert "Lat=***" in server and "Long=***" in server
 
 
+@pytest.mark.parametrize(
+    "answer",
+    [
+        httpx.Response(200, text="<html>maintenance</html>"),
+        httpx.Response(200, json={"value": None}),
+    ],
+)
+@respx.mock
+def test_a_bicycle_answer_that_is_not_the_documented_list_is_a_502(client, answer):
+    respx.get(f"{LTA}/BicycleParkingv2").mock(return_value=answer)
+    r = get(client, "bicycle")
+    assert r.status_code == 502
+    assert "maintenance" not in r.text
+
+
+def test_a_malformed_row_in_the_parking_dataset_is_skipped():
+    rows = [
+        ["A", "HDB", 1.3692, 103.8455, "C", "n/a", "BLK A"],
+        ["B", "HDB", 1.3692, 103.8455, "C", 3, "BLK B"],
+    ]
+    assert [i["id"] for i in tx.nearest_parking(rows, LAT, LNG, "C")] == ["B"]
+
+
 @respx.mock
 def test_lta_empty_is_an_empty_answer_not_an_error(client):
     respx.get(url__startswith=LTA).mock(return_value=httpx.Response(200, json={"value": []}))

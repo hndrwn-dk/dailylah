@@ -281,7 +281,8 @@ async def trip_extras(
             raise HTTPException(503, "bicycle parking busy")
         try:
             rows = tx.compact_bicycle(await src.bicycle_parking(*cell, tx.BICYCLE_DIST_KM))
-        except httpx.HTTPError as e:
+        except (httpx.HTTPError, ValueError, TypeError, AttributeError) as e:
+            # Also a body that is not JSON, or not the list LTA documents.
             raise HTTPException(502, "upstream LTA error") from e
         hit = {"fetched_at": int(time.time()), "rows": rows}
         c.set_memory_only(key, hit, tx.BICYCLE_TTL_S)

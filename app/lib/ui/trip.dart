@@ -1405,6 +1405,13 @@ class GoSomewhere extends ConsumerWidget {
       MaterialPageRoute(builder: (_) => AddressPickerPage(title: s.searchPlace, places: true)),
     );
     if (hit == null) return;
+    // "Use my current location" in the search is Here, not a searched place: Here is what
+    // stays on the phone (the live details of a mode card are never asked for it).
+    if (hit.here) {
+      ref.read(goFromHereProvider.notifier).state =
+          Place(kind: PlaceKind.other, name: s.hereNow, addrLat: hit.lat, addrLng: hit.lng);
+      return _pick(ref, isFrom: isFrom, key: 'here', from: from);
+    }
     (isFrom ? ref.read(goAdhocFromProvider.notifier) : ref.read(goAdhocDestProvider.notifier)).state = Place(
       kind: PlaceKind.other,
       name: hit.name ?? shortAddress(hit.label),
@@ -1757,6 +1764,12 @@ class _TripPlannerPageState extends ConsumerState<TripPlannerPage> {
       ),
     );
     if (hit == null || !mounted) return;
+    if (hit.here) {
+      ref.read(goFromHereProvider.notifier).state =
+          Place(kind: PlaceKind.other, name: s.hereNow, addrLat: hit.lat, addrLng: hit.lng);
+      ref.read(goKeyProvider.notifier).state = 'here';
+      return;
+    }
     setDest(hit.label, hit.postal.isEmpty ? null : hit.postal, hit.lat, hit.lng);
   }
 

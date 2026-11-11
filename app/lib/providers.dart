@@ -562,6 +562,7 @@ final liveProviders = <ProviderOrFamily>[
   carparkLiveProvider,
   taxiProvider,
   parkingLiveProvider,
+  tripExtrasProvider,
   incidentsProvider,
 ];
 

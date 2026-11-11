@@ -228,6 +228,31 @@ void main() {
       await _tapMode(tester, 'Car');
       expect(api(tester).extrasAsked.single.$1, 'car');
     });
+
+    testWidgets('"Use my current location" in the search is Here too: nothing is sent for it', (tester) async {
+      await _plan(tester, _siglap, _stPatricks);
+      // The start's search field, then the location row of the address picker.
+      await _tap(tester, find.text('Siglap Sth CC').last);
+      await settle(tester);
+      await tester.tap(find.text(_s.useMyLocation));
+      await settle(tester);
+      final box = containerOf(tester);
+      expect(box.read(goFromKeyProvider), 'here');
+      expect(box.read(goAdhocFromProvider)?.name, isNot(_s.myLocation));
+      await _tapMode(tester, 'Taxi');
+      expect(api(tester).extrasAsked, isEmpty);
+      expect(find.textContaining('within 500 m'), findsOneWidget);
+    });
+
+    testWidgets('pull to refresh and coming back to the app ask for the live details again', (tester) async {
+      await _plan(tester, _siglap, _stPatricks);
+      await _tapMode(tester, 'Car');
+      expect(api(tester).extrasAsked, hasLength(1));
+      expect(liveProviders, contains(tripExtrasProvider));
+      containerOf(tester).invalidate(tripExtrasProvider);
+      await settle(tester);
+      expect(api(tester).extrasAsked, hasLength(2));
+    });
   });
 
   testWidgets('A mode picked by hand belongs to that trip: not to the next place, not to the commute', (tester) async {

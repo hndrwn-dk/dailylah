@@ -85,9 +85,8 @@ def nearest_parking(rows: list[list], lat: float, lng: float, lot_type: str) -> 
             if r[4] != lot_type:
                 continue
             d = metres(lat, lng, float(r[2]), float(r[3]))
-        except (IndexError, TypeError, ValueError):
-            continue
-        if d <= PARKING_RADIUS_M:
+            if d > PARKING_RADIUS_M:
+                continue
             near.append(
                 {
                     "id": str(r[0]),
@@ -99,6 +98,8 @@ def nearest_parking(rows: list[list], lat: float, lng: float, lot_type: str) -> 
                     "lo": float(r[3]),
                 }
             )
+        except (IndexError, TypeError, ValueError):
+            continue
     near.sort(key=lambda x: x["m"])
     return near[:PARKING_MAX]
 

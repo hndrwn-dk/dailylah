@@ -160,7 +160,7 @@ class Sources:
     async def bicycle_parking(self, lat: float, lng: float, dist_km: float) -> list[dict]:
         """Bicycle parking within dist_km of a point (LTA answers per location, 500 a page)."""
         return await self._lta_all(
-            "BicycleParkingv2", max_pages=4, params={"Lat": lat, "Long": lng, "Dist": dist_km}
+            "BicycleParkingv2", max_pages=2, params={"Lat": lat, "Long": lng, "Dist": dist_km}
         )
 
     async def parking(self) -> list[list]:

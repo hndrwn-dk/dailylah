@@ -69,6 +69,7 @@ class _AddressPickerPageState extends ConsumerState<AddressPickerPage> {
         postal: '',
         lat: pos.latitude,
         lng: pos.longitude,
+        here: true,
       ));
     } on Object {
       setState(() => _error = s.locationUnavailable);
