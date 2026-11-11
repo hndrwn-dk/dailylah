@@ -78,7 +78,11 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 
 ## CI security (docs/QA.md, "Security scans")
 - `app/pubspec.lock` is committed and every workflow runs `flutter pub get --enforce-lockfile`, so
-  builds are reproducible and osv-scanner sees the exact versions. Backend: direct dependencies
+  builds are reproducible and osv-scanner sees the exact versions. The Flutter SDK is pinned too
+  (`flutter-version:` beside `channel: stable` in every workflow that installs it, one version for
+  all): a new stable release changes the SDK-pinned packages in the lockfile and can add analyzer
+  infos, which are fatal. An SDK upgrade is its own PR: the version in every workflow, `pubspec.lock`
+  from `flutter pub get` with that SDK, and whatever the new analyzer asks for. Backend: direct dependencies
   live in `backend/requirements*.in`; `requirements*.txt` are the full locked trees with hashes,
   made with `uv pip compile --python-version 3.12 --generate-hashes <file>.in -o <file>.txt`
   (Render installs `requirements.txt`). A dependency change updates the lockfile in the same PR.

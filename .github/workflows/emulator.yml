@@ -98,6 +98,8 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
+          # Pinned: a new stable release must not change CI by itself (CLAUDE.md, "CI security").
+          flutter-version: 3.47.9
           cache: true
       - run: flutter pub get --enforce-lockfile
         working-directory: app
@@ -137,6 +139,8 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
+          # Pinned: a new stable release must not change CI by itself (CLAUDE.md, "CI security").
+          flutter-version: 3.47.9
           cache: true
       - name: Upgrade on the emulator
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
@@ -172,6 +176,8 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
+          # Pinned: a new stable release must not change CI by itself (CLAUDE.md, "CI security").
+          flutter-version: 3.47.9
           cache: true
       - run: flutter pub get --enforce-lockfile
         working-directory: app
@@ -222,6 +228,8 @@ jobs:
         if: inputs.aab_artifact == ''
         with:
           channel: stable
+          # Pinned: a new stable release must not change CI by itself (CLAUDE.md, "CI security").
+          flutter-version: 3.47.9
           cache: true
       - name: Build the release APK
         if: inputs.aab_artifact == ''
