@@ -17,8 +17,9 @@ name: 05 Home
     element: "(?s).*995 Ambulance & fire.*"
     direction: DOWN
     timeout: 20000
+# Back to the top (the block name above the chips), so every chip row is on screen again.
 - scrollUntilVisible:
-    element: "(?s)Meeting points"
+    element: "(?is).*Ang Mo Kio Av.*3.*"
     direction: UP
     timeout: 20000
 - tapOn: "(?s)Meeting points"
