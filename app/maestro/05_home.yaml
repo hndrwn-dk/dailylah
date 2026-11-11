@@ -12,8 +12,14 @@ name: 05 Home
     visible: "(?is).*Ang Mo Kio Av.*3.*"
     timeout: 30000
 - tapOn: "(?s)Emergency"
-- extendedWaitUntil:
-    visible: "(?s).*995 Ambulance & fire.*"
+# The section chips are 48 dp tall, so on a small screen the call buttons start below the fold.
+- scrollUntilVisible:
+    element: "(?s).*995 Ambulance & fire.*"
+    direction: DOWN
+    timeout: 20000
+- scrollUntilVisible:
+    element: "(?s)Meeting points"
+    direction: UP
     timeout: 20000
 - tapOn: "(?s)Meeting points"
 - swipe:
@@ -25,5 +31,8 @@ name: 05 Home
     from: "(?s)Health"
     direction: RIGHT
 - tapOn: "(?s)My home"
-- assertVisible: "(?is).*Ang Mo Kio Av.*3.*"
+- scrollUntilVisible:
+    element: "(?is).*Ang Mo Kio Av.*3.*"
+    direction: UP
+    timeout: 20000
 - stopRecording
