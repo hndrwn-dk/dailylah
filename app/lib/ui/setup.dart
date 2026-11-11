@@ -511,7 +511,7 @@ class ModeChips extends ConsumerWidget {
           spacing: 6,
           runSpacing: 6,
           children: [
-            for (final m in TravelMode.values)
+            for (final m in savedTravelModes)
               FilterChip(
                 avatar: Icon(modeIcon(m), size: 16, color: selected.contains(m) ? DL.ink : null),
                 label: Text(selected.isNotEmpty && selected.first == m ? '${s.modeLabel(m.name)} ★' : s.modeLabel(m.name)),

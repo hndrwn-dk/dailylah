@@ -25,6 +25,7 @@ IconData modeIcon(TravelMode m) => switch (m) {
       TravelMode.motorcycle => Icons.two_wheeler,
       TravelMode.bicycle => Icons.pedal_bike,
       TravelMode.taxi => Icons.local_taxi_outlined,
+      TravelMode.walk => Icons.directions_walk,
     };
 
 /// One trip on Today: "Home → Work" with a mode switch and what matters for that mode.
@@ -62,12 +63,13 @@ class TripSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
+    final straight = distanceMeters(from.lat, from.lng, to.lat, to.lng);
+    // A mode picked by hand wins; otherwise a short planned trip opens on Walk.
     final override = ref.watch(modeOverrideProvider)[modeKey];
-    final mode = override ?? modePlace.mode;
+    final mode = override ?? defaultTripMode(modePlace.mode, straight, commute: commute);
     final toLabel = placeTitle(s.placeLabel, to);
     final title = s.tripTitle(fromLabel ?? placeTitle(s.placeLabel, from), toLabel);
-    // Modes the user picked first, then the rest.
-    final modes = [...modePlace.modes, ...TravelMode.values.where((m) => !modePlace.modes.contains(m))];
+    final modes = tripModes(modePlace.modes);
 
     final body = switch (mode) {
       TravelMode.transit => _TransitBlock(
@@ -79,8 +81,11 @@ class TripSection extends ConsumerWidget {
           startsHere: startsHere),
       TravelMode.car => _DriveBlock(from: from, to: to, toLabel: toLabel, lotType: 'C'),
       TravelMode.motorcycle => _DriveBlock(from: from, to: to, toLabel: toLabel, lotType: 'Y'),
-      TravelMode.bicycle => _CycleBlock(to: to, toLabel: toLabel),
-      TravelMode.taxi => _TaxiBlock(from: from),
+      TravelMode.bicycle => _CycleBlock(from: from, to: to, toLabel: toLabel),
+      TravelMode.taxi => _TaxiBlock(from: from, to: to),
+      TravelMode.walk => startsHere && straight < arrivedMetres
+          ? _ThereNote(title: s.youAreHere, sub: s.arrivedAt(toLabel))
+          : _WalkCard(to: to, straight: straight),
     };
 
     final heading = Padding(
@@ -99,7 +104,7 @@ class TripSection extends ConsumerWidget {
     );
     // From and To at the same spot (e.g. a searched start that is the destination): nothing to plan,
     // no "0 min walk · 0 m" or buses. A trip being timed still shows, with Arrived.
-    if (distanceMeters(from.lat, from.lng, to.lat, to.lng) < samePlaceMetres) {
+    if (straight < samePlaceMetres) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -130,6 +135,102 @@ class TripSection extends ConsumerWidget {
         timer,
         body,
       ],
+    );
+  }
+}
+
+/// Walking the whole way: minutes and distance, with the route in Google Maps as a button.
+/// The card of the Walk mode, and the first card of a bus trip short enough to walk.
+class _WalkCard extends ConsumerWidget {
+  const _WalkCard({required this.to, required this.straight});
+  final Place to;
+  final double straight;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    return Panel(
+      color: DL.mint,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.directions_walk, color: DL.ink),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(s.walkIsQuicker(s.walkMinutes(routeMetres(straight)), s.metres(straight)),
+                      style: t.titleMedium?.copyWith(color: DL.ink)),
+                ),
+              ],
+            ),
+            TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: DL.ink),
+              onPressed: () => openDirections(to.lat, to.lng, mode: 'walking'),
+              icon: const Icon(Icons.map_outlined),
+              label: Text(s.walkingRoute),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A mode's own card: the rough time and distance first, then the way out to Google Maps as an
+/// explicit button. Nothing leaves the app until that button is tapped.
+class _ModeCard extends ConsumerWidget {
+  const _ModeCard({required this.mode, required this.from, required this.to, required this.mapsLabel, required this.mapsMode});
+  final TravelMode mode;
+  final Place from;
+  final Place to;
+  final String mapsLabel;
+
+  /// Google Maps' travelmode for the button.
+  final String mapsMode;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final straight = distanceMeters(from.lat, from.lng, to.lat, to.lng);
+    final minutes = modeMinutes(mode, straight);
+    return Panel(
+      margin: const EdgeInsets.only(bottom: 14),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(padding: const EdgeInsets.only(top: 2), child: Icon(modeIcon(mode))),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (minutes != null)
+                        Text(s.modeEta(mode.name, minutes, s.metres(routeMetres(straight))), style: t.titleMedium),
+                      Text(s.modeEtaNote, style: t.bodySmall),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.open_in_new, size: 18),
+              label: Text(mapsLabel),
+              onPressed: () => openDirections(to.lat, to.lng, mode: mapsMode),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -254,8 +355,8 @@ List<TripAdvice> _advice(WidgetRef ref, TravelMode mode, Place from) {
 }
 
 IconData _adviceIcon(TripAdvice a) => switch (a) {
-      TripAdvice.lightningRide || TripAdvice.lightningWalk => Icons.bolt,
-      TripAdvice.rainRide || TripAdvice.rainDrive || TripAdvice.rainTaxi => Icons.umbrella_outlined,
+      TripAdvice.lightningRide || TripAdvice.lightningWalk || TripAdvice.lightningOnFoot => Icons.bolt,
+      TripAdvice.rainRide || TripAdvice.rainWalk || TripAdvice.rainDrive || TripAdvice.rainTaxi => Icons.umbrella_outlined,
       TripAdvice.heat => Icons.wb_sunny_outlined,
       TripAdvice.haze => Icons.masks_outlined,
     };
@@ -283,7 +384,6 @@ class _TransitBlock extends ConsumerWidget {
     final all = ref.watch(busStopsProvider).value ?? const <BusStop>[];
     final routes = ref.watch(busRoutesProvider).value ?? BusRoutes.empty;
     final s = ref.watch(stringsProvider);
-    final t = Theme.of(context).textTheme;
     final trip = tripStops(usableStops(from), all, routes, from, to);
     final destStops = destinationStops(to, all);
     final anyDirect = routes.routes.isNotEmpty &&
@@ -319,34 +419,7 @@ class _TransitBlock extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (straight < walkInsteadMetres)
-          Panel(
-            color: DL.mint,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.directions_walk, color: DL.ink),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(s.walkIsQuicker(s.walkMinutes(straight * 1.3), s.metres(straight)),
-                            style: t.titleMedium?.copyWith(color: DL.ink)),
-                      ),
-                    ],
-                  ),
-                  TextButton.icon(
-                    style: TextButton.styleFrom(foregroundColor: DL.ink),
-                    onPressed: () => openDirections(to.lat, to.lng, mode: 'walking'),
-                    icon: const Icon(Icons.map_outlined),
-                    label: Text(s.walkingRoute),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        if (straight < walkInsteadMetres) _WalkCard(to: to, straight: straight),
         // No direct bus anywhere near: the train is the real answer, so show it first.
         // Within walking distance the train is never the better answer.
         if (bad.lines.isNotEmpty && straight >= walkInsteadMetres) ...[
@@ -858,6 +931,114 @@ class TripBusCard extends ConsumerWidget {
                   final grouped = groupEtas(list);
                   final direct = grouped.where((e) => rides.containsKey(e.$1.service)).toList();
                   final others = grouped.where((e) => !rides.containsKey(e.$1.service)).toList();
+                  // The bus to leave for comes first and stands out; buses that come before
+                  // the walk to the stop is done are dimmed as "Too soon", at the end.
+                  final walkM = from == null ? null : distanceMeters(from!.lat, from!.lng, stop.lat, stop.lng);
+                  // At the stop already (within atStopMetres): no walk, so the bus there now can be caught.
+                  final walk = walkM == null || walkM >= 1500 ? null : (walkM < atStopMetres ? 0 : walkMinutesTo(walkM));
+                  final lb = walk == null ? null : leaveBy(direct, null, walk);
+                  // Honest comparison with walking all the way: the bus to leave for, door to door.
+                  // When it is no quicker, there is no "Leave now" card and the buses fold into one line.
+                  final byStop = {for (final x in all) x.code: x};
+                  final ride = lb == null ? null : rides[lb.service];
+                  final alight = ride == null ? null : byStop[ride.alightAt];
+                  final slow = from != null &&
+                      lb != null &&
+                      ride != null &&
+                      alight != null &&
+                      busNotFaster(
+                        stops: ride.stops,
+                        doorToDoor: busDoorToDoor(
+                          walkToStop: lb.walk,
+                          busIn: lb.leaveIn + lb.walk,
+                          stops: ride.stops,
+                          alightMetres: distanceMeters(alight.lat, alight.lng, to.lat, to.lng),
+                        ),
+                        straightMetres: distanceMeters(from!.lat, from!.lng, to.lat, to.lng),
+                      );
+                  final board = direct.isEmpty
+                      ? null
+                      : BusBoard(
+                        arrLabel: s.minutesAway(0),
+                        minLabel: s.min,
+                        thenLabel: s.thenIn,
+                        hint: s.tapBusHint,
+                        rows: [
+                          for (final r in tripBoard(direct, lb, walk).take(6))
+                            BoardRow(
+                              service: r.eta.service,
+                              minutes: r.eta.minutes,
+                              next: r.next,
+                              live: live(r.eta),
+                              load: r.eta.load,
+                              dim: r.tooSoon,
+                              tag: r.tooSoon ? s.tooSoon : null,
+                              info: [s.loadLabel(r.eta.load), s.busExtras(r.eta)].where((x) => x.isNotEmpty).join(' · '),
+                              note: s.rideInfo(
+                                rides[r.eta.service]!.stops,
+                                rides[r.eta.service]!.km,
+                                names[rides[r.eta.service]!.alightAt] ?? rides[r.eta.service]!.alightAt,
+                              ),
+                              onTap: () => showWhereBus(context,
+                                  stop: stop,
+                                  service: r.eta.service,
+                                  toName: names[rides[r.eta.service]!.alightAt] ?? ''),
+                            ),
+                        ],
+                      );
+                  final wake = direct.isEmpty
+                      ? null
+                      : Builder(builder: (context) {
+                        // One choice per direct service: the rider picks the bus they boarded,
+                        // which may not be the first one shown.
+                        final byCode = {for (final x in all) x.code: x};
+                        final choices = <(String, BusStop, BusStop?)>[
+                          for (final (e, _) in direct)
+                            if (byCode[rides[e.service]!.alightAt] case final alight?)
+                              (e.service, alight, byCode[stopBefore(routes, rides[e.service]!)]),
+                        ];
+                        if (choices.isEmpty) return const SizedBox.shrink();
+                        void open((String, BusStop, BusStop?) c) => Navigator.of(context).push(MaterialPageRoute(
+                              builder: (_) => WakeMePage(service: c.$1, alight: c.$2, before: c.$3, from: stop),
+                            ));
+                        final stops = {for (final c in choices) c.$2.code};
+                        return Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            icon: const Icon(Icons.notifications_active_outlined),
+                            label: Text(stops.length == 1 ? s.wakeMeAt(choices.first.$2.name) : s.wakeTitle),
+                            onPressed: () => choices.length == 1
+                                ? open(choices.first)
+                                : showModalBottomSheet<void>(
+                                    context: context,
+                                    showDragHandle: true,
+                                    builder: (sheet) => SafeArea(
+                                      child: ListView(
+                                        shrinkWrap: true,
+                                        children: [
+                                          Padding(
+                                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                                            child: Text(s.wakePickBus, style: t.titleMedium),
+                                          ),
+                                          for (final c in choices)
+                                            ListTile(
+                                              leading: ConstrainedBox(
+                                                constraints: const BoxConstraints(maxWidth: 96),
+                                                child: BusPlate(c.$1),
+                                              ),
+                                              title: Text(s.wakeMeAt(c.$2.name)),
+                                              onTap: () {
+                                                Navigator.of(sheet).pop();
+                                                open(c);
+                                              },
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                        );
+                      });
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -870,97 +1051,21 @@ class TripBusCard extends ConsumerWidget {
                             child: Text(s.routeInMaps),
                           ),
                         ),
-                      if (direct.isNotEmpty) ...() {
-                        // The bus to leave for comes first and stands out; buses that come before
-                        // the walk to the stop is done are dimmed as "Too soon", at the end.
-                        final walkM = from == null ? null : distanceMeters(from!.lat, from!.lng, stop.lat, stop.lng);
-                        // At the stop already (within atStopMetres): no walk, so the bus there now can be caught.
-                        final walk = walkM == null || walkM >= 1500 ? null : (walkM < atStopMetres ? 0 : walkMinutesTo(walkM));
-                        final lb = walk == null ? null : leaveBy(direct, null, walk);
-                        return [
-                          if (lb != null) _LeaveCard(lb: lb),
-                          BusBoard(
-                            arrLabel: s.minutesAway(0),
-                            minLabel: s.min,
-                            thenLabel: s.thenIn,
-                            hint: s.tapBusHint,
-                            rows: [
-                              for (final r in tripBoard(direct, lb, walk).take(6))
-                                BoardRow(
-                                  service: r.eta.service,
-                                  minutes: r.eta.minutes,
-                                  next: r.next,
-                                  live: live(r.eta),
-                                  load: r.eta.load,
-                                  dim: r.tooSoon,
-                                  tag: r.tooSoon ? s.tooSoon : null,
-                                  info: [s.loadLabel(r.eta.load), s.busExtras(r.eta)].where((x) => x.isNotEmpty).join(' · '),
-                                  note: s.rideInfo(
-                                    rides[r.eta.service]!.stops,
-                                    rides[r.eta.service]!.km,
-                                    names[rides[r.eta.service]!.alightAt] ?? rides[r.eta.service]!.alightAt,
-                                  ),
-                                  onTap: () => showWhereBus(context,
-                                      stop: stop,
-                                      service: r.eta.service,
-                                      toName: names[rides[r.eta.service]!.alightAt] ?? ''),
-                                ),
-                            ],
+                      if (board != null && slow)
+                        Theme(
+                          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                          child: ExpansionTile(
+                            tilePadding: EdgeInsets.zero,
+                            title: Text(s.busNotFaster(lb.service, ride.stops), style: t.titleSmall),
+                            subtitle: Text(s.busNotFasterHint, style: t.bodySmall),
+                            children: [board, if (wake != null) wake],
                           ),
-                        ];
-                      }(),
-                      if (direct.isNotEmpty)
-                        Builder(builder: (context) {
-                          // One choice per direct service: the rider picks the bus they boarded,
-                          // which may not be the first one shown.
-                          final byCode = {for (final x in all) x.code: x};
-                          final choices = <(String, BusStop, BusStop?)>[
-                            for (final (e, _) in direct)
-                              if (byCode[rides[e.service]!.alightAt] case final alight?)
-                                (e.service, alight, byCode[stopBefore(routes, rides[e.service]!)]),
-                          ];
-                          if (choices.isEmpty) return const SizedBox.shrink();
-                          void open((String, BusStop, BusStop?) c) => Navigator.of(context).push(MaterialPageRoute(
-                                builder: (_) => WakeMePage(service: c.$1, alight: c.$2, before: c.$3, from: stop),
-                              ));
-                          final stops = {for (final c in choices) c.$2.code};
-                          return Align(
-                            alignment: Alignment.centerLeft,
-                            child: TextButton.icon(
-                              icon: const Icon(Icons.notifications_active_outlined),
-                              label: Text(stops.length == 1 ? s.wakeMeAt(choices.first.$2.name) : s.wakeTitle),
-                              onPressed: () => choices.length == 1
-                                  ? open(choices.first)
-                                  : showModalBottomSheet<void>(
-                                      context: context,
-                                      showDragHandle: true,
-                                      builder: (sheet) => SafeArea(
-                                        child: ListView(
-                                          shrinkWrap: true,
-                                          children: [
-                                            Padding(
-                                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                                              child: Text(s.wakePickBus, style: t.titleMedium),
-                                            ),
-                                            for (final c in choices)
-                                              ListTile(
-                                                leading: ConstrainedBox(
-                                                  constraints: const BoxConstraints(maxWidth: 96),
-                                                  child: BusPlate(c.$1),
-                                                ),
-                                                title: Text(s.wakeMeAt(c.$2.name)),
-                                                onTap: () {
-                                                  Navigator.of(sheet).pop();
-                                                  open(c);
-                                                },
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                            ),
-                          );
-                        }),
+                        )
+                      else if (board != null) ...[
+                        if (lb != null) _LeaveCard(lb: lb),
+                        board,
+                        if (wake != null) wake,
+                      ],
                       if (others.isNotEmpty)
                         Theme(
                           data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -1021,6 +1126,13 @@ class _DriveBlock extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _ModeCard(
+          mode: lotType == 'Y' ? TravelMode.motorcycle : TravelMode.car,
+          from: from,
+          to: to,
+          mapsLabel: s.driveInMaps,
+          mapsMode: 'driving',
+        ),
         SectionTitle(s.parkingNearPlace(toLabel), padding: const EdgeInsets.fromLTRB(4, 0, 4, 10)),
         Panel(
           child: parking.when(
@@ -1061,14 +1173,7 @@ class _DriveBlock extends ConsumerWidget {
         else
           for (final (type, msg) in incidents.take(4))
             AlertBanner(icon: Icons.warning_amber_rounded, text: '$type: $msg'),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 14),
-          child: FilledButton.icon(
-            icon: const Icon(Icons.directions_car),
-            label: Text(s.driveInMaps),
-            onPressed: () => openDirections(to.lat, to.lng, mode: 'driving'),
-          ),
-        ),
+        const SizedBox(height: 14),
       ],
     );
   }
@@ -1077,7 +1182,8 @@ class _DriveBlock extends ConsumerWidget {
 // ---------------------------------------------------------------- bicycle
 
 class _CycleBlock extends ConsumerWidget {
-  const _CycleBlock({required this.to, required this.toLabel});
+  const _CycleBlock({required this.from, required this.to, required this.toLabel});
+  final Place from;
   final Place to;
   final String toLabel;
 
@@ -1089,6 +1195,7 @@ class _CycleBlock extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _ModeCard(mode: TravelMode.bicycle, from: from, to: to, mapsLabel: s.rideInMaps, mapsMode: 'bicycling'),
         AlertBanner(icon: Icons.wb_cloudy_outlined, text: s.cycleWeatherTip, tone: AlertTone.info),
         SectionTitle('${s.bicycleParking} $toLabel', padding: const EdgeInsets.fromLTRB(4, 0, 4, 10)),
         Panel(
@@ -1105,14 +1212,7 @@ class _CycleBlock extends ConsumerWidget {
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 14),
-          child: FilledButton.icon(
-            icon: const Icon(Icons.pedal_bike),
-            label: Text(s.rideInMaps),
-            onPressed: () => openDirections(to.lat, to.lng, mode: 'bicycling'),
-          ),
-        ),
+        const SizedBox(height: 14),
       ],
     );
   }
@@ -1121,28 +1221,35 @@ class _CycleBlock extends ConsumerWidget {
 // ---------------------------------------------------------------- taxi
 
 class _TaxiBlock extends ConsumerWidget {
-  const _TaxiBlock({required this.from});
+  const _TaxiBlock({required this.from, required this.to});
   final Place from;
+  final Place to;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final body = ref.watch(taxiProvider).value;
     final n = body == null ? null : taxiBands(taxiPoints(body), from.lat, from.lng).$2;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: BentoTile(
-        icon: Icons.local_taxi_outlined,
-        value: n == null ? '–' : '$n',
-        caption: '${s.taxisNear(placeTitle(s.placeLabel, from))} · 500 m',
-        tint: n == 0 ? DL.attention : null,
-        onTap: () => showModalBottomSheet<void>(
-          context: context,
-          isScrollControlled: true,
-          showDragHandle: true,
-          builder: (_) => TaxiSheet(origin: from),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _ModeCard(mode: TravelMode.taxi, from: from, to: to, mapsLabel: s.routeInMaps, mapsMode: 'driving'),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: BentoTile(
+            icon: Icons.local_taxi_outlined,
+            value: n == null ? '–' : '$n',
+            caption: '${s.taxisNear(placeTitle(s.placeLabel, from))} · 500 m',
+            tint: n == 0 ? DL.attention : null,
+            onTap: () => showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              showDragHandle: true,
+              builder: (_) => TaxiSheet(origin: from),
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 }

@@ -66,7 +66,16 @@ feature, screen, provider or rule moves, appears or goes away.
   soon" at the end (`BoardRow.dim`/`tag`). Strings that wrap keep their last words together with
   no-break spaces (`noOrphan`, `busWhereLine`). The I'm leaving how-to is small under the button and
   gone once the trip is learned. From and To within `samePlaceMetres` say "You're already there" (no walk, buses or
-  timer). Board rows put their details (load, wheelchair, stops) under the number at full width when the column
+  timer). Short trips (rules in logic.dart, tests in `test/short_trip_test.dart`): Walk is the first mode chip
+  (`TravelMode.walk`, `tripModes`; Setup offers the other five, `savedTravelModes`) and is picked by itself when
+  the walking route is at most `walkDefaultMaxMetres` or `walkDefaultMaxMinutes` (`walkIsDefault`,
+  `defaultTripMode`; never on the daily commute); a mode picked by hand wins (`modeOverrideProvider`). A bus is
+  compared with walking door to door (`busDoorToDoor`: walk to the stop and wait, `feederMinutesPerStop` a stop,
+  walk from the alighting stop); when it is no quicker, or rides one stop on a trip under `walkInsteadMetres`
+  (`busNotFaster`), there is no "Leave now" card and the buses fold into one line ("Bus 196 · 1 stop · not faster
+  than walking", tap to open) under the walking card (`_WalkCard`). Car, Motorbike, Bicycle and Taxi start with
+  `_ModeCard`: a rough time and distance (`modeMinutes`, `cycleKmh`, `driveKmh`, `routeMetres`) and Google Maps as
+  an explicit button; no chip opens another app by itself. Board rows put their details (load, wheelchair, stops) under the number at full width when the column
   beside it is too narrow for whole words (`_BoardRowLayout`, large text, small screens). Maestro: `maestro/09_plan_trip.yaml`. Driving uses `/v1/parking`
   (lot type C/Y) and `/v1/traffic-incidents`.
 - EV charging (opt-in, `Favorites.evPlug`: '' none, 'any', 'Type 2', 'CCS2', 'CHAdeMO'; More > Extras

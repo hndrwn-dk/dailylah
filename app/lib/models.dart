@@ -42,7 +42,18 @@ class BusStop {
 }
 
 /// How someone usually travels to a place.
-enum TravelMode { transit, car, motorcycle, bicycle, taxi }
+/// [walk] is offered on a trip (first chip, picked by itself for a short one, `walkIsDefault`); a
+/// place's saved modes ([Place.modes], Setup) are the other five ([savedTravelModes]).
+enum TravelMode { transit, car, motorcycle, bicycle, taxi, walk }
+
+/// The modes a place can be saved with in Setup: every one but [TravelMode.walk].
+const savedTravelModes = [
+  TravelMode.transit,
+  TravelMode.car,
+  TravelMode.motorcycle,
+  TravelMode.bicycle,
+  TravelMode.taxi,
+];
 
 TravelMode travelModeFrom(String v) =>
     TravelMode.values.firstWhere((m) => m.name == v, orElse: () => TravelMode.transit);
