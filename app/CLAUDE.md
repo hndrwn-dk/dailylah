@@ -75,9 +75,16 @@ feature, screen, provider or rule moves, appears or goes away.
   (`busNotFaster`), there is no "Leave now" card and the buses fold into one line ("Bus 196 · 1 stop · not faster
   than walking", tap to open) under the walking card (`_WalkCard`). Car, Motorbike, Bicycle and Taxi start with
   `_ModeCard`: a rough time and distance (`modeMinutes`, `cycleKmh`, `driveKmh`, `routeMetres`) and Google Maps as
-  an explicit button; no chip opens another app by itself. Board rows put their details (load, wheelchair, stops) under the number at full width when the column
-  beside it is too narrow for whole words (`_BoardRowLayout`, large text, small screens). Maestro: `maestro/09_plan_trip.yaml`. Driving uses `/v1/parking`
-  (lot type C/Y) and `/v1/traffic-incidents`.
+  an explicit button; no chip opens another app by itself. Under that card `_LiveExtras` shows LTA DataMall
+  details from `/v1/trip-extras` (`tripExtrasProvider`, asked only while that mode is picked; `parseTripExtras`,
+  `TripExtras`, `ExtraSpot`): Car and Motorbike the nearest car parks to the destination with free lots (C/Y),
+  distance, agency and "Lots as of HH:mm" (Motorbike hides the section when none has motorbike lots); Bicycle the
+  nearest bicycle parking (rack type, racks, sheltered); Taxi the free taxis within 500 m of the start. The point
+  is sent rounded to 4 decimals (`extrasCoord`); the phone's own position ("Here", `startsHere`/`endsHere`) is
+  never sent: the phone then filters `/v1/parking`, `/v1/taxi` and the bicycle racks bundle itself
+  (`localTripExtras`). On an error the card stays and one line says "Live info unavailable". Board rows put their details (load, wheelchair, stops) under the number at full width when the column
+  beside it is too narrow for whole words (`_BoardRowLayout`, large text, small screens). Maestro: `maestro/09_plan_trip.yaml`. Driving uses `/v1/trip-extras`
+  (parking) and `/v1/traffic-incidents`.
 - EV charging (opt-in, `Favorites.evPlug`: '' none, 'any', 'Type 2', 'CCS2', 'CHAdeMO'; More > Extras
   "My car is electric" with plug chips, or "Electric car? Show EV chargers" in Nearby > Park): `EvChargers`
   (`ui/ev.dart`) in Nearby > Park, Home > Parking and car trips (`_DriveBlock`). Locations, plugs, kW and

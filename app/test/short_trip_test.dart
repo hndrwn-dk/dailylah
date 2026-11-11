@@ -1,7 +1,7 @@
 // Plan a trip for short trips: Walk picked by itself, the bus folded away when it is no quicker
 // than walking, and every mode chip showing its own card before anything opens Google Maps.
 import 'package:dailylah/l10n.dart';
-import 'package:dailylah/logic.dart' show routeMetres, walkMinutesTo;
+import 'package:dailylah/logic.dart' show clockLabel, routeMetres, walkMinutesTo;
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/today.dart';
@@ -140,6 +140,95 @@ void main() {
     }
   });
 
+  group('Live LTA details on the mode cards', () {
+    FakeApi api(WidgetTester tester) => containerOf(tester).read(apiProvider) as FakeApi;
+    final asOf = clockLabel(DateTime.fromMillisecondsSinceEpoch(1793850000 * 1000));
+
+    testWidgets('nothing is asked for a mode until its chip is picked, then once for the destination', (tester) async {
+      await _plan(tester, _siglap, _stPatricks);
+      expect(api(tester).extrasAsked, isEmpty); // Bus/MRT asks for nothing
+      await _tapMode(tester, 'Bicycle');
+      // The destination, rounded to 4 decimals.
+      expect(api(tester).extrasAsked, [('bicycle', 1.3093, 103.9143)]);
+      expect(find.text('SIGLAP SOUTH CC'), findsOneWidget);
+      expect(find.text('Yellow Box · 24 racks · sheltered · 40 m'), findsOneWidget);
+      expect(find.text('Racks · 1 rack · not sheltered · 210 m'), findsOneWidget);
+      expect(find.text(_s.asOf(asOf)), findsOneWidget);
+      // The card from the trip itself is still on top.
+      expect(find.textContaining(RegExp(r'^About \d+ min by bicycle')), findsOneWidget);
+      await settle(tester);
+      expect(api(tester).extrasAsked, hasLength(1));
+    });
+
+    testWidgets('Car and Motorbike: nearest car parks with their lots, agency and "Lots as of"', (tester) async {
+      await _plan(tester, _siglap, _stPatricks);
+      await _tapMode(tester, 'Car');
+      expect(api(tester).extrasAsked.single.$1, 'car');
+      expect(find.text('BLK 1 CAR PARK'), findsOneWidget);
+      expect(find.text('120 m · HDB'), findsOneWidget);
+      expect(find.text('102'), findsOneWidget);
+      expect(find.text('car lots'), findsWidgets);
+      expect(find.text(_s.lotsAsOf(asOf)), findsOneWidget);
+      await _tapMode(tester, 'Motorbike');
+      expect(api(tester).extrasAsked.last.$1, 'motorcycle');
+      expect(find.text('motorbike lot'), findsOneWidget); // 1 lot
+      expect(find.text('motorbike lots'), findsOneWidget); // 0 lots
+    });
+
+    testWidgets('Motorbike with no lots nearby hides the section; Car and Bicycle say so', (tester) async {
+      await _plan(tester, _siglap, _stPatricks);
+      api(tester).extrasEmpty = true;
+      await _tapMode(tester, 'Motorbike');
+      expect(find.textContaining('Parking near'), findsNothing);
+      expect(find.textContaining(RegExp(r'^About \d+ min by motorbike')), findsOneWidget);
+      await _tapMode(tester, 'Car');
+      expect(find.text(_s.noParkingNear), findsOneWidget);
+      await _tapMode(tester, 'Bicycle');
+      expect(find.text(_s.noBicycleParkingNear), findsOneWidget);
+    });
+
+    testWidgets('Taxi: free taxis near the start, with the time', (tester) async {
+      await _plan(tester, _siglap, _stPatricks);
+      await _tapMode(tester, 'Taxi');
+      expect(api(tester).extrasAsked, [('taxi', 1.3139, 103.9317)]); // the start, not the destination
+      expect(find.text('12 taxis within 500 m'), findsOneWidget);
+      expect(find.textContaining(_s.asOf(asOf)), findsOneWidget);
+      expect(_s.taxisInRadius(1, 500), '1 taxi within 500 m');
+    });
+
+    testWidgets('LTA down: the card keeps its time and distance, with one quiet line', (tester) async {
+      await _plan(tester, _siglap, _stPatricks);
+      api(tester).extrasDown = true;
+      for (final label in ['Bicycle', 'Car', 'Taxi']) {
+        await _tapMode(tester, label);
+        expect(find.text(_s.liveUnavailable), findsOneWidget, reason: label);
+        expect(find.textContaining(RegExp('^About \\d+ min by ${label.toLowerCase()}')), findsOneWidget);
+        expect(find.byType(LinearProgressIndicator), findsNothing, reason: label);
+        expect(tester.takeException(), isNull);
+      }
+    });
+
+    testWidgets("The phone's own position is never sent: from Here, taxis are counted on the phone", (tester) async {
+      await applyCondition(tester, _normal);
+      await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+      await settle(tester);
+      Navigator.of(tester.element(find.byType(TodayPage)))
+          .push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+      await settle(tester);
+      final box = containerOf(tester);
+      // Here (the fake location) to Work, far away.
+      expect(box.read(goFromKeyProvider), 'here');
+      box.read(goKeyProvider.notifier).state = 'work';
+      await settle(tester);
+      await _tapMode(tester, 'Taxi');
+      expect(api(tester).extrasAsked, isEmpty);
+      expect(find.textContaining('within 500 m'), findsOneWidget);
+      // Parking near Work is a saved place: that one is asked from the server.
+      await _tapMode(tester, 'Car');
+      expect(api(tester).extrasAsked.single.$1, 'car');
+    });
+  });
+
   for (final c in const [
     Condition('text 200% on 320dp', textScale: 2.0, size: Size(320, 640)),
     Condition('dark, text 200% on 320dp', textScale: 2.0, size: Size(320, 640), dark: true),
@@ -148,7 +237,7 @@ void main() {
       await _plan(tester, _siglap, _goodwill, c: c);
       await scrollThrough(tester);
       expect(tester.takeException(), isNull);
-      for (final label in ['Bus/MRT', 'Bicycle', 'Car', 'Taxi']) {
+      for (final label in ['Bus/MRT', 'Bicycle', 'Car', 'Motorbike', 'Taxi']) {
         await _tapMode(tester, label);
         await scrollThrough(tester);
         expect(tester.takeException(), isNull, reason: label);

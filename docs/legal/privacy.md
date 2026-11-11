@@ -1,6 +1,6 @@
 # DailyLah Privacy Policy
 
-**Last updated: 10 November 2026**
+**Last updated: 11 November 2026**
 App: DailyLah (Android, package `com.tursinalabs.dailylah`)
 Published at: https://www.tursinalabs.com/dailylah/privacy
 
@@ -35,11 +35,12 @@ To show live information, the app sends requests to the DailyLah API operated by
 - If you turned on **My car is electric**, the 6-digit **postal code of an EV charging location** shown in a list, to get how many chargers are free there. This is the car park's postal code from the public LTA list, not yours; which locations are near you is worked out on your phone
 - The **MRT/LRT line code** (for example `NSL`), to get platform crowd levels
 - A **CEA registration number** you type into "Check a property agent", to look it up in the public CEA register. This number identifies the agent, not you
+- When you pick **Car, Motorbike, Bicycle or Taxi** for a trip: the **destination of that trip** (for Taxi, its start) as a point rounded to about 11 metres, to get the nearest car parks with free lots, the nearest bicycle parking or the number of free taxis from LTA DataMall. This point can be a saved place, such as your home or work, when it is an end of that trip. It is never your phone's current position: for a trip that starts or ends at "Here", the phone works this out itself from the full public lists. Our server uses the point for that one answer and does not log or store it; for bicycle parking it asks LTA for the surrounding area of about 1 km, not for the point
 - Requests for the weather forecast, haze (PSI and PM2.5), heat stress, lightning, train service alerts, HDB car park availability, car park availability for LTA, URA and HDB car parks, traffic incidents and taxi availability, which contain no personal data
 
-Which buses go to your destination, parking near it and incidents on the way are worked out on your phone; the server only sends the full public lists. Searching HDB blocks, comparing blocks, nearby hawker centres, dengue clusters and weekend ideas are all computed on your phone from the public data bundles, so the server does not learn which places you look at.
+Which buses go to your destination and incidents on the way are worked out on your phone; the server only sends the full public lists. Parking, taxis and other places in the Nearby and Home tabs are worked out on your phone too. Searching HDB blocks, comparing blocks, nearby hawker centres, dengue clusters and weekend ideas are all computed on your phone from the public data bundles, so the server does not learn which places you look at.
 
-The app also downloads these public data bundles from our website. Like any web service, our hosting providers record technical request logs (IP address, time, requested path and app version) for operations and security, and keep them for a limited period. We do not combine these logs with any other data and we do not use them to identify you. The server never receives your saved places, home or work location, or GPS coordinates.
+The app also downloads these public data bundles from our website. Like any web service, our hosting providers record technical request logs (IP address, time, requested path and app version) for operations and security, and keep them for a limited period. We do not combine these logs with any other data and we do not use them to identify you. The server never receives your phone's GPS position. Apart from the trip point described above, it never receives your saved places or your home or work location.
 
 The **Home** tab shows your block (or, for a private home, URA sale and rent figures for the project at your address), upgrading and construction work, schools, health and community services, recycling points, parks and parking around your saved home. All of it comes from public data bundles (OneMap, URA and data.gov.sg) downloaded to your phone, and the distances are computed on your phone; your home address is not sent anywhere for this.
 

@@ -40,7 +40,11 @@ class TripSection extends ConsumerWidget {
     this.fromLabel,
     this.commute = false,
     this.startsHere = false,
+    this.endsHere = false,
   });
+
+  /// The destination is the phone's location: like [startsHere], it is never sent to the server.
+  final bool endsHere;
 
   /// The trip starts from the phone's location: within [arrivedMetres] it says "You're here".
   final bool startsHere;
@@ -79,10 +83,10 @@ class TripSection extends ConsumerWidget {
           to: to,
           toLabel: toLabel,
           startsHere: startsHere),
-      TravelMode.car => _DriveBlock(from: from, to: to, toLabel: toLabel, lotType: 'C'),
-      TravelMode.motorcycle => _DriveBlock(from: from, to: to, toLabel: toLabel, lotType: 'Y'),
-      TravelMode.bicycle => _CycleBlock(from: from, to: to, toLabel: toLabel),
-      TravelMode.taxi => _TaxiBlock(from: from, to: to),
+      TravelMode.car => _DriveBlock(from: from, to: to, toLabel: toLabel, lotType: 'C', endsHere: endsHere),
+      TravelMode.motorcycle => _DriveBlock(from: from, to: to, toLabel: toLabel, lotType: 'Y', endsHere: endsHere),
+      TravelMode.bicycle => _CycleBlock(from: from, to: to, toLabel: toLabel, endsHere: endsHere),
+      TravelMode.taxi => _TaxiBlock(from: from, to: to, startsHere: startsHere),
       TravelMode.walk => startsHere && straight < arrivedMetres
           ? _ThereNote(title: s.youAreHere, sub: s.arrivedAt(toLabel))
           : _WalkCard(to: to, straight: straight),
@@ -1111,60 +1115,29 @@ class TripBusCard extends ConsumerWidget {
 // ---------------------------------------------------------------- car / motorbike
 
 class _DriveBlock extends ConsumerWidget {
-  const _DriveBlock({required this.from, required this.to, required this.toLabel, required this.lotType});
+  const _DriveBlock({
+    required this.from,
+    required this.to,
+    required this.toLabel,
+    required this.lotType,
+    required this.endsHere,
+  });
   final Place from;
   final Place to;
   final String toLabel;
   final String lotType;
+  final bool endsHere;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final t = Theme.of(context).textTheme;
-    final parking = ref.watch(parkingLiveProvider);
+    final mode = lotType == 'Y' ? TravelMode.motorcycle : TravelMode.car;
     final incidents = incidentsOnTrip(ref.watch(incidentsProvider).value, from, to);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _ModeCard(
-          mode: lotType == 'Y' ? TravelMode.motorcycle : TravelMode.car,
-          from: from,
-          to: to,
-          mapsLabel: s.driveInMaps,
-          mapsMode: 'driving',
-        ),
-        SectionTitle(s.parkingNearPlace(toLabel), padding: const EdgeInsets.fromLTRB(4, 0, 4, 10)),
-        Panel(
-          child: parking.when(
-            loading: () => const Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator()),
-            error: (_, __) => EmptyNote(s.serverWaking),
-            data: (all) {
-              final near = parkingNear(all, to.lat, to.lng, lotType);
-              if (near.isEmpty) return EmptyNote(s.noParkingData);
-              return Column(
-                children: [
-                  for (final (p, d) in near)
-                    ListTile(
-                      leading: Icon(lotType == 'Y' ? Icons.two_wheeler : Icons.local_parking),
-                      title: Text(p.name.isEmpty ? p.id : p.name, maxLines: 2, overflow: TextOverflow.ellipsis),
-                      subtitle: Text('${s.metres(d)} · ${p.agency}'),
-                      trailing: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text('${p.available}',
-                              style: t.displaySmall?.copyWith(fontSize: 24, color: p.available == 0 ? DL.stopText(context) : null)),
-                          Text(lotType == 'Y' ? s.bikeLots : s.carLots, style: t.labelSmall),
-                        ],
-                      ),
-                      onTap: () => showPlaceSheet(context,
-                          s: s, title: p.name.isEmpty ? p.id : p.name, lat: p.lat, lng: p.lng, distance: d),
-                    ),
-                ],
-              );
-            },
-          ),
-        ),
+        _ModeCard(mode: mode, from: from, to: to, mapsLabel: s.driveInMaps, mapsMode: 'driving'),
+        _LiveExtras(mode: mode, at: to, here: endsHere, title: s.parkingNearPlace(toLabel)),
         if (lotType == 'C' && ref.watch(favoritesProvider.select((f) => f.drivesEv)))
           EvChargers(lat: to.lat, lng: to.lng, title: s.evChargersNear(toLabel)),
         SectionTitle(s.trafficOnWay, padding: const EdgeInsets.fromLTRB(4, 0, 4, 10)),
@@ -1182,36 +1155,21 @@ class _DriveBlock extends ConsumerWidget {
 // ---------------------------------------------------------------- bicycle
 
 class _CycleBlock extends ConsumerWidget {
-  const _CycleBlock({required this.from, required this.to, required this.toLabel});
+  const _CycleBlock({required this.from, required this.to, required this.toLabel, required this.endsHere});
   final Place from;
   final Place to;
   final String toLabel;
+  final bool endsHere;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final racks = ref.watch(bicycleRacksProvider).value ?? const <EPoint>[];
-    final near = within(racks, to.lat, to.lng, 800, latOf: (p) => p.lat, lngOf: (p) => p.lng, limit: 4);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _ModeCard(mode: TravelMode.bicycle, from: from, to: to, mapsLabel: s.rideInMaps, mapsMode: 'bicycling'),
         AlertBanner(icon: Icons.wb_cloudy_outlined, text: s.cycleWeatherTip, tone: AlertTone.info),
-        SectionTitle('${s.bicycleParking} $toLabel', padding: const EdgeInsets.fromLTRB(4, 0, 4, 10)),
-        Panel(
-          child: Column(
-            children: [
-              if (near.isEmpty) EmptyNote(racks.isEmpty ? s.bundlesLoading : s.noRacks),
-              for (final (p, d) in near)
-                ListTile(
-                  leading: const Icon(Icons.pedal_bike),
-                  title: Text(p.name),
-                  subtitle: Text(s.metres(d)),
-                  onTap: () => showPlaceSheet(context, s: s, title: p.name, lat: p.lat, lng: p.lng, distance: d),
-                ),
-            ],
-          ),
-        ),
+        _LiveExtras(mode: TravelMode.bicycle, at: to, here: endsHere, title: '${s.bicycleParking} $toLabel'),
         const SizedBox(height: 14),
       ],
     );
@@ -1221,35 +1179,179 @@ class _CycleBlock extends ConsumerWidget {
 // ---------------------------------------------------------------- taxi
 
 class _TaxiBlock extends ConsumerWidget {
-  const _TaxiBlock({required this.from, required this.to});
+  const _TaxiBlock({required this.from, required this.to, required this.startsHere});
   final Place from;
   final Place to;
+  final bool startsHere;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final body = ref.watch(taxiProvider).value;
-    final n = body == null ? null : taxiBands(taxiPoints(body), from.lat, from.lng).$2;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _ModeCard(mode: TravelMode.taxi, from: from, to: to, mapsLabel: s.routeInMaps, mapsMode: 'driving'),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 14),
-          child: BentoTile(
-            icon: Icons.local_taxi_outlined,
-            value: n == null ? '–' : '$n',
-            caption: '${s.taxisNear(placeTitle(s.placeLabel, from))} · 500 m',
-            tint: n == 0 ? DL.attention : null,
-            onTap: () => showModalBottomSheet<void>(
-              context: context,
-              isScrollControlled: true,
-              showDragHandle: true,
-              builder: (_) => TaxiSheet(origin: from),
-            ),
-          ),
+        _LiveExtras(
+          mode: TravelMode.taxi,
+          at: from,
+          here: startsHere,
+          title: s.taxisNear(placeTitle(s.placeLabel, from)),
         ),
+        const SizedBox(height: 14),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------- live LTA details
+
+/// What LTA DataMall knows for this mode, under the mode's card: car parks with free car or
+/// motorbike lots and bicycle parking near the destination, or the free taxis near the start,
+/// each with the time it was read. Asked only while this mode is the one picked
+/// (`tripExtrasProvider`). When it cannot be had, one quiet line; the card above stays.
+class _LiveExtras extends ConsumerWidget {
+  const _LiveExtras({required this.mode, required this.at, required this.here, required this.title});
+  final TravelMode mode;
+
+  /// The destination, or the start for taxis.
+  final Place at;
+
+  /// [at] is the phone's own position: the phone works the details out itself.
+  final bool here;
+  final String title;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final extras = ref.watch(tripExtrasProvider((mode: mode, lat: at.lat, lng: at.lng, here: here)));
+    final heading = SectionTitle(title, padding: const EdgeInsets.fromLTRB(4, 0, 4, 10));
+    Widget small(String text) => Padding(
+          padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
+          child: Text(text, style: t.bodySmall),
+        );
+    return extras.when(
+      loading: () => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          heading,
+          const Panel(child: Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator())),
+        ],
+      ),
+      error: (_, __) => small(s.liveUnavailable),
+      data: (x) {
+        final time = x.asOf == null ? null : clockLabel(x.asOf!);
+        if (mode == TravelMode.taxi) {
+          final n = x.taxis ?? 0;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              heading,
+              Panel(
+                color: n == 0 ? DL.attention : null,
+                child: ListTile(
+                  leading: Icon(Icons.local_taxi_outlined, color: n == 0 ? DL.ink : null),
+                  title: Text(s.taxisInRadius(n, x.radius),
+                      style: t.titleMedium?.copyWith(color: n == 0 ? DL.ink : null)),
+                  subtitle: Text([if (time != null) s.asOf(time), s.seeTaxis].join(' · '),
+                      style: t.bodySmall?.copyWith(color: n == 0 ? DL.ink : null)),
+                  trailing: Icon(Icons.chevron_right, color: n == 0 ? DL.ink : null),
+                  onTap: () => showModalBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: true,
+                    showDragHandle: true,
+                    builder: (_) => TaxiSheet(origin: at),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+        final bike = mode == TravelMode.bicycle;
+        // Large text: the lots go under the name as a line of their own, so nothing is squeezed.
+        final stacked = MediaQuery.textScalerOf(context).scale(16) > 20;
+        if (x.spots.isEmpty) {
+          // No car park with motorbike lots nearby: nothing to say, so no section.
+          if (mode == TravelMode.motorcycle) return const SizedBox.shrink();
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [heading, Panel(child: EmptyNote(bike ? s.noBicycleParkingNear : s.noParkingNear))],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            heading,
+            Panel(
+              margin: const EdgeInsets.only(bottom: 6),
+              child: Column(
+                children: [
+                  for (final p in x.spots)
+                    InkWell(
+                      onTap: () => showPlaceSheet(context,
+                          s: s, title: p.name.isEmpty ? title : p.name, lat: p.lat, lng: p.lng, distance: p.metres),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          // A row of its own, not a ListTile: the lots figure and its label keep
+                          // their height at large text.
+                          child: Row(
+                            children: [
+                              Icon(bike
+                                  ? Icons.pedal_bike
+                                  : mode == TravelMode.motorcycle
+                                      ? Icons.two_wheeler
+                                      : Icons.local_parking),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(p.name.isEmpty ? title : p.name,
+                                        style: t.titleSmall, maxLines: 2, overflow: TextOverflow.ellipsis),
+                                    Text(
+                                      [
+                                        if (bike) s.rackLine(p.rackType, p.racks, p.sheltered),
+                                        s.metres(p.metres),
+                                        if (!bike) p.agency,
+                                      ].where((e) => e.isNotEmpty).join(' · '),
+                                      style: t.bodySmall,
+                                    ),
+                                    if (stacked && p.lots != null)
+                                      Text(
+                                        '${p.lots} ${s.lotsLabel(p.lots!, motorbike: mode == TravelMode.motorcycle)}',
+                                        style: t.titleSmall?.copyWith(color: p.lots == 0 ? DL.stopText(context) : null),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              if (p.lots == null)
+                                const Icon(Icons.map_outlined)
+                              else if (!stacked)
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text('${p.lots}',
+                                        style: t.displaySmall
+                                            ?.copyWith(fontSize: 24, color: p.lots == 0 ? DL.stopText(context) : null)),
+                                    Text(s.lotsLabel(p.lots!, motorbike: mode == TravelMode.motorcycle),
+                                        style: t.labelSmall),
+                                  ],
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (time != null) small(bike ? s.asOf(time) : s.lotsAsOf(time)) else const SizedBox(height: 12),
+          ],
+        );
+      },
     );
   }
 }
@@ -1452,6 +1554,7 @@ class GoSomewhere extends ConsumerWidget {
             from: from,
             fromLabel: fromKey == 'here' ? s.hereNow : null,
             startsHere: fromKey == 'here',
+            endsHere: key == 'here',
             to: dest,
             modeKey: key!,
             modePlace: dest,

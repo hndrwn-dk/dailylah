@@ -71,7 +71,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   (new permission, SDK, endpoint, log field) must update `docs/legal/privacy.md` in the same PR,
   and the "Privacy and safety" questions on the landing page (`web/index.html`) when they no longer match.
 - User locations and favourites stay on the device. The server only sees what a request needs: bus
-  stop codes, search text, postal codes for EV chargers and CEA registration numbers, never logged.
+  stop codes, search text, postal codes for EV chargers, CEA registration numbers and, for the Car,
+  Motorbike, Bicycle and Taxi cards of a trip, that trip's destination or start as a rounded point
+  (`/v1/trip-extras`; never the phone's own position), never logged.
   Alerts are made on the phone (no push service).
 - No accounts, no identifying analytics.
 - Secrets only via env vars. Never commit `.env`, API keys, or keystores.
