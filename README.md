@@ -9,7 +9,7 @@ what is around your HDB block.
 
 No account, no tracking. Saved places stay on the phone, and alerts are made on the device.
 
-**Status:** closed testing on Google Play since 26 Oct 2026. Website: [dailylah.sg](https://dailylah.sg).
+**Status:** on [Google Play](https://play.google.com/store/apps/details?id=com.tursinalabs.dailylah) (public since 11 Nov 2026). Website: [dailylah.sg](https://dailylah.sg).
 
 [![version](https://img.shields.io/github/v/tag/hndrwn-dk/dailylah?filter=v*&sort=semver&label=version)](https://github.com/hndrwn-dk/dailylah/tags)
 [![dailylah.sg](https://img.shields.io/website?url=https%3A%2F%2Fdailylah.sg&label=dailylah.sg&up_message=up&down_message=down)](https://dailylah.sg)

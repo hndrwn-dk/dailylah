@@ -15,8 +15,8 @@ The rewrites from /where-to-live/... live in web/vercel.json, so the pages share
 The folder holds generated HTML only: the build job's patch may not touch it or the sitemap
 (scripts/push_data.sh allowlist); only this generator, run in the push job, writes them. Every
 value from the JSON goes through html.escape, town ids must match the vercel.json rewrite
-pattern ([a-z0-9-]+) before they name a file, and no page has a script of its own (only
-/shared/cta.js).
+pattern ([a-z0-9-]+) before they name a file, and no page has a script. The Play link is plain
+HTML, the same one as on the landing page (web/tests checks they match).
 """
 
 import html
@@ -300,7 +300,6 @@ def head(title: str, description: str, path: str, image: tuple[str, int, int] = 
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
 <link rel="preload" href="/fonts/BarlowCondensed-Bold.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/where-to-live/app.css">
-<script type="module" src="/shared/cta.js"></script>
 </head>
 <body>
 <main class="wrap town-page">
@@ -330,9 +329,9 @@ def tail(data: dict) -> str:
         updated = f" Updated {when.day} {when.strftime('%b %Y')}."
     return f"""  <section class="app sticker">
     <h2>Know before you go lah.</h2>
-    <p>DailyLah, our free Android app, shows bus arrivals, MRT delays and the weather for your own trip to work.</p>
-    <div class="cta" data-cta>
-      <noscript><p>Turn on JavaScript to see how to get DailyLah on Google Play.</p></noscript>
+    <p>DailyLah, our free Android app, shows bus arrivals, MRT disruptions and the weather for your own trip to work.</p>
+    <div class="cta">
+      <a class="play" href="https://play.google.com/store/apps/details?id=com.tursinalabs.dailylah" rel="noopener" aria-label="Get DailyLah on Google Play"><svg width="22" height="24" viewBox="0 0 22 24" aria-hidden="true"><path d="M2 1.5v21L20.5 12z" fill="#0F1618"/></svg>Get it on Google Play</a>
     </div>
   </section>
 

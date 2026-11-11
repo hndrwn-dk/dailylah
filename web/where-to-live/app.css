@@ -153,8 +153,6 @@ input[type=text]::placeholder { color: var(--mist); }
         text-decoration: none; }
 .play:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
 .play svg { flex: none; }
-.steps { margin: 16px 0 0; padding-left: 22px; font-size: 15px; max-width: 52ch; }
-.steps li + li { margin-top: 4px; }
 
 /* ---------------- notes */
 /* Footer: the credit line, "About the data" and the links flow as one paragraph (about 3 lines on a
