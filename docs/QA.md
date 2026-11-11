@@ -39,7 +39,7 @@ What a version bump on `main` does is set by the repository variable `PLAY_PUSH_
 | `alpha` (or `internal`, `beta`) | the same tests, then `play` uploads to that track, then `release-tag` tags the commit. |
 
 A manual run (Actions > app > Run workflow on `main`) offers the same `manual` choice next to the
-Play tracks; `none` there means analyze and tests only.
+Play tracks and starts on it; pick a track to upload, or `none` for analyze and tests only.
 
 Uploading a `manual` release by hand:
 1. Actions > the `app` run > its summary: the `Manual upload` notice names the draft release. The

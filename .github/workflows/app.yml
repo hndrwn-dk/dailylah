@@ -8,7 +8,9 @@ on:
       play_track:
         description: "Upload the signed AAB to this Google Play track (none = analyze and tests only; manual = sign, tag and keep it in a draft GitHub Release, no upload)"
         type: choice
-        default: alpha
+        # Same default as a version bump without PLAY_PUSH_TRACK: nothing goes to Google Play
+        # unless a track is picked.
+        default: manual
         options: [none, manual, internal, alpha, beta, production]
 # Read-only by default; no job here writes to the repo. Google Play uses its own service account.
 permissions:
