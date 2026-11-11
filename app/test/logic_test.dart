@@ -1335,6 +1335,26 @@ void main() {
     expect(lastMealPrice(meals, 'c'), isNull);
     // Order in the list does not matter, only when the meal was eaten.
     expect(lastMealPrice(meals.reversed.toList(), 'a'), 600);
+    // Two restaurants on the same point of a food court: only the one with the same name.
+    final court = [
+      MealLog(hawkerId: 'p:1.30000,103.90000', at: t, name: 'Briyani Shop', priceCents: 1200),
+    ];
+    expect(lastMealPrice(court, 'p:1.30000,103.90000', name: 'Briyani Shop'), 1200);
+    expect(lastMealPrice(court, 'p:1.30000,103.90000', name: 'Coffee Bean'), isNull);
+  });
+
+  test('meal price: a corrected Ate here tap within 30 min keeps the price typed before', () {
+    final t = DateTime(2026, 11, 3, 12);
+    // $6 at the wrong place, then the right place without a price: one meal, still $6.
+    var meals = addMeal(const [], MealLog(hawkerId: 'a', at: t, priceCents: 600));
+    meals = addMeal(meals, MealLog(hawkerId: 'b', at: t.add(const Duration(minutes: 2))));
+    expect(meals.map((m) => (m.hawkerId, m.priceCents)), [('b', 600)]);
+    // A price on the newer tap wins.
+    meals = addMeal(meals, MealLog(hawkerId: 'c', at: t.add(const Duration(minutes: 4)), priceCents: 800));
+    expect(meals.map((m) => (m.hawkerId, m.priceCents)), [('c', 800)]);
+    // A meal hours later is a new meal and takes nothing over.
+    meals = addMeal(meals, MealLog(hawkerId: 'd', at: t.add(const Duration(hours: 6))));
+    expect(meals.map((m) => (m.hawkerId, m.priceCents)), [('c', 800), ('d', null)]);
   });
 
   test('History week total counts priced meals only and says how many have a price', () {

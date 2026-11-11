@@ -2207,12 +2207,21 @@ DateTime? mealTimeOn(DateTime logged, int hour, int minute, DateTime now) {
   return t.isAfter(now) ? null : t;
 }
 
-/// "Ate here" twice within 30 minutes is one meal: the newer tap replaces the older one.
-List<MealLog> addMeal(List<MealLog> meals, MealLog m) => [
-      for (final x in meals)
-        if (m.at.difference(x.at).abs() >= const Duration(minutes: 30)) x,
-      m,
-    ];
+/// "Ate here" twice within 30 minutes is one meal: the newer tap replaces the older one (a
+/// tap at the wrong place, corrected). A price typed on the older tap is kept when the newer
+/// one has none.
+List<MealLog> addMeal(List<MealLog> meals, MealLog m) {
+  int? carried;
+  final kept = <MealLog>[];
+  for (final x in meals) {
+    if (m.at.difference(x.at).abs() >= const Duration(minutes: 30)) {
+      kept.add(x);
+    } else {
+      carried = x.priceCents ?? carried;
+    }
+  }
+  return [...kept, if (m.priceCents == null && carried != null) m.withPrice(carried) else m];
+}
 
 /// Quick price chips for "Ate here" and History, in cents (SGD).
 const mealPriceChips = [400, 600, 800];
@@ -2230,10 +2239,13 @@ int? parseMealCents(String text) {
 }
 
 /// The price of the last meal with a price at [placeId], to preselect next time; null when none.
-int? lastMealPrice(List<MealLog> meals, String placeId) {
+/// For places other than hawker centres the id is only a position, which a food court shares
+/// with its neighbours, so [name] must match as well.
+int? lastMealPrice(List<MealLog> meals, String placeId, {String? name}) {
   MealLog? last;
   for (final m in meals) {
     if (m.hawkerId != placeId || m.priceCents == null) continue;
+    if (name != null && m.name != name) continue;
     if (last == null || !m.at.isBefore(last.at)) last = m;
   }
   return last?.priceCents;

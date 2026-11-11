@@ -509,7 +509,8 @@ class _AteHereButton extends ConsumerStatefulWidget {
 }
 
 class _AteHereButtonState extends ConsumerState<_AteHereButton> {
-  late int? _price = lastMealPrice(ref.read(habitsProvider).meals, widget.id);
+  late int? _price =
+      lastMealPrice(ref.read(habitsProvider).meals, widget.id, name: widget.place ? widget.name : null);
 
   @override
   Widget build(BuildContext context) {
