@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import http.client
 import json
 import os
 import re
@@ -100,8 +101,10 @@ def call(method: str, url: str, *, token: str = "", body=None, form=None, opener
             raw = response.read()
     except urllib.error.HTTPError as e:
         raise PromoteError(f"{where}: HTTP {e.code}: {_error_text(e.read())}") from None
-    except (urllib.error.URLError, TimeoutError) as e:
-        raise PromoteError(f"{where}: {getattr(e, 'reason', e)}") from None
+    except (OSError, http.client.HTTPException) as e:
+        # URLError and timeouts, and what urllib does not wrap: a reset or cut-off connection.
+        reason = getattr(e, "reason", None) or e
+        raise PromoteError(f"{where}: {type(e).__name__}: {reason}") from None
     if not raw:
         return {}
     try:
@@ -133,6 +136,33 @@ def sign_rs256(message: bytes, private_key_pem: str) -> bytes:
         # openssl's own output is not printed: keep anything about the key out of the log.
         raise PromoteError("openssl could not sign with the service account key.")
     return done.stdout
+
+
+def check_account(account_json: str, testing_account: str) -> list[str]:
+    """The production key must not be the key of the testing account. Returns warning lines.
+
+    The environment `play` (uploads to the testing tracks) asks nobody for approval. If the same
+    service account were used here, that environment could release to production too. The
+    repository variable PLAY_TESTING_ACCOUNT names the testing account's email, so this can check.
+    """
+    try:
+        email = str(json.loads(account_json)["client_email"]).strip().lower()
+    except (ValueError, KeyError, TypeError):
+        email = ""  # token_request reports a bad key file
+    testing = testing_account.strip().lower()
+    if not testing:
+        return [
+            "Repository variable PLAY_TESTING_ACCOUNT is not set, so this run could not check "
+            "that the production key belongs to a service account of its own "
+            "(docs/DEPLOY.md, Production releases from the phone)."
+        ]
+    if email and email == testing:
+        raise PromoteError(
+            "The key in environment play-production belongs to the testing service account "
+            "(repository variable PLAY_TESTING_ACCOUNT). Production needs a service account of "
+            "its own: docs/DEPLOY.md, Production releases from the phone."
+        )
+    return []
 
 
 def token_request(account_json: str, now: int | None = None, signer=sign_rs256) -> dict:
@@ -236,7 +266,8 @@ def describe(release: dict) -> str:
     share = percent_of(release)
     at = "" if share is None or release.get("status") == "completed" else f" at {share:g}%"
     code = ", ".join(str(c) for c in codes(release)) or "no versionCode"
-    return f"{code} ({release.get('name') or 'no name'}, {release.get('status')}{at})"
+    name = _cell(release.get("name") or "no name")
+    return f"{code} ({name}, {_cell(release.get('status') or 'no status')}{at})"
 
 
 def table(track: str, releases: list[dict]) -> list[str]:
@@ -509,16 +540,18 @@ def run(
             except PromoteError:
                 pass  # an uncommitted edit changes nothing and expires by itself
     # Read the track again in a fresh edit: the summary shows what Google Play now holds.
-    check = api.create_edit()
+    check = None
     try:
+        check = api.create_edit()
         after = api.get_track(check, "production")
     except PromoteError as e:
         raise CommitError(f"The edit was committed, but reading it back failed: {e}") from None
     finally:
-        try:
-            api.delete_edit(check)
-        except PromoteError:
-            pass
+        if check is not None:
+            try:
+                api.delete_edit(check)
+            except PromoteError:
+                pass
     out += ["", "### After (committed)", "", *table("production", after)]
     if not _same(releases[0], after):
         raise CommitError(
@@ -551,6 +584,9 @@ def main(argv: list[str] | None = None) -> int:
         account = os.environ.get("PLAY_SERVICE_ACCOUNT_JSON", "")
         if not account:
             raise PromoteError("Secret PLAY_SERVICE_ACCOUNT_JSON is not set in this environment.")
+        for warning in check_account(account, os.environ.get("PLAY_TESTING_ACCOUNT", "")):
+            print(f"::warning title=promote::{warning}")
+            out += [f"**Warning:** {warning}", ""]
         api = PlayApi(access_token(account))
         run(
             api,
@@ -568,7 +604,8 @@ def main(argv: list[str] | None = None) -> int:
             out += ["", "Nothing was changed on Google Play."]
         print(f"::error title=promote::{message}")
         code = 1
-    text = "\n".join(out) + "\n"
+    # One line stays one line: no value can start a line of its own (a workflow command).
+    text = "\n".join(" ".join(line.split()) for line in out) + "\n"
     print(text)
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:

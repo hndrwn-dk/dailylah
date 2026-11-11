@@ -25,17 +25,19 @@ on:
         type: boolean
         default: false
 permissions: {}
-# Shares the group of the `play` job in app.yml: an upload and a promotion never overlap.
+# One promote run at a time. A group of its own, not `play-upload` of app.yml: a run holds its
+# group while it waits for approval, and a second waiting run would cancel a pending upload.
+# Google Play keeps two overlapping edits safe: the later commit fails.
 concurrency:
-  group: play-upload
+  group: play-promote
   cancel-in-progress: false
 jobs:
   promote:
     name: ${{ inputs.action }} on production${{ inputs.dry_run && ' (dry run)' || '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # The Play key is only in this environment: main only, and every run (a dry run too) waits
-    # for the owner's approval. The job installs nothing: checkout, git, the runner's python3
+    # The production Play key (a service account of its own, not the one in `play`) is only in
+    # this environment: main only, and every run (a dry run too) waits for the owner's approval. The job installs nothing: checkout, git, the runner's python3
     # (standard library) and openssl.
     environment: play-production
     permissions:
@@ -81,6 +83,9 @@ jobs:
       - name: Google Play production
         env:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          # Email of the service account in environment `play` (not a secret). The script
+          # refuses to run with that account's key: production has a service account of its own.
+          PLAY_TESTING_ACCOUNT: ${{ vars.PLAY_TESTING_ACCOUNT }}
           ACTION: ${{ inputs.action }}
           VERSION: ${{ steps.release.outputs.version }}
           ROLLOUT: ${{ inputs.rollout }}

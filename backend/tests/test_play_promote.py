@@ -303,6 +303,35 @@ def test_a_commit_that_changed_nothing_fails():
         promote(api)
 
 
+def test_a_failed_read_back_never_says_nothing_changed():
+    api = play()
+    create = api.create_edit
+
+    def create_once():
+        if api.did("commit"):
+            raise pp.PromoteError("POST /edits: HTTP 503: backend error")
+        return create()
+
+    api.create_edit = create_once
+    with pytest.raises(pp.CommitError, match="committed, but reading it back failed"):
+        promote(api)
+    assert api.tracks["production"][0]["versionCodes"] == ["745"]
+
+
+def test_a_cut_connection_is_a_clean_error():
+    def cut(request):
+        raise ConnectionResetError("reset by peer")
+
+    with pytest.raises(pp.PromoteError, match="ConnectionResetError"):
+        pp.PlayApi("tok", opener=cut).create_edit()
+
+    def closed(request):
+        raise pp.http.client.RemoteDisconnected("closed")
+
+    with pytest.raises(pp.PromoteError, match="RemoteDisconnected"):
+        pp.PlayApi("tok", opener=closed).commit_edit("e1")
+
+
 def test_release_notes_are_checked(tmp_path):
     notes = tmp_path / "whatsnew-en-US"
     notes.write_text("  New things.\n", encoding="utf-8")
@@ -434,6 +463,22 @@ def test_a_bad_key_file_is_named_without_its_content(secret):
     assert secret == "" or secret not in str(e.value)
 
 
+def test_the_production_key_must_not_be_the_testing_account():
+    key = json.dumps({"type": "service_account", "client_email": "Testing@p.iam.example"})
+    with pytest.raises(pp.PromoteError, match="belongs to the testing service account"):
+        pp.check_account(key, " testing@p.iam.example ")
+    assert pp.check_account(key, "other@p.iam.example") == []
+    (warning,) = pp.check_account(key, "")
+    assert "PLAY_TESTING_ACCOUNT is not set" in warning
+
+
+def test_a_release_name_cannot_start_a_line_or_add_markdown():
+    api = play(alpha=[rel(745, "2.4.0\n::error::x [a](http://e)")])
+    with pytest.raises(pp.PromoteError) as e:
+        promote(api, version="2.9.9")
+    assert "\n" not in str(e.value) and "::" not in str(e.value) and "[" not in str(e.value)
+
+
 def test_a_key_openssl_cannot_read_gives_no_key_material_in_the_error():
     account = {"type": "service_account", "client_email": "a@b", "private_key": "PRIVATE-STUFF"}
     with pytest.raises(pp.PromoteError) as e:
@@ -499,6 +544,21 @@ def test_main_refuses_a_version_that_is_not_a_version(cli, version):
     code, summary, _ = cli("--version", version)
     assert code == 1 and "Version must look like 2.4.0" in summary
     assert not cli.api.calls
+
+
+def test_main_refuses_the_testing_accounts_key(cli, monkeypatch):
+    monkeypatch.setenv(
+        "PLAY_SERVICE_ACCOUNT_JSON", '{"type": "service_account", "client_email": "t@x"}'
+    )
+    monkeypatch.setenv("PLAY_TESTING_ACCOUNT", "t@x")
+    code, summary, _ = cli("--version", "2.4.0")
+    assert code == 1 and "testing service account" in summary and not cli.api.calls
+
+
+def test_main_warns_when_it_cannot_check_the_account(cli):
+    code, summary, printed = cli("--version", "2.4.0", "--dry-run")
+    assert code == 0 and "**Warning:** Repository variable PLAY_TESTING_ACCOUNT" in summary
+    assert "::warning title=promote::" in printed
 
 
 def test_main_needs_the_secret(cli, monkeypatch):

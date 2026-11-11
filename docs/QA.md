@@ -324,7 +324,7 @@ The PRD is the owner's product requirements document; it is kept outside this re
 
 Everything below is done in the GitHub mobile app; no laptop and no Play Console. It needs the
 one-time settings in docs/DEPLOY.md "Production releases from the phone" (`PLAY_PUSH_TRACK=alpha`,
-the service account's production right, the `play-production` reviewer).
+a production service account of its own, the `play-production` reviewer).
 
 1. **Bump.** Merge the release PR (`version:` and `whatsnew-en-US`). The `app` workflow tests,
    signs, uploads the AAB to closed testing (`alpha`), tags `v<version>` and keeps the AAB, mapping
@@ -361,8 +361,10 @@ How `promote` works and what it refuses (`scripts/play_promote.py`):
   from pip and uses no third-party action. The upload action (`r0adkll/upload-google-play`) cannot
   move an existing versionCode without uploading a file; google-auth would add a dependency tree to
   that job; fastlane a Ruby toolchain.
-- The run is in the `play-upload` concurrency group with the `play` job of `app.yml`, so an upload
-  and a promotion never overlap.
+- One promote run at a time (concurrency group `play-promote`): a second run waits, also while
+  the first waits for approval, and a third replaces the waiting one, so approve or reject a run
+  before starting more. An `app.yml` upload is not held up by it; if both ever commit at the same
+  moment, Google Play refuses the later edit and that run fails with nothing changed.
 
 ## Before promoting a release to production
 
