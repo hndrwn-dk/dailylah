@@ -2398,6 +2398,8 @@ void main() {
       expect(s.busNotFaster('196', 3), 'Bus 196 · 3 stops · not faster than walking');
       expect(s.feederStep('10', 'A', 'B', 1), contains('1 stop'));
       expect(s.stopsTag(1), '1 stop');
+      // The walking card shows the minutes the bus is compared with.
+      expect(s.walkMin(walkMinutesTo(1010)), '16 min walk');
       expect(s.modeLabel('walk'), 'Walk');
       expect(s.modeEta('bicycle', 10, '2.4 km'), 'About 10 min by bicycle · 2.4 km');
       expect(s.modeEta('car', 8, '3.1 km'), 'About 8 min by car · 3.1 km');

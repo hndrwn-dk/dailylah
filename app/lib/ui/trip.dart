@@ -162,7 +162,7 @@ class _WalkCard extends ConsumerWidget {
                 const Icon(Icons.directions_walk, color: DL.ink),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(s.walkIsQuicker(s.walkMinutes(routeMetres(straight)), s.metres(straight)),
+                  child: Text(s.walkIsQuicker(s.walkMin(walkMinutesTo(straight)), s.metres(straight)),
                       style: t.titleMedium?.copyWith(color: DL.ink)),
                 ),
               ],
@@ -405,6 +405,7 @@ class _TransitBlock extends ConsumerWidget {
           suggestedMetres: trip.suggested ? distanceMeters(from.lat, from.lng, st.lat, st.lng) : null,
           from: from,
           fromName: fromName,
+          walkCard: st == trip.stops.first,
         ),
     ];
     final mrt = _MrtOption(from: from, to: to);
@@ -837,7 +838,11 @@ class TripBusCard extends ConsumerWidget {
     this.suggestedMetres,
     this.from,
     this.fromName,
+    this.walkCard = true,
   });
+
+  /// With several stops on a trip, only the first card shows the walking card beside a folded bus.
+  final bool walkCard;
 
   /// Where the trip starts, for "leave in N min" (walk to the stop plus live arrivals).
   final Place? from;
@@ -1054,7 +1059,7 @@ class TripBusCard extends ConsumerWidget {
                         ),
                       // Past walkInsteadMetres the trip has no walking card of its own: say what
                       // the bus was compared with.
-                      if (board != null && slow && straight >= walkInsteadMetres)
+                      if (board != null && slow && walkCard && straight >= walkInsteadMetres)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 6),
                           child: _WalkCard(to: to, straight: straight),

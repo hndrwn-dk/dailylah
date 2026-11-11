@@ -1,7 +1,7 @@
 // Plan a trip for short trips: Walk picked by itself, the bus folded away when it is no quicker
 // than walking, and every mode chip showing its own card before anything opens Google Maps.
 import 'package:dailylah/l10n.dart';
-import 'package:dailylah/logic.dart' show routeMetres, walkMinutesTo;
+import 'package:dailylah/logic.dart' show walkMinutesTo;
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/history.dart';
@@ -73,7 +73,7 @@ void main() {
     final chips = tester.widget<PillRow>(find.byType(PillRow).last);
     expect(chips.items.first.$3, 'Walk');
     expect(chips.selected, TravelMode.walk.name);
-    expect(find.textContaining(_s.walkMinutes(routeMetres(straight))), findsOneWidget);
+    expect(find.textContaining(_s.walkMin(walkMinutesTo(straight))), findsOneWidget);
     expect(find.byType(BusBoard), findsNothing);
     expect(find.textContaining(RegExp(r'to\scatch')), findsNothing);
     expect(launches, isEmpty);
@@ -92,13 +92,13 @@ void main() {
     await _plan(tester, _siglap, _goodwill);
     await _tapMode(tester, 'Bus/MRT');
     // Walking stays on top.
-    expect(find.textContaining(_s.walkMinutes(routeMetres(436))), findsOneWidget);
+    expect(find.textContaining(_s.walkMin(walkMinutesTo(436))), findsOneWidget);
     expect(find.textContaining(RegExp(r'to\scatch')), findsNothing);
     final folded = find.text(_s.busNotFaster('10', 1));
     expect(folded, findsOneWidget);
     expect(find.byType(BusBoard), findsNothing);
     expect(
-      tester.getTopLeft(find.textContaining(_s.walkMinutes(routeMetres(436)))).dy,
+      tester.getTopLeft(find.textContaining(_s.walkMin(walkMinutesTo(436)))).dy,
       lessThan(tester.getTopLeft(folded).dy),
     );
     // Still there for a rainy day: one tap opens the board.
