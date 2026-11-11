@@ -961,6 +961,8 @@ class S {
   String get sourceMuslimSgSub => 'Halal places. DailyLah is not affiliated with MUIS.';
   String get sourceOsm => 'OpenStreetMap via Geoapify';
   String get sourceOsmSub => 'Place names and public toilets. © OpenStreetMap contributors (ODbL)';
+  String get sourceUra => 'URA';
+  String get sourceUraSub => 'Private home sale prices and rents, from the Urban Redevelopment Authority.';
   String get sourceOneMap => 'OneMap';
   String get sourceOneMapSub => 'Address search, maps and commute times. $oneMapCredit';
   String get estimatesNote => 'Bus times, crowd levels, forecasts and prices are estimates.';

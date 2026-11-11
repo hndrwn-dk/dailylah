@@ -47,6 +47,7 @@ const _sources = {
   'source-muslimsg': muslimSgUrl,
   'source-osm': osmCopyrightUrl,
   'source-onemap': oneMapUrl,
+  'source-ura': uraUrl,
 };
 
 void main() {

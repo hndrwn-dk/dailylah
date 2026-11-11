@@ -22,6 +22,7 @@ const dataGovUrl = 'https://data.gov.sg';
 const muslimSgUrl = 'https://www.muslim.sg';
 const osmCopyrightUrl = 'https://www.openstreetmap.org/copyright';
 const oneMapUrl = 'https://www.onemap.gov.sg';
+const uraUrl = 'https://www.ura.gov.sg';
 const sodlUrl = 'https://data.gov.sg/open-data-licence';
 
 /// One credited data source on About: what it is, what it powers in the app and its page.
@@ -85,6 +86,13 @@ final dataSources = <DataSource>[
     url: oneMapUrl,
     title: (s) => s.sourceOneMap,
     powers: (s) => s.sourceOneMapSub,
+  ),
+  DataSource(
+    key: 'source-ura',
+    icon: Icons.apartment_outlined,
+    url: uraUrl,
+    title: (s) => s.sourceUra,
+    powers: (s) => s.sourceUraSub,
   ),
 ];
 
