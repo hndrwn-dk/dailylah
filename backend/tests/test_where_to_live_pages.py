@@ -70,7 +70,13 @@ def test_town_page_content():
     assert "quickest of 26 HDB towns" in text
     assert "(Q3 2026)" in text  # each price carries its own quarter
     assert "Compared with Sengkang" in text
-    assert "<script" not in page.replace('<script type="module" src="/shared/cta.js"></script>', "")
+    assert "<script" not in page
+    # The Play button is plain HTML: it works with JavaScript off.
+    assert (
+        '<a class="play" href="https://play.google.com/store/apps/details?id=com.tursinalabs.dailylah"'
+        in page
+    )
+    assert "MRT disruptions and the weather" in page and "MRT delay" not in page
     # Same area: Woodlands to the Woodlands office area.
     woodlands = next(t for t in data["towns"] if t["id"] == "woodlands")
     assert "In this area" in p.town_page(data, woodlands)

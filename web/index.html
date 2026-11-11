@@ -9,7 +9,7 @@
 <link rel="icon" href="/favicon.png" sizes="32x32">
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
 <meta property="og:title" content="DailyLah: know before you go lah">
-<meta property="og:description" content="Bus coming? MRT delay? Need umbrella meh? One free app for your Singapore day.">
+<meta property="og:description" content="Bus coming? MRT disrupted? Need umbrella meh? One free app for your Singapore day.">
 <meta property="og:image" content="https://dailylah.sg/brand/og.jpg">
 <meta property="og:url" content="https://dailylah.sg/">
 <meta name="twitter:card" content="summary_large_image">
@@ -58,9 +58,6 @@
   .play:active { transform: translate(2px, 3px); box-shadow: 1px 1px 0 var(--shadow); }
   .play:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
   .play svg { flex: none; }
-  .steps { margin: 16px 0 0; padding-left: 22px; font-size: 15px; max-width: 46ch; }
-  .steps li + li { margin-top: 4px; }
-  .cta { min-height: 140px; } /* holds the space while cta.js loads; below the real height */
   .fine { margin: 14px 0 0; color: var(--mist); font-size: 15px; }
 
   /* ---------------- LED bus board (the one loud thing) */
@@ -78,13 +75,14 @@
   .then { font: 600 14px/1.2 var(--body); color: var(--led-dim); }
   .arr { display: inline-block; background: var(--led); color: var(--board); border-radius: 7px; padding: 0 8px; }
   @media (prefers-reduced-motion: no-preference) {
-    .arr { animation: blink 1.1s steps(1) 0.6s 4; }
-    @keyframes blink { 50% { opacity: 0.15; } }
+    /* Same gentle pulse as the app's arriving badge (Pulse in app/lib/ui/widgets.dart): 0.9 s each way, for as long as it shows. */
+    .arr { animation: arr 0.9s ease-in-out infinite alternate; }
+    @keyframes arr { from { opacity: 1; } to { opacity: 0.55; } }
   }
   .load { font: 500 13px/1.3 var(--body); color: var(--led-dim); grid-column: 2 / 4; margin-top: -4px; }
 
   /* Beside "Know": one small scene per question in the tagline, in turn (umbrella, hawker closed,
-     haze, makan, bus 36 arriving, MRT delay, alamak), 3 s each, while that question is marked in the
+     haze, makan, bus 36 arriving, MRT disrupted, alamak), 3 s each, while that question is marked in the
      list below. Pure CSS, same 21 s clock for both. With reduced motion: bus 36 only, nothing marked. */
   body { overflow-x: clip; }
   .headline { position: relative; font: 700 clamp(52px, 9vw, 92px)/0.92 var(--display); }
@@ -292,7 +290,6 @@
   footer nav { display: inline; font-weight: 600; white-space: nowrap; }
   footer nav a + a::before { content: "·"; color: var(--mist); padding: 0 7px; display: inline-block; }
 </style>
-<script type="module" src="/shared/cta.js"></script>
 <script type="module" src="/shared/day.js"></script>
 <script type="module" src="/shared/screens.js"></script>
 </head>
@@ -359,11 +356,11 @@
       <ul class="asks">
         <li><span class="q" style="--i:0">Need umbrella meh?</span> <span class="q" style="--i:1">Hawker closed ah?</span></li>
         <li><span class="q" style="--i:2">Haze bad or not?</span> <span class="q" style="--i:3">Makan where?</span></li>
-        <li><span class="q" style="--i:4">Bus coming?</span> <span class="q" style="--i:5">MRT delay?</span> <span class="q" style="--i:6">Alamak...</span></li>
+        <li><span class="q" style="--i:4">Bus coming?</span> <span class="q" style="--i:5">MRT disrupted?</span> <span class="q" style="--i:6">Alamak...</span></li>
       </ul>
-      <!-- Filled by /shared/cta.js (one place for the Play link, label and steps). -->
-      <div class="cta" data-cta>
-        <noscript><p class="fine">Turn on JavaScript to see how to get DailyLah on Google Play.</p></noscript>
+      <!-- Plain HTML, no script: the same link on every page (web/tests checks they match). -->
+      <div class="cta">
+        <a class="play" href="https://play.google.com/store/apps/details?id=com.tursinalabs.dailylah" rel="noopener" aria-label="Get DailyLah on Google Play"><svg width="22" height="24" viewBox="0 0 22 24" aria-hidden="true"><path d="M2 1.5v21L20.5 12z" fill="#0F1618"/></svg>Get it on Google Play</a>
       </div>
       <p class="fine">Free for Android. No account, no ads, and your places stay on your phone.</p>
     </div>
@@ -425,7 +422,7 @@
       <li><time>7:40</time>
         <div class="dcard sticker"><p><b>I'm leaving.</b> Tap it, and DailyLah learns how long your trip really takes.</p><div class="mini" aria-hidden="true"><span class="pill teal tap">I&rsquo;m leaving</span><span class="pill sky">Usually 38 min</span></div></div></li>
       <li><time>7:55</time>
-        <div class="dcard sticker"><p><b>MRT delay? Plan B.</b> Buses first when your line is disrupted on your way.</p><div class="mini" aria-hidden="true"><span class="pill" style="background:#009645;color:#fff"><span class="big x">EWL</span></span><span class="pill red alert">Disrupted</span><span aria-hidden="true">&rarr;</span><span class="pill board">858</span></div></div></li>
+        <div class="dcard sticker"><p><b>MRT disrupted? Plan B.</b> Buses first when your line is disrupted on your way.</p><div class="mini" aria-hidden="true"><span class="pill" style="background:#009645;color:#fff"><span class="big x">EWL</span></span><span class="pill red alert">Disrupted</span><span aria-hidden="true">&rarr;</span><span class="pill board">858</span></div></div></li>
       <li><time>8:20</time>
         <div class="dcard sticker"><p><b>Wake me at my stop.</b> Buzzes before your stop, even with the screen off.</p><div class="mini" aria-hidden="true"><span class="pill amber"><span class="buzz" style="display:inline-flex"><svg width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" d="M7 1h10a2 2 0 0 1 2 2v18a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2zm0 4v14h10V5H7z"/></svg></span> Your stop is next</span></div></div></li>
       <li><time>12:30</time>
@@ -460,7 +457,7 @@
     <h2 id="faq-title">Questions</h2>
     <h3>Getting DailyLah</h3>
     <details><summary>Is there an iPhone version?</summary><p>Not yet: DailyLah is for Android 10 and newer.</p></details>
-    <details><summary>Why is it a beta?</summary><p>DailyLah is in closed testing on Google Play before its public release, so you join the testers group first.</p></details>
+    <details><summary>Where do I get it?</summary><p>On <a href="https://play.google.com/store/apps/details?id=com.tursinalabs.dailylah" rel="noopener">Google Play</a>, for phones with Android 10 or newer.</p></details>
     <details><summary>Is it free?</summary><p>Yes, DailyLah is free, with no ads and no account.</p></details>
     <details><summary>Where does the information come from?</summary><p>Public data from LTA DataMall, data.gov.sg, OneMap and URA. DailyLah is not affiliated with the Singapore Government. When a live reading is old, the app shows the time it was last updated.</p></details>
     <h3 id="privacy">Privacy and safety</h3>
@@ -473,6 +470,7 @@
     <details><summary>What permissions does it ask for?</summary><p>Location (only when you use it) and notifications. No contacts, photos, microphone or camera.</p></details>
     <h3>Using it</h3>
     <details><summary>How do alerts work without an account?</summary><p>Your phone checks the latest public data about every 15 minutes and decides itself: rain before you leave, MRT disruptions, your hawker closed tomorrow, your bus to catch. The notification is made on your phone; no push service is involved. Turn alerts off any time in the app or in Android settings.</p></details>
+    <details><summary>How does DailyLah know about MRT disruptions?</summary><p>Train alerts are based on LTA’s published service alerts. They cover the disruptions LTA announces, not every short delay, and may lag official announcements. DailyLah is not an official LTA, SMRT or SBS Transit channel.</p></details>
     <details><summary>Will it drain my battery?</summary><p>The 15-minute check is short and run by Android. GPS is used only while Wake me at my stop or I’m on the train is on, and stops when the ride ends.</p></details>
     <details><summary>Does it work without internet?</summary><p>Your saved places, the downloaded public data (hawker centres, schools, parks, car parks and more) and the last live readings stay on your phone. Live bus times and train alerts need a connection.</p></details>
     <details><summary>How do I report a problem or suggest something?</summary><p>Email <a href="mailto:support@tursinalabs.com">support@tursinalabs.com</a>, or tap Contact us in the app’s About page.</p></details>

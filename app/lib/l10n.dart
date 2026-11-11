@@ -400,7 +400,7 @@ class S {
   String get rideTitle => 'On the train';
   String rideRunning(String station) => 'Riding to $station';
   String rideNextStop(String station) => 'Next stop: $station. Get ready to alight.';
-  String rideDisrupted(String line) => 'Delay on the $line. Open DailyLah for Plan B.';
+  String rideDisrupted(String line) => 'Disruption on the $line. Open DailyLah for Plan B.';
   String get imOnTrain => "I'm on the train";
   String get imOnTrainSub => 'Watches the line and tells you before your stop';
   String lineRunningNormally(String line) => '$line running normally';
@@ -411,7 +411,7 @@ class S {
   String get rideOk => 'Running normally';
   String get rideChecking => 'Checking the line…';
   String get rideCheckNote => 'Checked every 2 min while you ride';
-  String rideDelayOn(String line) => 'Delay on the $line';
+  String rideDisruptionOn(String line) => 'Disruption on the $line';
   String get ridePassed => 'passed';
   String get rideAboutHere => 'about here';
   String get rideAlertHere => 'alert here';
@@ -423,8 +423,8 @@ class S {
   String rideAlertSub(String station) => 'At $station, with sound and vibration';
   String get rideStop => 'Stop';
   String get rideArrived => "I've arrived";
-  String rideBannerSub(int left, String eta, String? delay) =>
-      '${left == 1 ? '1 stop' : '$left stops'} left · about $eta · ${delay ?? 'running normally'}';
+  String rideBannerSub(int left, String eta, String? disruption) =>
+      '${left == 1 ? '1 stop' : '$left stops'} left · about $eta · ${disruption ?? 'running normally'}';
   String walkIsQuicker(String minutes, String dist) => '$minutes · $dist';
   /// The walk all the way, in the minutes the bus is compared with (`walkMinutesTo`).
   String walkMin(int minutes) => '$minutes min walk';
@@ -977,7 +977,25 @@ class S {
   String get termsOfService => 'Terms of service';
   String get contactUs => 'Contact us';
   String get dataSources => 'Data sources';
-  String get dataAttribution => 'Contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, SportSG, PA and MOE accessed through data.gov.sg, made available under the Singapore Open Data Licence. Halal places are listed from Muslim.sg; DailyLah is not affiliated with MUIS. Place names and public toilets include data © OpenStreetMap contributors (ODbL), through Geoapify. Bus times, crowd levels, forecasts and prices are estimates.';
+  // The statement the Singapore Open Data Licence asks for: the sources and the licence, in one sentence.
+  String get dataAttribution => 'Contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, SportSG, PA and MOE accessed through data.gov.sg, made available under the Singapore Open Data Licence.';
+  String get sourceLta => 'LTA DataMall';
+  String get sourceLtaSub => 'Bus arrivals, MRT, car parks and taxis';
+  String get sourceDataGov => 'data.gov.sg';
+  String get sourceDataGovSub => 'Weather, hawker centres, libraries, schools, parks and more, from:';
+  /// The agencies whose data.gov.sg datasets the app uses, as named in [dataAttribution].
+  List<String> get dataAgencies => const ['NEA', 'HDB', 'CEA', 'MUIS', 'NParks', 'NLB', 'SportSG', 'PA', 'MOE'];
+  String get sourceMuslimSg => 'Muslim.sg';
+  String get sourceMuslimSgSub => 'Halal places. DailyLah is not affiliated with MUIS.';
+  String get sourceOsm => 'OpenStreetMap via Geoapify';
+  String get sourceOsmSub => 'Place names and public toilets. © OpenStreetMap contributors (ODbL)';
+  String get sourceUra => 'URA';
+  String get sourceUraSub => 'Private home sale prices and rents, from the Urban Redevelopment Authority.';
+  String get sourceOneMap => 'OneMap';
+  String get sourceOneMapSub => 'Address search, maps and commute times. $oneMapCredit';
+  String get estimatesNote => 'Bus times, crowd levels, forecasts and prices are estimates.';
+  String get openDataLicence => 'Singapore Open Data Licence';
+  String get opensWebsite => 'Opens in your browser';
   String get independent => 'DailyLah is an independent app and is not affiliated with LTA, NEA, HDB or the Singapore government.';
   String get openSourceLicences => 'Open-source licences';
   String cannotOpen(String url) => 'Cannot open $url';

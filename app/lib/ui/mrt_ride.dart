@@ -145,7 +145,7 @@ Future<void> finishRide(BuildContext context, WidgetRef ref) async {
   if (onPage && nav.canPop()) nav.maybePop();
 }
 
-/// Green "Running normally" or amber "Delay on the X Line" with LTA's detail.
+/// Green "Running normally" or amber "Disruption on the X Line" with LTA's detail.
 class RideStatusCard extends ConsumerWidget {
   const RideStatusCard({super.key, required this.state});
   final RideState state;
@@ -169,7 +169,7 @@ class RideStatusCard extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    state.alerts == null ? s.rideChecking : ok ? s.rideOk : s.rideDelayOn(s.lineName(bad.first.line)),
+                    state.alerts == null ? s.rideChecking : ok ? s.rideOk : s.rideDisruptionOn(s.lineName(bad.first.line)),
                     style: t.titleSmall?.copyWith(color: DL.ink),
                   ),
                   Text(
@@ -318,7 +318,7 @@ class RideBanner extends ConsumerWidget {
                   children: [
                     Text(s.rideTo(st.ride.alight.name), style: t.titleSmall?.copyWith(color: DL.ink)),
                     Text(
-                      s.rideBannerSub(left, clockLabel(st.eta(now)), bad.isEmpty ? null : s.rideDelayOn(s.lineName(bad.first.line))),
+                      s.rideBannerSub(left, clockLabel(st.eta(now)), bad.isEmpty ? null : s.rideDisruptionOn(s.lineName(bad.first.line))),
                       style: t.bodySmall?.copyWith(color: DL.ink),
                     ),
                   ],

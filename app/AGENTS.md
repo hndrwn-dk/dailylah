@@ -101,6 +101,12 @@ feature, screen, provider or rule moves, appears or goes away.
   and hawkers (`ShareChoice`, `encodeShareCode`); the receiver ticks what to take (`readShareCode`,
   `shareConflicts`, `applyShare`), and a saved place is only replaced when ticked. About has Share
   DailyLah and Rate (Play Store, `openPlayListing`).
+- About > Data sources (`AboutDailyLahPage` in `ui/about.dart`): one card with a row per credited source
+  (`dataSources`, `DataSource`: LTA DataMall, data.gov.sg with the agencies as chips from `S.dataAgencies`,
+  Muslim.sg, OpenStreetMap via Geoapify, OneMap, URA; a tap opens the source's page, URLs are constants in
+  about.dart), the full Singapore Open Data Licence statement under it (`S.dataAttribution`), the estimates
+  note as an info `AlertBanner`, a licences card (open data licence, in-app open-source licences) and the
+  independence line as the footer. A new data source gets a row there. Tests: `test/about_test.dart`.
 - Appearance: More > Appearance picks follow the phone / light / dark (`Favorites.theme`: '', 'light',
   'dark'; `themeModeFor` in theme.dart). Dark mode keeps sticker surfaces (mint, sky, amber) with ink text.
 - What's new: after an update, Today shows `WhatsNewCard` with `S.whatsNewNotes` until closed

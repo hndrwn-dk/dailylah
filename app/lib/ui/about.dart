@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../l10n.dart';
 import '../providers.dart';
 import 'widgets.dart';
 
@@ -14,6 +15,86 @@ const productUrl = 'https://www.tursinalabs.com/products/dailylah';
 /// The app's own website (landing page). Legal pages stay on tursinalabs.com.
 const siteUrl = 'https://dailylah.sg';
 const supportEmail = 'support@tursinalabs.com';
+
+/// Data sources credited on About, and the licence most of the data comes under.
+const ltaDataMallUrl = 'https://datamall.lta.gov.sg';
+const dataGovUrl = 'https://data.gov.sg';
+const muslimSgUrl = 'https://www.muslim.sg';
+const osmCopyrightUrl = 'https://www.openstreetmap.org/copyright';
+const oneMapUrl = 'https://www.onemap.gov.sg';
+const uraUrl = 'https://www.ura.gov.sg';
+const sodlUrl = 'https://data.gov.sg/open-data-licence';
+
+/// One credited data source on About: what it is, what it powers in the app and its page.
+class DataSource {
+  const DataSource({
+    required this.key,
+    required this.icon,
+    required this.url,
+    required this.title,
+    required this.powers,
+    this.chips,
+  });
+
+  /// Widget key of the row (`source-lta`...).
+  final String key;
+  final IconData icon;
+  final String url;
+  final String Function(S s) title;
+
+  /// What it powers, with the credit its licence asks for.
+  final String Function(S s) powers;
+
+  /// Small chips under the text (the agencies behind data.gov.sg).
+  final List<String> Function(S s)? chips;
+}
+
+/// The rows of About > Data sources, in order.
+final dataSources = <DataSource>[
+  DataSource(
+    key: 'source-lta',
+    icon: Icons.directions_bus_outlined,
+    url: ltaDataMallUrl,
+    title: (s) => s.sourceLta,
+    powers: (s) => s.sourceLtaSub,
+  ),
+  DataSource(
+    key: 'source-datagov',
+    icon: Icons.account_balance_outlined,
+    url: dataGovUrl,
+    title: (s) => s.sourceDataGov,
+    powers: (s) => s.sourceDataGovSub,
+    chips: (s) => s.dataAgencies,
+  ),
+  DataSource(
+    key: 'source-muslimsg',
+    icon: Icons.restaurant_outlined,
+    url: muslimSgUrl,
+    title: (s) => s.sourceMuslimSg,
+    powers: (s) => s.sourceMuslimSgSub,
+  ),
+  DataSource(
+    key: 'source-osm',
+    icon: Icons.public,
+    url: osmCopyrightUrl,
+    title: (s) => s.sourceOsm,
+    powers: (s) => s.sourceOsmSub,
+  ),
+  DataSource(
+    key: 'source-onemap',
+    icon: Icons.map_outlined,
+    url: oneMapUrl,
+    title: (s) => s.sourceOneMap,
+    powers: (s) => s.sourceOneMapSub,
+  ),
+  DataSource(
+    key: 'source-ura',
+    icon: Icons.apartment_outlined,
+    url: uraUrl,
+    title: (s) => s.sourceUra,
+    powers: (s) => s.sourceUraSub,
+  ),
+];
 
 /// Google Play listing. The market:// link opens the Play Store app; the web link is the fallback.
 const playPackage = 'com.tursinalabs.dailylah';
@@ -60,6 +141,8 @@ class AboutDailyLahPage extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
     void open(String url) => openExternal(context, Uri.parse(url), s.cannotOpen(url));
+    // Read out with the row, so a screen reader says the row leaves the app.
+    final external = Icon(Icons.open_in_new, size: 18, semanticLabel: s.opensWebsite);
     return Scaffold(
       appBar: AppBar(title: Text(s.about)),
       body: ListView(
@@ -137,22 +220,72 @@ class AboutDailyLahPage extends ConsumerWidget {
             ),
           ),
           SectionTitle(s.dataSources),
-          Text(s.dataAttribution, style: t.bodyMedium),
-          const SizedBox(height: 8),
-          Text(s.independent, style: t.bodyMedium),
-          TextButton(
-            style: TextButton.styleFrom(padding: EdgeInsets.zero, alignment: Alignment.centerLeft),
-            onPressed: () => open('https://data.gov.sg/open-data-licence'),
-            child: const Text('Singapore Open Data Licence'),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(padding: EdgeInsets.zero, alignment: Alignment.centerLeft),
-            onPressed: () => showLicensePage(
-              context: context,
-              applicationName: 'DailyLah',
-              applicationVersion: appVersionLabel,
+          Panel(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: Column(
+              children: [
+                for (final d in dataSources)
+                  ListTile(
+                    key: ValueKey(d.key),
+                    leading: Icon(d.icon),
+                    title: Text(d.title(s)),
+                    subtitle: d.chips == null
+                        ? Text(d.powers(s))
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(d.powers(s)),
+                              const SizedBox(height: 6),
+                              InfoChips(d.chips!(s)),
+                              const SizedBox(height: 4),
+                            ],
+                          ),
+                    trailing: external,
+                    onTap: () => open(d.url),
+                  ),
+              ],
             ),
-            child: Text(s.openSourceLicences),
+          ),
+          // The statement the Singapore Open Data Licence asks for stays in full under the card.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
+            child: Text(s.dataAttribution, style: t.bodySmall),
+          ),
+          AlertBanner(
+            key: const ValueKey('estimates-note'),
+            icon: Icons.info_outline,
+            text: s.estimatesNote,
+            tone: AlertTone.info,
+          ),
+          const SizedBox(height: 4),
+          Panel(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Column(
+              children: [
+                ListTile(
+                  key: const ValueKey('licence-sodl'),
+                  leading: const Icon(Icons.gavel_outlined),
+                  title: Text(s.openDataLicence),
+                  trailing: external,
+                  onTap: () => open(sodlUrl),
+                ),
+                ListTile(
+                  key: const ValueKey('licence-oss'),
+                  leading: const Icon(Icons.code),
+                  title: Text(s.openSourceLicences),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => showLicensePage(
+                    context: context,
+                    applicationName: 'DailyLah',
+                    applicationVersion: appVersionLabel,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(s.independent, style: t.bodySmall),
           ),
         ],
       ),

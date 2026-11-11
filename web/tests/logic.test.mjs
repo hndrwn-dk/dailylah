@@ -1,9 +1,8 @@
 // Run: node --test 'web/tests/*.test.mjs'   (CI: .github/workflows/web.yml)
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { CTA } from "../shared/cta.js";
 import {
   changeChoices,
   commuteText,
@@ -261,25 +260,56 @@ test("the published where-to-live.json ranks without errors", () => {
 });
 
 test("page scripts never write HTML from strings", () => {
-  for (const file of ["where-to-live/app.js", "where-to-live/logic.js", "shared/cta.js"]) {
+  for (const file of ["where-to-live/app.js", "where-to-live/logic.js"]) {
     const src = read(file).replace(/^\s*\/\/.*$/gm, "");
     assert.doesNotMatch(src, /\.innerHTML|\.outerHTML|insertAdjacentHTML|document\.write/, file);
   }
 });
 
-test("the Play link and its steps live only in shared/cta.js", () => {
-  assert.match(CTA.url, /^https:\/\/play\.google\.com\//);
-  // Short label on the button (fits a 360 px phone), the full name for screen readers.
-  assert.equal(CTA.label, "Join the beta");
-  assert.ok(CTA.label.length <= 16, "button label must stay short");
-  assert.equal(CTA.ariaLabel, "Join the beta on Google Play");
-  assert.ok(CTA.ariaLabel.startsWith(CTA.label));
-  for (const page of ["index.html", "where-to-live/index.html"]) {
+const PLAY_URL = "https://play.google.com/store/apps/details?id=com.tursinalabs.dailylah";
+
+test("every page links to the Play listing in plain HTML, with no script", () => {
+  const towns = readdirSync(new URL("where-to-live-towns/", web)).filter((f) => f.endsWith(".html"));
+  assert.ok(towns.length >= 27, "the generated town pages are checked too");
+  for (const page of ["index.html", "where-to-live/index.html", ...towns.map((f) => `where-to-live-towns/${f}`)]) {
     const html = read(page);
-    assert.doesNotMatch(html, /play\.google\.com|groups\.google\.com/, page);
-    assert.match(html, /data-cta/, page);
-    assert.match(html, /src="\/shared\/cta\.js"/, page);
+    // The button is an ordinary link outside <noscript>, so it works with JavaScript off.
+    const outside = html.replace(/<noscript>[\s\S]*?<\/noscript>/g, "");
+    const button = outside.match(/<a class="play" href="([^"]+)" rel="noopener" aria-label="([^"]+)">(?:<svg[\s\S]*?<\/svg>)?([^<]+)<\/a>/);
+    assert.ok(button, `${page} has the Play button`);
+    assert.equal(button[1], PLAY_URL, page);
+    assert.equal(button[2], "Get DailyLah on Google Play", page);
+    assert.equal(button[3], "Get it on Google Play", page);
+    // Every Play link on the site is the public listing: no testing or opt-in link is left.
+    for (const [, href] of html.matchAll(/href="(https:\/\/play\.google\.com[^"]*)"/g)) assert.equal(href, PLAY_URL, page);
+    assert.doesNotMatch(html, /groups\.google\.com|apps\/testing|data-cta|shared\/cta\.js/, page);
+    assert.doesNotMatch(html, /\bbeta\b|closed testing|testers?\b|coming soon|early access|Turn on JavaScript to see how to get/i, page);
   }
+});
+
+test("train alerts are called disruptions, with LTA named as the source", () => {
+  const html = read("index.html");
+  const wtl = read("where-to-live/index.html");
+  // LTA's service alerts cover disruptions, not ordinary short delays: the site never promises those.
+  assert.doesNotMatch(html.replace(/animation-delay|transition-delay/g, ""), /MRT delays?\b/i);
+  assert.doesNotMatch(wtl, /MRT delays?\b/i);
+  assert.match(html, /<b>MRT disrupted\? Plan B\.<\/b> Buses first when your line is disrupted on your way\./);
+  assert.match(html, /og:description" content="Bus coming\? MRT disrupted\?/);
+  assert.match(html, /Train alerts are based on LTA’s published service alerts\./);
+  assert.match(html, /may lag official announcements/);
+  assert.match(html, /not an official LTA, SMRT or SBS Transit channel/);
+});
+
+test("the Arr badge in the hero keeps pulsing, and only when motion is welcome", () => {
+  const css = read("index.html").match(/<style>([\s\S]*?)<\/style>/)[1];
+  // Outside the media query the badge has no animation: reduced motion holds it still.
+  assert.doesNotMatch(css.match(/\.arr \{[^}]*\}/)[0], /animation/);
+  const motion = css.slice(css.indexOf("@media (prefers-reduced-motion: no-preference)"));
+  const rule = motion.match(/\.arr \{ animation: ([^;]+); \}/);
+  assert.ok(rule, "the pulse sits in the first reduced-motion guard");
+  // It used to stop after four blinks, which read as a static badge.
+  assert.match(rule[1], /^arr 0\.9s ease-in-out infinite alternate$/);
+  assert.match(motion, /@keyframes arr \{ from \{ opacity: 1; \} to \{ opacity: 0\.55; \} \}/);
 });
 
 test("the landing page hero and tagline stay as they are", () => {
@@ -291,7 +321,7 @@ test("the landing page hero and tagline stay as they are", () => {
   assert.deepEqual(lines, [
     "Need umbrella meh? Hawker closed ah?",
     "Haze bad or not? Makan where?",
-    "Bus coming? MRT delay? Alamak...",
+    "Bus coming? MRT disrupted? Alamak...",
   ]);
   // The hero still comes first; the Where to live? teaser sits after the tabs.
   assert.ok(html.indexOf('class="hero"') < html.indexOf('class="tool sticker"'));

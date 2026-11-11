@@ -41,7 +41,7 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - `web/` — static site on Vercel, no build step: landing page, the "Where to live?" page
   (`web/where-to-live/`) and its generated town pages
   (`web/where-to-live-towns/`, never hand-edited) with their share images (`web/og/where-to-live/`,
-  made by `scripts/build_og_images.py`), the shared Play CTA (`web/shared/cta.js`), the landing
+  made by `scripts/build_og_images.py`), the Play button as plain HTML on every page (no script; `web/tests` checks all pages carry the same link), the landing
   page motion (`web/shared/day.js` timeline, `web/shared/screens.js` tab deck; the hero scenes are CSS
   only; each works without JS and respects reduced motion), vendored Leaflet (`web/vendor/`), static data bundles in `web/data/`, tests in `web/tests/`.
 - `contracts/v1/` — one example per `/v1/*` endpoint, checked by the backend and app tests
