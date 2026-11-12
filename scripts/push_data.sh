@@ -148,25 +148,37 @@ overlay_data() {
 # Sets data_tip to the commit of the data branch on remote $1, or to "" when it does not exist.
 # Full ref names: a tag called `data` or `main` must never be taken for the branch.
 fetch_data_tip() {
-  local remote=$1 listed line want=""
+  local remote=$1 want
   data_tip=""
-  # ls-remote and fetch match a name by its end, so `refs/heads/data` would also find a branch
-  # called `refs/heads/refs/heads/data`: only the line with exactly this ref counts.
-  listed=$(git ls-remote "$remote" "refs/heads/$DATA_BRANCH" 2>/dev/null) || return 1
-  while IFS= read -r line; do
-    if [ "${line#*$'\t'}" = "refs/heads/$DATA_BRANCH" ]; then
-      want=${line%%$'\t'*}
-    fi
-  done <<< "$listed"
-  if [ -z "$want" ] && [ -n "$listed" ]; then
-    # git would also push to such a look-alike when the real branch is missing.
-    echo "::error::A branch whose name only ends in refs/heads/$DATA_BRANCH exists (${listed#*$'\t'}). Delete it: it is not the $DATA_BRANCH branch."
-    return 1
-  fi
+  want=$(only_ref "$remote" "refs/heads/$DATA_BRANCH") || return 1
   [ -n "$want" ] || return 0
   git fetch --quiet --depth 1 "$remote" "refs/heads/$DATA_BRANCH" || return 1
   [ "$(git rev-parse FETCH_HEAD)" = "$want" ] || return 1
   data_tip=$want
+}
+
+# Prints the commit of the ref named exactly $2 on remote $1 (nothing when there is none).
+# ls-remote, fetch and push all match a name by its end, so `refs/heads/data` also finds a branch
+# or tag called `refs/heads/refs/heads/data`, and a push with both there fails as ambiguous (or,
+# with only the look-alike, goes to it). Any such ref is an error that names it.
+only_ref() {
+  local listed line sha="" other=""
+  # git's own message stays in the log: a wrong key or an outage must be readable there.
+  listed=$(git ls-remote "$1" "$2") || return 1
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    if [ "${line#*$'\t'}" = "$2" ]; then
+      sha=${line%%$'\t'*}
+    else
+      other=${line#*$'\t'}
+    fi
+  done <<< "$listed"
+  if [ -n "$other" ]; then
+    other=${other//%/%25} # a ref name may hold %0A, which GitHub would turn into a new line
+    echo "::error::A ref whose name only ends in $2 exists: $other. Delete it; git cannot tell the two apart when it pushes." >&2
+    return 1
+  fi
+  printf '%s' "$sha"
 }
 
 # Prints `main` or `data`: where the published data lives (web/data-source.txt of the checkout).
@@ -189,8 +201,15 @@ data_tree() {
     specs+=("$(pathspec "$entry")")
   done
   rm -f "$index"
-  git ls-files --stage -z -- "${specs[@]}" | GIT_INDEX_FILE="$index" git update-index -z --index-info
-  GIT_INDEX_FILE="$index" git write-tree
+  # Step by step, each one checked: this runs where `set -e` is off, and write-tree on an index
+  # that was never filled would answer with the empty tree.
+  git ls-files --stage -z -- "${specs[@]}" > "$dir/entries" || return 1
+  if [ ! -s "$dir/entries" ]; then
+    echo "::error::No data files to publish: the tree for the $DATA_BRANCH branch would be empty." >&2
+    return 1
+  fi
+  GIT_INDEX_FILE="$index" git update-index -z --index-info < "$dir/entries" || return 1
+  GIT_INDEX_FILE="$index" git write-tree || return 1
 }
 
 # Tells Vercel to deploy the site again, so it serves the data just pushed. The hook can do
@@ -338,37 +357,49 @@ apply_patch() {
 # Source `main`: gives the data branch a copy of the data files just pushed to main. It is made
 # from main alone; what the branch holds is only its parent, never read.
 mirror_to_data() {
-  local tree
+  local expected=$1 tree commit now
   tree=$(data_tree) || return 1
+  [ -n "$tree" ] || return 1
+  # Another run may have pushed to main since this one did: its copy is the newer one, and
+  # this one must not land on top of it. (The push jobs of the two data workflows also share
+  # one concurrency group, so they do not overlap; a merged pull request still can.)
+  now=$(only_ref "$remote" refs/heads/main) || return 1
+  if [ "$now" != "$expected" ]; then
+    echo "main has moved on since this run: leaving the copy to the newer run."
+    return 1
+  fi
   fetch_data_tip "$remote" || return 1
   if [ -n "$data_tip" ] && [ "$tree" = "$(git rev-parse "$data_tip^{tree}")" ]; then
     return 0
   fi
-  git push --quiet "$remote" \
-    "$(git commit-tree "$tree" ${data_tip:+-p "$data_tip"} -m "$message"):refs/heads/$DATA_BRANCH"
+  commit=$(git commit-tree "$tree" ${data_tip:+-p "$data_tip"} -m "$message") || return 1
+  [ -n "$commit" ] || return 1
+  git push --quiet "$remote" "$commit:refs/heads/$DATA_BRANCH"
 }
 
 # Whenever a run with source `main` ends, the data branch equals main's data files, so the
-# switch to `data` never starts from something older. A failure is only a warning.
+# switch to `data` never starts from something older. $1 is the commit of main the index stands
+# for. A failure is only a warning.
 copy_to_data() {
-  mirror_to_data || echo "::warning::The copy on the $DATA_BRANCH branch was not updated (docs/DEPLOY.md, Data branch). The site is not affected."
+  mirror_to_data "$1" || echo "::warning::The copy on the $DATA_BRANCH branch was not updated (docs/DEPLOY.md, Data branch). The site is not affected."
 }
 
 for try in 1 2 3; do
   # main first, by its full ref name: its code (this run's generator) and its data-source.txt.
-  if git fetch --quiet --depth 1 "$remote" refs/heads/main && git reset --quiet --hard FETCH_HEAD; then
+  if only_ref "$remote" refs/heads/main > /dev/null \
+    && git fetch --quiet --depth 1 "$remote" refs/heads/main && git reset --quiet --hard FETCH_HEAD; then
     main_tip=$(git rev-parse HEAD)
     source=$(data_source)
     if [ "$source" = main ]; then
       # As before the data branch: the update goes to main, and Vercel deploys on that push.
       if [ "$patch" = - ]; then
         echo "Nothing to do: the pages are published from main."
-        copy_to_data
+        copy_to_data "$main_tip"
         exit 0
       fi
       if ! apply_patch; then
         echo "Nothing left to push: main already has these changes."
-        copy_to_data
+        copy_to_data "$main_tip"
         exit 0
       fi
       check_staged
@@ -376,13 +407,13 @@ for try in 1 2 3; do
       check_staged
       if git diff --cached --quiet; then
         echo "Nothing left to push: main already has these changes."
-        copy_to_data
+        copy_to_data "$main_tip"
         exit 0
       fi
       commit=$(git commit-tree "$(git write-tree)" -p "$main_tip" -m "$message")
       if git push --quiet "$remote" "$commit:refs/heads/main"; then
         echo "Pushed to main: $message"
-        copy_to_data
+        copy_to_data "$commit"
         exit 0
       fi
     elif overlay_data "$remote"; then
@@ -395,7 +426,10 @@ for try in 1 2 3; do
         run_generate
         check_staged
       fi
-      tree=$(data_tree)
+      tree=$(data_tree) && [ -n "$tree" ] || {
+        echo "::error::The tree for the $DATA_BRANCH branch could not be made."
+        exit 1
+      }
       if [ -n "$data_tip" ] && [ "$tree" = "$(git rev-parse "$data_tip^{tree}")" ]; then
         # Also after a run that pushed and then could not start the deployment.
         echo "Nothing left to push: the $DATA_BRANCH branch already has these changes."
@@ -404,7 +438,7 @@ for try in 1 2 3; do
       fi
       # A commit with only the data files, on top of the branch (the first one has no parent).
       commit=$(git commit-tree "$tree" ${data_tip:+-p "$data_tip"} -m "$message")
-      if git push --quiet "$remote" "$commit:refs/heads/$DATA_BRANCH"; then
+      if [ -n "$commit" ] && git push --quiet "$remote" "$commit:refs/heads/$DATA_BRANCH"; then
         echo "Pushed to $DATA_BRANCH: $message"
         redeploy
         exit 0
