@@ -430,7 +430,7 @@ class Log:
         From the first sight: the day before it (a day in VITALS_ZONE starts 7 or 8 hours
         after the UTC day, so one day earlier covers the rollout's first hours). After a halt
         the owner looked at the figures and resumed: those days are judged already, and
-        reading them again would halt the release once more every day. Then only whole days
+        reading them again would halt the release once more at every run. Then only whole days
         after the resume was seen count.
         """
         start, halted = None, False

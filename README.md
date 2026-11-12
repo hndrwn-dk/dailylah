@@ -115,8 +115,9 @@ A push to `main` that raises `version:` in `app/pubspec.yaml` becomes a release:
    and the R8 release build, and 10 Maestro flows run on an APK made from the signed AAB.
 3. It is uploaded to closed testing on Google Play, and the commit is tagged `v<version>`.
 4. After one approval by the owner, the same build goes to production as a staged rollout at
-   20%. A guard raises it to 50% and 100% after six hours at each step, or halts it and
-   opens an issue when Android vitals get worse.
+   20%. A guard raises it to 50% and 100% after six hours at each step. It halts a
+   staged release and opens an issue when Android vitals get worse; within that first day
+   vitals are not in yet, so the approval is the check.
 
 Merging the release pull request and that one approval are the only decisions. The full process,
 the switches and the manual override are in [`docs/QA.md`](docs/QA.md).

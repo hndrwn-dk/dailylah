@@ -415,7 +415,7 @@ production:
   is not stuck).
 - The guard writes the reason into its log before it halts. If the `release-halted` issue then
   cannot be opened (the run fails), the next run opens it. A halt and a resume by hand between
-  two daily runs are not seen by the guard: the hold and the health window go on as before.
+  two runs are not seen by the guard: the hold and the health window go on as before.
 - **Time at a fraction.** Google Play does not say when a release reached a fraction or left
   review. The guard keeps its own clock: one GitHub issue per versionCode (label
   `release-rollout`, "Production rollout: 2.4.0 (745)") with a marker for each state it saw; a
@@ -465,7 +465,7 @@ production:
   | --- | --- | --- |
   | `AUTO_PROMOTE` | off | `on` = the promote job of a release run asks for the approval and promotes |
   | `AUTO_ROLLOUT` | off | `on` = the guard acts |
-  | `ROLLOUT_HOLD_HOURS` | `6` (set by the workflow; the script alone would use 48) | hours at a fraction before the next step (the guard runs every six hours, so use multiples of 6) |
+  | `ROLLOUT_HOLD_HOURS` | `6` (set by the workflow; the script alone would use 48) | hours at a fraction before the next step (the guard runs every six hours, so use multiples of 6; 1 or less raises at the guard's first sight) |
   | `ROLLOUT_MIN_USER_DAYS` | `500` | daily users of the new version, summed over the days, below which health is unknown. At 1.09% that is about 5 affected users; fewer is noise |
   | `ROLLOUT_CRASH_BAD_PERCENT` | `1.09` | Google Play's overall bad behaviour threshold for the user-perceived crash rate |
   | `ROLLOUT_ANR_BAD_PERCENT` | `0.47` | the same for the user-perceived ANR rate |
@@ -516,8 +516,8 @@ A run that changes nothing says so.
   nothing changed.
   A run that waits for the owner's approval can hold the group (certain for `promote.yml`, whose
   group is on the workflow; expected, not yet seen, for the promote job of `app.yml`): the
-  guard's daily run and a manual `halt` then only queue behind it, and a later queued run cancels
-  the earlier one. So approve or reject a waiting promote first; do not leave it.
+  guard's scheduled runs (every six hours) and a manual `halt` then only queue behind it, and a
+  later queued run cancels the earlier one: a queued `halt` is replaced within six hours. So approve or reject a waiting promote first; do not leave it.
 
 ## What CI enforces before production
 
