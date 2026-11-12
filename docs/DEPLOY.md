@@ -53,20 +53,30 @@ Set up by hand under Settings > Environments, each limited to `main` with no adm
 - `play`: `PLAY_SERVICE_ACCOUNT_JSON`, the key of the testing service account (testing tracks
   only; uploads from `app.yml`).
 - `play-production`: `PLAY_SERVICE_ACCOUNT_JSON`, the key of the production service account (a
-  different account, see below), required reviewer: the repo owner (prevent self-review off).
-  Used by `promote.yml` and by an `app.yml` run with track `production`.
+  different account, see below), no required reviewer ("Production releases" step 3).
+  Used by the `promote` job of `app.yml`, by `rollout-guard.yml` and by `promote.yml`, never by
+  the upload job (`app.yml` offers no production track).
 
-## Production releases from the phone
-One-time settings for docs/QA.md "Production release from the phone". All of them work in a phone
-browser (github.com and play.google.com/console; the GitHub mobile app does not show repository
-settings).
+## Production releases
+One-time settings for docs/QA.md "Production release (automatic)". All of them work in a phone
+browser (github.com, play.google.com/console and console.cloud.google.com; the GitHub mobile app
+does not show repository settings).
+
+**Order matters.** Steps 3 and 6 take the last person out of the way to production, so do them
+only when nothing but a merged pull request can put a commit on `main`: the data workflows must
+no longer push to `main` with the deploy key, and the `main` ruleset must have no bypass
+([Rulesets](#rulesets), item 4). While the deploy key is still a bypass, keep the required
+reviewer on `play-production` and leave `AUTO_PROMOTE` unset: releases then go to closed testing
+as before, and production through Actions > promote with your approval. Steps 1, 2, 4 and 5 can be
+done at any time.
 
 1. **Version bumps go to closed testing.** GitHub > the repository > Settings > Secrets and
    variables > Actions > Variables tab > New repository variable: Name `PLAY_PUSH_TRACK`, Value
-   `alpha`. (See "Release track for a version bump" below to turn it off again.)
-2. **Production has a service account of its own.** Environment `play` asks nobody for approval
-   and hands its key to the upload action on every closed-testing release, so that account must
-   never be able to release to production. Two accounts:
+   `alpha`. (See "Release track for a version bump" below to turn it off again.) Keep it `alpha`:
+   with any other value nothing is promoted to production.
+2. **Production has a service account of its own.** Environment `play` hands its key to the
+   third-party upload action on every closed-testing release, so that account must never be able
+   to release to production. Two accounts:
    - The existing one (in `play`): Play Console > Users and permissions > the service account
      (its email ends in `.iam.gserviceaccount.com`) > App permissions > DailyLah. Under Releases
      keep only **"Release apps to testing tracks"**; "Release to production, exclude devices, and
@@ -83,25 +93,51 @@ settings).
      in a chat. `play` keeps the old key.
    - Settings > Secrets and variables > Actions > Variables > New repository variable: Name
      `PLAY_TESTING_ACCOUNT`, Value the email of the **existing** (testing) service account. It is
-     not a secret. `promote` refuses to run when the production key belongs to that account;
-     while the variable is missing only a dry run works, with a warning. This is a setup check:
-     what keeps the testing account out of production is its Play Console permission above.
-3. **`play-production` still asks the owner.** Settings > Environments > `play-production`:
-   Required reviewers lists the owner, "Prevent self-review" is off (the owner starts the run and
-   approves it), Deployment branches is `main` only, "Allow administrators to bypass" is off, and
-   the secret `PLAY_SERVICE_ACCOUNT_JSON` is listed.
-4. **Check it.** GitHub mobile > Actions > promote > Run workflow on `main` with `dry_run` on.
-   The run waits for the approval (a notification; Approve and deploy), then its summary shows
-   what `alpha` and production hold, with no warning about `PLAY_TESTING_ACCOUNT`. A permission
-   error from Google here means step 2 is not done.
+     not a secret. The promote job, the guard and `promote` refuse to run when the production key
+     belongs to that account; while the variable is missing only a dry run works, with a warning.
+     This is a setup check: what keeps the testing account out of production is its Play Console
+     permission above.
+3. **`play-production` asks nobody** (only after "Order matters" above). Settings > Environments > `play-production`: under
+   Deployment protection rules untick **Required reviewers** and Save protection rules.
+   Keep: Deployment branches and tags = Selected branches, `main` only; "Allow administrators to
+   bypass configured protection rules" off; no wait timer; the secret `PLAY_SERVICE_ACCOUNT_JSON`
+   listed. From then on a run on `main` reaches the production key without a click, so the
+   `main` ruleset below (pull request, required checks, no bypass for people) is what guards it,
+   together with its one bypass: the data deploy key can push to `main`, so from this step on it
+   is worth as much as the production key (docs/QA.md "Tooling and keys"). Keep exactly one
+   deploy key on the repository, only in environment `data-push`.
+4. **Android vitals for the guard.** The guard reads crash and ANR rates with the production
+   service account:
+   - Play Console > Users and permissions > the **production** service account > App permissions
+     > DailyLah: **"View app information and download bulk reports (read-only)"** is ticked (step
+     2 already asks for it; the Reporting API's reference calls it "View app information
+     (read-only)"). No other new permission.
+   - Google Cloud Console (console.cloud.google.com) > the project that owns the service account
+     > APIs & Services > Library > search **"Google Play Developer Reporting API"** > Enable.
+     ("Google Play Android Developer API" is already enabled there; it is a different API.)
+5. **Check it.** GitHub > Actions > rollout-guard > Run workflow on `main` with `dry_run` on
+   (while the reviewer is still on the environment, approve the run). Its
+   summary shows what production holds, "no staged rollout" or the hold and health lines, and no
+   warning about `PLAY_TESTING_ACCOUNT`. `HTTP 403` naming the Reporting API means step 4 is not
+   done; a permission error on the tracks means step 2.
+6. **Switch it on** (only after step 3). Settings > Secrets and variables > Actions > Variables > New repository
+   variable: Name `AUTO_PROMOTE`, Value `on`. From the next version bump a release goes to
+   production at 20% by itself and the guard raises it. **To stop:** edit the variable to `off`
+   (or delete it); nothing else changes, and Actions > promote still works by hand.
+7. Optional, same Variables tab, only to change a default: `ROLLOUT_HOLD_HOURS` (48),
+   `ROLLOUT_MIN_USER_DAYS` (500), `ROLLOUT_CRASH_BAD_PERCENT` (1.09), `ROLLOUT_ANR_BAD_PERCENT`
+   (0.47), `ROLLOUT_WORSE_FACTOR` (1.5). Their meaning: docs/QA.md "Rollout guard".
+8. Optional: Issues > Labels > New label `release-halted` and `release-rollout`, to pick their
+   colours (the guard creates both the first time it needs them), and watch the repository's
+   issues in the GitHub mobile app so a `release-halted` issue is a push notification.
 
 ## Release track for a version bump
 Repository variable `PLAY_PUSH_TRACK` (Settings > Secrets and variables > Actions > Variables tab)
 decides what a version bump on `main` does (docs/QA.md "Manual releases"):
 - Not set, or `manual`: build, test, sign, tag `v<version>` and a draft GitHub Release with the AAB,
   mapping and release notes. No Google Play upload; the owner uploads in Play Console by hand.
-- `alpha`: the same, and the `play` job uploads to closed testing. Production then follows with
-  Actions > promote ("Production releases from the phone" above).
+- `alpha`: the same, and the `play` job uploads to closed testing. Production then follows by
+  itself while `AUTO_PROMOTE` is `on` ("Production releases" above), else with Actions > promote.
 - Switch the automatic upload back on: New repository variable (or edit), Name `PLAY_PUSH_TRACK`,
   Value `alpha`, Add variable. Turn it off again: set it to `manual` or delete it.
 - Check it on the next release: the `analyze` job says `Release (manual upload)` or

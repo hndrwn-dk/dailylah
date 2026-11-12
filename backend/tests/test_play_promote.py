@@ -574,7 +574,143 @@ def test_main_needs_the_secret(cli, monkeypatch):
     assert code == 1 and "PLAY_SERVICE_ACCOUNT_JSON is not set" in summary
 
 
-# --- the workflow that runs it ---------------------------------------------------------
+# --- auto promote (the `promote` job of app.yml) -----------------------------------------
+
+
+def test_auto_promote_with_the_switch_on_promotes_at_20(cli, monkeypatch):
+    monkeypatch.setenv("AUTO_PROMOTE", "on")
+    code, summary, _ = cli(
+        "--auto", "--action", "promote", "--version", "v2.4.0", "--rollout", "20"
+    )
+    assert code == 0 and cli.api.did("commit")
+    assert "| production | 745 | 2.4.0 | inProgress | 20% |" in summary
+    assert cli.api.tracks["production"][0]["userFraction"] == 0.2
+
+
+@pytest.mark.parametrize("value", [None, "", "off", "ON", "1", "true"])
+def test_auto_promote_does_nothing_unless_the_switch_is_on(cli, monkeypatch, value):
+    monkeypatch.delenv("AUTO_PROMOTE", raising=False)
+    if value is not None:
+        monkeypatch.setenv("AUTO_PROMOTE", value)
+    # Without the key too: with the switch off the secret is not even read.
+    monkeypatch.delenv("PLAY_SERVICE_ACCOUNT_JSON")
+    code, summary, printed = cli("--auto", "--version", "2.4.0")
+    assert code == 0 and not cli.api.calls
+    assert "AUTO_PROMOTE is not `on`: nothing was read or changed" in summary
+    assert "::notice title=promote::" in printed
+
+
+def test_a_manual_run_does_not_need_the_switch(cli, monkeypatch):
+    monkeypatch.delenv("AUTO_PROMOTE", raising=False)
+    code, _, _ = cli("--version", "2.4.0")
+    assert code == 0 and cli.api.did("commit")
+
+
+@pytest.mark.parametrize(
+    ("alpha", "production", "why"),
+    [
+        ([rel(730, "2.2.0")], None, "is not on closed testing"),
+        ([rel(745, "2.4.0", "draft")], None, "not completed"),
+        ([rel(745, "2.4.0")], [rel(750, "2.5.0")], "older than production"),
+        ([rel(745, "2.4.0")], [rel(745, "2.4.0", "inProgress", 0.5)], "already on production"),
+    ],
+)
+def test_auto_promote_keeps_every_refusal(cli, monkeypatch, alpha, production, why):
+    monkeypatch.setenv("AUTO_PROMOTE", "on")
+    cli.api.tracks["alpha"] = alpha
+    if production is not None:
+        cli.api.tracks["production"] = production
+    before = copy.deepcopy(cli.api.tracks)
+    code, summary, _ = cli("--auto", "--version", "2.4.0")
+    assert code == 1 and why in summary and "Nothing was changed on Google Play." in summary
+    assert not cli.api.did("commit") and cli.api.tracks == before
+
+
+def test_auto_promote_ships_only_the_version_code_this_run_built(cli, monkeypatch):
+    monkeypatch.setenv("AUTO_PROMOTE", "on")
+    code, summary, _ = cli("--auto", "--version", "2.4.0", "--code", "744")
+    assert code == 1 and "holds versionCode 745, not 744" in summary
+    assert not cli.api.did("update") and not cli.api.did("commit")
+    code, _, _ = cli("--auto", "--version", "2.4.0", "--code", "745")
+    assert code == 0 and cli.api.did("commit")
+
+
+def test_the_token_can_ask_for_another_scope():
+    form = pp.token_request(
+        json.dumps({"type": "service_account", "client_email": "a@b", "private_key": "k"}),
+        now=1,
+        signer=lambda message, key: b"sig",
+        scope="one two",
+    )
+    assert json.loads(_unb64(form["assertion"].split(".")[1]))["scope"] == "one two"
+
+
+def test_an_error_body_that_cannot_be_read_is_still_a_clean_error():
+    class Broken(io.BytesIO):
+        def read(self, *args):
+            raise OSError("cut")
+
+    error = urllib.error.HTTPError("https://x", 502, "Bad Gateway", {}, Broken())
+    with pytest.raises(pp.PromoteError, match="HTTP 502: no details"):
+        pp.call("GET", "https://x/y", opener=FakeHttp([error]))
+
+
+# --- the workflows that run it ---------------------------------------------------------
+
+
+def test_app_yml_promotes_only_a_tagged_alpha_release_pushed_to_main_with_the_switch_on():
+    text = (ROOT / ".github" / "workflows" / "app.yml").read_text(encoding="utf-8")
+    workflow = yaml.safe_load(text)
+    assert "pull_request_target" not in workflow[True] and "workflow_run" not in workflow[True]
+    jobs = workflow["jobs"]
+    job = jobs["promote"]
+    assert job["needs"] == ["analyze", "play", "release-tag"]
+    condition = " ".join(job["if"].split())
+    for must in (
+        "!failure() && !cancelled()",
+        "github.event_name == 'push'",  # never a pull request or a manual run
+        "github.ref == 'refs/heads/main'",
+        "vars.AUTO_PROMOTE == 'on'",  # the kill switch; unset is off
+        "needs.analyze.outputs.track == 'alpha'",  # PLAY_PUSH_TRACK
+        "needs.play.result == 'success'",
+        "needs.release-tag.result == 'success'",
+        "needs.release-tag.outputs.released == 'yes'",
+    ):
+        assert must in condition
+    assert "||" not in condition  # every condition must hold
+    assert job["environment"] == "play-production"
+    assert job["permissions"] == {"contents": "read"}
+    assert job["concurrency"] == {"group": "play-promote", "cancel-in-progress": False}
+    (checkout, run) = job["steps"]
+    assert checkout["uses"].startswith("actions/checkout@") and len(checkout["uses"]) == 57
+    assert checkout["with"]["persist-credentials"] is False
+    assert checkout["with"]["sparse-checkout"].split() == [
+        "scripts/play_promote.py",
+        "docs/store/whatsnew/whatsnew-en-US",
+    ]
+    command = " ".join(run["run"].replace("\\\n", " ").split())
+    assert "python3 -I scripts/play_promote.py --auto --action promote" in command
+    assert '--version "$TAG" --code "$GITHUB_RUN_NUMBER" --rollout 20' in command
+    assert "pip" not in run["run"]
+    assert run["env"]["TAG"] == "${{ needs.release-tag.outputs.tag }}"
+    assert run["env"]["AUTO_PROMOTE"] == "${{ vars.AUTO_PROMOTE }}"
+    assert "${{" not in run["run"]  # values reach the shell through env only
+    # The production key: this job only. `play` hands its key to a third-party upload action,
+    # so it stays in environment `play` and no track of this workflow is production.
+    holders = [n for n, j in jobs.items() if "play-production" in json.dumps(j.get("environment"))]
+    assert holders == ["promote"] and jobs["play"]["environment"] == "play"
+    options = workflow[True]["workflow_dispatch"]["inputs"]["play_track"]["options"]
+    assert options == ["none", "manual", "internal", "alpha", "beta"]
+    assert "|production)" not in text
+    third_party = [
+        s["uses"]
+        for j in jobs.values()
+        for s in j.get("steps", [])
+        if "upload-google-play" in s.get("uses", "")
+    ]
+    assert len(third_party) == 1 and "upload-google-play" in json.dumps(jobs["play"]["steps"])
+    assert jobs["release-tag"]["outputs"]["released"] == "${{ steps.tag.outputs.released }}"
+    assert "promote" in jobs["result"]["needs"]  # a failed promote makes the run red
 
 
 def test_the_workflow_keeps_the_play_key_in_the_approved_environment():

@@ -114,9 +114,12 @@ A push to `main` that raises `version:` in `app/pubspec.yaml` becomes a release:
 2. The emulator tests run again on that commit, including an upgrade from the last release tag
    and the R8 release build, and 10 Maestro flows run on an APK made from the signed AAB.
 3. It is uploaded to closed testing on Google Play, and the commit is tagged `v<version>`.
+4. The same build goes to production as a staged rollout at 20%. A daily guard raises it to 50%
+   and 100% after two days at each step, or halts it and opens an issue when Android vitals get
+   worse.
 
-Production is a manual run that needs approval and arrives in Play Console as a draft. The full
-process, including the checklist before production, is in [`docs/QA.md`](docs/QA.md).
+Merging the release pull request is the only decision. The full process, the kill switch and the
+manual override are in [`docs/QA.md`](docs/QA.md).
 
 ## Deploy
 

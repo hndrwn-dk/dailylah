@@ -1,0 +1,64 @@
+name: rollout-guard
+# The staged production rollout without a person (docs/QA.md "Production release (automatic)").
+# Once a day, for the release that is in progress on Google Play production: after
+# ROLLOUT_HOLD_HOURS at a fraction with Android vitals OK or without data it goes one step up
+# (20% -> 50% -> 100%); with vitals worse than the previous version it is halted and an issue
+# `release-halted` is opened. A halted release is never resumed or raised here. Nothing is built
+# or uploaded. The repository variable AUTO_PROMOTE is the kill switch: anything but `on` and the
+# scheduled job does not start.
+on:
+  schedule:
+    - cron: "17 2 * * *" # 10:17 Singapore time
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run: read Google Play and vitals, show the decision, change nothing (works while AUTO_PROMOTE is off)"
+        type: boolean
+        default: false
+permissions: {}
+# The same group as promote.yml and the promote job of app.yml: one writer to production at a time.
+concurrency:
+  group: play-promote
+  cancel-in-progress: false
+jobs:
+  guard:
+    name: rollout guard${{ inputs.dry_run && ' (dry run)' || '' }}
+    if: vars.AUTO_PROMOTE == 'on' || (github.event_name == 'workflow_dispatch' && inputs.dry_run)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The production Play key is only in this environment (main only, no reviewer). The job
+    # installs nothing: checkout, the runner's python3 (standard library) and openssl.
+    environment: play-production
+    permissions:
+      contents: read
+      # The guard's clock is a GitHub issue per release, and a halt opens one for the owner.
+      issues: write
+    steps:
+      - name: Only from main
+        run: |
+          [ "$GITHUB_REF" = refs/heads/main ] \
+            || { echo "::error::Run the rollout guard on main (this run is on $GITHUB_REF)."; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/play_promote.py
+            scripts/rollout_guard.py
+          sparse-checkout-cone-mode: false
+      - name: Raise, wait or halt
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          PLAY_TESTING_ACCOUNT: ${{ vars.PLAY_TESTING_ACCOUNT }}
+          GITHUB_TOKEN: ${{ github.token }}
+          AUTO_PROMOTE: ${{ vars.AUTO_PROMOTE }}
+          ROLLOUT_HOLD_HOURS: ${{ vars.ROLLOUT_HOLD_HOURS }}
+          ROLLOUT_MIN_USER_DAYS: ${{ vars.ROLLOUT_MIN_USER_DAYS }}
+          ROLLOUT_WORSE_FACTOR: ${{ vars.ROLLOUT_WORSE_FACTOR }}
+          ROLLOUT_CRASH_BAD_PERCENT: ${{ vars.ROLLOUT_CRASH_BAD_PERCENT }}
+          ROLLOUT_ANR_BAD_PERCENT: ${{ vars.ROLLOUT_ANR_BAD_PERCENT }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          args=()
+          if [ "$DRY_RUN" = true ]; then args+=(--dry-run); fi
+          # -I: no site packages from the user or the working directory, no PYTHON* variables.
+          python3 -I scripts/rollout_guard.py "${args[@]}"

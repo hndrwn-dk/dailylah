@@ -6,12 +6,12 @@ on:
   workflow_dispatch:
     inputs:
       play_track:
-        description: "Upload the signed AAB to this Google Play track (none = analyze and tests only; manual = sign, tag and keep it in a draft GitHub Release, no upload)"
+        description: "Upload the signed AAB to this Google Play testing track (none = analyze and tests only; manual = sign, tag and keep it in a draft GitHub Release, no upload). Production: Actions > promote"
         type: choice
         # Same default as a version bump without PLAY_PUSH_TRACK: nothing goes to Google Play
         # unless a track is picked.
         default: manual
-        options: [none, manual, internal, alpha, beta, production]
+        options: [none, manual, internal, alpha, beta]
 # Read-only by default; no job here writes to the repo. Google Play uses its own service account.
 permissions:
   contents: read
@@ -54,8 +54,9 @@ jobs:
     env:
       # A push to main is a release only when it bumps `version:` in pubspec.yaml (new feature or
       # bug fix). Where it goes is the repository variable PLAY_PUSH_TRACK: `alpha` uploads to
-      # closed testing once the on-device tests pass (jobs e2e and play), and promote.yml later
-      # moves that release to production; unset or `manual` signs,
+      # closed testing once the on-device tests pass (jobs e2e and play), and the `promote` job
+      # below then puts that release on production at 20% (repository variable AUTO_PROMOTE);
+      # unset or `manual` signs,
       # tags and keeps the AAB in a draft GitHub Release for an upload by hand, and never calls
       # Google Play (docs/QA.md "Manual releases"). A manual run picks its track. Pull requests
       # and other branches only build.
@@ -76,8 +77,11 @@ jobs:
         run: |
           track="$PLAY_TRACK"
           case "$track" in
-            none|manual|internal|alpha|beta|production) ;;
-            *) echo "::error::Unknown track '$track' (repository variable PLAY_PUSH_TRACK: manual, internal, alpha, beta or production)."; exit 1 ;;
+            none|manual|internal|alpha|beta) ;;
+            # No upload to production from here: this workflow's upload step is a third-party
+            # action, and the production key is only for the standard-library scripts
+            # (the `promote` job below, promote.yml, rollout-guard.yml).
+            *) echo "::error::Unknown track '$track' (repository variable PLAY_PUSH_TRACK: manual, internal, alpha or beta; production is reached by promoting the alpha release)."; exit 1 ;;
           esac
           if [ "$GITHUB_EVENT_NAME" = push ] && [ "$track" != none ]; then
             ver() { sed -n 's/^version:[[:space:]]*\([^[:space:]]*\).*/\1/p'; }
@@ -249,12 +253,13 @@ jobs:
   play:
     name: upload to Google Play (${{ needs.analyze.outputs.track }})
     # Only a signed AAB, only after the on-device tests. The Play key lives in environment "play"
-    # (or "play-production", which waits for the owner's approval).
+    # with the testing service account, which cannot release to production. This job never
+    # uses environment "play-production".
     needs: [analyze, sign, e2e]
     # Track `manual` never reaches this job, so the Play key is not read at all.
     if: needs.analyze.outputs.track != 'none' && needs.analyze.outputs.track != 'manual' && needs.sign.result == 'success'
     runs-on: ubuntu-latest
-    environment: ${{ needs.analyze.outputs.track == 'production' && 'play-production' || 'play' }}
+    environment: play
     # One upload at a time; a second release waits instead of cancelling the first.
     concurrency:
       group: play-upload
@@ -293,8 +298,8 @@ jobs:
           done
       - name: Upload to Google Play
         # Closed testing (alpha) on push to main; manual runs can pick another track.
-        # Production releases normally go through promote.yml (the alpha release, no new upload);
-        # picking `production` here uploads a draft to review and roll out in Play Console.
+        # Production releases go through the `promote` job below or promote.yml (the alpha
+        # release, no new upload), never through this action.
         # Pinned to v1.1.5 by commit: this step holds the Play service account key.
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
@@ -304,16 +309,20 @@ jobs:
           mappingFile: app/build/dailylah-mapping.txt
           whatsNewDirectory: docs/store/whatsnew
           tracks: ${{ env.PLAY_TRACK }}
-          status: ${{ env.PLAY_TRACK == 'production' && 'draft' || 'completed' }}
+          status: completed
 
   # After a successful upload, or after sign and e2e for track `manual` (no upload): tag the
   # commit v<versionName> (the base of the next release's upgrade test) and keep the AAB, R8
   # mapping and release notes in a draft GitHub Release (the run artifact expires after 30 days).
   # Every track gets one: a closed-testing release is later promoted to production as it is
-  # (promote.yml), so each production version has its files. The only job here that writes to
-  # the repo; the token goes only to the steps that need it.
+  # (the `promote` job, or promote.yml), so each production version has its files. The only job
+  # here that writes to the repo; the token goes only to the steps that need it.
   release-tag:
     name: tag the release
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      # `yes` when v<versionName> is on this commit: this run made the release of that version.
+      released: ${{ steps.tag.outputs.released }}
     needs: [analyze, sign, e2e, play]
     if: >-
       ${{ !failure() && !cancelled() && needs.analyze.outputs.track != 'none'
@@ -340,6 +349,7 @@ jobs:
           if at=$(git rev-parse -q --verify "refs/tags/$tag^{commit}"); then
             if [ "$at" = "$GITHUB_SHA" ]; then
               echo "$tag is already on this commit."
+              echo "released=yes" >> "$GITHUB_OUTPUT"
             else
               echo "::warning title=Tag not moved::$tag already points to ${at::7}; this upload (${GITHUB_SHA::7}) is not tagged. Bump version: for a new release."
               echo "moved=no" >> "$GITHUB_OUTPUT"
@@ -348,6 +358,7 @@ jobs:
           fi
           git tag "$tag" "$GITHUB_SHA"
           git push "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "refs/tags/$tag"
+          echo "released=yes" >> "$GITHUB_OUTPUT"
           echo "::notice title=Release tag::$tag on ${GITHUB_SHA::7}"
           echo "- Tagged $tag on ${GITHUB_SHA::7}" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -387,11 +398,61 @@ jobs:
             app/build/whatsnew-en-US
           retention-days: 30
 
+  # Merge = ship (docs/QA.md "Production release (automatic)"): the versionCode that was just
+  # uploaded to closed testing and tagged goes to production as a staged rollout at 20%, with no
+  # rebuild, no upload and no approval; rollout-guard.yml raises or halts it from there.
+  # Only for a push to main (never a pull request or a manual run), only after `play` uploaded
+  # to `alpha` and `release-tag` put v<versionName> on this commit, and only while the repository
+  # variable AUTO_PROMOTE is `on` (the kill switch; unset = off). The production key lives only
+  # in environment `play-production` (main only, no reviewer): whoever can put a commit on main
+  # can use it, so the main ruleset and its one bypass (the data deploy key) are its guard. The job installs nothing: checkout, the
+  # runner's python3 (standard library) and openssl. scripts/play_promote.py refuses a version
+  # that is not completed on alpha, is older than production or is already there.
+  promote:
+    name: promote to production (staged, 20%)
+    needs: [analyze, play, release-tag]
+    if: >-
+      ${{ !failure() && !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+      && vars.AUTO_PROMOTE == 'on' && needs.analyze.outputs.track == 'alpha'
+      && needs.play.result == 'success' && needs.release-tag.result == 'success'
+      && needs.release-tag.outputs.released == 'yes' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: play-production
+    permissions:
+      contents: read
+    # The same group as promote.yml and rollout-guard.yml: one writer to production at a time.
+    concurrency:
+      group: play-promote
+      cancel-in-progress: false
+    steps:
+      # The script and this commit's release notes (the tag is on this commit), nothing else.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/play_promote.py
+            docs/store/whatsnew/whatsnew-en-US
+          sparse-checkout-cone-mode: false
+      - name: Google Play production
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          # Email of the service account in environment `play` (not a secret). The script
+          # refuses to run with that account's key: production has a service account of its own.
+          PLAY_TESTING_ACCOUNT: ${{ vars.PLAY_TESTING_ACCOUNT }}
+          AUTO_PROMOTE: ${{ vars.AUTO_PROMOTE }}
+          TAG: ${{ needs.release-tag.outputs.tag }}
+        run: |
+          # -I: no site packages from the user or the working directory, no PYTHON* variables.
+          # --code: versionCode is the run number (job analyze), so only this run's build ships.
+          python3 -I scripts/play_promote.py --auto --action promote --version "$TAG" \
+            --code "$GITHUB_RUN_NUMBER" --rollout 20 --notes docs/store/whatsnew/whatsnew-en-US
+
   # The one check to require for this workflow: fails if any job failed or was cancelled,
   # passes when they passed or were skipped (no app change).
   result:
     name: app result
-    needs: [changes, analyze, sign, e2e, play, release-tag]
+    needs: [changes, analyze, sign, e2e, play, release-tag, promote]
     if: always()
     runs-on: ubuntu-latest
     permissions: {}
