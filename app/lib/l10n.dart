@@ -986,14 +986,14 @@ class S {
   String get contactUs => 'Contact us';
   String get dataSources => 'Data sources';
   // The statement the Singapore Open Data Licence asks for: the sources and the licence, in one sentence.
-  String get dataAttribution => 'Contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, SportSG, PA, MOE, SCDF, MOH and MOM accessed through data.gov.sg, made available under the Singapore Open Data Licence.';
+  String get dataAttribution => 'Contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, SportSG, PA, MOE, SCDF, MOH, MOM and ECDA accessed through data.gov.sg, made available under the Singapore Open Data Licence.';
   String get sourceLta => 'LTA DataMall';
   String get sourceLtaSub => 'Bus arrivals, train alerts, car parks, taxis, EV chargers and bicycle parking';
   String get sourceDataGov => 'data.gov.sg';
   String get sourceDataGovSub => 'Weather and haze, hawker centres, HDB blocks, prices and rents, prayer times, estate agents, schools, parks, libraries, clinics, AEDs, public holidays and more, from:';
   /// The agencies whose data.gov.sg datasets the app uses, as named in [dataAttribution].
   List<String> get dataAgencies =>
-      const ['NEA', 'HDB', 'CEA', 'MUIS', 'NParks', 'NLB', 'SportSG', 'PA', 'MOE', 'SCDF', 'MOH', 'MOM'];
+      const ['NEA', 'HDB', 'CEA', 'MUIS', 'NParks', 'NLB', 'SportSG', 'PA', 'MOE', 'SCDF', 'MOH', 'MOM', 'ECDA'];
   String get sourceMuslimSg => 'Muslim.sg';
   String get sourceMuslimSgSub => 'Halal places, refreshed daily. DailyLah is not affiliated with MUIS.';
   String get sourceOsm => 'OpenStreetMap via Geoapify';

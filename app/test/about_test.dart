@@ -80,7 +80,7 @@ void main() {
     // Every agency the attribution names is a chip on the data.gov.sg row.
     final chips = find.descendant(of: find.byKey(const ValueKey('source-datagov')), matching: find.byType(InfoChips));
     expect(tester.widget<InfoChips>(chips).labels,
-        ['NEA', 'HDB', 'CEA', 'MUIS', 'NParks', 'NLB', 'SportSG', 'PA', 'MOE', 'SCDF', 'MOH', 'MOM']);
+        ['NEA', 'HDB', 'CEA', 'MUIS', 'NParks', 'NLB', 'SportSG', 'PA', 'MOE', 'SCDF', 'MOH', 'MOM', 'ECDA']);
     for (final agency in _s.dataAgencies) {
       expect(find.descendant(of: chips, matching: find.text(agency)), findsOneWidget);
     }
@@ -109,8 +109,8 @@ void main() {
     // Singapore Open Data Licence: the source and the licence, in one sentence.
     expect(
       find.text('Contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, '
-          'SportSG, PA, MOE, SCDF, MOH and MOM accessed through data.gov.sg, made available under the Singapore Open '
-          'Data Licence.'),
+          'SportSG, PA, MOE, SCDF, MOH, MOM and ECDA accessed through data.gov.sg, made available under the '
+          'Singapore Open Data Licence.'),
       findsOneWidget,
     );
     expect(find.textContaining('© OpenStreetMap contributors (ODbL)'), findsOneWidget);

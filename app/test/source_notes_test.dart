@@ -258,7 +258,7 @@ void main() {
       for (final name in [
         'LTA DataMall', 'data.gov.sg', 'OneMap (SLA)', 'Singapore Land Authority', 'URA', 'Muslim.sg', 'Geoapify',
         'OpenStreetMap', 'Eventfinda', 'NEA', 'HDB', 'CEA', 'MUIS', 'NParks', 'NLB', 'SportSG', 'PA', 'MOE', 'SCDF',
-        'MOH', 'MOM', 'LTA', //
+        'MOH', 'MOM', 'ECDA', 'LTA', //
       ]) {
         expect(text, contains(name), reason: name);
       }
@@ -278,8 +278,8 @@ void main() {
       expect(
         text,
         contains('Contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, '
-            'SportSG, PA, MOE, SCDF, MOH and MOM accessed through data.gov.sg, made available under the Singapore '
-            'Open Data Licence.'),
+            'SportSG, PA, MOE, SCDF, MOH, MOM and ECDA accessed through data.gov.sg, made available under the '
+            'Singapore Open Data Licence.'),
       );
       expect(text, contains('© OpenStreetMap contributors'));
       expect(text, contains(_s.oneMapCredit));
