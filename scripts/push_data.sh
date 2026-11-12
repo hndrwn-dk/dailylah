@@ -163,7 +163,8 @@ fetch_data_tip() {
 # with only the look-alike, goes to it). Any such ref is an error that names it.
 only_ref() {
   local listed line sha="" other=""
-  listed=$(git ls-remote "$1" "$2" 2>/dev/null) || return 1
+  # git's own message stays in the log: a wrong key or an outage must be readable there.
+  listed=$(git ls-remote "$1" "$2") || return 1
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     if [ "${line#*$'\t'}" = "$2" ]; then
@@ -173,6 +174,7 @@ only_ref() {
     fi
   done <<< "$listed"
   if [ -n "$other" ]; then
+    other=${other//%/%25} # a ref name may hold %0A, which GitHub would turn into a new line
     echo "::error::A ref whose name only ends in $2 exists: $other. Delete it; git cannot tell the two apart when it pushes." >&2
     return 1
   fi
@@ -355,12 +357,14 @@ apply_patch() {
 # Source `main`: gives the data branch a copy of the data files just pushed to main. It is made
 # from main alone; what the branch holds is only its parent, never read.
 mirror_to_data() {
-  local expected=$1 tree commit
+  local expected=$1 tree commit now
   tree=$(data_tree) || return 1
   [ -n "$tree" ] || return 1
   # Another run may have pushed to main since this one did: its copy is the newer one, and
-  # this one must not land on top of it.
-  if [ "$(only_ref "$remote" refs/heads/main)" != "$expected" ]; then
+  # this one must not land on top of it. (The push jobs of the two data workflows also share
+  # one concurrency group, so they do not overlap; a merged pull request still can.)
+  now=$(only_ref "$remote" refs/heads/main) || return 1
+  if [ "$now" != "$expected" ]; then
     echo "main has moved on since this run: leaving the copy to the newer run."
     return 1
   fi

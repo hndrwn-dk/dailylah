@@ -50,8 +50,8 @@ take() {
   mkdir -p "$dir"
   find "$dir" -maxdepth 1 -type f -name "*.$ext" -delete
   # -type f: plain files only, never a link to something else.
-  # `+`: a failed copy fails find, and so the build.
-  find "$src/$dir" -maxdepth 1 -type f -name "*.$ext" -exec cp -t "$dir" {} +
+  # `+`: a failed copy fails find, and so the build. (sh -c instead of GNU's `cp -t`.)
+  find "$src/$dir" -maxdepth 1 -type f -name "*.$ext" -exec sh -c 'cp "$@" "$0"/' "$dir" {} +
   echo "$dir: $count .$ext files from the data branch"
 }
 
@@ -68,13 +68,14 @@ if [ -f "$src/sitemap.xml" ] && [ ! -L "$src/sitemap.xml" ]; then
   # hide in a tag spread over several lines, a comment, an entity or another namespace.
   # Taken only when grep answers "no other line" (1): any other answer, an error included,
   # keeps main's. It must also be a whole sitemap: not empty, with its opening and closing line.
+  # -a: a NUL is a byte like any other (without it grep would take it for a line end).
   lines=0
-  LC_ALL=C grep -vqxE \
+  LC_ALL=C grep -avqxE \
     '<\?xml version="1\.0" encoding="UTF-8"\?>|<urlset xmlns="http://www\.sitemaps\.org/schemas/sitemap/0\.9">|  <url><loc>https://dailylah\.sg/[A-Za-z0-9/_-]*</loc>(<lastmod>[0-9]{4}-[0-9]{2}-[0-9]{2}</lastmod>)?</url>|</urlset>' \
     "$src/sitemap.xml" || lines=$?
   if [ "$lines" -eq 1 ] && [ -s "$src/sitemap.xml" ] \
-    && LC_ALL=C grep -qxF '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' "$src/sitemap.xml" \
-    && LC_ALL=C grep -qxF '</urlset>' "$src/sitemap.xml"; then
+    && LC_ALL=C grep -aqxF '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' "$src/sitemap.xml" \
+    && LC_ALL=C grep -aqxF '</urlset>' "$src/sitemap.xml"; then
     cp "$src/sitemap.xml" sitemap.xml
     echo "sitemap.xml from the data branch"
   else

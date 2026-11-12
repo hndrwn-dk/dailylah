@@ -123,6 +123,11 @@ jobs:
     if: ${{ !cancelled() && needs.build.outputs.changed == 'true' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     environment: data-push
+    # One publish at a time across both data workflows (their runs have groups of their own),
+    # so two push jobs never write main and the data branch at the same moment.
+    concurrency:
+      group: data-push
+      cancel-in-progress: false
     permissions:
       contents: read
     timeout-minutes: 10

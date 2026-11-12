@@ -806,6 +806,9 @@ def test_the_site_build_does_nothing_while_the_data_is_published_from_main(site,
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n</urlset>\n',
         '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/'
         'sitemap/0.9">\n  <url><loc>https://dailylah.sg/</loc></url><!--\n-->\n</urlset>\n',
+        # Allowed lines with a NUL between them (grep would take the NUL for a line end).
+        '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/'
+        'sitemap/0.9">\n</urlset>\0</urlset>\n',
         # Not a whole sitemap: empty, or only some of its lines.
         "",
         "</urlset>\n",
@@ -950,12 +953,13 @@ def test_a_failed_git_step_never_publishes_an_empty_data_branch(repos, tmp_path,
     patch = make_patch(seed, env, tmp_path, write("web/data/second.json"))
     result = run_script(work, failing_git(tmp_path, script_env, subcommand, nth=99), patch, DATA)
     assert result.returncode == 0  # the 99th call never comes: the helper itself is harmless
+    tip = main_head(bare, env)[1]
     patch = make_patch(seed, env, tmp_path, write("web/data/third.json"))
-    for nth in (1, 2, 3):
-        broken = failing_git(tmp_path, script_env, subcommand, nth=nth)
-        run_script(work, broken, patch, DATA)
-        assert data_files(bare, env), (subcommand, nth)  # never an empty branch
-    assert set(files) <= set(data_files(bare, env))
+    # A data-mode run calls each of these once, for the tree it is about to publish.
+    result = run_script(work, failing_git(tmp_path, script_env, subcommand), patch, DATA)
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert main_head(bare, env)[1] == tip and "web/data/third.json" not in data_files(bare, env)
+    assert set(files) <= set(data_files(bare, env))  # and never an empty branch
 
 
 def test_with_source_main_a_failed_step_of_the_copy_never_deletes_or_empties_the_branch(
@@ -982,6 +986,39 @@ def test_with_source_main_a_failed_step_of_the_copy_never_deletes_or_empties_the
     patch = make_patch(seed, env, tmp_path, write("web/data/last.json"))
     assert run_script(work, no_hook(script_env), patch, DATA).returncode == 0
     assert "web/data/n2.json" in data_files(bare, env)
+
+
+def test_the_copy_says_so_when_main_cannot_be_read_and_git_says_why(repos, tmp_path):
+    seed, work, bare, env, script_env = repos
+    source_main(seed, bare, env)
+    patch = make_patch(seed, env, tmp_path, write("web/data/other.json"))
+    # The first ls-remote (main, before the push) works; the one of the copy fails.
+    broken = failing_git(tmp_path, no_hook(script_env), "ls-remote", nth=2)
+    result = run_script(work, broken, patch, DATA)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Pushed to main" in result.stdout and "main has moved on" not in result.stdout
+    assert "::warning::The copy on the data branch was not updated" in result.stdout
+    # A remote that cannot be reached at all: git's own reason is in the log.
+    gone = script_env | {"GIT_CONFIG_VALUE_0": REMOTE, "GIT_CONFIG_KEY_0": "url./nowhere.insteadOf"}
+    result = run_script(work, gone, patch, DATA)
+    assert result.returncode != 0 and "nowhere" in result.stderr
+
+
+def test_a_ref_name_cannot_add_lines_to_the_error(repos, tmp_path):
+    seed, work, bare, env, script_env = repos
+    side = tmp_path / "named"
+    git(tmp_path, "clone", "--quiet", str(bare), str(side), env=env)
+    git(side, "push", "--quiet", str(bare), "HEAD:refs/heads/a%0AAll-good/refs/heads/data", env=env)
+    result = run_baseline(seed, script_env)
+    out = result.stdout + result.stderr
+    assert result.returncode != 0 and "a%250AAll-good/refs/heads/data" in out
+    assert "a%0A" not in out
+
+
+def test_both_push_jobs_share_one_concurrency_group():
+    for workflow in ("data.yml", "where-to-live.yml"):
+        jobs = yaml.safe_load((ROOT / ".github" / "workflows" / workflow).read_text())["jobs"]
+        assert jobs["push"]["concurrency"] == {"group": "data-push", "cancel-in-progress": False}
 
 
 def test_with_source_main_an_overtaken_run_leaves_the_copy_to_the_newer_run(repos, tmp_path):
