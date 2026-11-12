@@ -252,8 +252,9 @@ back), all in a phone browser, in this order:
    `[ "$VERCEL_GIT_COMMIT_REF" = "data" ]` stops Vercel from building a preview for every push to
    the `data` branch.
 
-Going back takes three steps, in this order, because by then the copies on `main` are old:
-put "Deploy keys" back in the `main` ruleset's bypass list; merge a pull request that brings the
+Going back takes these steps, in this order, because by then the copies on `main` are old:
+first set `AUTO_ROLLOUT` to `off` and delete the secret in environment `play-rollout` (the guard's
+key must not sit behind a `main` that a deploy key can push to); put "Deploy keys" back in the `main` ruleset's bypass list; merge a pull request that brings the
 current files of the `data` branch onto `main` (the bundles, town pages, sitemap and the three
 files in `backend/data/`); only then the pull request that changes `web/data-source.txt` back to
 `main`. Reversing the switch alone would make the site serve the old copies until the next

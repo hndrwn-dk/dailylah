@@ -30,8 +30,8 @@ This file maps that plan to the automated tests in this repo and describes how a
 | Agent docs `docs.yml` | GitHub Actions `docs` | every PR and push to `main` | `docs/REPO_MAP.md` and every `AGENTS.md` match the code and CLAUDE.md (`scripts/repo_map.py --check`) |
 
 The screen matrix uses the bundles committed in `web/data/`, so screens render with real data.
-Once the data is published from the branch `data` (docs/DEPLOY.md "Data branch"), that copy on
-`main` is no longer updated daily; refresh it with a pull request when a test needs newer data.
+The data is published from the branch `data` (docs/DEPLOY.md "Data branch"), so that copy on
+`main` is not updated daily; refresh it with a pull request when a test needs newer data.
 The API, location and storage are faked. A test fails on any exception or layout overflow.
 
 ## Manual releases (no Play upload)
@@ -495,8 +495,8 @@ A run that changes nothing says so.
   nobody is asked. So whoever can put a commit on `main` could use it: the owner's merges, any
   token that can merge as him, and anything in the `main` ruleset's bypass list. That is the
   price of a guard that needs no tap, accepted for now by the owner. Two things keep it small:
-  nothing but a merged pull request may reach `main` (the data workflows must publish through the
-  branch `data` and the bypass must be gone first, docs/DEPLOY.md "Data branch"), and few things
+  nothing but a merged pull request may reach `main` (the data workflows must keep publishing through the
+  branch `data` and the bypass list must stay empty, docs/DEPLOY.md "Data branch"), and few things
   may hold write access to the repository. Putting the reviewer on `play-rollout` as well closes
   it, at the cost of a tap for every step.
 - One writer to production at a time: the promote job, the guard and `promote.yml` share the
