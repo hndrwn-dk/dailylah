@@ -22,7 +22,7 @@ This file maps that plan to the automated tests in this repo and describes how a
 | Feature tests `app/test/features_test.dart` | GitHub Actions `app` (flutter test) | every PR | each feature through the real widgets: Ate here at halal places, meal time in History, live bus position |
 | Release gate | GitHub Actions `app` jobs `e2e` + `play` + `release-tag` | every version bump on `main` and manual releases | the whole `emulator` workflow must pass on the commit before the AAB is tagged or goes to Google Play; where a version bump goes is the repository variable `PLAY_PUSH_TRACK` (unset = `manual`: no upload, see "Manual releases"); one upload at a time; the released commit is tagged `v<versionName>` and its files kept in a draft GitHub Release |
 | Production release `app.yml` job `promote` (`scripts/play_promote.py`) | GitHub Actions `app` | every version bump on `main`, after `play` and `release-tag`, while `AUTO_PROMOTE` is `on` | after the owner's approval, puts the versionCode just uploaded to `alpha` on production as a staged rollout at 20%; see "Production release (automatic)" |
-| Rollout guard `rollout-guard.yml` (`scripts/rollout_guard.py`) | GitHub Actions `rollout-guard` | daily 10:17 Singapore time while `AUTO_ROLLOUT` is `on`, and by hand (`dry_run`) | raises the staged release 20% → 50% → 100% after the hold, or halts it and opens an issue when Android vitals are worse |
+| Rollout guard `rollout-guard.yml` (`scripts/rollout_guard.py`) | GitHub Actions `rollout-guard` | every six hours (04:17, 10:17, 16:17, 22:17 Singapore time) while `AUTO_ROLLOUT` is `on`, and by hand (`dry_run`) | raises the staged release 20% → 50% → 100% after the hold, or halts it and opens an issue when Android vitals are worse |
 | Manual override `promote.yml` | GitHub Actions `promote`, by hand | when the owner wants to act | promote, raise, halt or resume the production release from the phone; waits for his approval |
 | Release script tests `backend/tests/test_play_promote.py`, `test_rollout_guard.py` | GitHub Actions `backend` | every PR touching `backend/`, the two scripts, `promote.yml`, `rollout-guard.yml` or `app.yml` | against a fake Google Play, a fake Reporting API and fake GitHub issues: what is sent, every refusal, wait / raise / halt, API errors, both switches (`AUTO_PROMOTE`, `AUTO_ROLLOUT`), dry run, and that the production key stays in `play-production` (promote) and `play-rollout` (the guard alone) |
 | Security scans `security.yml` | GitHub Actions `security` | every PR, push to `main`, Mondays | CodeQL (actions, python, java-kotlin), osv-scanner (dependencies), zizmor (workflows); see below |
@@ -343,9 +343,10 @@ production goes through Actions > promote.
    environment `play-production` for the owner's approval (a notification in the GitHub mobile
    app: Review deployments > Approve). Then the same versionCode goes to production as a staged
    rollout at **20%**. No rebuild, no upload, release notes from `whatsnew-en-US` of that commit.
-3. **Rollout guard, no tap** (`rollout-guard.yml`, daily): after `ROLLOUT_HOLD_HOURS` at a
-   fraction with health OK or unknown it raises 20% → 50% → 100% (100 completes the release).
-   With health worse it halts the release and opens an issue.
+3. **Rollout guard, no tap** (`rollout-guard.yml`, every six hours): after `ROLLOUT_HOLD_HOURS`
+   (6) at a fraction with health OK or unknown it raises 20% → 50% → 100% (100 completes the
+   release): 100% within a day of the approval. With health worse it halts the release and
+   opens an issue.
 
 What the owner does: approve step 2. After that nothing, unless an issue labelled
 `release-halted` or a failed run arrives (GitHub notifies for both). Then, from the phone:
@@ -395,7 +396,8 @@ enough users for vitals to say something.
   by hand, the run fails with Google's message; send them in Play Console once, then re-run.
 
 ### Rollout guard (`rollout-guard.yml`, `scripts/rollout_guard.py`)
-Every day at 10:17 Singapore time, for the release that is staged on production:
+Every six hours (04:17, 10:17, 16:17 and 22:17 Singapore time), for the release that is staged on
+production:
 
 | Production holds | Health | The guard |
 | --- | --- | --- |
@@ -413,7 +415,7 @@ Every day at 10:17 Singapore time, for the release that is staged on production:
   is not stuck).
 - The guard writes the reason into its log before it halts. If the `release-halted` issue then
   cannot be opened (the run fails), the next run opens it. A halt and a resume by hand between
-  two daily runs are not seen by the guard: the hold and the health window go on as before.
+  two runs are not seen by the guard: the hold and the health window go on as before.
 - **Time at a fraction.** Google Play does not say when a release reached a fraction or left
   review. The guard keeps its own clock: one GitHub issue per versionCode (label
   `release-rollout`, "Production rollout: 2.4.0 (745)") with a marker for each state it saw; a
@@ -426,12 +428,21 @@ Every day at 10:17 Singapore time, for the release that is staged on production:
   anyway), and is a readable history of each rollout. A git note or tag would need
   `contents: write` in the job that holds the production key; the workflow token cannot write
   repository variables; no storage outside GitHub.
-- The clock starts at the guard's first run after the promote, up to a day later; a raise by
-  the guard starts the next hold in the same run. With the defaults that is 50% two to three
-  days after the promote and 100% two days after that. The first day of slack also covers
-  Google's review, which the API does not show: the hold cannot tell "in review" from "live".
-  The daily run does not start at the same minute every day, so a run up to one hour short of
-  the hold counts; otherwise a 48-hour hold would often take 72.
+- The clock starts at the guard's first run after the promote, up to six hours later; a raise by
+  the guard starts the next hold in the same run. With the 6-hour hold that is 50% six to twelve
+  hours after the promote and 100% six hours after that: within a day, when GitHub starts the
+  runs on time (a scheduled run can be late or, rarely, dropped; the next one catches up). The
+  hold cannot tell "in review" from "live": Google's review, which the API does not show, counts
+  as time at the fraction. A scheduled run does not start at the same minute every time, so a
+  run up to one hour short of the hold counts; otherwise each step would wait for one more run.
+- **What a one-day rollout gives up.** Android vitals arrive a day or two after the day they
+  describe, so within one day the guard has no figures for the new version: health is unknown,
+  it goes by time, and it cannot halt a bad release before 100%. What stays: the owner's
+  approval before the first 20%, a few hours in which he can halt by hand (Actions > promote >
+  `halt`) when a problem shows, and the halt of a release that is still staged when figures
+  come (after a manual halt and resume, or with a longer hold). Chosen by the owner on 12 Nov
+  2026 for fast, small releases; for a risky release set `ROLLOUT_HOLD_HOURS` to `48` or more
+  before merging it, and back afterwards.
 - **Health** is Android vitals from the Play Developer Reporting API (`v1beta1`,
   `crashRateMetricSet` and `anrRateMetricSet`, `DAILY`, dimension `versionCode`; daily data exists
   only for days in `America/Los_Angeles` and arrives a day or two late, so the guard asks up to
@@ -454,7 +465,7 @@ Every day at 10:17 Singapore time, for the release that is staged on production:
   | --- | --- | --- |
   | `AUTO_PROMOTE` | off | `on` = the promote job of a release run asks for the approval and promotes |
   | `AUTO_ROLLOUT` | off | `on` = the guard acts |
-  | `ROLLOUT_HOLD_HOURS` | `48` | hours at a fraction before the next step (the guard runs once a day, so use multiples of 24) |
+  | `ROLLOUT_HOLD_HOURS` | `6` (set by the workflow; the script alone would use 48) | hours at a fraction before the next step (the guard runs every six hours, so use multiples of 6; 1 or less raises at the guard's first sight) |
   | `ROLLOUT_MIN_USER_DAYS` | `500` | daily users of the new version, summed over the days, below which health is unknown. At 1.09% that is about 5 affected users; fewer is noise |
   | `ROLLOUT_CRASH_BAD_PERCENT` | `1.09` | Google Play's overall bad behaviour threshold for the user-perceived crash rate |
   | `ROLLOUT_ANR_BAD_PERCENT` | `0.47` | the same for the user-perceived ANR rate |
@@ -505,8 +516,8 @@ A run that changes nothing says so.
   nothing changed.
   A run that waits for the owner's approval can hold the group (certain for `promote.yml`, whose
   group is on the workflow; expected, not yet seen, for the promote job of `app.yml`): the
-  guard's daily run and a manual `halt` then only queue behind it, and a later queued run cancels
-  the earlier one. So approve or reject a waiting promote first; do not leave it.
+  guard's scheduled runs (every six hours) and a manual `halt` then only queue behind it, and a
+  later queued run cancels the earlier one: a queued `halt` is replaced within six hours. So approve or reject a waiting promote first; do not leave it.
 
 ## What CI enforces before production
 

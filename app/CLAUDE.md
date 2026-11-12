@@ -329,10 +329,10 @@ feature, screen, provider or rule moves, appears or goes away.
   variable `AUTO_PROMOTE` = `on`) waits for the owner's approval in environment `play-production`
   (main only, required reviewer), then runs `scripts/play_promote.py --auto` and puts
   the versionCode that run built on production as a staged rollout at 20%, with no rebuild and no
-  upload. The daily
-  `rollout-guard` workflow (`.github/workflows/rollout-guard.yml`, `scripts/rollout_guard.py`;
+  upload. The
+  `rollout-guard` workflow (every six hours) (`.github/workflows/rollout-guard.yml`, `scripts/rollout_guard.py`;
   environment `play-rollout`, no reviewer; repository variable `AUTO_ROLLOUT` = `on`)
-  raises it 20 → 50 → 100% after `ROLLOUT_HOLD_HOURS` (48) at a fraction when Android vitals
+  raises it 20 → 50 → 100% after `ROLLOUT_HOLD_HOURS` (6: 100% within a day) at a fraction when Android vitals
   (Play Developer Reporting API: user-perceived crash and ANR rate, new versionCode against the
   previous one) are OK or have no data, and halts it and opens an issue `release-halted` when
   they are worse; it never resumes or raises a halted release and never raises on an API error.

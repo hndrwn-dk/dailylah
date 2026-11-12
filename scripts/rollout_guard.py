@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Raise, or halt, the staged production rollout on Google Play without a person.
 
-Used by .github/workflows/rollout-guard.yml, daily (docs/QA.md "Production release
+Used by .github/workflows/rollout-guard.yml, on a schedule (docs/QA.md "Production release
 (automatic)"). For the release that is in progress on production:
 
   health WORSE              halt it and open a GitHub issue (label release-halted)
@@ -60,8 +60,8 @@ STEPS = (20, 50, 100)  # the fractions the guard raises to, in percent
 # DAILY vitals exist only for calendar days in this time zone (Google's API reference).
 VITALS_ZONE = "America/Los_Angeles"
 MAX_PAGES = 20
-# The daily run does not start at the same minute every day. Without this, a hold of 48 hours
-# would be 47.9 hours at the run two days later and the step would wait a third day.
+# A scheduled run does not start at the same minute every time. Without this, a hold of 48 hours
+# would be 47.9 hours at the run two days later and the step would wait for one more run.
 SCHEDULE_SLACK_HOURS = 1.0
 # After a resume the guard waits for a whole day of vitals before it raises, but only while the
 # first day it asks for (the day after it saw the resume) is less than this many days back: an
@@ -430,7 +430,7 @@ class Log:
         From the first sight: the day before it (a day in VITALS_ZONE starts 7 or 8 hours
         after the UTC day, so one day earlier covers the rollout's first hours). After a halt
         the owner looked at the figures and resumed: those days are judged already, and
-        reading them again would halt the release once more every day. Then only whole days
+        reading them again would halt the release once more at every run. Then only whole days
         after the resume was seen count.
         """
         start, halted = None, False
