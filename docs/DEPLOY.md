@@ -220,7 +220,9 @@ change to it starts `where-to-live`, which makes the published pages again).
    `https://api.vercel.com/v1/integrations/deploy/`). GitHub > Settings > Environments >
    `data-push` > Add secret: Name `VERCEL_DEPLOY_HOOK`, Value that URL. The URL can only start a
    deployment of `main`; still, never paste it in a chat.
-4. **Switch.** A pull request that changes `web/data-source.txt` from `main` to `data`. Its Vercel
+4. **Switch.** Right after a `data` run that ended without a warning about the copy (so the
+   `data` branch equals `main`'s data): a pull request that changes `web/data-source.txt` from
+   `main` to `data`, and nothing else. Its Vercel
    preview already builds from the `data` branch: the build log must show
    "data: N .json files from the data branch", and the preview's `/data/manifest.json` must be the
    current one. Merge it. Both data workflows start once on that merge.
@@ -235,8 +237,12 @@ change to it starts `where-to-live`, which makes the published pages again).
    `[ "$VERCEL_GIT_COMMIT_REF" = "data" ]` stops Vercel from building a preview for every push to
    the `data` branch.
 
-Going back is the same pull request reversed (`data` to `main`), after putting "Deploy keys" back
-in the `main` ruleset's bypass list.
+Going back takes three steps, in this order, because by then the copies on `main` are old:
+put "Deploy keys" back in the `main` ruleset's bypass list; merge a pull request that brings the
+current files of the `data` branch onto `main` (the bundles, town pages, sitemap and the three
+files in `backend/data/`); only then the pull request that changes `web/data-source.txt` back to
+`main`. Reversing the switch alone would make the site serve the old copies until the next
+data runs.
 
 What the `data` branch can and cannot do once it is the source: whoever can write it can change
 the data the app and the site show and the town pages (served with the site's CSP), as the deploy

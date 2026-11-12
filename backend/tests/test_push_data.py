@@ -284,7 +284,9 @@ def no_hook(script_env: dict) -> dict:
 
 
 def commit_on_main(seed: Path, bare: Path, env: dict, files: dict[str, str], message="edit"):
-    """A merged pull request: a commit on main."""
+    """A merged pull request: a commit on top of the newest main."""
+    git(seed, "fetch", "--quiet", str(bare), "refs/heads/main", env=env)
+    git(seed, "reset", "--quiet", "--hard", "FETCH_HEAD", env=env)
     for rel, text in files.items():
         (seed / rel).parent.mkdir(parents=True, exist_ok=True)
         (seed / rel).write_text(text)
@@ -333,6 +335,14 @@ def test_with_source_main_the_update_goes_to_main_as_before_and_the_branch_gets_
     again = run_script(work, hookless, patch, WHERE_TO_LIVE, ["--generate", PAGES, *GENERATED])
     assert again.returncode == 0 and "Nothing left to push" in again.stdout
     assert main_head(bare, env) == (main, data_tip)
+    # A pull request changes a data file on main; a run with nothing to push (or with `-`)
+    # still brings the copy up to date, so the switch never starts from an older branch.
+    for year, arg in ((2027, patch), (2028, Path("-"))):
+        text = f'{{"y": {year}}}\n'
+        commit_on_main(seed, bare, env, {"web/data/school_holidays.json": text})
+        result = run_script(work, hookless, arg, WHERE_TO_LIVE, ["--generate", PAGES, *GENERATED])
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert git(bare, "show", "data:web/data/school_holidays.json", env=env) == text
 
 
 def test_with_source_main_what_is_on_the_data_branch_is_never_read(repos, tmp_path):
@@ -473,10 +483,10 @@ def test_a_generator_change_on_main_makes_the_published_pages_again(repos, tmp_p
     assert git(bare, "rev-parse", "data^", env=env).strip() == first and log.exists()
     # With the data published from main there is nothing to do: the pull request has the pages.
     source_main(seed, bare, env)
-    before = main_head(bare, env)
+    before = main_head(bare, env)[0]
     result = run_script(work, hooked, Path("-"), WHERE_TO_LIVE, ["--generate", gen, *GENERATED])
     assert result.returncode == 0 and "Nothing to do" in result.stdout
-    assert main_head(bare, env) == before
+    assert main_head(bare, env)[0] == before
 
 
 def test_a_run_again_after_a_failed_deploy_only_starts_the_deployment(repos, tmp_path):
@@ -796,6 +806,20 @@ def test_the_site_build_does_nothing_while_the_data_is_published_from_main(site,
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n</urlset>\n',
         '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/'
         'sitemap/0.9">\n  <url><loc>https://dailylah.sg/</loc></url><!--\n-->\n</urlset>\n',
+        # A self-closing tag over three lines, with no closing tag to give it away.
+        '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/'
+        'sitemap/0.9">\n<script\nxmlns="http://www.w3.org/1999/xhtml" src="https://evil.example/'
+        'x.js"\n/>\n</urlset>\n',
+        # A big file with the bad line near the top (a check that stops reading early must
+        # still refuse it), and one whose first page is on another site.
+        '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/'
+        'sitemap/0.9">\n<script xmlns="http://www.w3.org/1999/xhtml">alert(1)</script>\n'
+        + "  <url><loc>https://dailylah.sg/where-to-live/a-town</loc></url>\n" * 6000
+        + "</urlset>\n",
+        '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/'
+        'sitemap/0.9">\n  <url><loc>https://evil.example/</loc></url>\n'
+        + "  <url><loc>https://dailylah.sg/where-to-live/a-town</loc></url>\n" * 6000
+        + "</urlset>\n",
     ],
 )
 def test_the_site_build_takes_only_a_plain_sitemap(site, tmp_path, sitemap):

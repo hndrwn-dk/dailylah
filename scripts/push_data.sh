@@ -348,6 +348,12 @@ mirror_to_data() {
     "$(git commit-tree "$tree" ${data_tip:+-p "$data_tip"} -m "$message"):refs/heads/$DATA_BRANCH"
 }
 
+# Whenever a run with source `main` ends, the data branch equals main's data files, so the
+# switch to `data` never starts from something older. A failure is only a warning.
+copy_to_data() {
+  mirror_to_data || echo "::warning::The copy on the $DATA_BRANCH branch was not updated (docs/DEPLOY.md, Data branch). The site is not affected."
+}
+
 for try in 1 2 3; do
   # main first, by its full ref name: its code (this run's generator) and its data-source.txt.
   if git fetch --quiet --depth 1 "$remote" refs/heads/main && git reset --quiet --hard FETCH_HEAD; then
@@ -357,10 +363,12 @@ for try in 1 2 3; do
       # As before the data branch: the update goes to main, and Vercel deploys on that push.
       if [ "$patch" = - ]; then
         echo "Nothing to do: the pages are published from main."
+        copy_to_data
         exit 0
       fi
       if ! apply_patch; then
         echo "Nothing left to push: main already has these changes."
+        copy_to_data
         exit 0
       fi
       check_staged
@@ -368,12 +376,13 @@ for try in 1 2 3; do
       check_staged
       if git diff --cached --quiet; then
         echo "Nothing left to push: main already has these changes."
+        copy_to_data
         exit 0
       fi
       commit=$(git commit-tree "$(git write-tree)" -p "$main_tip" -m "$message")
       if git push --quiet "$remote" "$commit:refs/heads/main"; then
         echo "Pushed to main: $message"
-        mirror_to_data || echo "::warning::The copy on the $DATA_BRANCH branch was not updated (docs/DEPLOY.md, Data branch). The site is not affected."
+        copy_to_data
         exit 0
       fi
     elif overlay_data "$remote"; then
