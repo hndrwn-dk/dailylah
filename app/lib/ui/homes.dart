@@ -933,7 +933,6 @@ class _AgentCheckPageState extends ConsumerState<AgentCheckPage> {
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(stringsProvider);
-    final t = Theme.of(context).textTheme;
     final reg = _reg;
     return Scaffold(
       appBar: AppBar(title: Text(s.checkAgent)),
@@ -951,8 +950,6 @@ class _AgentCheckPageState extends ConsumerState<AgentCheckPage> {
           const SizedBox(height: 16),
           if (reg == '') Panel(child: EmptyNote(s.agentHint)),
           if (reg != null && reg.isNotEmpty) _AgentResult(reg: reg, s: s),
-          const SizedBox(height: 8),
-          Text(s.ceaSource, style: t.bodySmall),
         ],
       ),
     );

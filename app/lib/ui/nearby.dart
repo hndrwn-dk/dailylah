@@ -106,7 +106,6 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(stringsProvider);
-    final t = Theme.of(context).textTheme;
     final fav = ref.watch(favoritesProvider);
     final key = ref.watch(nearbyKeyProvider);
     final adhoc = ref.watch(adhocPlaceProvider);
@@ -205,7 +204,6 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
                           'help' => _HelpSection(place: place),
                           _ => _BusSection(place: place),
                         },
-                        Text(s.dataSource, style: t.bodySmall, textAlign: TextAlign.center),
                       ],
                     ),
             ),
@@ -475,7 +473,7 @@ class _EatSection extends ConsumerWidget {
                     onTap: () => showPlaceSheet(context,
                         s: s,
                         title: p.name,
-                        subtitle: '${p.address}\n${s.halalDisclaimer}',
+                        subtitle: s.halalSheetSubtitle(p.address),
                         lat: p.lat,
                         lng: p.lng,
                         distance: d,
@@ -1010,7 +1008,6 @@ class _HalalTabState extends ConsumerState<_HalalTab> {
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(stringsProvider);
-    final t = Theme.of(context).textTheme;
     final place = widget.place;
     return _loadingOr(ref.watch(halalProvider), s, (all) {
       final favs = ref.watch(favoritesProvider.select((f) => f.halalPlaces));
@@ -1040,7 +1037,7 @@ class _HalalTabState extends ConsumerState<_HalalTab> {
                       onTap: () => showPlaceSheet(context,
                           s: s,
                           title: p.name,
-                          subtitle: '${p.address}\n${s.halalDisclaimer}',
+                          subtitle: s.halalSheetSubtitle(p.address),
                           lat: p.lat,
                           lng: p.lng,
                           distance: d,
@@ -1049,8 +1046,6 @@ class _HalalTabState extends ConsumerState<_HalalTab> {
                 ],
               ),
             ),
-          const SizedBox(height: 8),
-          Text(s.halalSource, style: t.bodySmall),
         ],
       );
     });
@@ -1389,7 +1384,6 @@ class _PrayerTab extends ConsumerWidget {
             onPressed: () => launchUrl(Uri.parse('https://www.muis.gov.sg/Mosque/Mosque-Directory'),
                 mode: LaunchMode.externalApplication),
           ),
-          Text(s.prayerSource, style: t.bodySmall),
         ],
       );
     });

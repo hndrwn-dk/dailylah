@@ -92,7 +92,7 @@ class TodayPage extends ConsumerWidget {
       const PlanTripCard(),
       if (fav.carparks.isNotEmpty) const _SavedParking(),
       const SizedBox(height: 8),
-      Text('${s.dataSource} ${s.pullToRefresh}', style: t.bodySmall, textAlign: TextAlign.center),
+      Text(s.pullToRefresh, style: t.bodySmall, textAlign: TextAlign.center),
     ];
 
     return Scaffold(
@@ -841,7 +841,6 @@ Future<void> _showAir(BuildContext context, S s, AirQuality air) => showModalBot
                   label: Text(s.moreAtHaze),
                   onPressed: () => launchUrl(Uri.parse('https://www.haze.gov.sg'), mode: LaunchMode.externalApplication),
                 ),
-                Text(s.hazeSource, style: t.bodySmall),
               ],
             ),
           ),

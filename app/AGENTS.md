@@ -12,8 +12,17 @@ relative to `app/` unless they start with a top-level folder. File and symbol in
 - Religion-neutral by default: no onboarding question about religion. Faith-specific
   features (MUIS prayer times, halal food from the `halal.json` bundle built from Muslim.sg
   listings) are opt-in under More > Extras. Halal places can be starred (`Favorites.halalPlaces`, by `mealPlaceId`) and
-  come first in `halalNear`, like favourite hawkers. Halal screens always say "Not affiliated with MUIS.
-  Always verify halal status directly" (`S.halalDisclaimer`).
+  come first in `halalNear`, like favourite hawkers. Every screen that lists halal places (the Nearby card, the
+  See all list, Home > Food) and the sheet of a halal place (`S.halalSheetSubtitle`, `NearItem.sheetNote`) says
+  `S.halalDisclaimer`, word for word: "Not affiliated with MUIS. Always verify halal status directly: look for
+  the MUIS halal certificate at the premises." Never shorten it.
+- Sources are credited once, in About > Data sources. A card, tab or sheet has no "Data: ..." footnote and
+  names no source or agency in its notes. What stays on a screen: a short disclaimer where the decision is
+  made (halal, past sales / not financial advice, estimates, emergency, toilets), with the full wording in
+  `S.aboutNotes` on About; a privacy line where the user types something that is sent (address and place
+  search); and the credit a provider asks for next to its data (the OneMap logo and credit on the map,
+  `S.placesAttribution` with Geoapify results and toilets, the Eventfinda line with events). "Computed on your
+  phone" is said once, in About (`S.onPhoneNote`). Tests: `test/source_notes_test.dart`.
 - `lib/providers.dart` holds all Riverpod providers (Riverpod 3); widgets in `lib/ui/` only render.
   Every `ProviderScope` and `ProviderContainer` (app and tests) passes `retry: noRetry`: Riverpod 3
   would otherwise retry failed providers up to 10 times on its own, on top of `_live`'s rules.
@@ -103,10 +112,13 @@ feature, screen, provider or rule moves, appears or goes away.
   DailyLah and Rate (Play Store, `openPlayListing`).
 - About > Data sources (`AboutDailyLahPage` in `ui/about.dart`): one card with a row per credited source
   (`dataSources`, `DataSource`: LTA DataMall, data.gov.sg with the agencies as chips from `S.dataAgencies`,
-  Muslim.sg, OpenStreetMap via Geoapify, OneMap, URA; a tap opens the source's page, URLs are constants in
-  about.dart), the full Singapore Open Data Licence statement under it (`S.dataAttribution`), the estimates
-  note as an info `AlertBanner`, a licences card (open data licence, in-app open-source licences) and the
-  independence line as the footer. A new data source gets a row there. Tests: `test/about_test.dart`.
+  Muslim.sg, OpenStreetMap via Geoapify, OneMap (SLA), URA, Eventfinda; a tap opens the source's page, URLs are
+  constants in about.dart), the full Singapore Open Data Licence statement under it (`S.dataAttribution`), the
+  estimates note as an info `AlertBanner`, a "Good to know" card with every disclaimer in full and the "computed
+  on your phone" line (`S.aboutNotes`), a licences card (open data licence, in-app open-source licences) and the
+  independence line as the footer. It is the only place that credits sources: a new data source gets a row
+  there (and its agency a chip and a place in `S.dataAttribution`), a new disclaimer a line in `S.aboutNotes`.
+  Tests: `test/about_test.dart`, `test/source_notes_test.dart`.
 - Appearance: More > Appearance picks follow the phone / light / dark (`Favorites.theme`: '', 'light',
   'dark'; `themeModeFor` in theme.dart). Dark mode keeps sticker surfaces (mint, sky, amber) with ink text.
 - What's new: after an update, Today shows `WhatsNewCard` with `S.whatsNewNotes` until closed
@@ -260,8 +272,8 @@ feature, screen, provider or rule moves, appears or goes away.
   lease left is a bar of the 99 years with the year it ends (`LeaseBar`, also in Compare); resale prices show
   the short figure (S$1.07M) over the full one; town rents are a list of `FlatChip` + price + quarter. Both pages
   end in one disclaimer line, "Indicative only, not advice. Updated <date>." (`DataFooter`), whose "About this
-  data" opens `showAboutData` (sources, licence, the 08:30 / 22-day method, transactions not listings, the
-  hdb.gov.sg eligibility link). Maestro: `maestro/08_where_to_live.yaml`, `maestro/10_compare_blocks.yaml`.
+  data" opens `showAboutData` (the 08:30 / 22-day method, transactions not listings, the hdb.gov.sg
+  eligibility link, and "See data sources", which opens About). Maestro: `maestro/08_where_to_live.yaml`, `maestro/10_compare_blocks.yaml`.
 - Names put in title case (streets, OneMap addresses, CHAS clinics) keep short forms in capitals
   (`capitalizeWord` in data.dart: MRT, LRT, HDB, NTUC...), so "Tampines MRT Station" reads the same everywhere.
 - Home tab (`ui/home.dart`) is about the saved home, one section at a time (chips under the hero,

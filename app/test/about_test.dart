@@ -48,6 +48,7 @@ const _sources = {
   'source-osm': osmCopyrightUrl,
   'source-onemap': oneMapUrl,
   'source-ura': uraUrl,
+  'source-eventfinda': eventfindaUrl,
 };
 
 void main() {
@@ -72,16 +73,14 @@ void main() {
   testWidgets('the rows name the sources and say what each one is for', (tester) async {
     await _open(tester);
     await _show(tester, find.byKey(const ValueKey('source-onemap')));
-    for (final title in ['LTA DataMall', 'data.gov.sg', 'Muslim.sg', 'OpenStreetMap via Geoapify', 'OneMap']) {
+    for (final title in ['LTA DataMall', 'data.gov.sg', 'Muslim.sg', 'OpenStreetMap via Geoapify', 'OneMap (SLA)']) {
       expect(find.text(title), findsOneWidget);
     }
-    expect(find.text('Bus arrivals, MRT, car parks and taxis'), findsOneWidget);
-    // Bicycle parking is not in the app yet.
-    expect(find.textContaining(RegExp('bicycle', caseSensitive: false)), findsNothing);
+    expect(find.text('Bus arrivals, train alerts, car parks, taxis, EV chargers and bicycle parking'), findsOneWidget);
     // Every agency the attribution names is a chip on the data.gov.sg row.
     final chips = find.descendant(of: find.byKey(const ValueKey('source-datagov')), matching: find.byType(InfoChips));
     expect(tester.widget<InfoChips>(chips).labels,
-        ['NEA', 'HDB', 'CEA', 'MUIS', 'NParks', 'NLB', 'SportSG', 'PA', 'MOE']);
+        ['NEA', 'HDB', 'CEA', 'MUIS', 'NParks', 'NLB', 'SportSG', 'PA', 'MOE', 'SCDF', 'MOH', 'MOM', 'ECDA']);
     for (final agency in _s.dataAgencies) {
       expect(find.descendant(of: chips, matching: find.text(agency)), findsOneWidget);
     }
@@ -106,17 +105,19 @@ void main() {
 
   testWidgets('the attribution the licences ask for stays on screen', (tester) async {
     await _open(tester);
-    await _show(tester, find.byKey(const ValueKey('licence-oss')));
+    await _show(tester, find.text(_s.dataAttribution));
     // Singapore Open Data Licence: the source and the licence, in one sentence.
     expect(
       find.text('Contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, '
-          'SportSG, PA and MOE accessed through data.gov.sg, made available under the Singapore Open Data Licence.'),
+          'SportSG, PA, MOE, SCDF, MOH, MOM and ECDA accessed through data.gov.sg, made available under the '
+          'Singapore Open Data Licence.'),
       findsOneWidget,
     );
     expect(find.textContaining('© OpenStreetMap contributors (ODbL)'), findsOneWidget);
     expect(find.textContaining('Geoapify'), findsWidgets);
     expect(find.textContaining('DailyLah is not affiliated with MUIS'), findsOneWidget);
     expect(find.textContaining(_s.oneMapCredit), findsOneWidget);
+    await _show(tester, find.byKey(const ValueKey('licence-oss')));
     // The independence disclaimer is the footer.
     expect(find.text(_s.independent), findsOneWidget);
   });
@@ -163,7 +164,7 @@ void main() {
   ]) {
     testWidgets('holds at ${c.name}: nothing overflows and every row is at least 48 dp', (tester) async {
       await _open(tester, c);
-      for (final key in [..._sources.keys, 'estimates-note', 'licence-sodl', 'licence-oss']) {
+      for (final key in [..._sources.keys, 'estimates-note', 'good-to-know', 'licence-sodl', 'licence-oss']) {
         final row = find.byKey(ValueKey(key));
         await _show(tester, row);
         expect(tester.takeException(), isNull, reason: key);
