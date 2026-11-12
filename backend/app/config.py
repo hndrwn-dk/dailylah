@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     # Cache TTLs (seconds)
     bus_arrival_ttl: int = 20
     ev_ttl: int = 120  # live EV charger status per postal code, memory only
+    # /v1/trip-extras: new bicycle parking areas asked from LTA per second (cached a day each).
+    bicycle_per_second: int = 4
     agent_ttl: int = 86400
     http_timeout: float = 10.0
 

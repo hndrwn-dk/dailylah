@@ -2405,4 +2405,71 @@ void main() {
       expect(s.modeEta('car', 8, '3.1 km'), 'About 8 min by car · 3.1 km');
     });
   });
+
+  group('live LTA details per mode', () {
+    test('the point is sent with 4 decimals', () {
+      expect(extrasCoord(1.36912345), 1.3691);
+      expect(extrasCoord(103.84545678), 103.8455);
+    });
+
+    test('an answer that is not this mode, or has no list, is no answer', () {
+      expect(parseTripExtras({'data': null}, TravelMode.car), isNull);
+      expect(parseTripExtras({'fetched_at': 1, 'data': {'mode': 'car'}}, TravelMode.car), isNull);
+      expect(parseTripExtras({'data': {'mode': 'taxi', 'radius': 500}}, TravelMode.taxi), isNull);
+      final x = parseTripExtras({
+        'fetched_at': 1793850000,
+        'data': {
+          'mode': 'car',
+          'radius': 1000,
+          'items': [
+            {'name': 'A', 'la': 1.3, 'lo': 103.8, 'm': 10, 'lots': 0, 'agency': 'URA'},
+            {'name': 'no point'},
+          ],
+        },
+      }, TravelMode.car)!;
+      expect(x.spots.single.lots, 0);
+      expect(x.asOf, DateTime.fromMillisecondsSinceEpoch(1793850000 * 1000));
+    });
+
+    test('for the phone\'s own position the phone filters the public lists itself', () {
+      const lat = 1.3691, lng = 103.8454;
+      final parking = {
+        'fetched_at': 1793850000,
+        'data': [
+          ['A', 'HDB', 1.3692, 103.8455, 'C', 40, 'BLK A'],
+          ['A', 'HDB', 1.3692, 103.8455, 'Y', 6, 'BLK A'],
+          ['B', 'URA', 1.3760, 103.8454, 'C', 5, ''],
+          ['FAR', 'HDB', 1.3900, 103.8454, 'C', 500, 'FAR'],
+        ],
+      };
+      final car = localTripExtras(TravelMode.car, lat, lng, parking: parking);
+      expect(car.spots.map((p) => (p.name, p.lots)), [('BLK A', 40), ('B', 5)]);
+      expect(car.asOf, isNotNull);
+      expect(localTripExtras(TravelMode.motorcycle, lat, lng, parking: parking).spots.single.lots, 6);
+      final taxi = localTripExtras(TravelMode.taxi, lat, lng, taxis: {
+        'data': [
+          [1.3692, 103.8455],
+          [1.3745, 103.8454],
+        ],
+      });
+      expect((taxi.taxis, taxi.radius), (1, 500));
+      const racks = [
+        EPoint(name: '12 bicycle racks · sheltered', lat: 1.3693, lng: 103.8456),
+        EPoint(name: 'far', lat: 1.38, lng: 103.8454),
+      ];
+      final bike = localTripExtras(TravelMode.bicycle, lat, lng, racks: racks);
+      expect(bike.spots.single.name, '12 bicycle racks · sheltered');
+      expect(bike.asOf, isNull);
+    });
+
+    test('strings: lots, taxis and racks in singular and plural', () {
+      const s = S();
+      expect(s.lotsLabel(1, motorbike: false), 'car lot');
+      expect(s.lotsLabel(0, motorbike: true), 'motorbike lots');
+      expect(s.taxisInRadius(0, 500), '0 taxis within 500 m');
+      expect(s.rackLine('', null, null), '');
+      expect(s.rackLine('Racks', 1, false), 'Racks · 1 rack · not sheltered');
+      expect(s.lotsAsOf('8:05'), 'Lots as of 8:05');
+    });
+  });
 }

@@ -1308,6 +1308,134 @@ List<(ParkingLot, double)> parkingNear(List<ParkingLot> all, double lat, double 
     within(all.where((p) => p.lotType == lotType), lat, lng, radius,
         latOf: (p) => p.lat, lngOf: (p) => p.lng, limit: limit);
 
+// ---------------------------------------------------------------- live LTA details per mode
+
+/// One place on a mode card: a car park with its free lots, or bicycle parking.
+class ExtraSpot {
+  const ExtraSpot({
+    required this.name,
+    required this.lat,
+    required this.lng,
+    required this.metres,
+    this.lots,
+    this.agency = '',
+    this.rackType = '',
+    this.racks,
+    this.sheltered,
+  });
+  final String name;
+  final double lat;
+  final double lng;
+
+  /// Distance from the trip's destination.
+  final double metres;
+
+  /// Car parks: free lots and who runs it (HDB, URA, LTA).
+  final int? lots;
+  final String agency;
+
+  /// Bicycle parking: LTA's rack type, the number of racks and whether it is sheltered
+  /// (null when not known).
+  final String rackType;
+  final int? racks;
+  final bool? sheltered;
+}
+
+/// What LTA knows for one mode near a point of the trip: [spots] (car parks, bicycle parking)
+/// or [taxis] (free taxis within [radius] m), read at [asOf].
+class TripExtras {
+  const TripExtras({required this.mode, this.spots = const [], this.taxis, this.radius = 0, this.asOf});
+  final TravelMode mode;
+  final List<ExtraSpot> spots;
+  final int? taxis;
+  final int radius;
+  final DateTime? asOf;
+}
+
+/// The modes with live LTA details on their card.
+const extrasModes = {TravelMode.bicycle, TravelMode.car, TravelMode.motorcycle, TravelMode.taxi};
+
+/// Radius and number of places when the phone works the details out itself (the trip's end is
+/// the phone's own position, which is never sent): the same as the server's.
+const extrasParkingMetres = 1000.0;
+const extrasBicycleMetres = 500.0;
+const extrasTaxiMetres = 500;
+const extrasMax = 3;
+
+/// A point as /v1/trip-extras takes it: 4 decimals, about 11 m.
+double extrasCoord(double v) => (v * 10000).round() / 10000;
+
+DateTime? _fetchedAt(Map<String, dynamic> body) {
+  final at = body['fetched_at'];
+  return at is num && at > 0 ? DateTime.fromMillisecondsSinceEpoch(at.toInt() * 1000) : null;
+}
+
+/// The answer of /v1/trip-extras for [mode]; null when it is not one.
+TripExtras? parseTripExtras(Map<String, dynamic> body, TravelMode mode) {
+  final data = body['data'];
+  if (data is! Map || data['mode'] != mode.name) return null;
+  final radius = data['radius'] is num ? (data['radius'] as num).toInt() : 0;
+  final asOf = _fetchedAt(body);
+  if (mode == TravelMode.taxi) {
+    final n = data['count'];
+    return n is num ? TripExtras(mode: mode, taxis: n.toInt(), radius: radius, asOf: asOf) : null;
+  }
+  final items = data['items'];
+  if (items is! List) return null;
+  return TripExtras(
+    mode: mode,
+    radius: radius,
+    asOf: asOf,
+    spots: [
+      for (final i in items)
+        if (i is Map && i['la'] is num && i['lo'] is num)
+          ExtraSpot(
+            name: '${i['name'] ?? ''}',
+            lat: (i['la'] as num).toDouble(),
+            lng: (i['lo'] as num).toDouble(),
+            metres: i['m'] is num ? (i['m'] as num).toDouble() : 0,
+            lots: i['lots'] is num ? (i['lots'] as num).toInt() : null,
+            agency: '${i['agency'] ?? ''}',
+            rackType: '${i['type'] ?? ''}',
+            racks: i['racks'] is num ? (i['racks'] as num).toInt() : null,
+            sheltered: i['sheltered'] is bool ? i['sheltered'] as bool : null,
+          ),
+    ],
+  );
+}
+
+/// The same details worked out on the phone, for a trip end that is the phone's own position:
+/// car parks from the /v1/parking answer, taxis from /v1/taxi, bicycle racks from the bundle.
+TripExtras localTripExtras(
+  TravelMode mode,
+  double lat,
+  double lng, {
+  Map<String, dynamic>? parking,
+  Map<String, dynamic>? taxis,
+  List<EPoint> racks = const [],
+}) {
+  switch (mode) {
+    case TravelMode.taxi:
+      final body = taxis ?? const <String, dynamic>{};
+      return TripExtras(
+          mode: mode, taxis: taxiBands(taxiPoints(body), lat, lng).$2, radius: extrasTaxiMetres, asOf: _fetchedAt(body));
+    case TravelMode.bicycle:
+      return TripExtras(mode: mode, radius: extrasBicycleMetres.round(), spots: [
+        for (final (p, d) in within(racks, lat, lng, extrasBicycleMetres,
+            latOf: (p) => p.lat, lngOf: (p) => p.lng, limit: extrasMax))
+          ExtraSpot(name: p.name, lat: p.lat, lng: p.lng, metres: d),
+      ]);
+    default:
+      final body = parking ?? const <String, dynamic>{};
+      return TripExtras(mode: mode, radius: extrasParkingMetres.round(), asOf: _fetchedAt(body), spots: [
+        for (final (p, d) in parkingNear(parseParking(body), lat, lng, mode == TravelMode.motorcycle ? 'Y' : 'C',
+            radius: extrasParkingMetres, limit: extrasMax))
+          ExtraSpot(
+              name: p.name.isEmpty ? p.id : p.name, lat: p.lat, lng: p.lng, metres: d, lots: p.available, agency: p.agency),
+      ]);
+  }
+}
+
 /// Distance in metres from a point to the straight segment a–b (good enough in Singapore).
 double distanceToSegment(double lat, double lng, double aLat, double aLng, double bLat, double bLng) {
   final (px, py) = offsetMetres(aLat, aLng, lat, lng);

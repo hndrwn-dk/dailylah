@@ -61,6 +61,7 @@ class TodayPage extends ConsumerWidget {
       ref.invalidate(carparkLiveProvider);
       ref.invalidate(taxiProvider);
       ref.invalidate(parkingLiveProvider);
+      ref.invalidate(tripExtrasProvider);
       ref.invalidate(incidentsProvider);
       await ref.read(forecastProvider.future).catchError((_) => <String, dynamic>{});
     }

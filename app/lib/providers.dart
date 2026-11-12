@@ -408,6 +408,36 @@ final bicycleRacksProvider =
 final parkingLiveProvider =
     FutureProvider.autoDispose<List<ParkingLot>>((ref) async => parseParking(await ref.watch(apiProvider).parking()));
 
+/// One mode card's question: the mode, the point (the destination, or the start for taxis) and
+/// whether that point is the phone's own position.
+typedef ExtrasQuery = ({TravelMode mode, double lat, double lng, bool here});
+
+/// Live LTA details for a mode card, asked only while that card is on screen (autoDispose, one
+/// per mode and point). A saved or searched place is sent to /v1/trip-extras rounded to 4
+/// decimals; the phone's own position ("Here") is never sent: for it the phone filters the
+/// datasets every user gets (/v1/parking, /v1/taxi) and the bicycle racks bundle itself.
+final tripExtrasProvider = FutureProvider.autoDispose.family<TripExtras, ExtrasQuery>((ref, q) async {
+  final api = ref.watch(apiProvider);
+  if (q.here) {
+    return switch (q.mode) {
+      TravelMode.taxi => localTripExtras(q.mode, q.lat, q.lng, taxis: await api.taxis()),
+      TravelMode.bicycle =>
+        localTripExtras(q.mode, q.lat, q.lng, racks: await ref.watch(bicycleRacksProvider.future)),
+      _ => localTripExtras(q.mode, q.lat, q.lng, parking: await api.parking()),
+    };
+  }
+  try {
+    final extras = parseTripExtras(await api.tripExtras(q.mode.name, extrasCoord(q.lat), extrasCoord(q.lng)), q.mode);
+    if (extras == null) throw const FormatException('trip extras');
+    return extras;
+  } on Object {
+    // Bicycle racks are also in a bundle on the phone: offline, or with the server asleep,
+    // the card still lists them (without rack type). The other modes have no offline source.
+    if (q.mode != TravelMode.bicycle) rethrow;
+    return localTripExtras(q.mode, q.lat, q.lng, racks: await ref.watch(bicycleRacksProvider.future));
+  }
+});
+
 final incidentsProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).trafficIncidents());
 
 /// Today's mode override per trip key (e.g. "work", "extra:0"); in memory only.
@@ -539,6 +569,7 @@ final liveProviders = <ProviderOrFamily>[
   carparkLiveProvider,
   taxiProvider,
   parkingLiveProvider,
+  tripExtrasProvider,
   incidentsProvider,
 ];
 

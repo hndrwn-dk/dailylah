@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request
 
+from . import trip_extras as tx
 from .cache import Cache
 from .config import Settings, get_settings
 from .geoapify import Geoapify, GeoapifyError
@@ -85,6 +86,7 @@ async def lifespan(app: FastAPI):
     app.state.places_breaker = Breaker()
     app.state.places_spent_day = ""  # the UTC day whose budget is used up (skips Redis)
     app.state.places_blocked = Blocked()  # clients over their share (skips Redis)
+    app.state.bicycle_gate = RateGate(s.bicycle_per_second)
     app.state.last_poll: dict[str, float] = {}
     app.state.locks: dict[str, asyncio.Lock] = {}
     yield
@@ -231,6 +233,65 @@ async def parking(request: Request) -> dict:
 async def traffic_incidents(request: Request) -> dict:
     """Current traffic incidents: [[type, lat, lng, message]]. Polled every 5 min."""
     return await _serve(request, INCIDENTS_KEY)
+
+
+@app.get("/v1/trip-extras")
+async def trip_extras(
+    mode: str,
+    lat: float,
+    lng: float,
+    request: Request,
+    c: Cache = Depends(cache),
+    src: Sources = Depends(sources),
+) -> dict:
+    """What LTA DataMall knows for one mode of a planned trip, near one point: the nearest
+    car parks with car or motorcycle lots and bicycle parking (near the destination), or the
+    free taxis around (near the start). The answer is a short filtered list, never the dataset.
+
+    The point is rounded to 4 decimals, used for this answer only and never logged or stored
+    (the access log drops query strings). Car parks and taxis come from the datasets the poller
+    already keeps for everyone; bicycle parking is asked from LTA per area of about 1 km and
+    kept in memory for a day, so the cache key is the area, not the point. `fetched_at` is when
+    LTA's data was read."""
+    if mode not in tx.MODES:
+        raise HTTPException(422, "mode must be bicycle, car, motorcycle or taxi")
+    at = tx.point(lat, lng)
+    if at is None:
+        raise HTTPException(422, "lat and lng must be a point in Singapore")
+    if not get_settings().lta_account_key:
+        raise HTTPException(503, "data not available")
+    if mode == "taxi":
+        live = await _serve(request, TAXI_KEY)
+        data = {
+            "mode": mode,
+            "radius": tx.TAXI_RADIUS_M,
+            "count": tx.taxis_within(live["data"], *at),
+        }
+        return {"fetched_at": live["fetched_at"], "data": data}
+    if mode in tx.LOT_TYPE:
+        live = await _serve(request, PARKING_KEY)
+        items = tx.nearest_parking(live["data"], *at, tx.LOT_TYPE[mode])
+        data = {"mode": mode, "radius": tx.PARKING_RADIUS_M, "items": items}
+        return {"fetched_at": live["fetched_at"], "data": data}
+    cell = tx.area(*at)
+    key = f"lta:bicycle:{cell[0]:.2f},{cell[1]:.2f}"
+    hit = c.get_memory(key)
+    if hit is None:
+        if not request.app.state.bicycle_gate.take():
+            raise HTTPException(503, "bicycle parking busy")
+        try:
+            rows = tx.compact_bicycle(await src.bicycle_parking(*cell, tx.BICYCLE_DIST_KM))
+        except (httpx.HTTPError, ValueError, TypeError, AttributeError) as e:
+            # Also a body that is not JSON, or not the list LTA documents.
+            raise HTTPException(502, "upstream LTA error") from e
+        hit = {"fetched_at": int(time.time()), "rows": rows}
+        c.set_memory_only(key, hit, tx.BICYCLE_TTL_S)
+    data = {
+        "mode": mode,
+        "radius": tx.BICYCLE_RADIUS_M,
+        "items": tx.nearest_bicycle(hit["rows"], *at),
+    }
+    return {"fetched_at": hit["fetched_at"], "data": data}
 
 
 @app.get("/v1/search")

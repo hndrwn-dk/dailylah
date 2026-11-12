@@ -82,6 +82,29 @@ final checks = <String, void Function(Map<String, dynamic>)>{
     final lots = parseParking(body);
     expect(lots.map((l) => (l.id, l.lotType, l.available)), [('AM14', 'C', 102), ('AM14', 'Y', 8)]);
   },
+  'trip_extras_car': (body) {
+    final x = parseTripExtras(body, TravelMode.car)!;
+    expect(x.radius, 1000);
+    expect(x.asOf, isNotNull);
+    final p = x.spots.single;
+    expect((p.name, p.agency, p.lots), ('BLK 201 ANG MO KIO AVE 3', 'HDB', 102));
+    expect(p.metres, lessThan(200));
+    expect(parseTripExtras(body, TravelMode.motorcycle), isNull); // the answer of another mode
+  },
+  'trip_extras_motorcycle': (body) {
+    expect(parseTripExtras(body, TravelMode.motorcycle)!.spots.single.lots, 8);
+  },
+  'trip_extras_taxi': (body) {
+    final x = parseTripExtras(body, TravelMode.taxi)!;
+    expect((x.taxis, x.radius), (1, 500));
+  },
+  'trip_extras_bicycle': (body) {
+    final x = parseTripExtras(body, TravelMode.bicycle)!;
+    expect(x.spots.map((p) => p.name), ['BLK 208 ANG MO KIO AVE 1', 'ANG MO KIO HUB']);
+    final hub = x.spots.last;
+    expect((hub.rackType, hub.racks, hub.sheltered), ('Yellow Box', 24, true));
+    expect(x.spots.first.sheltered, isFalse);
+  },
   'traffic_incidents': (body) {
     const home = Place(kind: PlaceKind.home, addrLat: lat, addrLng: lng);
     const work = Place(kind: PlaceKind.work, addrLat: 1.3344, addrLng: 103.8500);

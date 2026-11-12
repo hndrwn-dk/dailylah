@@ -68,6 +68,11 @@ class DailyLahApi {
   /// Current traffic incidents.
   Future<Map<String, dynamic>> trafficIncidents() => _get('/v1/traffic-incidents');
 
+  /// LTA details for one mode of a planned trip near a point of the trip (never the phone's own
+  /// position, see `tripExtrasProvider`): [mode] is bicycle, car, motorcycle or taxi.
+  Future<Map<String, dynamic>> tripExtras(String mode, double lat, double lng) =>
+      _get('/v1/trip-extras', {'mode': mode, 'lat': lat, 'lng': lng});
+
   /// CEA register lookup by registration number.
   Future<Map<String, dynamic>> agent(String regNo) => _get('/v1/agent/${Uri.encodeComponent(regNo)}');
 }

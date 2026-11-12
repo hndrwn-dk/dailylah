@@ -72,7 +72,12 @@ class AddressHit {
     required this.lat,
     required this.lng,
     this.name,
+    this.here = false,
   });
+
+  /// The phone's own position ("Use my current location"), not a searched address. A trip end
+  /// made from it is "Here": it is never sent to the server.
+  final bool here;
 
   final String label;
   final String block;

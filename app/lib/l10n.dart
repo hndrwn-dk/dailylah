@@ -325,6 +325,22 @@ class S {
         'taxi' => 'About $minutes min by taxi · $dist',
         _ => 'About $minutes min by car · $dist',
       };
+  // Live LTA details on a mode card
+  String get liveUnavailable => 'Live info unavailable';
+  String asOf(String time) => 'as of $time';
+  String lotsAsOf(String time) => 'Lots as of $time';
+  String taxisInRadius(int n, int metres) => '${n == 1 ? '1 taxi' : '$n taxis'} within $metres m';
+  String get seeTaxis => 'See taxis and stands';
+  String lotsLabel(int n, {required bool motorbike}) =>
+      motorbike ? (n == 1 ? 'motorbike lot' : 'motorbike lots') : (n == 1 ? 'car lot' : 'car lots');
+  String get noParkingNear => 'No car park with live lots within 1 km.';
+  String get noBicycleParkingNear => 'No bicycle parking within 500 m.';
+  /// "Yellow Box · 24 racks · sheltered" from what LTA gives; parts it lacks are left out.
+  String rackLine(String type, int? racks, bool? sheltered) => [
+        if (type.isNotEmpty) type,
+        if (racks != null && racks > 0) racks == 1 ? '1 rack' : '$racks racks',
+        if (sheltered != null) sheltered ? 'sheltered' : 'not sheltered',
+      ].join(' · ');
   String get modeEtaNote => 'A rough estimate from the distance, without traffic or waiting.';
   String get noDirectBus => 'No direct bus from this stop. Check the full route in Google Maps.';
   String get routeInMaps => 'Route in Google Maps';
@@ -364,15 +380,11 @@ class S {
   String get fromHome => 'From Home';
   String get fromHere => 'From here';
   String parkingNearPlace(String place) => 'Parking near $place';
-  String get carLots => 'car lots';
-  String get bikeLots => 'motorbike lots';
-  String get noParkingData => 'No live parking data near this place.';
   String get trafficOnWay => 'Traffic on the way';
   String get noIncidents => 'No reported incidents near your route.';
   String get driveInMaps => 'Drive with Google Maps';
   String get rideInMaps => 'Ride with Google Maps';
   String get bicycleParking => 'Bicycle parking near';
-  String get noRacks => 'No LTA bicycle racks within 800 m.';
   String get cycleWeatherTip => 'Check rain, haze and heat above before you ride.';
   String get taxiFromHere => 'Taxi from';
   String get addPlacesHint => 'Tip: add places like your favourite food spot in Setup to pick them here.';

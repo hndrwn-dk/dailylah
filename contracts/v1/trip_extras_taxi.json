@@ -1,0 +1,23 @@
+{
+  "request": "/v1/trip-extras?mode=taxi&lat=1.3691&lng=103.8454",
+  "upstream": {
+    "value": [
+      {
+        "Longitude": 103.8455,
+        "Latitude": 1.3692
+      },
+      {
+        "Longitude": 103.9,
+        "Latitude": 1.31
+      }
+    ]
+  },
+  "response": {
+    "fetched_at": 1793850000,
+    "data": {
+      "mode": "taxi",
+      "radius": 500,
+      "count": 1
+    }
+  }
+}

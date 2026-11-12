@@ -183,6 +183,46 @@ class FakeApi extends DailyLahApi {
   @override
   Future<Map<String, dynamic>> trafficIncidents() async => {'data': []};
 
+  /// Every point /v1/trip-extras was asked for, as (mode, lat, lng).
+  final List<(String, double, double)> extrasAsked = [];
+
+  /// Set to make /v1/trip-extras fail, or to answer with no places.
+  bool extrasDown = false;
+  bool extrasEmpty = false;
+
+  @override
+  Future<Map<String, dynamic>> tripExtras(String mode, double lat, double lng) async {
+    extrasAsked.add((mode, lat, lng));
+    if (extrasDown) throw StateError('LTA down');
+    const at = 1793850000; // 5 Nov 2026 02:20 UTC
+    return {
+      'fetched_at': at,
+      'data': switch (mode) {
+        'taxi' => {'mode': mode, 'radius': 500, 'count': 12},
+        'bicycle' => {
+            'mode': mode,
+            'radius': 500,
+            'items': extrasEmpty
+                ? const <Object>[]
+                : [
+                    {'name': 'SIGLAP SOUTH CC', 'type': 'Yellow Box', 'racks': 24, 'sheltered': true, 'la': lat, 'lo': lng, 'm': 40},
+                    {'name': 'BLK 1 RACKS', 'type': 'Racks', 'racks': 1, 'sheltered': false, 'la': lat, 'lo': lng, 'm': 210},
+                  ],
+          },
+        _ => {
+            'mode': mode,
+            'radius': 1000,
+            'items': extrasEmpty
+                ? const <Object>[]
+                : [
+                    {'id': 'A1', 'name': 'BLK 1 CAR PARK', 'agency': 'HDB', 'lots': mode == 'car' ? 102 : 1, 'm': 120, 'la': lat, 'lo': lng},
+                    {'id': 'U2', 'name': 'EAST COAST RD', 'agency': 'URA', 'lots': 0, 'm': 480, 'la': lat, 'lo': lng},
+                  ],
+          },
+      },
+    };
+  }
+
   @override
   Future<Map<String, dynamic>> crowd(String line, {String kind = 'realtime'}) async => {'data': {}};
 
@@ -229,6 +269,8 @@ class OfflineApi extends FakeApi {
   Future<Map<String, dynamic>> parking() async => _down('/v1/parking');
   @override
   Future<Map<String, dynamic>> trafficIncidents() async => _down('/v1/traffic-incidents');
+  @override
+  Future<Map<String, dynamic>> tripExtras(String mode, double lat, double lng) async => _down('/v1/trip-extras');
   @override
   Future<Map<String, dynamic>> crowd(String line, {String kind = 'realtime'}) async => _down('/v1/crowd');
   @override

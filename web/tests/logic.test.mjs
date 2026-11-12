@@ -375,7 +375,7 @@ test("home: one real screenshot per tab with size and alt, the day timeline and 
   assert.ok(faq.includes(`<summary>${q}</summary>`));
   const sees = faq.slice(faq.indexOf(q), faq.indexOf("</details>", faq.indexOf(q)));
   assert.doesNotMatch(faq, /server/);
-  for (const what of [/bus stop code/, /MRT line code/, /address you search \(not logged\)/, /postal code of an EV charging location/, /registration number of a property agent/]) {
+  for (const what of [/bus stop code/, /MRT line code/, /address you search \(not logged\)/, /postal code of an EV charging location/, /registration number of a property agent/, /trip’s destination \(for a taxi, its start\) as a rounded point, not logged/, /Never where you are/]) {
     assert.match(sees, what);
   }
   assert.match(faq, /Android backup/);

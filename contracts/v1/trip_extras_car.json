@@ -1,0 +1,43 @@
+{
+  "request": "/v1/trip-extras?mode=car&lat=1.3691&lng=103.8454",
+  "upstream": {
+    "value": [
+      {
+        "CarParkID": "AM14",
+        "Area": "",
+        "Development": "BLK 201 ANG MO KIO AVE 3",
+        "Location": "1.36912 103.84418",
+        "AvailableLots": 102,
+        "LotType": "C",
+        "Agency": "HDB"
+      },
+      {
+        "CarParkID": "AM14",
+        "Area": "",
+        "Development": "BLK 201 ANG MO KIO AVE 3",
+        "Location": "1.36912 103.84418",
+        "AvailableLots": 8,
+        "LotType": "Y",
+        "Agency": "HDB"
+      }
+    ]
+  },
+  "response": {
+    "fetched_at": 1793850000,
+    "data": {
+      "mode": "car",
+      "radius": 1000,
+      "items": [
+        {
+          "id": "AM14",
+          "name": "BLK 201 ANG MO KIO AVE 3",
+          "agency": "HDB",
+          "lots": 102,
+          "m": 136,
+          "la": 1.36912,
+          "lo": 103.84418
+        }
+      ]
+    }
+  }
+}

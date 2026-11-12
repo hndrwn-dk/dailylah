@@ -53,6 +53,17 @@ relative to `backend/` when they start with `app/`. Endpoint index: `docs/REPO_M
   startup): it keeps client, method, endpoint and status, drops every query string and shows
   `/v1/bus-arrival/*`, `/v1/ev/*` and `/v1/agent/*` without the code. A new endpoint that takes
   user input in its path adds itself to `_PRIVATE_PATH` (`tests/test_access_log.py`).
+- `/v1/trip-extras?mode=&lat=&lng=` (`app/trip_extras.py`): LTA details for one mode of a planned
+  trip near one point, as a short filtered list (never the dataset). `car`/`motorcycle`: the
+  nearest 3 car parks within 1 km with lot type C/Y, from the polled `lta:parking`; `taxi`: free
+  taxis within 500 m, from the polled `lta:taxi`; `bicycle`: the nearest 3 within 500 m from LTA
+  `BicycleParkingv2` (`Lat`, `Long`, `Dist`, 500 a page), which LTA answers per location, so it is
+  asked per 0.01 degree cell (`area`, radius `BICYCLE_DIST_KM`) and kept in memory for a day
+  (`bicycle_per_second` new cells a second, else 503). One endpoint, not one per mode: same
+  input, checks and privacy rule. `fetched_at` is when LTA's data was read ("as of"). The point
+  is rounded to 4 decimals, must be in Singapore (422), and is never logged or used as a cache
+  key; the httpx request log masks `Lat`/`Long` (`_RedactArea`). The app never sends the phone's
+  own position here (app `tripExtrasProvider`).
 - Every new endpoint gets a pytest test with `respx` mocks; no real network calls in tests.
 - Every `/v1/*` endpoint has an example in `contracts/v1/` (request, upstream, response), checked by
   `tests/test_contracts.py` and by the app's `test/contract_test.dart`. A new endpoint adds one and

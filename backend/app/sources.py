@@ -154,6 +154,26 @@ class Sources:
                 break
         return rows
 
+    async def bicycle_parking(
+        self, lat: float, lng: float, dist_km: float, page_size: int = 500, max_pages: int = 2
+    ) -> list[dict]:
+        """Bicycle parking within dist_km of a point (LTA answers per location, 500 a page).
+        Raises ValueError when the answer is not the documented {"value": [...]}: the caller
+        keeps the answer for a day, so a body without the list must not read as "none here"."""
+        rows: list[dict] = []
+        for page in range(max_pages):
+            body = await self.lta(
+                "BicycleParkingv2",
+                {"Lat": lat, "Long": lng, "Dist": dist_km, "$skip": page * page_size},
+            )
+            batch = body.get("value") if isinstance(body, dict) else None
+            if not isinstance(batch, list):
+                raise ValueError("BicycleParkingv2: no value list")
+            rows.extend(r for r in batch if isinstance(r, dict))
+            if len(batch) < page_size:
+                break
+        return rows
+
     async def parking(self) -> list[list]:
         """Live lots for LTA, URA and HDB car parks, by lot type (C car, Y motorcycle, H heavy)."""
         return compact_parking(await self._lta_all("CarParkAvailabilityv2", max_pages=12))
