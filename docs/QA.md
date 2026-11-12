@@ -349,14 +349,15 @@ the fix as a new version through step 1 (it replaces the unfinished release).
 ### Auto promote (`app` job `promote`)
 - Runs only when all of this holds: the run is a **push to `main`** (never a pull request, a fork
   or a manual run), `play` uploaded to `alpha` (so `PLAY_PUSH_TRACK` is `alpha`; with any other
-  track nothing is promoted), `release-tag` put `v<version>` on this commit, the repository
-  variable **`AUTO_PROMOTE` is `on`**, and the commit is the merge commit of a pull request into
-  `main` (the job asks GitHub first; a commit pushed straight to `main` stops at closed testing).
+  track nothing is promoted), `release-tag` put `v<version>` on this commit, and the repository
+  variable **`AUTO_PROMOTE` is `on`**.
 - It promotes only the versionCode this run built (`--code`, the run number): if the alpha
   release of that version holds another one, nothing is promoted.
 - **Kill switch:** set `AUTO_PROMOTE` to anything else, or delete it (unset = off). The promote
   job and the scheduled guard are then skipped and never read the production key; no code
   change. Releases still reach closed testing; promote by hand with Actions > promote.
+  Off also stops the guard's automatic **halt**: a release that is staged then stays at its
+  fraction, unwatched, until the owner raises or halts it by hand.
 - Why a job at the end of `app.yml` and not a `workflow_run` workflow: the job gets the track,
   the upload result and the tag as job outputs of the same run, so it cannot act on another run
   or on a pull request's run. A `workflow_run` workflow would have to work out from the API or
@@ -393,7 +394,8 @@ Every day at 10:17 Singapore time, for the release that is staged on production:
   resume (it waits for that until five days after it saw the resume, so an app without vitals
   is not stuck).
 - The guard writes the reason into its log before it halts. If the `release-halted` issue then
-  cannot be opened (the run fails), the next run opens it.
+  cannot be opened (the run fails), the next run opens it. A halt and a resume by hand between
+  two daily runs are not seen by the guard: the hold and the health window go on as before.
 - **Time at a fraction.** Google Play does not say when a release reached a fraction or left
   review. The guard keeps its own clock: one GitHub issue per versionCode (label
   `release-rollout`, "Production rollout: 2.4.0 (745)") with a marker for each state it saw; a
@@ -470,6 +472,11 @@ A run that changes nothing says so.
   key (repository variable `PLAY_TESTING_ACCOUNT`). What stands between a commit and production
   is the `main` ruleset (pull request, required checks), the release gate and the guard, not an
   approval click: see "What CI enforces before production".
+- **Whoever can put a commit on `main` can use the production key**, because a job on `main`
+  that names the environment gets its secret and nobody is asked. That is the owner's merge, and
+  the ruleset's one bypass: the data deploy key (`DATA_PUSH_SSH_KEY`, environment `data-push`).
+  Treat that key like the production key itself. With a reviewer on `play-production` it reached
+  closed testing only.
 - One writer to production at a time: the promote job, the guard and `promote.yml` share the
   concurrency group `play-promote`. A second run waits; a third replaces the waiting one. If two
   edits ever commit at the same moment, Google Play refuses the later one and that run fails with

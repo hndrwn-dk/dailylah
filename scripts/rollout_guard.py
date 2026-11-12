@@ -659,9 +659,13 @@ def guard(
         ]
         if not dry_run:
             # Written down before the halt: if the issue cannot be opened after it, the next
-            # run finds this entry and opens the issue then. A failure here changes nothing.
+            # run finds this entry and opens the issue then.
             text = f"Halting at {_utc(now)} for worse Android vitals.\n\n" + "\n".join(details)
-            record(gh, log, release, "halting", percent, text, now)
+            try:
+                record(gh, log, release, "halting", percent, text, now)
+            except pp.PromoteError as e:
+                # The halt matters more than its note: go on, and say so.
+                print(f"::warning title=rollout guard::The log could not be written: {e}")
         out.append("")
         pp.run(play, "halt", dry_run=dry_run, out=out)
         if dry_run:

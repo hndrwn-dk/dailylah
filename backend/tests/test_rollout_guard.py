@@ -553,13 +553,15 @@ def test_a_dry_run_after_a_resume_shows_what_the_real_run_would_do():
     assert "**Halt**" not in out and "asked from 2026-11-21" in out and not gh.writes
 
 
-def test_a_halt_that_cannot_be_written_down_first_changes_nothing():
+def test_a_halt_goes_ahead_when_github_cannot_be_written(capsys):
     play, gh = staged(0.2), FakeGitHub()
     seen(gh, 20, 5)
     gh.fail_writes = True
-    with pytest.raises(pp.PromoteError) as e:
+    # The release is halted all the same; the run fails because nothing could be noted.
+    with pytest.raises(pp.CommitError, match="Google Play was changed"):
         go(play, vitals(new_crash=2.4, old_crash=0.5), gh)
-    assert not isinstance(e.value, pp.CommitError) and not play.did("commit")
+    assert play.tracks["production"][0]["status"] == "halted"
+    assert "::warning title=rollout guard::The log could not be written" in capsys.readouterr().out
 
 
 def test_a_halted_release_without_a_fraction_is_left_alone_not_an_error():

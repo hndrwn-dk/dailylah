@@ -94,7 +94,10 @@ does not show repository settings).
    Keep: Deployment branches and tags = Selected branches, `main` only; "Allow administrators to
    bypass configured protection rules" off; no wait timer; the secret `PLAY_SERVICE_ACCOUNT_JSON`
    listed. From then on a run on `main` reaches the production key without a click, so the
-   `main` ruleset below (pull request, required checks, no bypass for people) is what guards it.
+   `main` ruleset below (pull request, required checks, no bypass for people) is what guards it,
+   together with its one bypass: the data deploy key can push to `main`, so from this step on it
+   is worth as much as the production key (docs/QA.md "Tooling and keys"). Keep exactly one
+   deploy key on the repository, only in environment `data-push`.
 4. **Android vitals for the guard.** The guard reads crash and ANR rates with the production
    service account:
    - Play Console > Users and permissions > the **production** service account > App permissions

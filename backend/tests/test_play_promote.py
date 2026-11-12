@@ -679,13 +679,9 @@ def test_app_yml_promotes_only_a_tagged_alpha_release_pushed_to_main_with_the_sw
         assert must in condition
     assert "||" not in condition  # every condition must hold
     assert job["environment"] == "play-production"
-    assert job["permissions"] == {"contents": "read", "pull-requests": "read"}
+    assert job["permissions"] == {"contents": "read"}
     assert job["concurrency"] == {"group": "play-promote", "cancel-in-progress": False}
-    (merged, checkout, run) = job["steps"]
-    # First of all, and before the key is read: the commit is a merged pull request's.
-    assert "commits/$GITHUB_SHA/pulls" in merged["run"] and "exit 1" in merged["run"]
-    assert ".merge_commit_sha == $sha" in merged["run"] and '.base.ref == "main"' in merged["run"]
-    assert "secrets." not in json.dumps(merged) and "${{" not in merged["run"]
+    (checkout, run) = job["steps"]
     assert checkout["uses"].startswith("actions/checkout@") and len(checkout["uses"]) == 57
     assert checkout["with"]["persist-credentials"] is False
     assert checkout["with"]["sparse-checkout"].split() == [

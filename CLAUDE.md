@@ -118,7 +118,7 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   service account, never the one in `play`, checked against the variable `PLAY_TESTING_ACCOUNT`,
   without which only a dry run works): the `promote` job of `app.yml` (only a push to `main`
   whose `play` job uploaded to `alpha` and whose `release-tag` tagged the commit, only for the
-  merge commit of a pull request and the versionCode this run built, and only while
+  versionCode this run built, and only while
   the repository variable `AUTO_PROMOTE` is `on`: the kill switch), `rollout-guard.yml` (schedule
   and manual, skipped while `AUTO_PROMOTE` is off unless a dry run; `issues: write` for its log
   and the `release-halted` issue) and `promote.yml` (manual only: the override). Each has
@@ -126,7 +126,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   `scripts/rollout_guard.py` (standard library and openssl; no pip, no action besides checkout),
   and shares the concurrency group `play-promote`. Never give one of them a pull request,
   `workflow_run` or fork path, a third-party action or `contents: write`; a change to their
-  triggers, conditions or the environment needs the security gate.
+  triggers, conditions or the environment needs the security gate. A commit on `main` can use
+  this key without an approval, so the data deploy key (the ruleset's bypass) is as sensitive as
+  the production key.
   This protects the keys, not the contents of the
   AAB, which third-party build code still makes. Never use `pull_request_target`. Expressions from
   inputs, vars or step outputs go through `env:`, not straight into `run:`.
