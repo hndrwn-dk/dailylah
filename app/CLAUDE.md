@@ -312,16 +312,26 @@ feature, screen, provider or rule moves, appears or goes away.
   nothing (the owner uploads by hand, docs/QA.md "Manual releases"); `alpha` makes the `play` job
   upload to closed testing. `release-tag` then tags the commit `v<versionName>` and keeps the AAB, mapping and
   `whatsnew-en-US` in a draft GitHub Release (docs/QA.md "Release tags").
-  Production: the `promote` workflow (`.github/workflows/promote.yml`, `scripts/play_promote.py`,
-  tests in `backend/tests/test_play_promote.py`) moves the versionCode that `alpha` holds to
-  production as a staged rollout (inputs `action` promote/rollout/halt/resume, `version`, `rollout`
-  10/20/50/100, `dry_run`), with no rebuild and no upload, in environment `play-production`
-  (docs/QA.md "Production release from the phone"). Run it only after the checklist in docs/QA.md
-  "Before promoting a release to production" (security green, real-phone check in closed testing, /vuln-scan) is done. A manual run of `app` on `main` can pick
+  Production is automatic, merge = ship (docs/QA.md "Production release (automatic)"): after
+  `release-tag`, the `promote` job of `app.yml` (push to `main` only, track `alpha`, repository
+  variable `AUTO_PROMOTE` = `on`, the kill switch) runs `scripts/play_promote.py --auto` and puts
+  the versionCode that `alpha` holds on production as a staged rollout at 20%, with no rebuild, no
+  upload and no approval, in environment `play-production` (main only, no reviewer). The daily
+  `rollout-guard` workflow (`.github/workflows/rollout-guard.yml`, `scripts/rollout_guard.py`)
+  raises it 20 → 50 → 100% after `ROLLOUT_HOLD_HOURS` (48) at a fraction when Android vitals
+  (Play Developer Reporting API: user-perceived crash and ANR rate, new versionCode against the
+  previous one) are OK or have no data, and halts it and opens an issue `release-halted` when
+  they are worse; it never resumes or raises a halted release and never raises on an API error.
+  Its clock is a GitHub issue per versionCode (label `release-rollout`, markers by
+  `github-actions[bot]`). The `promote` workflow (`.github/workflows/promote.yml`; inputs `action`
+  promote/rollout/halt/resume, `version`, `rollout` 10/20/50/100, `dry_run`) is the manual
+  override. Tests: `backend/tests/test_play_promote.py` and `test_rollout_guard.py`. There is no
+  human checklist before production (docs/QA.md "What CI enforces before production"); the
+  real-device checks there are optional. A manual run of `app` on `main` can pick
   another `play_track` (manual, internal, beta, production as draft); it runs the same tests first. A flaky emulator
   job blocks the upload: re-run failed jobs and `play` follows. The upload sends the AAB, mapping file
   and release notes with the service account in secret `PLAY_SERVICE_ACCOUNT_JSON` (environment `play`,
-  or `play-production`, which waits for the owner's approval; upload action pinned by commit). The emulator `release` job (`scripts/emulator_release.sh`)
+  or `play-production` for track `production`; upload action pinned by commit). The emulator `release` job (`scripts/emulator_release.sh`)
   starts the release build with saved data, runs the WorkManager job and widget, and fails on
   missing classes or plugins. A new plugin with native code may need a keep rule.
 

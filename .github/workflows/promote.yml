@@ -1,8 +1,11 @@
 name: promote
-# Production releases from the phone (docs/QA.md "Production release from the phone").
-# Nothing is built or uploaded here: `promote` puts the versionCode that closed testing (alpha)
-# already holds on production through the Play Developer API, as a staged rollout; `rollout`,
-# `halt` and `resume` change that staged release. Run it on main: Actions > promote > Run workflow.
+# The manual override for production (docs/QA.md "Production release (automatic)"). A release
+# normally reaches production by itself: the `promote` job of app.yml puts it there at 20% and
+# rollout-guard.yml raises or halts it. This workflow does the same steps by hand, from the
+# phone: `promote` puts the versionCode that closed testing (alpha) already holds on production
+# as a staged rollout; `rollout`, `halt` and `resume` change that staged release. Nothing is
+# built or uploaded. A release halted here stays halted: the guard never resumes or raises it.
+# Run it on main: Actions > promote > Run workflow.
 on:
   workflow_dispatch:
     inputs:
@@ -25,9 +28,10 @@ on:
         type: boolean
         default: false
 permissions: {}
-# One promote run at a time. A group of its own, not `play-upload` of app.yml: a run holds its
-# group while it waits for approval, and a second waiting run would cancel a pending upload.
-# Google Play keeps two overlapping edits safe: the later commit fails.
+# One writer to production at a time: this group is shared with the `promote` job of app.yml
+# and with rollout-guard.yml. A group of its own, not `play-upload` of app.yml, so an upload to
+# closed testing never waits for it. Google Play keeps two overlapping edits safe: the later
+# commit fails.
 concurrency:
   group: play-promote
   cancel-in-progress: false
@@ -37,8 +41,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # The production Play key (a service account of its own, not the one in `play`) is only in
-    # this environment: main only, and every run (a dry run too) waits for the owner's approval. The job installs nothing: checkout, git, the runner's python3
-    # (standard library) and openssl.
+    # this environment: main only, no reviewer (starting this run is the owner's decision).
+    # The job installs nothing: checkout, git, the runner's python3 (standard library) and openssl.
     environment: play-production
     permissions:
       contents: read

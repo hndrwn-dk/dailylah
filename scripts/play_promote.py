@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Move a tested release to Google Play production, or change its staged rollout.
 
-Used by .github/workflows/promote.yml (docs/QA.md "Production release from the phone").
-Nothing is built or uploaded here: `promote` takes the versionCode that closed testing
-(`alpha`) already holds and puts it on `production` with the Play Developer API
-(edits: tracks.update, then commit).
+Used by the `promote` job of .github/workflows/app.yml (every release, with --auto), by
+.github/workflows/promote.yml (by hand) and by scripts/rollout_guard.py (docs/QA.md
+"Production release (automatic)"). Nothing is built or uploaded here: `promote` takes the
+versionCode that closed testing (`alpha`) already holds and puts it on `production` with the
+Play Developer API (edits: tracks.update, then commit).
 
   promote   the alpha release of <version> goes to production at <rollout> percent
   rollout   raise the fraction of the staged production release (100 completes it)
@@ -100,7 +101,11 @@ def call(method: str, url: str, *, token: str = "", body=None, form=None, opener
         with opener(request) as response:
             raw = response.read()
     except urllib.error.HTTPError as e:
-        raise PromoteError(f"{where}: HTTP {e.code}: {_error_text(e.read())}") from None
+        try:
+            detail = _error_text(e.read())
+        except (OSError, http.client.HTTPException):
+            detail = "no details"  # the error body could not be read
+        raise PromoteError(f"{where}: HTTP {e.code}: {detail}") from None
     except (OSError, http.client.HTTPException) as e:
         # URLError and timeouts, and what urllib does not wrap: a reset or cut-off connection.
         reason = getattr(e, "reason", None) or e
@@ -157,7 +162,7 @@ def check_account(account_json: str, testing_account: str, dry_run: bool = False
         missing = (
             "Repository variable PLAY_TESTING_ACCOUNT is not set, so this run cannot check "
             "that the production key belongs to a service account of its own "
-            "(docs/DEPLOY.md, Production releases from the phone)."
+            "(docs/DEPLOY.md, Production releases)."
         )
         if not dry_run:
             raise PromoteError(f"{missing} Only a dry run works without it.")
@@ -166,13 +171,15 @@ def check_account(account_json: str, testing_account: str, dry_run: bool = False
         raise PromoteError(
             "The key in environment play-production belongs to the testing service account "
             "(repository variable PLAY_TESTING_ACCOUNT). Production needs a service account of "
-            "its own: docs/DEPLOY.md, Production releases from the phone."
+            "its own: docs/DEPLOY.md, Production releases."
         )
     return []
 
 
-def token_request(account_json: str, now: int | None = None, signer=sign_rs256) -> dict:
-    """The form to POST to TOKEN_URL: a signed, 10-minute request for the publisher scope."""
+def token_request(
+    account_json: str, now: int | None = None, signer=sign_rs256, scope: str = SCOPE
+) -> dict:
+    """The form to POST to TOKEN_URL: a signed, 10-minute request for `scope`."""
     try:
         account = json.loads(account_json)
         email = account["client_email"]
@@ -190,7 +197,7 @@ def token_request(account_json: str, now: int | None = None, signer=sign_rs256) 
         header["kid"] = account["private_key_id"]
     claims = {
         "iss": email,
-        "scope": SCOPE,
+        "scope": scope,
         "aud": TOKEN_URL,
         "iat": issued,
         "exp": issued + 600,
@@ -205,8 +212,9 @@ def token_request(account_json: str, now: int | None = None, signer=sign_rs256) 
     }
 
 
-def access_token(account_json: str, opener=_open) -> str:
-    answer = call("POST", TOKEN_URL, form=token_request(account_json), opener=opener)
+def access_token(account_json: str, opener=_open, scope: str = SCOPE) -> str:
+    form = token_request(account_json, scope=scope)
+    answer = call("POST", TOKEN_URL, form=form, opener=opener)
     token = answer.get("access_token")
     if not token:
         raise PromoteError("Google gave no access token for the service account.")
@@ -576,11 +584,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--rollout", type=int, choices=PERCENTS, default=20)
     parser.add_argument("--notes", type=Path, help="whatsnew-en-US of that version")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--auto",
+        action="store_true",
+        help="called by a release run, not by a person: only with AUTO_PROMOTE=on",
+    )
     args = parser.parse_args(argv)
 
     out: list[str] = []
     code = 0
     try:
+        if args.auto and not auto_promote_on():
+            # The kill switch: nothing is read from Google Play, not even the key.
+            out += [f"## Google Play production: {args.action}", "", AUTO_OFF]
+            print(f"::notice title=promote::{AUTO_OFF}")
+            return _finish(out, 0)
         notes = None
         version = args.version.removeprefix("v")
         if args.action == "promote":
@@ -614,6 +632,22 @@ def main(argv: list[str] | None = None) -> int:
             out += ["", "Nothing was changed on Google Play."]
         print(f"::error title=promote::{message}")
         code = 1
+    return _finish(out, code)
+
+
+AUTO_OFF = (
+    "Repository variable AUTO_PROMOTE is not `on`: nothing was read or changed on Google Play. "
+    "Promote by hand with Actions > promote, or set AUTO_PROMOTE to `on`."
+)
+
+
+def auto_promote_on() -> bool:
+    """The kill switch for everything that changes production without a person."""
+    return os.environ.get("AUTO_PROMOTE", "").strip() == "on"
+
+
+def _finish(out: list[str], code: int) -> int:
+    """Print the summary and add it to the job summary."""
     # One line stays one line: no value can start a line of its own (a workflow command).
     text = "\n".join(" ".join(line.split()) for line in out) + "\n"
     print(text)
