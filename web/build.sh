@@ -62,12 +62,12 @@ fi
 take data json
 take where-to-live-towns html
 if [ -f "$src/sitemap.xml" ] && [ ! -L "$src/sitemap.xml" ]; then
-  # A sitemap is served without the pages' CSP: take it only if it is nothing but a plain list
-  # of this site's URLs (no other element, attribute, entity or namespace can carry script).
-  if grep -oE '<[^>]*>' "$src/sitemap.xml" | grep -vqxE \
-    '<\?xml version="1\.0" encoding="UTF-8"\?>|<urlset xmlns="http://www\.sitemaps\.org/schemas/sitemap/0\.9">|</?(url|loc|lastmod)>|</urlset>' \
-    || grep -q '&' "$src/sitemap.xml" \
-    || grep -oE '<loc>[^<]*' "$src/sitemap.xml" | grep -vq '^<loc>https://dailylah\.sg/'; then
+  # Take it only if every line is one of the lines main's generator writes: the two header
+  # lines, one <url> line per page of this site, the closing line. Whole lines, so nothing can
+  # hide in a tag spread over several lines, a comment, an entity or another namespace.
+  if grep -vqxE \
+    '<\?xml version="1\.0" encoding="UTF-8"\?>|<urlset xmlns="http://www\.sitemaps\.org/schemas/sitemap/0\.9">|  <url><loc>https://dailylah\.sg/[A-Za-z0-9/_-]*</loc>(<lastmod>[0-9]{4}-[0-9]{2}-[0-9]{2}</lastmod>)?</url>|</urlset>' \
+    "$src/sitemap.xml"; then
     echo "The data branch's sitemap.xml is not a plain list of dailylah.sg URLs: keeping main's."
   else
     cp "$src/sitemap.xml" sitemap.xml

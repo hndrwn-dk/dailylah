@@ -17,6 +17,19 @@
       ]
     },
     {
+      "source": "/sitemap.xml",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'none'; frame-ancestors 'none'"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    },
+    {
       "source": "/where-to-live(/.*)?",
       "headers": [
         {

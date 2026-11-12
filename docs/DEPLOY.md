@@ -203,13 +203,18 @@ change to it starts `where-to-live`, which makes the published pages again).
    Deployment branches `main` only, no admin bypass; Add secret `DATA_PUSH_SSH_KEY` = the private
    key file (all lines, including BEGIN and END); then delete both local key files. Never paste
    the private key in a chat. Keep exactly one deploy key on the repository.
-2. **Only the deploy key may write the `data` branch.** Settings > Rules > Rulesets > New branch
+2. **Only the deploy key may write the `data` branch.** First delete the branch `data` if it is
+   there (the repository's Branches page > the bin next to `data`): what it holds from before the
+   ruleset is not to be trusted, and the next data update makes it again from `main`. Then
+   Settings > Rules > Rulesets > New branch
    ruleset `data`: Enforcement Active; Target: Include by pattern `data`; tick **Restrict
    creations**, **Restrict updates**, **Restrict deletions** and **Block force pushes**; Bypass
    list: **Deploy keys** (Always), nothing else. This is required, not optional: once the site
    is built from this branch, whoever can push to it can change what the site and the app show,
-   and without the ruleset every workflow with write access could. Check it: Actions > data > Run
-   workflow still ends with "Pushed to main" and no warning about the copy on the data branch.
+   and without the ruleset every workflow with write access could. Check it: wait for a `data` run
+   whose `push` job says "Pushed to main" with no warning about the copy on the data branch (a run
+   that says "No data changes" has not made the branch); the Branches page then shows `data`
+   again, updated by dailylah-bot.
 3. **Deploy hook.** vercel.com > the project (dailylah-web) > Settings > Git > Deploy Hooks: Name
    `data`, Branch `main`, Create Hook, copy the URL (it starts with
    `https://api.vercel.com/v1/integrations/deploy/`). GitHub > Settings > Environments >

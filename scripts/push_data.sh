@@ -148,13 +148,25 @@ overlay_data() {
 # Sets data_tip to the commit of the data branch on remote $1, or to "" when it does not exist.
 # Full ref names: a tag called `data` or `main` must never be taken for the branch.
 fetch_data_tip() {
-  local remote=$1 rc=0
+  local remote=$1 listed line want=""
   data_tip=""
-  git ls-remote --exit-code "$remote" "refs/heads/$DATA_BRANCH" >/dev/null 2>&1 || rc=$?
-  [ "$rc" -eq 2 ] && return 0
-  [ "$rc" -eq 0 ] || return 1
+  # ls-remote and fetch match a name by its end, so `refs/heads/data` would also find a branch
+  # called `refs/heads/refs/heads/data`: only the line with exactly this ref counts.
+  listed=$(git ls-remote "$remote" "refs/heads/$DATA_BRANCH" 2>/dev/null) || return 1
+  while IFS= read -r line; do
+    if [ "${line#*$'\t'}" = "refs/heads/$DATA_BRANCH" ]; then
+      want=${line%%$'\t'*}
+    fi
+  done <<< "$listed"
+  if [ -z "$want" ] && [ -n "$listed" ]; then
+    # git would also push to such a look-alike when the real branch is missing.
+    echo "::error::A branch whose name only ends in refs/heads/$DATA_BRANCH exists (${listed#*$'\t'}). Delete it: it is not the $DATA_BRANCH branch."
+    return 1
+  fi
+  [ -n "$want" ] || return 0
   git fetch --quiet --depth 1 "$remote" "refs/heads/$DATA_BRANCH" || return 1
-  data_tip=$(git rev-parse FETCH_HEAD)
+  [ "$(git rev-parse FETCH_HEAD)" = "$want" ] || return 1
+  data_tip=$want
 }
 
 # Prints `main` or `data`: where the published data lives (web/data-source.txt of the checkout).

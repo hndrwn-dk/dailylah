@@ -787,6 +787,15 @@ def test_the_site_build_does_nothing_while_the_data_is_published_from_main(site,
         'xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n<url><loc>https://dailylah.sg/&e;'
         "</loc></url>\n</urlset>\n",
         "<html><body>page</body></html>\n",
+        # A tag spread over several lines (grep works line by line).
+        '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/'
+        'sitemap/0.9">\n  <url><loc>https://dailylah.sg/</loc></url>\n<script\n xmlns="http://'
+        'www.w3.org/1999/xhtml"\n>alert(1)</script\n>\n</urlset>\n',
+        # A comment and a stylesheet instruction.
+        '<?xml version="1.0" encoding="UTF-8"?>\n<?xml-stylesheet href="//evil.example/x.xsl"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n</urlset>\n',
+        '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/'
+        'sitemap/0.9">\n  <url><loc>https://dailylah.sg/</loc></url><!--\n-->\n</urlset>\n',
     ],
 )
 def test_the_site_build_takes_only_a_plain_sitemap(site, tmp_path, sitemap):
@@ -839,6 +848,42 @@ def test_vercel_runs_the_build_step_and_ships_it():
     assert "-type f" in script
     # A missing data branch is a failed build (the last deployment stays up), not old data.
     assert "404" not in script
+
+
+def test_the_sitemap_is_served_so_that_it_can_never_run_script():
+    config = json.loads((ROOT / "web/vercel.json").read_text())
+    headers = next(h["headers"] for h in config["headers"] if h["source"] == "/sitemap.xml")
+    assert {"key": "X-Content-Type-Options", "value": "nosniff"} in headers
+    csp = next(h["value"] for h in headers if h["key"] == "Content-Security-Policy")
+    assert csp.startswith("default-src 'none'")
+
+
+def test_a_branch_whose_name_only_ends_like_the_data_branch_is_not_it(repos, tmp_path):
+    seed, work, bare, env, script_env = repos
+    # No data branch yet, but a branch named refs/heads/data (full name refs/heads/refs/heads/data).
+    side = tmp_path / "lookalike"
+    git(tmp_path, "clone", "--quiet", str(bare), str(side), env=env)
+    (side / "web/data/other.json").write_text('{"v": "planted"}\n')
+    git(side, "commit", "--quiet", "-am", "planted", env=env)
+    git(side, "push", "--quiet", str(bare), "HEAD:refs/heads/refs/heads/data", env=env)
+    before = main_head(bare, env)[0]
+    lookalike = git(bare, "rev-parse", "refs/heads/refs/heads/data", env=env)
+    result = run_baseline(seed, script_env)
+    assert result.returncode != 0 and "only ends in refs/heads/data" in result.stdout
+    assert (seed / "web/data/other.json").read_text() == '{"v": "old"}\n'
+    patch = make_patch(seed, env, tmp_path, write("web/data/where-to-live.json"))
+    result = run_script(work, script_env, patch, WHERE_TO_LIVE)
+    assert result.returncode != 0 and "only ends in refs/heads/data" in result.stdout
+    # Nothing was pushed anywhere, not to the look-alike either.
+    assert main_head(bare, env) == (before, "")
+    assert git(bare, "rev-parse", "refs/heads/refs/heads/data", env=env) == lookalike
+    # With the real branch there, the look-alike is simply not it.
+    git(bare, "update-ref", "-d", "refs/heads/refs/heads/data", env=env)
+    assert run_script(work, script_env, patch, WHERE_TO_LIVE).returncode == 0
+    git(side, "push", "--quiet", str(bare), "HEAD:refs/heads/refs/heads/data", env=env)
+    assert run_baseline(seed, script_env).returncode == 0
+    assert (seed / "web/data/where-to-live.json").read_text() == NEW
+    assert (seed / "web/data/other.json").read_text() == '{"v": "old"}\n'
 
 
 def test_vercel_serves_data_bundles_with_nosniff():
