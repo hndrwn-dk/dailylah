@@ -329,7 +329,9 @@ The PRD is the owner's product requirements document; it is kept outside this re
 Merging the release PR is the only decision: merge = ship. Nothing below needs a person, a laptop
 or Play Console. It needs the one-time settings in docs/DEPLOY.md "Production releases"
 (`PLAY_PUSH_TRACK=alpha`, `AUTO_PROMOTE=on`, a production service account of its own,
-`play-production` limited to `main` with no reviewer).
+`play-production` limited to `main` with no reviewer). Until those are done, in the order
+given there, a release stops at closed testing and production goes through Actions > promote with
+the owner's approval, as before.
 
 1. **Merge the version bump** (`version:` and `whatsnew-en-US`). The `app` workflow analyzes,
    tests, signs, runs the on-device tests (Maestro on the signed AAB), uploads the AAB to closed

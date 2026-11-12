@@ -62,6 +62,14 @@ One-time settings for docs/QA.md "Production release (automatic)". All of them w
 browser (github.com, play.google.com/console and console.cloud.google.com; the GitHub mobile app
 does not show repository settings).
 
+**Order matters.** Steps 3 and 6 take the last person out of the way to production, so do them
+only when nothing but a merged pull request can put a commit on `main`: the data workflows must
+no longer push to `main` with the deploy key, and the `main` ruleset must have no bypass
+([Rulesets](#rulesets), item 4). While the deploy key is still a bypass, keep the required
+reviewer on `play-production` and leave `AUTO_PROMOTE` unset: releases then go to closed testing
+as before, and production through Actions > promote with your approval. Steps 1, 2, 4 and 5 can be
+done at any time.
+
 1. **Version bumps go to closed testing.** GitHub > the repository > Settings > Secrets and
    variables > Actions > Variables tab > New repository variable: Name `PLAY_PUSH_TRACK`, Value
    `alpha`. (See "Release track for a version bump" below to turn it off again.) Keep it `alpha`:
@@ -89,7 +97,7 @@ does not show repository settings).
      belongs to that account; while the variable is missing only a dry run works, with a warning.
      This is a setup check: what keeps the testing account out of production is its Play Console
      permission above.
-3. **`play-production` asks nobody.** Settings > Environments > `play-production`: under
+3. **`play-production` asks nobody** (only after "Order matters" above). Settings > Environments > `play-production`: under
    Deployment protection rules untick **Required reviewers** and Save protection rules.
    Keep: Deployment branches and tags = Selected branches, `main` only; "Allow administrators to
    bypass configured protection rules" off; no wait timer; the secret `PLAY_SERVICE_ACCOUNT_JSON`
@@ -107,11 +115,12 @@ does not show repository settings).
    - Google Cloud Console (console.cloud.google.com) > the project that owns the service account
      > APIs & Services > Library > search **"Google Play Developer Reporting API"** > Enable.
      ("Google Play Android Developer API" is already enabled there; it is a different API.)
-5. **Check it.** GitHub > Actions > rollout-guard > Run workflow on `main` with `dry_run` on. Its
+5. **Check it.** GitHub > Actions > rollout-guard > Run workflow on `main` with `dry_run` on
+   (while the reviewer is still on the environment, approve the run). Its
    summary shows what production holds, "no staged rollout" or the hold and health lines, and no
    warning about `PLAY_TESTING_ACCOUNT`. `HTTP 403` naming the Reporting API means step 4 is not
    done; a permission error on the tracks means step 2.
-6. **Switch it on.** Settings > Secrets and variables > Actions > Variables > New repository
+6. **Switch it on** (only after step 3). Settings > Secrets and variables > Actions > Variables > New repository
    variable: Name `AUTO_PROMOTE`, Value `on`. From the next version bump a release goes to
    production at 20% by itself and the guard raises it. **To stop:** edit the variable to `off`
    (or delete it); nothing else changes, and Actions > promote still works by hand.
