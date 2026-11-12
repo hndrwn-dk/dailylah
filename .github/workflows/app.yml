@@ -6,12 +6,12 @@ on:
   workflow_dispatch:
     inputs:
       play_track:
-        description: "Upload the signed AAB to this Google Play track (none = analyze and tests only; manual = sign, tag and keep it in a draft GitHub Release, no upload)"
+        description: "Upload the signed AAB to this Google Play testing track (none = analyze and tests only; manual = sign, tag and keep it in a draft GitHub Release, no upload). Production: Actions > promote"
         type: choice
         # Same default as a version bump without PLAY_PUSH_TRACK: nothing goes to Google Play
         # unless a track is picked.
         default: manual
-        options: [none, manual, internal, alpha, beta, production]
+        options: [none, manual, internal, alpha, beta]
 # Read-only by default; no job here writes to the repo. Google Play uses its own service account.
 permissions:
   contents: read
@@ -77,8 +77,11 @@ jobs:
         run: |
           track="$PLAY_TRACK"
           case "$track" in
-            none|manual|internal|alpha|beta|production) ;;
-            *) echo "::error::Unknown track '$track' (repository variable PLAY_PUSH_TRACK: manual, internal, alpha, beta or production)."; exit 1 ;;
+            none|manual|internal|alpha|beta) ;;
+            # No upload to production from here: this workflow's upload step is a third-party
+            # action, and the production key is only for the standard-library scripts
+            # (the `promote` job below, promote.yml, rollout-guard.yml).
+            *) echo "::error::Unknown track '$track' (repository variable PLAY_PUSH_TRACK: manual, internal, alpha or beta; production is reached by promoting the alpha release)."; exit 1 ;;
           esac
           if [ "$GITHUB_EVENT_NAME" = push ] && [ "$track" != none ]; then
             ver() { sed -n 's/^version:[[:space:]]*\([^[:space:]]*\).*/\1/p'; }
@@ -250,12 +253,13 @@ jobs:
   play:
     name: upload to Google Play (${{ needs.analyze.outputs.track }})
     # Only a signed AAB, only after the on-device tests. The Play key lives in environment "play"
-    # (or "play-production", which waits for the owner's approval).
+    # with the testing service account, which cannot release to production. This job never
+    # uses environment "play-production".
     needs: [analyze, sign, e2e]
     # Track `manual` never reaches this job, so the Play key is not read at all.
     if: needs.analyze.outputs.track != 'none' && needs.analyze.outputs.track != 'manual' && needs.sign.result == 'success'
     runs-on: ubuntu-latest
-    environment: ${{ needs.analyze.outputs.track == 'production' && 'play-production' || 'play' }}
+    environment: play
     # One upload at a time; a second release waits instead of cancelling the first.
     concurrency:
       group: play-upload
@@ -295,8 +299,7 @@ jobs:
       - name: Upload to Google Play
         # Closed testing (alpha) on push to main; manual runs can pick another track.
         # Production releases go through the `promote` job below or promote.yml (the alpha
-        # release, no new upload); picking `production` here uploads a draft to review and roll
-        # out in Play Console.
+        # release, no new upload), never through this action.
         # Pinned to v1.1.5 by commit: this step holds the Play service account key.
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
@@ -306,7 +309,7 @@ jobs:
           mappingFile: app/build/dailylah-mapping.txt
           whatsNewDirectory: docs/store/whatsnew
           tracks: ${{ env.PLAY_TRACK }}
-          status: ${{ env.PLAY_TRACK == 'production' && 'draft' || 'completed' }}
+          status: completed
 
   # After a successful upload, or after sign and e2e for track `manual` (no upload): tag the
   # commit v<versionName> (the base of the next release's upgrade test) and keep the AAB, R8

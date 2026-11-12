@@ -111,8 +111,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   `release-tag` writes (`contents: write`, the release tag and draft Release); `play`, which holds
   the Play key, stays read-only. The upload key is only in the `sign` job (environment `signing`:
   sparse checkout of `scripts/sign_aab.sh`, JDK only, no Gradle, pub or cache); the Play key only in
-  `play` (environments `play`/`play-production`). Production is released without an approval
-  (docs/QA.md "Production release (automatic)"), so three more jobs hold the production key, all in
+  `play` (environment `play`, testing tracks only: its key goes to a third-party upload action, so
+  `app.yml` has no production track). Production is released without an approval
+  (docs/QA.md "Production release (automatic)"), so three jobs hold the production key, all in
   `play-production` (deployment branch `main` only, no reviewer; its key is a production-only
   service account, never the one in `play`, checked against the variable `PLAY_TESTING_ACCOUNT`,
   without which only a dry run works): the `promote` job of `app.yml` (only a push to `main`

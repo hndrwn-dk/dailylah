@@ -248,10 +248,8 @@ class Health:
     lines: list[str] = field(default_factory=list)
 
 
-def health(vitals, new_code: int, old_code: int | None, since: datetime, cfg: Config) -> Health:
-    """Compare the new versionCode with the previous one over the days since `since`."""
-    # A day in VITALS_ZONE starts 7 or 8 hours after the UTC day: one day earlier covers it.
-    start = (since.astimezone(UTC) - timedelta(days=1)).date()
+def health(vitals, new_code: int, old_code: int | None, start: date, cfg: Config) -> Health:
+    """Compare the new versionCode with the previous one over the days from `start` on."""
     verdicts, lines = [], []
     for title, metric_set, metric, bad_key in METRICS:
         bad = getattr(cfg, bad_key)
@@ -347,9 +345,13 @@ class GitHub:
     def close(self, number: int) -> None:
         self._call("PATCH", f"/issues/{int(number)}", body={"state": "closed"})
 
+    def lock(self, number: int) -> None:
+        """Only people with write access (and this job) may comment from here on."""
+        self._call("PUT", f"/issues/{int(number)}/lock")
+
 
 MARK = re.compile(
-    r"<!-- rollout-guard code=(\d+) status=(inProgress|halted|completed|gone) "
+    r"<!-- rollout-guard code=(\d+) status=(inProgress|halting|halted|completed|gone) "
     r"percent=(\d+(?:\.\d+)?) -->"
 )
 
@@ -397,8 +399,27 @@ class Log:
         return at if same else None
 
     @property
-    def first(self) -> datetime | None:
-        return self.entries[0][0] if self.entries else None
+    def last_status(self) -> str | None:
+        return self.entries[-1][1] if self.entries else None
+
+    @property
+    def health_from(self) -> date | None:
+        """The first day whose vitals count, or None when the log is empty.
+
+        From the first sight: the day before it (a day in VITALS_ZONE starts 7 or 8 hours
+        after the UTC day, so one day earlier covers the rollout's first hours). After a halt
+        the owner looked at the figures and resumed: those days are judged already, and
+        reading them again would halt the release once more every day. Then only whole days
+        after the resume was seen count.
+        """
+        start, halted = None, False
+        for at, status, _ in self.entries:
+            if status == "halted":
+                start, halted = None, True
+            elif start is None and status == "inProgress":
+                day = at.astimezone(UTC).date()
+                start = day + timedelta(days=1) if halted else day - timedelta(days=1)
+        return start
 
 
 def _code_of(issue: dict) -> int | None:
@@ -436,6 +457,11 @@ def record(gh, log: Log, release: dict, status: str, percent: float, note: str, 
         title = f"Production rollout: {name} ({code})"
         log.number = gh.create_issue(title, f"{intro}\n\n{text}", [TRACK_LABEL])
         log.is_open = True
+        try:
+            # The guard reads every comment of its log: keep strangers from filling it up.
+            gh.lock(log.number)
+        except pp.PromoteError:
+            pass  # the log works unlocked too
     else:
         gh.comment(log.number, text)
     log.entries.append((now, status, percent))
@@ -463,6 +489,14 @@ def close_finished(gh, production: list[dict], out: list[str], dry_run: bool) ->
 
 
 # --- The decision -----------------------------------------------------------------------
+
+HALT_ADVICE = (
+    "No new users get this version; users who have it keep it. The guard will not resume or "
+    "raise it. Look at Play Console > Android vitals, then either ship a fix as a new version "
+    "(it replaces this release) or, if the numbers were wrong, Actions > promote > Run workflow "
+    "> `resume`. After a resume the guard judges only the days from then on, and halts again "
+    "if those are worse too."
+)
 
 
 def read_production(play) -> list[dict]:
@@ -518,8 +552,6 @@ def guard(
         )
     code = pp.codes(release)[0]
     percent = pp.percent_of(release)
-    if not percent or percent >= 100:
-        raise pp.PromoteError(f"The staged release has no fraction ({pp.describe(release)}).")
     log = read_log(gh, code)
     where = f"issue {log.number}" if log.number else "no log yet"
 
@@ -529,10 +561,29 @@ def guard(
             "raises a halted release. Resume it by hand (Actions > promote > resume), or ship "
             "the fix as a new version."
         )
-        if log.since("halted", percent) is None and not dry_run:
-            record(gh, log, release, "halted", percent, f"Seen halted at {percent:g}%.", now)
+        at = percent or 0.0  # a halted release may come without a fraction
+        if log.last_status == "halting":
+            # An earlier run halted it and then could not open the issue: open it now.
+            if dry_run:
+                out.append(f"- Dry run: would open the missing `{HALT_LABEL}` issue.")
+            else:
+                body = (
+                    f"The rollout guard halted versionCode {code} for worse Android vitals, "
+                    "and could not open this issue in that run. The figures and the halt time "
+                    f"are in the guard's log, issue {log.number}.\n\n{HALT_ADVICE}"
+                )
+                number = gh.create_issue(
+                    f"Release halted: {code} at {at:g}%", body, [HALT_LABEL], assign=True
+                )
+                out.append(f"- Opened the missing issue {number} (`{HALT_LABEL}`).")
+                record(gh, log, release, "halted", at, f"Halted by the guard at {at:g}%.", now)
+        elif log.since("halted", at) is None and not dry_run:
+            record(gh, log, release, "halted", at, f"Seen halted at {at:g}%.", now)
         out += unchanged
         return out
+
+    if not percent or percent >= 100:
+        raise pp.PromoteError(f"The staged release has no fraction ({pp.describe(release)}).")
 
     since = log.since("inProgress", percent)
     if since is None:
@@ -554,7 +605,8 @@ def guard(
 
     before = [c for r in production if r.get("status") == "completed" for c in pp.codes(r)]
     previous = max((c for c in before if c != code), default=None)
-    state = health(vitals, code, previous, log.first or now, cfg)
+    first_day = log.health_from or (now.astimezone(UTC) - timedelta(days=1)).date()
+    state = health(vitals, code, previous, first_day, cfg)
     if state.verdict == UNKNOWN:
         out.append("- Health: **UNKNOWN, no vitals data**; this run goes by time only.")
     else:
@@ -562,7 +614,19 @@ def guard(
     out += [f"  - {line}" for line in state.lines]
 
     if state.verdict == WORSE:
-        out += [f"- **Halt** {code} at {percent:g}%: its health is worse.", ""]
+        out.append(f"- **Halt** {code} at {percent:g}%: its health is worse.")
+        details = [
+            f"- versionCode: {code} ({pp._cell(release.get('name') or 'no name')})",
+            f"- Fraction when halted: {percent:g}%",
+            f"- Previous production versionCode: {previous or 'none'}",
+            *[f"- {line}" for line in state.lines],
+        ]
+        if not dry_run:
+            # Written down before the halt: if the issue cannot be opened after it, the next
+            # run finds this entry and opens the issue then. A failure here changes nothing.
+            text = f"Halting at {_utc(now)} for worse Android vitals.\n\n" + "\n".join(details)
+            record(gh, log, release, "halting", percent, text, now)
+        out.append("")
         pp.run(play, "halt", dry_run=dry_run, out=out)
         if dry_run:
             out += ["", f"Dry run: no `{HALT_LABEL}` issue was opened."]
@@ -571,15 +635,9 @@ def guard(
             [
                 f"The rollout guard halted the staged production release at {_utc(now)}.",
                 "",
-                f"- versionCode: {code} ({pp._cell(release.get('name') or 'no name')})",
-                f"- Fraction when halted: {percent:g}%",
-                f"- Previous production versionCode: {previous or 'none'}",
-                *[f"- {line}" for line in state.lines],
+                *details,
                 "",
-                "No new users get this version; users who have it keep it. The guard will not "
-                "resume or raise it. Look at Play Console > Android vitals, then either ship a "
-                "fix as a new version (it replaces this release) or, if the numbers were wrong, "
-                "Actions > promote > Run workflow > `resume`.",
+                HALT_ADVICE,
             ]
         )
 

@@ -54,8 +54,8 @@ Set up by hand under Settings > Environments, each limited to `main` with no adm
   only; uploads from `app.yml`).
 - `play-production`: `PLAY_SERVICE_ACCOUNT_JSON`, the key of the production service account (a
   different account, see below), no required reviewer ("Production releases" step 3).
-  Used by the `promote` job of `app.yml`, by `rollout-guard.yml`, by `promote.yml` and by an
-  `app.yml` run with track `production`.
+  Used by the `promote` job of `app.yml`, by `rollout-guard.yml` and by `promote.yml`, never by
+  the upload job (`app.yml` offers no production track).
 
 ## Production releases
 One-time settings for docs/QA.md "Production release (automatic)". All of them work in a phone

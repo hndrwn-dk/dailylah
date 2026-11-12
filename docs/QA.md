@@ -101,7 +101,7 @@ The upload key never reaches a job that runs third-party build code:
   certificate" on the same page: that is Google's key, so every sign would fail.
 - `e2e` tests `dailylah-aab` on main, so Maestro runs the very file that goes to Play; a manual run
   on another branch skips `sign` and tests `dailylah-aab-unsigned`. A failed `sign` stops the run.
-- `play` (environment `play`, or `play-production` for a manual run with track `production`) and
+- `play` (environment `play`, testing tracks only; `app.yml` has no production track) and
   `release-tag` (tag and draft Release) only ever take `dailylah-aab`, so nothing unsigned is
   uploaded or archived. The `promote` job, `promote.yml` and `rollout-guard.yml` upload nothing:
   they move a versionCode Google Play already has.
@@ -384,14 +384,19 @@ Every day at 10:17 Singapore time, for the release that is staged on production:
 
 - **A halted release is never resumed or raised by the guard**, whoever halted it. After a manual
   `halt` it stays halted until the owner runs `resume` (the hold then starts again) or a new
-  version replaces it.
+  version replaces it. After a resume the guard judges only the vitals of the days from then
+  on, so a release it halted is not halted again for the same days; it is halted again if the
+  new days are worse too.
+- The guard writes the reason into its log before it halts. If the `release-halted` issue then
+  cannot be opened (the run fails), the next run opens it.
 - **Time at a fraction.** Google Play does not say when a release reached a fraction or left
   review. The guard keeps its own clock: one GitHub issue per versionCode (label
   `release-rollout`, "Production rollout: 2.4.0 (745)") with a marker for each state it saw; a
   new state (first sight, a fraction changed by hand, halted, resumed) adds a comment and starts
   the hold again. The time is the creation time GitHub gave that issue or comment, and only
   those written by `github-actions[bot]` count, so on this public repository a stranger's issue
-  or comment cannot move the clock. Leave the issue open; the guard closes it at 100%.
+  or comment cannot move the clock. The guard locks the issue when it opens it, so only people
+  with write access can comment. Leave the issue open; the guard closes it at 100%.
   Why an issue: it survives between runs, needs only `issues: write` (which the halt issue needs
   anyway), and is a readable history of each rollout. A git note or tag would need
   `contents: write` in the job that holds the production key; the workflow token cannot write

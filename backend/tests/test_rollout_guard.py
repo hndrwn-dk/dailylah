@@ -107,6 +107,7 @@ class FakeGitHub:
         self.writes: list[tuple] = []
         self.clock = NOW
         self.fail_writes = False
+        self.locked: list[int] = []
 
     def add_issue(self, body, label=rg.TRACK_LABEL, user=BOT, at=NOW, state="open") -> int:
         number = len(self.items) + 1
@@ -153,6 +154,9 @@ class FakeGitHub:
     def close(self, number: int) -> None:
         self._write("close", number)
         self.items[number - 1]["state"] = "closed"
+
+    def lock(self, number: int) -> None:
+        self.locked.append(number)
 
 
 def staged(fraction: float = 0.2, status: str = "inProgress") -> FakePlay:
@@ -205,6 +209,7 @@ def test_first_sight_starts_the_clock_and_waits():
     assert issue[1] == "Production rollout: 2.4.0 (745)" and issue[3] == ["release-rollout"]
     assert rg.marker(745, "inProgress", 20) in issue[2] and issue[4] is False
     assert "the clock starts now" in out and "**Wait:** about 47.0 h more at 20%" in out
+    assert gh.locked == [1]  # strangers cannot comment on the log
     assert not play.did("update") and not play.did("commit")
     assert "Nothing was changed on Google Play" in out
 
@@ -324,6 +329,7 @@ def test_worse_health_halts_and_opens_an_issue_even_before_the_hold():
     assert "User-perceived crash rate: WORSE. New 745: 2.40% over 3,000 user-days" in body
     assert "previous 738: 0.50% over 3,000 user-days" in body and "bad from 1.09%" in body
     assert rg.marker(745, "halted", 20) in gh.notes[number][-1]["body"]
+    assert "After a resume the guard judges only the days from then on" in body
 
 
 def test_worse_anr_alone_halts():
@@ -414,6 +420,81 @@ def test_a_github_error_after_a_raise_never_says_nothing_changed():
     with pytest.raises(pp.CommitError, match="Google Play was changed, but writing the guard"):
         go(play, gh=gh)
     assert play.tracks["production"][0]["userFraction"] == 0.5
+
+
+def test_resumed_after_a_guard_halt_the_old_days_are_not_judged_again():
+    play, gh, fake = staged(0.2), FakeGitHub(), vitals(new_crash=5.0, old_crash=0.2)
+    number = seen(gh, 20, 200)
+    gh.add_comment(number, rg.marker(745, "halted", 20), at=NOW - timedelta(hours=100))
+    out = go(play, fake, gh)  # the owner resumed it: first sight again, on 20 Nov
+    assert "First sight of 745 at 20%" in out and "**Halt**" not in out
+    # Only whole days after the resume count, and vitals do not reach them yet.
+    assert "UNKNOWN, data only up to 2026-11-19 (asked from 2026-11-21)" in out
+    assert not fake.asked and not play.did("commit")
+    # Three days later vitals cover 21 and 22 Nov: still worse, so it is halted again.
+    fake.end = date(2026, 11, 23)
+    later = NOW + timedelta(hours=72)
+    out = "\n".join(rg.guard(play, fake, gh, cfg=rg.Config(), now=later))
+    assert "**Halt** 745 at 20%" in out
+    assert {(a[3], a[4]) for a in fake.asked} == {(date(2026, 11, 21), date(2026, 11, 23))}
+
+
+def test_a_halt_whose_issue_could_not_be_opened_gets_it_at_the_next_run():
+    play, gh = staged(0.2), FakeGitHub()
+    number = seen(gh, 20, 5)
+
+    def fail_the_issue(title, body, labels, assign=False):
+        raise pp.PromoteError("POST /repos/o/r/issues: HTTP 502: no details")
+
+    opener, gh.create_issue = gh.create_issue, fail_the_issue
+    with pytest.raises(pp.CommitError, match="Google Play was changed, but opening the"):
+        go(play, vitals(new_crash=2.4, old_crash=0.5), gh)
+    assert play.tracks["production"][0]["status"] == "halted"
+    # The reason was written down before the halt.
+    noted = gh.notes[number][-1]["body"]
+    assert rg.marker(745, "halting", 20) in noted and "2.40% over 3,000 user-days" in noted
+    gh.create_issue = opener
+    out = go(play, gh=gh)  # the next day
+    (issue,) = [w for w in gh.writes if w[0] == "issue"]
+    assert issue[1] == "Release halted: 745 at 20%" and issue[3] == ["release-halted"] and issue[4]
+    assert f"issue {number}" in issue[2] and "Opened the missing issue" in out
+    assert rg.marker(745, "halted", 20) in gh.notes[number][-1]["body"]
+    gh.writes.clear()
+    go(play, gh=gh)  # and never a second one
+    assert not gh.writes and len(play.did("commit")) == 1
+
+
+def test_a_halt_that_cannot_be_written_down_first_changes_nothing():
+    play, gh = staged(0.2), FakeGitHub()
+    seen(gh, 20, 5)
+    gh.fail_writes = True
+    with pytest.raises(pp.PromoteError) as e:
+        go(play, vitals(new_crash=2.4, old_crash=0.5), gh)
+    assert not isinstance(e.value, pp.CommitError) and not play.did("commit")
+
+
+def test_a_halted_release_without_a_fraction_is_left_alone_not_an_error():
+    play, gh = FakePlay([rel(745, "2.4.0", "halted"), rel(738, "738 (2.3.0)")]), FakeGitHub()
+    out = go(play, gh=gh)
+    assert "The guard never resumes or raises a halted release" in out
+    assert not play.did("update") and not play.did("commit")
+
+
+def test_a_newer_version_gets_a_log_of_its_own_and_the_old_one_is_closed_when_done():
+    gh = FakeGitHub()
+    old = seen(gh, 50, 300, code=745)  # 2.4.0 was replaced at 50% by 2.4.1
+    play = FakePlay([rel(790, "2.4.1", "inProgress", 0.2), rel(738, "738 (2.3.0)")])
+    out = go(play, gh=gh)
+    assert "First sight of 790 at 20%" in out and not play.did("commit")
+    (issue,) = [w for w in gh.writes if w[0] == "issue"]
+    assert issue[1] == "Production rollout: 2.4.1 (790)"
+    assert rg.read_log(gh, 745).number == old and rg.read_log(gh, 790).number != old
+    done = FakePlay([rel(790, "2.4.1")])
+    out = go(done, gh=gh)
+    assert (
+        "Closed the log of 745" in out and "is no longer on production" in gh.notes[old][-1]["body"]
+    )
+    assert all(i["state"] == "closed" for i in gh.items)
 
 
 # --- states the guard leaves alone ---------------------------------------------------------

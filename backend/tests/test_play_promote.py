@@ -685,9 +685,20 @@ def test_app_yml_promotes_only_a_tagged_alpha_release_pushed_to_main_with_the_sw
     assert run["env"]["TAG"] == "${{ needs.release-tag.outputs.tag }}"
     assert run["env"]["AUTO_PROMOTE"] == "${{ vars.AUTO_PROMOTE }}"
     assert "${{" not in run["run"]  # values reach the shell through env only
-    # The production key: this job, and `play` when a manual run picks track production.
+    # The production key: this job only. `play` hands its key to a third-party upload action,
+    # so it stays in environment `play` and no track of this workflow is production.
     holders = [n for n, j in jobs.items() if "play-production" in json.dumps(j.get("environment"))]
-    assert holders == ["play", "promote"]
+    assert holders == ["promote"] and jobs["play"]["environment"] == "play"
+    options = workflow[True]["workflow_dispatch"]["inputs"]["play_track"]["options"]
+    assert options == ["none", "manual", "internal", "alpha", "beta"]
+    assert "|production)" not in text
+    third_party = [
+        s["uses"]
+        for j in jobs.values()
+        for s in j.get("steps", [])
+        if "upload-google-play" in s.get("uses", "")
+    ]
+    assert len(third_party) == 1 and "upload-google-play" in json.dumps(jobs["play"]["steps"])
     assert jobs["release-tag"]["outputs"]["released"] == "${{ steps.tag.outputs.released }}"
     assert "promote" in jobs["result"]["needs"]  # a failed promote makes the run red
 

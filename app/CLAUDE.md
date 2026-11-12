@@ -328,10 +328,10 @@ feature, screen, provider or rule moves, appears or goes away.
   override. Tests: `backend/tests/test_play_promote.py` and `test_rollout_guard.py`. There is no
   human checklist before production (docs/QA.md "What CI enforces before production"); the
   real-device checks there are optional. A manual run of `app` on `main` can pick
-  another `play_track` (manual, internal, beta, production as draft); it runs the same tests first. A flaky emulator
+  another `play_track` (manual, internal, beta; never production, which is reached only by promoting the alpha release); it runs the same tests first. A flaky emulator
   job blocks the upload: re-run failed jobs and `play` follows. The upload sends the AAB, mapping file
   and release notes with the service account in secret `PLAY_SERVICE_ACCOUNT_JSON` (environment `play`,
-  or `play-production` for track `production`; upload action pinned by commit). The emulator `release` job (`scripts/emulator_release.sh`)
+  testing tracks only; upload action pinned by commit). The emulator `release` job (`scripts/emulator_release.sh`)
   starts the release build with saved data, runs the WorkManager job and widget, and fails on
   missing classes or plugins. A new plugin with native code may need a keep rule.
 
