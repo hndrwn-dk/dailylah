@@ -146,3 +146,77 @@ test("home at 360 px: Compare towns, then Browse all towns under it with a gap",
     await page.close();
   }
 });
+
+/**
+ * "Four tabs for your day" at a width: how many screenshots share the first row, how many rows,
+ * whether the phone deck's tab buttons show, and the first screenshot's transform under the pointer.
+ */
+async function fourTabs(width, options = {}) {
+  const context = await browser.newContext({ viewport: { width, height: 900 }, ...options });
+  const page = await context.newPage();
+  try {
+    await page.route((url) => !url.href.startsWith(base), (route) => route.abort());
+    await page.goto(base + "/", { waitUntil: "load" });
+    await page.locator(".screens").scrollIntoViewIfNeeded();
+    await page.hover(".screens li img");
+    await page.waitForTimeout(400);
+    return await page.$eval(".screens", (list) => {
+      const shown = (el) => Boolean(el) && getComputedStyle(el).display !== "none" && el.getBoundingClientRect().width > 0;
+      // The cards, not the screenshots: the one under the pointer is lifted.
+      const tops = [...list.querySelectorAll("li")].map((li) => Math.round(li.getBoundingClientRect().top));
+      return {
+        firstRow: tops.filter((t) => t === tops[0]).length,
+        rows: new Set(tops).size,
+        captions: [...list.querySelectorAll("figcaption")].filter(shown).length,
+        deckButtons: shown(document.querySelector(".shot-tabs")),
+        sideways: list.scrollWidth > list.clientWidth + 1,
+        lifted: getComputedStyle(list.querySelector("li img")).transform !== "none",
+      };
+    });
+  } finally {
+    await context.close();
+  }
+}
+
+// The layout follows the width alone: a phone asking for the desktop site (980 px, touch) and a
+// tablet get the same cards as a laptop of that width, with or without JS.
+const touch = { hasTouch: true, isMobile: true };
+for (const [name, width, options] of [
+  ["a laptop at 1280 px", 1280, {}],
+  ["a tablet at 1024 px (touch)", 1024, touch],
+  ["Chrome Android's desktop site, 980 px (touch)", 980, touch],
+  ["980 px with a mouse", 980, {}],
+  ["980 px without JS", 980, { javaScriptEnabled: false }],
+  ["the hero's two-column width, 880 px", 880, touch],
+]) {
+  test(`home, four tabs on ${name}: 4 cards in one row with their captions`, async () => {
+    const tabs = await fourTabs(width, options);
+    assert.deepEqual(
+      { firstRow: tabs.firstRow, rows: tabs.rows, captions: tabs.captions, deckButtons: tabs.deckButtons, sideways: tabs.sideways },
+      { firstRow: 4, rows: 1, captions: 4, deckButtons: false, sideways: false },
+    );
+  });
+}
+
+for (const [name, options] of [["with JS (touch)", touch], ["without JS", { javaScriptEnabled: false }]]) {
+  test(`home, four tabs at 768 px ${name}: 2 x 2 cards with their captions`, async () => {
+    const tabs = await fourTabs(768, options);
+    assert.deepEqual(
+      { firstRow: tabs.firstRow, rows: tabs.rows, captions: tabs.captions, deckButtons: tabs.deckButtons, sideways: tabs.sideways },
+      { firstRow: 2, rows: 2, captions: 4, deckButtons: false, sideways: false },
+    );
+  });
+}
+
+test("home, four tabs on a phone (360 px): the deck with its tab buttons", async () => {
+  const tabs = await fourTabs(360, touch);
+  assert.equal(tabs.deckButtons, true);
+  assert.equal(tabs.captions, 0);
+});
+
+test("home, four tabs: a screenshot lifts under a mouse, not on a touch screen", async () => {
+  assert.equal((await fourTabs(980, {})).lifted, true, "mouse at 980 px");
+  assert.equal((await fourTabs(1280, {})).lifted, true, "mouse at 1280 px");
+  assert.equal((await fourTabs(980, touch)).lifted, false, "touch at 980 px");
+  assert.equal((await fourTabs(1280, { reducedMotion: "reduce" })).lifted, false, "reduced motion");
+});

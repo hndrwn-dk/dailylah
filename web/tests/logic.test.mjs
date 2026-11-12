@@ -351,6 +351,24 @@ test("footers are short and the full sources live in the Terms", () => {
   assert.equal((wtlFooter.match(/<a /g) ?? []).length, 3);
 });
 
+test("home: the four-tabs deck ends where the 2 x 2 cards start, in the CSS and in screens.js alike", () => {
+  const html = read("index.html");
+  const js = read("shared/screens.js");
+  // The deck (max-width) and the grid (min-width) meet with no gap; 4 across starts with the hero's two columns.
+  const deck = Number(html.match(/@media \(max-width: (\d+)px\) \{\s*\.screens\.deck \{/)[1]);
+  const [grid, row] = [...html.matchAll(/@media \(min-width: (\d+)px\) \{ \.screens \{/g)].map((m) => Number(m[1]));
+  const hero = Number(html.match(/@media \(min-width: (\d+)px\) \{ \.hero \{/)[1]);
+  assert.equal(grid, deck + 1);
+  assert.equal(row, hero);
+  assert.ok(grid < row);
+  assert.equal(Number(js.match(/matchMedia\("\(max-width: (\d+)px\)"\)/)[1]), deck);
+  // Width alone picks the layout: hover and pointer only decide the lift under a mouse.
+  assert.doesNotMatch(js, /hover|pointer:|ontouch|maxTouchPoints|userAgent/);
+  for (const [, query] of html.matchAll(/@media ([^{]*(?:hover|pointer)[^{]*)\{/g)) {
+    assert.match(query, /\(hover: hover\) and \(pointer: fine\)|\(hover: none\), \(pointer: coarse\)/, query);
+  }
+});
+
 test("home: one real screenshot per tab with size and alt, the day timeline and the questions", () => {
   const html = read("index.html");
   const imgs = [...html.matchAll(/<img src="\/brand\/screens\/([a-z-]+\.webp)"([^>]*)>/g)];
