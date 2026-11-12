@@ -1,7 +1,7 @@
 name: promote
 # The manual override for production (docs/QA.md "Production release (automatic)"). A release
-# normally reaches production by itself: the `promote` job of app.yml puts it there at 20% and
-# rollout-guard.yml raises or halts it. This workflow does the same steps by hand, from the
+# normally gets there without this: the `promote` job of app.yml puts it there at 20% after the
+# owner's approval and rollout-guard.yml raises or halts it. This workflow does the same steps by hand, from the
 # phone: `promote` puts the versionCode that closed testing (alpha) already holds on production
 # as a staged rollout; `rollout`, `halt` and `resume` change that staged release. Nothing is
 # built or uploaded. A release halted here stays halted: the guard never resumes or raises it.

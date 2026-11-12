@@ -24,7 +24,7 @@ This file maps that plan to the automated tests in this repo and describes how a
 | Production release `app.yml` job `promote` (`scripts/play_promote.py`) | GitHub Actions `app` | every version bump on `main`, after `play` and `release-tag`, while `AUTO_PROMOTE` is `on` | after the owner's approval, puts the versionCode just uploaded to `alpha` on production as a staged rollout at 20%; see "Production release (automatic)" |
 | Rollout guard `rollout-guard.yml` (`scripts/rollout_guard.py`) | GitHub Actions `rollout-guard` | daily 10:17 Singapore time while `AUTO_ROLLOUT` is `on`, and by hand (`dry_run`) | raises the staged release 20% → 50% → 100% after the hold, or halts it and opens an issue when Android vitals are worse |
 | Manual override `promote.yml` | GitHub Actions `promote`, by hand | when the owner wants to act | promote, raise, halt or resume the production release from the phone; waits for his approval |
-| Release script tests `backend/tests/test_play_promote.py`, `test_rollout_guard.py` | GitHub Actions `backend` | every PR touching `backend/`, the two scripts, `promote.yml`, `rollout-guard.yml` or `app.yml` | against a fake Google Play, a fake Reporting API and fake GitHub issues: what is sent, every refusal, wait / raise / halt, API errors, the kill switch, dry run, and that the production key stays in `play-production` |
+| Release script tests `backend/tests/test_play_promote.py`, `test_rollout_guard.py` | GitHub Actions `backend` | every PR touching `backend/`, the two scripts, `promote.yml`, `rollout-guard.yml` or `app.yml` | against a fake Google Play, a fake Reporting API and fake GitHub issues: what is sent, every refusal, wait / raise / halt, API errors, both switches (`AUTO_PROMOTE`, `AUTO_ROLLOUT`), dry run, and that the production key stays in `play-production` (promote) and `play-rollout` (the guard alone) |
 | Security scans `security.yml` | GitHub Actions `security` | every PR, push to `main`, Mondays | CodeQL (actions, python, java-kotlin), osv-scanner (dependencies), zizmor (workflows); see below |
 | Backend security `backend.yml` | GitHub Actions `backend` | every push touching `backend/` | ruff bandit rules (`S`), `pip-audit` on the installed dependency tree |
 | Agent docs `docs.yml` | GitHub Actions `docs` | every PR and push to `main` | `docs/REPO_MAP.md` and every `AGENTS.md` match the code and CLAUDE.md (`scripts/repo_map.py --check`) |
@@ -366,8 +366,10 @@ enough users for vitals to say something.
   variable **`AUTO_PROMOTE` is `on`**.
 - It promotes only the versionCode this run built (`--code`, the run number): if the alpha
   release of that version holds another one, nothing is promoted.
-- It waits for the owner's approval (environment `play-production`, required reviewer). Not
-  approving, or rejecting, leaves the release on closed testing; the run then shows as failed.
+- It waits for the owner's approval (environment `play-production`, required reviewer).
+  Rejecting leaves the release on closed testing and fails the run (`app result` red). A request
+  nobody answers stays "Waiting" for up to 30 days and can keep the guard and the manual
+  workflow waiting meanwhile ("Tooling and keys"): reject it when the version should not ship.
 - **Switches:** `AUTO_PROMOTE` is for this job, `AUTO_ROLLOUT` for the guard; each is `on` or off
   (anything else, or unset). Off means the job is skipped and never reads the production key; no
   code change. With `AUTO_PROMOTE` off, releases still reach closed testing; promote by hand with
@@ -500,8 +502,10 @@ A run that changes nothing says so.
   concurrency group `play-promote`. A second run waits; a third replaces the waiting one. If two
   edits ever commit at the same moment, Google Play refuses the later one and that run fails with
   nothing changed.
-  A job that waits for the owner's approval can hold the group: the guard's daily run then waits
-  behind it. So approve or reject a waiting promote; do not leave it.
+  A run that waits for the owner's approval can hold the group (certain for `promote.yml`, whose
+  group is on the workflow; expected, not yet seen, for the promote job of `app.yml`): the
+  guard's daily run and a manual `halt` then only queue behind it, and a later queued run cancels
+  the earlier one. So approve or reject a waiting promote first; do not leave it.
 
 ## What CI enforces before production
 

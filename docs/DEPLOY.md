@@ -44,7 +44,7 @@ Backend env vars (see [`backend/.env.example`](../backend/.env.example)):
 
 Never commit `.env`, API keys or keystores. In CI, the data build keys are repo secrets; the
 signing, Play and data-push keys live in their own GitHub environments (`signing`, `play`,
-`play-production`, `data-push`); none of them is a repository secret. See "CI security" in [`CLAUDE.md`](../CLAUDE.md).
+`play-production`, `play-rollout`, `data-push`); none of them is a repository secret. See "CI security" in [`CLAUDE.md`](../CLAUDE.md).
 
 ## Release signing environments
 Set up by hand under Settings > Environments, each limited to `main` with no admin bypass:

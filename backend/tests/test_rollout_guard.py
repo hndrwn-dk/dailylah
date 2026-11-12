@@ -885,7 +885,7 @@ def test_main_raises_and_writes_the_summary(cli):
 
 
 @pytest.mark.parametrize("value", ["", "off", "ON", "true", "on "])
-def test_main_does_nothing_while_auto_promote_is_not_on(cli, monkeypatch, value):
+def test_main_does_nothing_while_auto_rollout_is_not_on(cli, monkeypatch, value):
     monkeypatch.setenv("AUTO_ROLLOUT", value)
     if value == "on ":  # surrounding spaces are forgiven, nothing else
         assert cli()[0] == 0 and cli.play.did("commit")
@@ -902,7 +902,7 @@ def test_the_promote_switch_does_not_start_the_guard(cli, monkeypatch):
     assert code == 0 and "AUTO_ROLLOUT is not `on`" in summary and not cli.play.calls
 
 
-def test_main_dry_run_works_while_auto_promote_is_off(cli, monkeypatch):
+def test_main_dry_run_works_while_auto_rollout_is_off(cli, monkeypatch):
     monkeypatch.delenv("AUTO_ROLLOUT")
     code, summary, _ = cli("--dry-run")
     assert code == 0 and "## Rollout guard (dry run)" in summary
@@ -943,7 +943,7 @@ def test_main_refuses_a_bad_variable_the_testing_key_and_missing_secrets(cli, mo
 # --- the workflow that runs it ---------------------------------------------------------------
 
 
-def test_the_guard_workflow_keeps_the_key_in_play_production_and_cannot_run_for_a_pr():
+def test_the_guard_workflow_keeps_the_key_in_play_rollout_and_cannot_run_for_a_pr():
     text = (ROOT / ".github" / "workflows" / "rollout-guard.yml").read_text(encoding="utf-8")
     workflow = yaml.safe_load(text)
     triggers = workflow[True]  # YAML reads `on` as True

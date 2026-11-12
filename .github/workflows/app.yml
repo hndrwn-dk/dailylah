@@ -398,7 +398,7 @@ jobs:
             app/build/whatsnew-en-US
           retention-days: 30
 
-  # Merge, one tap, shipped (docs/QA.md "Production release"): the versionCode that was just
+  # Merge, one tap, shipped (docs/QA.md "Production release (automatic)"): the versionCode that was just
   # uploaded to closed testing and tagged goes to production as a staged rollout at 20%, with no
   # rebuild and no upload, once the owner approves this job (environment `play-production`,
   # required reviewer); rollout-guard.yml raises or halts it from there.
