@@ -28,9 +28,16 @@ name: 05 Home
     direction: LEFT
 - tapOn: "(?s)Schools"
 - tapOn: "(?s)Health"
-- swipe:
-    from: "(?s)Health"
-    direction: RIGHT
+# Back to the first chip. One swipe is not always enough (how far it carries depends on where
+# Health sits when the swipe starts), so swipe until My home is on screen.
+- repeat:
+    times: 5
+    while:
+      notVisible: "(?s)My home"
+    commands:
+      - swipe:
+          from: "(?s)(Meeting points|Upgrading|Schools|Health)"
+          direction: RIGHT
 - tapOn: "(?s)My home"
 - scrollUntilVisible:
     element: "(?is).*Ang Mo Kio Av.*3.*"
