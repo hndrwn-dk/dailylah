@@ -1,6 +1,7 @@
 name: data
-# Rebuilds static bundles in web/data/ once a day and commits them if they changed.
-# Vercel redeploys web/ on push. Needs repo secrets LTA_ACCOUNT_KEY, ONEMAP_EMAIL and
+# Rebuilds the static bundles of web/data/ once a day and, if they changed, pushes them to the
+# branch `data` (never to main) and asks Vercel to deploy the site again; the site's build step
+# (web/build.sh) lays that branch over main. Needs repo secrets LTA_ACCOUNT_KEY, ONEMAP_EMAIL and
 # ONEMAP_PASSWORD (OneMap geocoding and themes); DATAGOV_API_KEY is optional. GEOAPIFY_API_KEY
 # (Geoapify Places, OpenStreetMap toilets for toilets.json): without it the previous file stays.
 # backend/data/geocode.json caches OneMap lookups between runs.
@@ -47,6 +48,11 @@ jobs:
       - name: Show what is built
         run: |
           echo "Built from $(git rev-parse HEAD) (run queued at $GITHUB_SHA)" | tee -a "$GITHUB_STEP_SUMMARY"
+      # The published data is on the data branch: lay it over the checkout (no key needed, the
+      # repository is public) so the build starts from yesterday's bundles and caches, and the
+      # patch below is a diff against them. Before pip: only git and this script have run.
+      - name: Start from the published data
+        run: bash scripts/push_data.sh --baseline
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
@@ -101,10 +107,11 @@ jobs:
               sys.exit(1)
           PY
 
-  # Pushes the patch to main with the deploy key that the main ruleset lets bypass its rules
-  # (docs/DEPLOY.md, "Rulesets"). Environment data-push holds DATA_PUSH_SSH_KEY and is
-  # limited to main. Only GitHub's own actions and scripts/push_data.sh (with the runner's python3,
-  # stdlib only, for its JSON check) run in this job.
+  # Pushes the patch to the branch `data` with the deploy key, then asks Vercel to deploy the
+  # site (docs/DEPLOY.md, "Data branch"). Nothing is pushed to main: its ruleset has no bypass.
+  # Environment data-push holds DATA_PUSH_SSH_KEY and VERCEL_DEPLOY_HOOK and is limited to main.
+  # Only GitHub's own actions and scripts/push_data.sh (with the runner's python3, stdlib only,
+  # for its JSON check, and curl for the hook) run in this job.
   push:
     needs: build
     # Also when only the last build step (the data.gov.sg key check) failed: the bundles are
@@ -123,8 +130,11 @@ jobs:
         with:
           name: data-patch
           path: ${{ runner.temp }}/patch
-      - name: Push to main
+      - name: Push to the data branch
         env:
           DATA_PUSH_SSH_KEY: ${{ secrets.DATA_PUSH_SSH_KEY }}
+          VERCEL_DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
           PATCH: ${{ runner.temp }}/patch/data.patch
-        run: bash scripts/push_data.sh "$PATCH" "Update static data bundles" 'web/data/*.json' 'backend/data/*.json'
+        run: |
+          bash scripts/push_data.sh "$PATCH" "Update static data bundles" \
+            'web/data/*.json' backend/data/geocode.json backend/data/build_report.json

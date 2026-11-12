@@ -38,7 +38,7 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 ## Repo layout
 - `backend/` — Python 3.12, FastAPI. Deployed to Render (free) via `render.yaml`.
 - `app/` — Flutter app (Riverpod, dio). Platform folders are generated with `flutter create`.
-- `web/` — static site on Vercel, no build step: landing page, the "Where to live?" page
+- `web/` — static site on Vercel; its only build step, `web/build.sh`, lays the published data from the branch `data` over the site: landing page, the "Where to live?" page
   (`web/where-to-live/`) and its generated town pages
   (`web/where-to-live-towns/`, never hand-edited) with their share images (`web/og/where-to-live/`,
   made by `scripts/build_og_images.py`), the Play button as plain HTML on every page (no script; `web/tests` checks all pages carry the same link), the landing
@@ -99,11 +99,17 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 - Every workflow sets `permissions:` at the top (read-only or `{}`) and widens it per job only where
   needed. Checkouts use `persist-credentials: false`; a job that pushes passes the token only to
   that `git push`. `data.yml` and `where-to-live.yml` build in a read-only job and hand a patch to a
-  separate `push` job (environment `data-push`, deploy key `DATA_PUSH_SSH_KEY`, the `main` ruleset's
-  only bypass) that runs `scripts/push_data.sh` and nothing from pip. The patch may carry only
+  separate `push` job (environment `data-push`, deploy key `DATA_PUSH_SSH_KEY`, deploy hook
+  `VERCEL_DEPLOY_HOOK`) that runs `scripts/push_data.sh` and nothing from pip. It pushes to the
+  branch `data`, never to `main` (the `main` ruleset has no bypass; only while the deploy hook is
+  not set does it also push to `main`, as before the move), and the site's build step
+  (`web/build.sh`) lays that branch over `main` at every deploy. The `data` branch holds only data
+  files (`BRANCH_PATHS` in the script); the script refuses a branch that holds anything else, and
+  `build.sh` takes only plain `.json`, town page `.html` and the sitemap from it. The copies on
+  `main` are for the tests. The patch may carry only
   JSON files that parse; files the site serves as pages (the where-to-live town pages, the sitemap)
   are made in the push job by main's own stdlib generator (`push_data.sh --generate`), never taken
-  from the patch. When run on main, both build jobs check out the newest `main` (`ref: main`), so a
+  from the patch. The build jobs start from the published data (`push_data.sh --baseline`, no key). When run on main, both build jobs check out the newest `main` (`ref: main`), so a
   run that waited in its concurrency group builds on the data the earlier run pushed; the push
   jobs keep the queued commit (and its `push_data.sh`). A run queued before a merge that changes
   the build's outputs, secrets or allowlist may fail once (fails closed); run it again.
@@ -114,7 +120,8 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   `play` (environment `play`, testing tracks only: its key goes to a third-party upload action, so
   `app.yml` has no production track). Production is released without an approval
   (docs/QA.md "Production release (automatic)"), so three jobs hold the production key, all in
-  `play-production` (deployment branch `main` only, no reviewer; its key is a production-only
+  `play-production` (deployment branch `main` only; the owner is its required reviewer until the
+  one-time steps in docs/DEPLOY.md "Production releases" are done, then nobody is; its key is a production-only
   service account, never the one in `play`, checked against the variable `PLAY_TESTING_ACCOUNT`,
   without which only a dry run works): the `promote` job of `app.yml` (only a push to `main`
   whose `play` job uploaded to `alpha` and whose `release-tag` tagged the commit, only for the
@@ -126,9 +133,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   `scripts/rollout_guard.py` (standard library and openssl; no pip, no action besides checkout),
   and shares the concurrency group `play-promote`. Never give one of them a pull request,
   `workflow_run` or fork path, a third-party action or `contents: write`; a change to their
-  triggers, conditions or the environment needs the security gate. A commit on `main` can use
-  this key without an approval, so the data deploy key (the ruleset's bypass) is as sensitive as
-  the production key.
+  triggers, conditions or the environment needs the security gate. Without the reviewer, a commit
+  on `main` can use this key with no approval: nothing but a merged pull request may reach
+  `main` (no ruleset bypass, no workflow that pushes there).
   This protects the keys, not the contents of the
   AAB, which third-party build code still makes. Never use `pull_request_target`. Expressions from
   inputs, vars or step outputs go through `env:`, not straight into `run:`.

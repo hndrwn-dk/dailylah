@@ -1,8 +1,8 @@
 name: where-to-live
 # Rebuilds web/data/where-to-live.json (HDB median rent and resale per town + OneMap transit
-# times to office areas) once a week and pushes it to main only when its data changed (push job,
-# deploy key in environment data-push, scripts/push_data.sh).
-# Vercel redeploys web/ on push. backend/data/where_to_live_routes.json caches the routes
+# times to office areas) once a week and pushes it to the branch `data` (never to main) only when
+# its data changed (push job, deploy key in environment data-push, scripts/push_data.sh), then
+# asks Vercel to deploy the site again. backend/data/where_to_live_routes.json caches the routes
 # (asked again after 30 days). Secrets: ONEMAP_EMAIL, ONEMAP_PASSWORD; DATAGOV_API_KEY optional.
 on:
   schedule:
@@ -37,6 +37,9 @@ jobs:
       - name: Show what is built
         run: |
           echo "Built from $(git rev-parse HEAD) (run queued at $GITHUB_SHA)" | tee -a "$GITHUB_STEP_SUMMARY"
+      # The published data is on the data branch (see data.yml): start from it.
+      - name: Start from the published data
+        run: bash scripts/push_data.sh --baseline
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
@@ -67,12 +70,13 @@ jobs:
           path: ${{ runner.temp }}/data.patch
           retention-days: 3
 
-  # Pushes the patch to main with the deploy key that the main ruleset lets bypass its rules
-  # (docs/DEPLOY.md, "Rulesets"). Environment data-push holds DATA_PUSH_SSH_KEY and is
-  # limited to main. Only GitHub's own actions and scripts/push_data.sh run in this job, plus main's
-  # own backend/app/where_to_live_pages.py (stdlib only, the runner's python3, no pip), which
-  # push_data.sh runs on the patched main to write the "Living in <town>" pages and the sitemap.
-  # The patch itself may carry only the two JSON files.
+  # Pushes the patch to the branch `data` with the deploy key, then asks Vercel to deploy the
+  # site (docs/DEPLOY.md, "Data branch"). Nothing is pushed to main. Environment data-push holds
+  # DATA_PUSH_SSH_KEY and VERCEL_DEPLOY_HOOK and is limited to main. Only GitHub's own actions and
+  # scripts/push_data.sh run in this job, plus main's own backend/app/where_to_live_pages.py
+  # (stdlib only, the runner's python3, no pip), which push_data.sh runs on main with the patched
+  # data to write the "Living in <town>" pages and the sitemap. The patch itself may carry only
+  # the two JSON files, and the data branch only data files, so the generator is always main's.
   push:
     name: where-to-live (push)
     needs: build
@@ -90,9 +94,10 @@ jobs:
         with:
           name: where-to-live-patch
           path: ${{ runner.temp }}/patch
-      - name: Push to main
+      - name: Push to the data branch
         env:
           DATA_PUSH_SSH_KEY: ${{ secrets.DATA_PUSH_SSH_KEY }}
+          VERCEL_DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
           PATCH: ${{ runner.temp }}/patch/data.patch
         run: |
           bash scripts/push_data.sh \

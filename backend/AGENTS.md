@@ -81,7 +81,10 @@ relative to `backend/` when they start with `app/`. Endpoint index: `docs/REPO_M
   data.gov.sg keys expire: every data.gov.sg call goes through `DataGovKey` (`app/datagov.py`),
   which retries without the key on 401/403 and logs a warning; the data workflow then fails
   its last step ("Check data.gov.sg key") so the expiry is visible. Renew it in both GitHub and Render.
-  OneMap geocodes are cached in `backend/data/geocode.json` (committed by the workflow).
+  The workflow pushes the bundles to the branch `data`, never to `main` (`scripts/push_data.sh`,
+  docs/DEPLOY.md "Data branch"); the site's build step lays that branch over `main`. The files in
+  `web/data/` on `main` are the copy the tests read, refreshed by a pull request when needed.
+  OneMap geocodes are cached in `backend/data/geocode.json` (kept on the `data` branch).
   Optional bundles are best effort: a failing upstream keeps yesterday's file.
   On the phone `BundleRepository.load` runs one load per bundle at a time, saves a download only when
   it is valid JSON (temp file + rename) and re-downloads a saved copy that does not decode.

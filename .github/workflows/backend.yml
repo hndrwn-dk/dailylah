@@ -1,7 +1,7 @@
 name: backend
 on:
   push:
-    paths: ["backend/**", "contracts/**", "scripts/play_promote.py", "scripts/rollout_guard.py", ".github/workflows/promote.yml", ".github/workflows/rollout-guard.yml", ".github/workflows/app.yml", ".github/workflows/backend.yml"]
+    paths: ["backend/**", "contracts/**", "scripts/play_promote.py", "scripts/rollout_guard.py", "scripts/push_data.sh", "web/build.sh", "web/vercel.json", ".github/workflows/data.yml", ".github/workflows/where-to-live.yml", ".github/workflows/promote.yml", ".github/workflows/rollout-guard.yml", ".github/workflows/app.yml", ".github/workflows/backend.yml"]
   pull_request:
 permissions:
   contents: read
@@ -30,9 +30,9 @@ jobs:
           if [ "$EVENT" = pull_request ]; then
             files=$(git diff --name-only --no-renames HEAD^1 HEAD)
             printf 'Changed files:\n%s\n' "$files"
-            # The release scripts and the workflows that run them are tested by
-            # backend/tests/test_play_promote.py and test_rollout_guard.py.
-            grep -qE '^(backend/|contracts/|scripts/(play_promote|rollout_guard)\.py$|\.github/workflows/(backend|promote|rollout-guard|app)\.yml$)' <<<"$files" || run=false
+            # The release and data-push scripts and the workflows that run them are tested by
+            # backend/tests/test_play_promote.py, test_rollout_guard.py and test_push_data.py.
+            grep -qE '^(backend/|contracts/|scripts/(play_promote\.py|rollout_guard\.py|push_data\.sh)$|web/(build\.sh|vercel\.json)$|\.github/workflows/(backend|promote|rollout-guard|app|data|where-to-live)\.yml$)' <<<"$files" || run=false
           fi
           echo "run=$run" | tee -a "$GITHUB_OUTPUT"
 
