@@ -81,6 +81,8 @@ jobs:
         if: matrix.language == 'java-kotlin'
         with:
           channel: stable
+          # Pinned: a new stable release must not change CI by itself (CLAUDE.md, "CI security").
+          flutter-version: 3.47.9
           # No cache: this job has security-events: write.
           cache: false
       - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
