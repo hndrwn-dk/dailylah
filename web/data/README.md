@@ -3,4 +3,6 @@ into this folder and served from Vercel's CDN. Do not hand-edit generated files.
 
 Exception: `school_holidays.json` is maintained by hand from MOE's yearly press release
 "School terms and holidays for <year>" (moe.gov.sg). Add the next year when MOE publishes it
-(usually in July). The daily build keeps it and lists it in the manifest.
+(usually in July). The daily build keeps it and lists it in the manifest. It stays hand-written
+on `main` also when the other bundles are published from the branch `data` (docs/DEPLOY.md
+"Data branch"): main's copy wins, and a change to it starts the `data` workflow.

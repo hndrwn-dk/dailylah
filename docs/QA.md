@@ -30,8 +30,8 @@ This file maps that plan to the automated tests in this repo and describes how a
 | Agent docs `docs.yml` | GitHub Actions `docs` | every PR and push to `main` | `docs/REPO_MAP.md` and every `AGENTS.md` match the code and CLAUDE.md (`scripts/repo_map.py --check`) |
 
 The screen matrix uses the bundles committed in `web/data/`, so screens render with real data.
-That copy on `main` is no longer updated daily (the published data lives on the branch `data`,
-docs/DEPLOY.md "Data branch"); refresh it with a pull request when a test needs newer data.
+Once the data is published from the branch `data` (docs/DEPLOY.md "Data branch"), that copy on
+`main` is no longer updated daily; refresh it with a pull request when a test needs newer data.
 The API, location and storage are faked. A test fails on any exception or layout overflow.
 
 ## Manual releases (no Play upload)
@@ -478,8 +478,9 @@ A run that changes nothing says so.
   approval click: see "What CI enforces before production".
 - **Once the reviewer is gone, whoever can put a commit on `main` can use the production key**,
   because a job on `main` that names the environment gets its secret and nobody is asked. So
-  nothing but a merged pull request may reach `main`: the ruleset has no bypass, and the data
-  workflows push to the branch `data` (docs/DEPLOY.md "Data branch"). Two more ways past the
+  nothing but a merged pull request may reach `main`: the data workflows must publish through
+  the branch `data` and the ruleset's bypass must be gone (docs/DEPLOY.md "Data branch", all
+  steps). Two more ways past the
   reviewer are still to be decided before it is removed: `promote.yml` would run without an
   approval, and a pull request is merged with no second person.
 - One writer to production at a time: the promote job, the guard and `promote.yml` share the

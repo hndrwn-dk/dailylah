@@ -1,24 +1,32 @@
 #!/usr/bin/env bash
-# Pushes a data update to the branch `data` with the deploy key (docs/DEPLOY.md, "Data branch").
-# Nothing is pushed to main: the main ruleset has no bypass, and the website's build step
-# (web/build.sh) lays the data branch over main at every deploy. Used by the push jobs of data.yml
-# and where-to-live.yml, which run in environment `data-push` and get the patch from the build
-# job as an artifact, so the key never shares a job with pip or the build's third-party code.
+# Pushes a data update with the deploy key (docs/DEPLOY.md, "Data branch"). Used by the push jobs
+# of data.yml and where-to-live.yml, which run in environment `data-push` and get the patch from
+# the build job as an artifact, so the key never shares a job with pip or the build's
+# third-party code.
 #
 # Usage: DATA_PUSH_SSH_KEY=<private key> [VERCEL_DEPLOY_HOOK=<url>] scripts/push_data.sh \
-#          [--generate "<command>" --generated <path>...] <patch file> "<commit message>" \
+#          [--generate "<command>" --generated <path>...] <patch file | -> "<commit message>" \
 #          <allowed path>...
 #        scripts/push_data.sh --baseline
+#
+# Where the published data lives is one word in web/data-source.txt on main, read from main
+# itself (so only a merged pull request changes it):
+#   main  (also when the file is missing) The update is pushed to main, as it always was, and
+#         Vercel deploys on that push. The branch `data` gets a copy of the data files, so it is
+#         ready for the switch; it is written only, never read.
+#   data  The update is pushed to the branch `data` and never to main (the main ruleset then
+#         needs no bypass). Each try starts from the newest main for the code and lays the newest
+#         data branch over it. Then the Vercel deploy hook starts a deployment, whose build step
+#         (web/build.sh) lays the data branch over main. The hook is required in this mode.
 # The data branch holds only the files in BRANCH_PATHS below, at the paths they have on main.
-# Each try starts from the newest main (the code), lays the newest data branch over it, applies
-# the patch and pushes a commit with only those files to `data`; up to 3 tries. Then the deploy
-# hook, if given, tells Vercel to deploy the site again.
-# Moving over: while VERCEL_DEPLOY_HOOK is not set, nothing would publish what is on the data
-# branch, so the same update is also pushed to main as before (that needs the deploy key in the
-# main ruleset's bypass list). With the hook set, main is never pushed to.
-# --baseline (the build jobs, no key): lay the data branch over the checkout and commit it
-# locally, so the build starts from the published data and its patch is a diff against it.
-# The patch is `git diff --cached --binary` of the build job against that baseline.
+# Files in HAND_KEPT are written by people on main: main's copy always wins, and the next
+# update carries it to the data branch.
+# --baseline (the build jobs, no key): with source `data`, lay the data branch over the checkout
+# and commit it locally, so the build starts from the published data and its patch is a diff
+# against it. With source `main` there is nothing to do.
+# The patch is `git diff --cached --binary` of the build job against that baseline. `-` instead of
+# a patch file means no data change: only the --generate command runs (a change to main's page
+# generator must reach the published pages too).
 # The build job runs third-party code, so the patch is not trusted: every path it touches must be
 # an allowed path, only regular, non-executable files may be added, changed or deleted, and every
 # `*.json` file it leaves must parse as a JSON object or array.
@@ -31,8 +39,8 @@
 set -euo pipefail
 
 DATA_BRANCH=data
-# Everything the data branch may hold. A file of main at one of these paths is only the copy the
-# tests read; the published one is on the data branch.
+# Everything the data branch may hold. With source `data`, main's files at these paths are only
+# the copy the tests read; the published ones are on the data branch.
 BRANCH_PATHS=(
   'web/data/*.json'
   'web/where-to-live-towns/*.html'
@@ -43,6 +51,8 @@ BRANCH_PATHS=(
   backend/data/where_to_live_routes.json
   backend/data/build_report.json
 )
+# Written by hand on main (web/data/README.md); the builds only keep them and list them.
+HAND_KEPT=(web/data/school_holidays.json)
 
 baseline=""
 generate=""
@@ -56,7 +66,8 @@ while [ $# -gt 0 ]; do
   esac
 done
 if [ -z "$baseline" ]; then
-  patch=$(realpath "$1")
+  patch=$1
+  [ "$patch" = - ] || patch=$(realpath "$patch")
   message=$2
   shift 2
   allowed=("$@")
@@ -105,16 +116,9 @@ pathspec() {
 # branch yet (the baseline is then main's own copy). The branch may hold only BRANCH_PATHS as
 # plain files: anything else stops here, so it can never replace code that runs later.
 overlay_data() {
-  local remote=$1 rc=0 meta path mode kind entry specs=()
-  data_tip=""
-  git ls-remote --exit-code --heads "$remote" "$DATA_BRANCH" >/dev/null 2>&1 || rc=$?
-  if [ "$rc" -eq 2 ]; then
-    echo "No $DATA_BRANCH branch yet: starting from the copy on main."
-  elif [ "$rc" -ne 0 ]; then
-    return 1
-  else
-    git fetch --quiet --depth 1 "$remote" "$DATA_BRANCH" || return 1
-    data_tip=$(git rev-parse FETCH_HEAD)
+  local remote=$1 meta path mode kind entry specs=()
+  fetch_data_tip "$remote" || return 1
+  if [ -n "$data_tip" ]; then
     while IFS= read -r -d '' meta; do
       path=${meta#*$'\t'}
       read -r mode kind _ <<< "${meta%%$'\t'*}"
@@ -127,10 +131,43 @@ overlay_data() {
       specs+=("$(pathspec "$entry")")
     done
     # Exactly the branch's files: a file it no longer has goes, also when main still has a copy.
-    git rm -r --quiet --ignore-unmatch -- "${specs[@]}"
-    git checkout --quiet "$data_tip" -- .
+    git rm -r --quiet --ignore-unmatch -- "${specs[@]}" || return 1
+    git checkout --quiet "$data_tip" -- . || return 1
+    # Files people write on main: main's copy, not the branch's older one.
+    for entry in "${HAND_KEPT[@]}"; do
+      if git cat-file -e "HEAD:$entry" 2>/dev/null; then
+        git checkout --quiet HEAD -- "$entry" || return 1
+      fi
+    done
+  else
+    echo "No $DATA_BRANCH branch yet: starting from the copy on main."
   fi
-  git commit --quiet --allow-empty -m "Data baseline"
+  git commit --quiet --allow-empty -m "Data baseline" || return 1
+}
+
+# Sets data_tip to the commit of the data branch on remote $1, or to "" when it does not exist.
+# Full ref names: a tag called `data` or `main` must never be taken for the branch.
+fetch_data_tip() {
+  local remote=$1 rc=0
+  data_tip=""
+  git ls-remote --exit-code "$remote" "refs/heads/$DATA_BRANCH" >/dev/null 2>&1 || rc=$?
+  [ "$rc" -eq 2 ] && return 0
+  [ "$rc" -eq 0 ] || return 1
+  git fetch --quiet --depth 1 "$remote" "refs/heads/$DATA_BRANCH" || return 1
+  data_tip=$(git rev-parse FETCH_HEAD)
+}
+
+# Prints `main` or `data`: where the published data lives (web/data-source.txt of the checkout).
+data_source() {
+  local word=main
+  if [ -f web/data-source.txt ]; then
+    word=$(tr -d '[:space:]' < web/data-source.txt)
+  fi
+  if [ "$word" != main ] && [ "$word" != data ]; then
+    echo "::error::web/data-source.txt must say main or data." >&2
+    exit 1
+  fi
+  printf '%s' "$word"
 }
 
 # Prints the tree with only the BRANCH_PATHS files of the index: what the data branch gets.
@@ -147,14 +184,23 @@ data_tree() {
 # Tells Vercel to deploy the site again, so it serves the data just pushed. The hook can do
 # nothing else. Its URL is a secret: no curl output is shown.
 redeploy() {
+  if [ -z "${VERCEL_DEPLOY_HOOK:-}" ]; then
+    echo "::error::VERCEL_DEPLOY_HOOK is not set in environment data-push: nothing would publish the $DATA_BRANCH branch (docs/DEPLOY.md, Data branch)."
+    exit 1
+  fi
   if ! curl --fail --silent --max-time 30 --output /dev/null -X POST "$VERCEL_DEPLOY_HOOK"; then
-    echo "::error::The data was pushed, but Vercel did not take the deploy hook: the site still serves the old data. Run the workflow again or redeploy in Vercel."
+    echo "::error::The data is on the $DATA_BRANCH branch, but Vercel did not take the deploy hook: the site still serves the old data. Re-run this job (it will only call the hook), or redeploy in Vercel."
     exit 1
   fi
   echo "Asked Vercel to deploy the site."
 }
 
 if [ -n "$baseline" ]; then
+  source=$(data_source)
+  if [ "$source" = main ]; then
+    echo "Baseline: main (web/data-source.txt says main)"
+    exit 0
+  fi
   git config user.name "dailylah-bot"
   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
   # No key here: the repository is public, so the build job reads the branch like anyone can.
@@ -162,7 +208,7 @@ if [ -n "$baseline" ]; then
     echo "::error::Could not read the $DATA_BRANCH branch."
     exit 1
   fi
-  echo "Baseline: ${data_tip:-main (no $DATA_BRANCH branch yet)}"
+  echo "Baseline: $DATA_BRANCH branch ${data_tip:-(none yet, so main)}"
   exit 0
 fi
 
@@ -176,6 +222,7 @@ check_path() {
 # Checks the patch's paths before anything is written to the working tree.
 check_patch_paths() {
   local stats path
+  [ "$patch" != - ] || return 0
   while IFS= read -r -d '' stats; do
     path=${stats#*$'\t'}
     path=${path#*$'\t'}
@@ -237,7 +284,6 @@ run_generate() {
 }
 
 check_patch_paths
-# Before anything is pushed: a hook that cannot work must not leave pushed data unpublished.
 if [ -n "${VERCEL_DEPLOY_HOOK:-}" ] \
   && [[ "$VERCEL_DEPLOY_HOOK" != https://api.vercel.com/v1/integrations/deploy/* ]]; then
   echo "::error::VERCEL_DEPLOY_HOOK is not a Vercel deploy hook URL."
@@ -265,44 +311,83 @@ remote="git@github.com:${GITHUB_REPOSITORY:?}.git"
 git config user.name "dailylah-bot"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+# Applies the patch to the index and working tree. Returns 1 when it is already in (nothing left
+# to do); exits when it no longer fits.
+apply_patch() {
+  [ "$patch" != - ] || return 0
+  git apply --index "$patch" && return 0
+  if git apply --check --reverse "$patch" 2>/dev/null; then
+    return 1
+  fi
+  echo "::error::The data update no longer applies (another change touched the same files)."
+  exit 1
+}
+
+# Source `main`: gives the data branch a copy of the data files just pushed to main. It is made
+# from main alone; what the branch holds is only its parent, never read.
+mirror_to_data() {
+  local tree
+  tree=$(data_tree) || return 1
+  fetch_data_tip "$remote" || return 1
+  if [ -n "$data_tip" ] && [ "$tree" = "$(git rev-parse "$data_tip^{tree}")" ]; then
+    return 0
+  fi
+  git push --quiet "$remote" \
+    "$(git commit-tree "$tree" ${data_tip:+-p "$data_tip"} -m "$message"):refs/heads/$DATA_BRANCH"
+}
+
 for try in 1 2 3; do
-  # main for the code (the generator below is main's own), the data branch for the data.
-  if git fetch --quiet --depth 1 "$remote" main && git reset --quiet --hard FETCH_HEAD \
-    && main_tip=$(git rev-parse HEAD) && overlay_data "$remote"; then
-    if ! git apply --index "$patch"; then
-      if git apply --check --reverse "$patch" 2>/dev/null; then
-        echo "Nothing left to push: the $DATA_BRANCH branch already has these changes."
+  # main first, by its full ref name: its code (this run's generator) and its data-source.txt.
+  if git fetch --quiet --depth 1 "$remote" refs/heads/main && git reset --quiet --hard FETCH_HEAD; then
+    main_tip=$(git rev-parse HEAD)
+    source=$(data_source)
+    if [ "$source" = main ]; then
+      # As before the data branch: the update goes to main, and Vercel deploys on that push.
+      if [ "$patch" = - ]; then
+        echo "Nothing to do: the pages are published from main."
         exit 0
       fi
-      echo "::error::The data update no longer applies to the $DATA_BRANCH branch (another change touched the same files)."
-      exit 1
-    fi
-    check_staged
-    run_generate
-    check_staged
-    tree=$(data_tree)
-    if [ -n "$data_tip" ] && [ "$tree" = "$(git rev-parse "$data_tip^{tree}")" ]; then
-      echo "Nothing left to push: the $DATA_BRANCH branch already has these changes."
-      exit 0
-    fi
-    # A commit with only the data files, on top of the branch (the first one has no parent).
-    commit=$(git commit-tree "$tree" ${data_tip:+-p "$data_tip"} -m "$message")
-    if git push --quiet "$remote" "$commit:refs/heads/$DATA_BRANCH"; then
-      echo "Pushed to $DATA_BRANCH: $message"
-      if [ -n "${VERCEL_DEPLOY_HOOK:-}" ]; then
-        redeploy
+      if ! apply_patch; then
+        echo "Nothing left to push: main already has these changes."
         exit 0
       fi
-      # Moving over (see the top of this file): no hook yet, so main gets the update too and
-      # Vercel deploys on that push, as before.
-      echo "::warning::VERCEL_DEPLOY_HOOK is not set: also pushing to main so the site is deployed. Set the hook, then take the deploy key out of the main ruleset's bypass list (docs/DEPLOY.md, Data branch)."
+      check_staged
+      run_generate
+      check_staged
+      if git diff --cached --quiet; then
+        echo "Nothing left to push: main already has these changes."
+        exit 0
+      fi
       commit=$(git commit-tree "$(git write-tree)" -p "$main_tip" -m "$message")
       if git push --quiet "$remote" "$commit:refs/heads/main"; then
         echo "Pushed to main: $message"
+        mirror_to_data || echo "::warning::The copy on the $DATA_BRANCH branch was not updated (docs/DEPLOY.md, Data branch). The site is not affected."
         exit 0
       fi
-      echo "::error::The data is on the $DATA_BRANCH branch, but main refused the push and no deploy hook is set: the site still serves the old data. Set VERCEL_DEPLOY_HOOK in environment data-push (docs/DEPLOY.md, Data branch)."
-      exit 1
+    elif overlay_data "$remote"; then
+      # HEAD is now main's code with the data branch's data, committed locally as the baseline.
+      [ -n "${VERCEL_DEPLOY_HOOK:-}" ] || redeploy # fails: no hook, so nothing may be pushed
+      applied=1
+      apply_patch || applied=""
+      if [ -n "$applied" ]; then
+        check_staged
+        run_generate
+        check_staged
+      fi
+      tree=$(data_tree)
+      if [ -n "$data_tip" ] && [ "$tree" = "$(git rev-parse "$data_tip^{tree}")" ]; then
+        # Also after a run that pushed and then could not start the deployment.
+        echo "Nothing left to push: the $DATA_BRANCH branch already has these changes."
+        redeploy
+        exit 0
+      fi
+      # A commit with only the data files, on top of the branch (the first one has no parent).
+      commit=$(git commit-tree "$tree" ${data_tip:+-p "$data_tip"} -m "$message")
+      if git push --quiet "$remote" "$commit:refs/heads/$DATA_BRANCH"; then
+        echo "Pushed to $DATA_BRANCH: $message"
+        redeploy
+        exit 0
+      fi
     fi
   fi
   echo "::warning::Push try $try failed; trying again."
