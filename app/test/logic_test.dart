@@ -2469,6 +2469,13 @@ void main() {
       expect(s.taxisInRadius(0, 500), '0 taxis within 500 m');
       expect(s.rackLine('', null, null), '');
       expect(s.rackLine('Racks', 1, false), 'Racks · 1 rack · not sheltered');
+      // LTA's own spellings, as seen on the live API.
+      expect(s.rackLine('HDB_RACKS', 15, true), 'HDB racks · 15 racks · sheltered');
+      expect(s.rackType('MRT_RACKS'), 'MRT racks');
+      expect(s.rackType('Yellow Box'), 'Yellow Box');
+      expect(s.rackName('560201-2'), 'Racks at postal code 560201');
+      expect(s.rackName('TAMPINES MRT B'), 'TAMPINES MRT B');
+      expect(s.rackName('CAPITASPRING-1'), 'CAPITASPRING-1');
       expect(s.lotsAsOf('8:05'), 'Lots as of 8:05');
     });
   });

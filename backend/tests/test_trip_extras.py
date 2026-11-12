@@ -180,6 +180,15 @@ def test_bicycle_asks_lta_per_area_once_and_filters_per_point(client):
     assert route.call_count == 2
 
 
+def test_a_rack_lta_lists_twice_is_one_rack():
+    # Seen on the live API: the same row twice, which filled two of the three places.
+    twice = [rack("TAMPINES MRT B", 1.3533, 103.9452, 276, "N")] * 2
+    rows = tx.compact_bicycle([*twice, rack("TAMPINES MRT C2", 1.3534, 103.9453, 138, "N")])
+    assert [r["name"] for r in rows] == ["TAMPINES MRT B", "TAMPINES MRT C2"]
+    # Same name at another spot is another rack.
+    assert len(tx.compact_bicycle([rack("A", 1.30, 103.80), rack("A", 1.31, 103.80)])) == 2
+
+
 def test_the_area_radius_covers_every_point_of_the_cell():
     # The far corner of a cell is half a diagonal from its centre; the radius asked from LTA
     # must still reach BICYCLE_RADIUS_M beyond it.

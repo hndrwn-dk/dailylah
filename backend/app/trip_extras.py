@@ -117,8 +117,10 @@ def taxis_within(points: list[list[float]], lat: float, lng: float) -> int:
 
 
 def compact_bicycle(rows: list[dict]) -> list[dict]:
-    """LTA BicycleParkingv2 rows -> [{"name", "type", "racks", "sheltered", "la", "lo"}]."""
+    """LTA BicycleParkingv2 rows -> [{"name", "type", "racks", "sheltered", "la", "lo"}].
+    LTA lists some racks twice: a row equal to an earlier one is dropped."""
     out = []
+    seen: set[tuple] = set()
     for r in rows:
         try:
             lat, lng = round(float(r["Latitude"]), 5), round(float(r["Longitude"]), 5)
@@ -128,16 +130,19 @@ def compact_bicycle(rows: list[dict]) -> list[dict]:
             racks = int(r.get("RackCount") or 0)
         except (TypeError, ValueError):
             racks = 0
-        out.append(
-            {
-                "name": str(r.get("Description") or "").strip(),
-                "type": str(r.get("RackType") or "").strip(),
-                "racks": racks,
-                "sheltered": str(r.get("ShelterIndicator") or "").strip().upper() == "Y",
-                "la": lat,
-                "lo": lng,
-            }
-        )
+        row = {
+            "name": str(r.get("Description") or "").strip(),
+            "type": str(r.get("RackType") or "").strip(),
+            "racks": racks,
+            "sheltered": str(r.get("ShelterIndicator") or "").strip().upper() == "Y",
+            "la": lat,
+            "lo": lng,
+        }
+        key = tuple(row.values())
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(row)
     return out
 
 

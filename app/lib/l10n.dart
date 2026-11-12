@@ -335,9 +335,22 @@ class S {
       motorbike ? (n == 1 ? 'motorbike lot' : 'motorbike lots') : (n == 1 ? 'car lot' : 'car lots');
   String get noParkingNear => 'No car park with live lots within 1 km.';
   String get noBicycleParkingNear => 'No bicycle parking within 500 m.';
+  /// LTA's rack type as words: "HDB_RACKS" is "HDB racks", "Yellow Box" stays.
+  String rackType(String type) {
+    final parts = type.split('_').where((p) => p.isNotEmpty).toList();
+    return [if (parts.isNotEmpty) parts.first, for (final p in parts.skip(1)) p.toLowerCase()].join(' ');
+  }
+
+  /// The name of a bicycle parking place. LTA names racks at HDB blocks by the block's postal
+  /// code and a number ("560201-2"): that reads as "Racks at postal code 560201".
+  String rackName(String name) {
+    final code = RegExp(r'^(\d{6})(-\d+)?$').firstMatch(name.trim());
+    return code == null ? name : 'Racks at postal code ${code.group(1)}';
+  }
+
   /// "Yellow Box · 24 racks · sheltered" from what LTA gives; parts it lacks are left out.
   String rackLine(String type, int? racks, bool? sheltered) => [
-        if (type.isNotEmpty) type,
+        if (type.isNotEmpty) rackType(type),
         if (racks != null && racks > 0) racks == 1 ? '1 rack' : '$racks racks',
         if (sheltered != null) sheltered ? 'sheltered' : 'not sheltered',
       ].join(' · ');
