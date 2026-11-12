@@ -1302,7 +1302,7 @@ class _LiveExtras extends ConsumerWidget {
                   for (final p in x.spots)
                     InkWell(
                       onTap: () => showPlaceSheet(context,
-                          s: s, title: p.name.isEmpty ? title : p.name, lat: p.lat, lng: p.lng, distance: p.metres),
+                          s: s, title: p.name.isEmpty ? title : (bike ? s.rackName(p.name) : p.name), lat: p.lat, lng: p.lng, distance: p.metres),
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
                         child: Padding(
@@ -1321,7 +1321,7 @@ class _LiveExtras extends ConsumerWidget {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(p.name.isEmpty ? title : p.name,
+                                    Text(p.name.isEmpty ? title : (bike ? s.rackName(p.name) : p.name),
                                         style: t.titleSmall, maxLines: 2, overflow: TextOverflow.ellipsis),
                                     Text(
                                       [

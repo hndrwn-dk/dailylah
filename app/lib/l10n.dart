@@ -335,9 +335,22 @@ class S {
       motorbike ? (n == 1 ? 'motorbike lot' : 'motorbike lots') : (n == 1 ? 'car lot' : 'car lots');
   String get noParkingNear => 'No car park with live lots within 1 km.';
   String get noBicycleParkingNear => 'No bicycle parking within 500 m.';
+  /// LTA's rack type as words: "HDB_RACKS" is "HDB racks", "Yellow Box" stays.
+  String rackType(String type) {
+    final parts = type.split('_').where((p) => p.isNotEmpty).toList();
+    return [if (parts.isNotEmpty) parts.first, for (final p in parts.skip(1)) p.toLowerCase()].join(' ');
+  }
+
+  /// The name of a bicycle parking place. LTA names racks at HDB blocks by the block's postal
+  /// code and a number ("560201-2"): that reads as "Racks at postal code 560201".
+  String rackName(String name) {
+    final code = RegExp(r'^(\d{6})(-\d+)?$').firstMatch(name.trim());
+    return code == null ? name : 'Racks at postal code ${code.group(1)}';
+  }
+
   /// "Yellow Box · 24 racks · sheltered" from what LTA gives; parts it lacks are left out.
   String rackLine(String type, int? racks, bool? sheltered) => [
-        if (type.isNotEmpty) type,
+        if (type.isNotEmpty) rackType(type),
         if (racks != null && racks > 0) racks == 1 ? '1 rack' : '$racks racks',
         if (sheltered != null) sheltered ? 'sheltered' : 'not sheltered',
       ].join(' · ');
@@ -962,8 +975,8 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        r"Meal prices in History: when you tap Ate here, pick $4, $6 or $8, type what you paid, or skip it. History adds priced meals to what you spent and says how many meals have a price. It remembers your last price at each place. Prices stay on your phone.",
-        "Better with large text and TalkBack: bus, charger and bus route rows no longer get cut off, and small buttons are bigger and read out properly.",
+        "Short trips in Plan a trip: Walk is picked for you when walking takes about 12 minutes or less, and a bus that is no faster than walking is folded away instead of telling you to leave now.",
+        "Car, Motorbike, Bicycle and Taxi now show live LTA info: free parking lots and bicycle parking near your destination, and free taxis near your start.",
       ];
 
   // about
