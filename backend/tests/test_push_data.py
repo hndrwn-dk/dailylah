@@ -806,6 +806,10 @@ def test_the_site_build_does_nothing_while_the_data_is_published_from_main(site,
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n</urlset>\n',
         '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/'
         'sitemap/0.9">\n  <url><loc>https://dailylah.sg/</loc></url><!--\n-->\n</urlset>\n',
+        # Not a whole sitemap: empty, or only some of its lines.
+        "",
+        "</urlset>\n",
+        '<?xml version="1.0" encoding="UTF-8"?>\n  <url><loc>https://dailylah.sg/</loc></url>\n',
         # A self-closing tag over three lines, with no closing tag to give it away.
         '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/'
         'sitemap/0.9">\n<script\nxmlns="http://www.w3.org/1999/xhtml" src="https://evil.example/'
@@ -882,32 +886,127 @@ def test_the_sitemap_is_served_so_that_it_can_never_run_script():
     assert csp.startswith("default-src 'none'")
 
 
-def test_a_branch_whose_name_only_ends_like_the_data_branch_is_not_it(repos, tmp_path):
+def test_a_ref_whose_name_only_ends_like_a_branch_is_refused_by_name(repos, tmp_path):
+    """git matches a ref by the end of its name when it fetches and when it pushes."""
     seed, work, bare, env, script_env = repos
-    # No data branch yet, but a branch named refs/heads/data (full name refs/heads/refs/heads/data).
     side = tmp_path / "lookalike"
     git(tmp_path, "clone", "--quiet", str(bare), str(side), env=env)
     (side / "web/data/other.json").write_text('{"v": "planted"}\n')
     git(side, "commit", "--quiet", "-am", "planted", env=env)
-    git(side, "push", "--quiet", str(bare), "HEAD:refs/heads/refs/heads/data", env=env)
-    before = main_head(bare, env)[0]
-    lookalike = git(bare, "rev-parse", "refs/heads/refs/heads/data", env=env)
-    result = run_baseline(seed, script_env)
-    assert result.returncode != 0 and "only ends in refs/heads/data" in result.stdout
-    assert (seed / "web/data/other.json").read_text() == '{"v": "old"}\n'
+    planted = git(side, "rev-parse", "HEAD", env=env)
     patch = make_patch(seed, env, tmp_path, write("web/data/where-to-live.json"))
-    result = run_script(work, script_env, patch, WHERE_TO_LIVE)
-    assert result.returncode != 0 and "only ends in refs/heads/data" in result.stdout
-    # Nothing was pushed anywhere, not to the look-alike either.
-    assert main_head(bare, env) == (before, "")
-    assert git(bare, "rev-parse", "refs/heads/refs/heads/data", env=env) == lookalike
-    # With the real branch there, the look-alike is simply not it.
+
+    def refused(ref: str, why: str):
+        before = main_head(bare, env)
+        result = run_script(work, script_env, patch, WHERE_TO_LIVE)
+        out = result.stdout + result.stderr
+        assert result.returncode != 0 and f"only ends in {why} exists: {ref}" in out, out
+        assert main_head(bare, env) == before  # nothing pushed, not to the look-alike either
+        assert git(bare, "rev-parse", ref, env=env) == planted
+
+    # No data branch, only a branch named refs/heads/data.
+    git(side, "push", "--quiet", str(bare), "HEAD:refs/heads/refs/heads/data", env=env)
+    result = run_baseline(seed, script_env)
+    assert result.returncode != 0
+    assert "only ends in refs/heads/data exists" in result.stdout + result.stderr
+    assert (seed / "web/data/other.json").read_text() == '{"v": "old"}\n'
+    refused("refs/heads/refs/heads/data", "refs/heads/data")
+    # The real branch beside it: still refused (the push would be ambiguous), and by name.
     git(bare, "update-ref", "-d", "refs/heads/refs/heads/data", env=env)
     assert run_script(work, script_env, patch, WHERE_TO_LIVE).returncode == 0
-    git(side, "push", "--quiet", str(bare), "HEAD:refs/heads/refs/heads/data", env=env)
-    assert run_baseline(seed, script_env).returncode == 0
-    assert (seed / "web/data/where-to-live.json").read_text() == NEW
-    assert (seed / "web/data/other.json").read_text() == '{"v": "old"}\n'
+    git(side, "push", "--quiet", str(bare), "HEAD:refs/tags/refs/heads/data", env=env)
+    patch = make_patch(seed, env, tmp_path, write("backend/data/where_to_live_routes.json"))
+    refused("refs/tags/refs/heads/data", "refs/heads/data")
+    # The same for main.
+    git(bare, "update-ref", "-d", "refs/tags/refs/heads/data", env=env)
+    git(side, "push", "--quiet", str(bare), "HEAD:refs/heads/refs/heads/main", env=env)
+    refused("refs/heads/refs/heads/main", "refs/heads/main")
+
+
+def failing_git(tmp: Path, env: dict, subcommand: str, nth: int = 1) -> dict:
+    """A `git` first on PATH that fails the nth call of one subcommand and is git otherwise."""
+    bin_dir, real, count = tmp / "gitbin", shutil.which("git"), tmp / "git.count"
+    bin_dir.mkdir(exist_ok=True)
+    count.write_text("0")
+    (bin_dir / "git").write_text(
+        "#!/bin/sh\n"
+        f'for a in "$@"; do if [ "$a" = {subcommand} ]; then\n'
+        f'  n=$(($(cat "{count}") + 1)); echo "$n" > "{count}"\n'
+        f'  [ "$n" -ne {nth} ] || exit 1\n'
+        "fi; done\n"
+        f'exec "{real}" "$@"\n'
+    )
+    (bin_dir / "git").chmod(0o755)
+    return env | {"PATH": f"{bin_dir}{os.pathsep}{env['PATH']}"}
+
+
+@pytest.mark.parametrize("subcommand", ["update-index", "ls-files", "write-tree"])
+def test_a_failed_git_step_never_publishes_an_empty_data_branch(repos, tmp_path, subcommand):
+    seed, work, bare, env, script_env = repos
+    patch = make_patch(seed, env, tmp_path, write("web/data/other.json"))
+    assert run_script(work, script_env, patch, DATA).returncode == 0
+    files = data_files(bare, env)
+    # Source data: the run fails and the branch is as it was.
+    patch = make_patch(seed, env, tmp_path, write("web/data/second.json"))
+    result = run_script(work, failing_git(tmp_path, script_env, subcommand, nth=99), patch, DATA)
+    assert result.returncode == 0  # the 99th call never comes: the helper itself is harmless
+    patch = make_patch(seed, env, tmp_path, write("web/data/third.json"))
+    for nth in (1, 2, 3):
+        broken = failing_git(tmp_path, script_env, subcommand, nth=nth)
+        run_script(work, broken, patch, DATA)
+        assert data_files(bare, env), (subcommand, nth)  # never an empty branch
+    assert set(files) <= set(data_files(bare, env))
+
+
+def test_with_source_main_a_failed_step_of_the_copy_never_deletes_or_empties_the_branch(
+    repos, tmp_path
+):
+    seed, work, bare, env, script_env = repos
+    source_main(seed, bare, env)
+    patch = make_patch(seed, env, tmp_path, write("web/data/other.json"))
+    assert run_script(work, no_hook(script_env), patch, DATA).returncode == 0
+    tip, files = main_head(bare, env)[1], data_files(bare, env)
+    assert tip and files
+    number = 1
+    for subcommand, nth in (("commit-tree", 2), ("update-index", 1), ("write-tree", 2)):
+        number += 1
+        patch = make_patch(seed, env, tmp_path, write(f"web/data/n{number}.json"))
+        broken = failing_git(tmp_path, no_hook(script_env), subcommand, nth=nth)
+        result = run_script(work, broken, patch, DATA)
+        # main got its update; the copy only warned, and the branch still stands with its files.
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "::warning::The copy on the data branch was not updated" in result.stdout
+        assert git(bare, "show", f"main:web/data/n{number}.json", env=env) == NEW
+        assert main_head(bare, env)[1] == tip and data_files(bare, env) == files
+    # The next healthy run brings the copy up to date.
+    patch = make_patch(seed, env, tmp_path, write("web/data/last.json"))
+    assert run_script(work, no_hook(script_env), patch, DATA).returncode == 0
+    assert "web/data/n2.json" in data_files(bare, env)
+
+
+def test_with_source_main_an_overtaken_run_leaves_the_copy_to_the_newer_run(repos, tmp_path):
+    """data.yml and where-to-live.yml can overlap: an older index must not land on a newer copy."""
+    seed, work, bare, env, script_env = repos
+    source_main(seed, bare, env)
+    patch = make_patch(seed, env, tmp_path, write("web/data/other.json"))
+    assert run_script(work, no_hook(script_env), patch, DATA).returncode == 0
+    tip = main_head(bare, env)[1]
+    # While this run pushes to main, another run pushes on top of it (a hook stands in for it).
+    hook = bare / "hooks" / "post-receive"
+    hook.write_text(
+        "#!/bin/sh\nwhile read old new ref; do\n"
+        '  [ "$ref" = refs/heads/main ] || continue\n'
+        '  next=$(git commit-tree "$new^{tree}" -p "$new" -m "the other run")\n'
+        '  git update-ref refs/heads/main "$next"\n'
+        "done\n"
+    )
+    hook.chmod(0o755)
+    patch = make_patch(seed, env, tmp_path, write("web/data/second.json"))
+    result = run_script(work, no_hook(script_env), patch, DATA)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "main has moved on since this run" in result.stdout
+    assert "::warning::The copy on the data branch was not updated" in result.stdout
+    assert main_head(bare, env)[1] == tip
 
 
 def test_vercel_serves_data_bundles_with_nosniff():

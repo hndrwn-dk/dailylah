@@ -191,8 +191,8 @@ checks and applies the patch, runs main's own page generator, and pushes a commi
 those files to `data`. The copies of these files on `main` are then what the tests read; refresh
 them with an ordinary pull request when a test needs newer data (a new town also needs its
 share image, `scripts/build_og_images.py`). Two things on `main` still reach the published data:
-`web/data/school_holidays.json` (written by hand; main's copy always wins, and a change to it
-starts the `data` workflow) and the page generator `backend/app/where_to_live_pages.py` (a
+`web/data/school_holidays.json` (written by hand; in the push job main's copy always wins, and a
+change to it starts the `data` workflow, whose update brings it to the site a few minutes later) and the page generator `backend/app/where_to_live_pages.py` (a
 change to it starts `where-to-live`, which makes the published pages again).
 
 **Moving from `main` to `data`**, all in a phone browser, in this order:
@@ -251,7 +251,9 @@ key could before. They cannot put a commit on `main`, so no workflow, script or 
 `where-to-live-towns/` and a sitemap that is nothing but a list of dailylah.sg URLs;
 `push_data.sh` refuses a `data` branch that holds anything else before it runs main's generator,
 and reads `main` and `data` by their full branch names. If the branch cannot be downloaded, the
-site build fails and the previous deployment stays up.
+site build fails and the previous deployment stays up. A branch or tag whose name merely ends in
+`refs/heads/main` or `refs/heads/data` stops the data update with an error that names it (git
+cannot tell such a name from the real branch when it pushes): delete that ref.
 
 ## GitHub security settings
 Settings > Advanced Security (or Code security):

@@ -50,7 +50,8 @@ take() {
   mkdir -p "$dir"
   find "$dir" -maxdepth 1 -type f -name "*.$ext" -delete
   # -type f: plain files only, never a link to something else.
-  find "$src/$dir" -maxdepth 1 -type f -name "*.$ext" -exec cp {} "$dir/" \;
+  # `+`: a failed copy fails find, and so the build.
+  find "$src/$dir" -maxdepth 1 -type f -name "*.$ext" -exec cp -t "$dir" {} +
   echo "$dir: $count .$ext files from the data branch"
 }
 
@@ -65,13 +66,19 @@ if [ -f "$src/sitemap.xml" ] && [ ! -L "$src/sitemap.xml" ]; then
   # Take it only if every line is one of the lines main's generator writes: the two header
   # lines, one <url> line per page of this site, the closing line. Whole lines, so nothing can
   # hide in a tag spread over several lines, a comment, an entity or another namespace.
-  if grep -vqxE \
+  # Taken only when grep answers "no other line" (1): any other answer, an error included,
+  # keeps main's. It must also be a whole sitemap: not empty, with its opening and closing line.
+  lines=0
+  LC_ALL=C grep -vqxE \
     '<\?xml version="1\.0" encoding="UTF-8"\?>|<urlset xmlns="http://www\.sitemaps\.org/schemas/sitemap/0\.9">|  <url><loc>https://dailylah\.sg/[A-Za-z0-9/_-]*</loc>(<lastmod>[0-9]{4}-[0-9]{2}-[0-9]{2}</lastmod>)?</url>|</urlset>' \
-    "$src/sitemap.xml"; then
-    echo "The data branch's sitemap.xml is not a plain list of dailylah.sg URLs: keeping main's."
-  else
+    "$src/sitemap.xml" || lines=$?
+  if [ "$lines" -eq 1 ] && [ -s "$src/sitemap.xml" ] \
+    && LC_ALL=C grep -qxF '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' "$src/sitemap.xml" \
+    && LC_ALL=C grep -qxF '</urlset>' "$src/sitemap.xml"; then
     cp "$src/sitemap.xml" sitemap.xml
     echo "sitemap.xml from the data branch"
+  else
+    echo "The data branch's sitemap.xml is not a plain list of dailylah.sg URLs: keeping main's."
   fi
 fi
 [ -s data/manifest.json ] || { echo "data/manifest.json is empty after the overlay."; exit 1; }
