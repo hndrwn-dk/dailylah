@@ -169,7 +169,7 @@ def check_account(account_json: str, testing_account: str, dry_run: bool = False
         return [missing]
     if email and email == testing:
         raise PromoteError(
-            "The key in environment play-production belongs to the testing service account "
+            "The production key of this environment belongs to the testing service account "
             "(repository variable PLAY_TESTING_ACCOUNT). Production needs a service account of "
             "its own: docs/DEPLOY.md, Production releases."
         )
@@ -660,7 +660,7 @@ AUTO_OFF = (
 
 
 def auto_promote_on() -> bool:
-    """The kill switch for everything that changes production without a person."""
+    """The switch for the promote job of a release run (the guard has AUTO_ROLLOUT)."""
     return os.environ.get("AUTO_PROMOTE", "").strip() == "on"
 
 

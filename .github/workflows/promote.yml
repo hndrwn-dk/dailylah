@@ -1,7 +1,7 @@
 name: promote
 # The manual override for production (docs/QA.md "Production release (automatic)"). A release
-# normally reaches production by itself: the `promote` job of app.yml puts it there at 20% and
-# rollout-guard.yml raises or halts it. This workflow does the same steps by hand, from the
+# normally gets there without this: the `promote` job of app.yml puts it there at 20% after the
+# owner's approval and rollout-guard.yml raises or halts it. This workflow does the same steps by hand, from the
 # phone: `promote` puts the versionCode that closed testing (alpha) already holds on production
 # as a staged rollout; `rollout`, `halt` and `resume` change that staged release. Nothing is
 # built or uploaded. A release halted here stays halted: the guard never resumes or raises it.
@@ -41,8 +41,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # The production Play key (a service account of its own, not the one in `play`) is only in
-    # this environment: main only, and the owner as required reviewer until docs/DEPLOY.md
-    # "Production releases" says otherwise.
+    # this environment and in `play-rollout` (the guard's): main only, and the owner as
+    # required reviewer, so every run here waits for one tap.
     # The job installs nothing: checkout, git, the runner's python3 (standard library) and openssl.
     environment: play-production
     permissions:

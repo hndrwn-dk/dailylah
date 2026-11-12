@@ -734,9 +734,14 @@ def guard(
 # --- Run ------------------------------------------------------------------------------
 
 GUARD_OFF = (
-    "Repository variable AUTO_PROMOTE is not `on`: the rollout guard read and changed nothing. "
+    "Repository variable AUTO_ROLLOUT is not `on`: the rollout guard read and changed nothing. "
     "Only a dry run works while it is off."
 )
+
+
+def auto_rollout_on() -> bool:
+    """The guard's own switch: it is the one step to production nobody approves."""
+    return os.environ.get("AUTO_ROLLOUT", "").strip() == "on"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -747,7 +752,7 @@ def main(argv: list[str] | None = None) -> int:
     out: list[str] = []
     code = 0
     try:
-        if not args.dry_run and not pp.auto_promote_on():
+        if not args.dry_run and not auto_rollout_on():
             # The kill switch: nothing is read from Google Play, not even the key.
             out += ["## Rollout guard", "", GUARD_OFF]
             print(f"::notice title=rollout guard::{GUARD_OFF}")

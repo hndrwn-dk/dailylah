@@ -21,10 +21,10 @@ This file maps that plan to the automated tests in this repo and describes how a
 | Web check `scripts/web_check.sh` | GitHub Actions `web-check` | daily 07:23 Singapore time, and by hand | dailylah.sg opens, /privacy and /terms redirect to the policy pages, `data/manifest.json` valid on all three hosts, one bundle matches its sha256; see "Web check" below |
 | Feature tests `app/test/features_test.dart` | GitHub Actions `app` (flutter test) | every PR | each feature through the real widgets: Ate here at halal places, meal time in History, live bus position |
 | Release gate | GitHub Actions `app` jobs `e2e` + `play` + `release-tag` | every version bump on `main` and manual releases | the whole `emulator` workflow must pass on the commit before the AAB is tagged or goes to Google Play; where a version bump goes is the repository variable `PLAY_PUSH_TRACK` (unset = `manual`: no upload, see "Manual releases"); one upload at a time; the released commit is tagged `v<versionName>` and its files kept in a draft GitHub Release |
-| Production release `app.yml` job `promote` (`scripts/play_promote.py`) | GitHub Actions `app` | every version bump on `main`, after `play` and `release-tag`, while `AUTO_PROMOTE` is `on` | puts the versionCode just uploaded to `alpha` on production as a staged rollout at 20%, no approval; see "Production release (automatic)" |
-| Rollout guard `rollout-guard.yml` (`scripts/rollout_guard.py`) | GitHub Actions `rollout-guard` | daily 10:17 Singapore time, and by hand (`dry_run`) | raises the staged release 20% → 50% → 100% after the hold, or halts it and opens an issue when Android vitals are worse |
-| Manual override `promote.yml` | GitHub Actions `promote`, by hand | when the owner wants to act | promote, raise, halt or resume the production release from the phone |
-| Release script tests `backend/tests/test_play_promote.py`, `test_rollout_guard.py` | GitHub Actions `backend` | every PR touching `backend/`, the two scripts, `promote.yml`, `rollout-guard.yml` or `app.yml` | against a fake Google Play, a fake Reporting API and fake GitHub issues: what is sent, every refusal, wait / raise / halt, API errors, the kill switch, dry run, and that the production key stays in `play-production` |
+| Production release `app.yml` job `promote` (`scripts/play_promote.py`) | GitHub Actions `app` | every version bump on `main`, after `play` and `release-tag`, while `AUTO_PROMOTE` is `on` | after the owner's approval, puts the versionCode just uploaded to `alpha` on production as a staged rollout at 20%; see "Production release (automatic)" |
+| Rollout guard `rollout-guard.yml` (`scripts/rollout_guard.py`) | GitHub Actions `rollout-guard` | daily 10:17 Singapore time while `AUTO_ROLLOUT` is `on`, and by hand (`dry_run`) | raises the staged release 20% → 50% → 100% after the hold, or halts it and opens an issue when Android vitals are worse |
+| Manual override `promote.yml` | GitHub Actions `promote`, by hand | when the owner wants to act | promote, raise, halt or resume the production release from the phone; waits for his approval |
+| Release script tests `backend/tests/test_play_promote.py`, `test_rollout_guard.py` | GitHub Actions `backend` | every PR touching `backend/`, the two scripts, `promote.yml`, `rollout-guard.yml` or `app.yml` | against a fake Google Play, a fake Reporting API and fake GitHub issues: what is sent, every refusal, wait / raise / halt, API errors, both switches (`AUTO_PROMOTE`, `AUTO_ROLLOUT`), dry run, and that the production key stays in `play-production` (promote) and `play-rollout` (the guard alone) |
 | Security scans `security.yml` | GitHub Actions `security` | every PR, push to `main`, Mondays | CodeQL (actions, python, java-kotlin), osv-scanner (dependencies), zizmor (workflows); see below |
 | Backend security `backend.yml` | GitHub Actions `backend` | every push touching `backend/` | ruff bandit rules (`S`), `pip-audit` on the installed dependency tree |
 | Agent docs `docs.yml` | GitHub Actions `docs` | every PR and push to `main` | `docs/REPO_MAP.md` and every `AGENTS.md` match the code and CLAUDE.md (`scripts/repo_map.py --check`) |
@@ -42,7 +42,7 @@ What a version bump on `main` does is set by the repository variable `PLAY_PUSH_
 | `PLAY_PUSH_TRACK` | A version bump on `main` |
 | --- | --- |
 | not set, or `manual` | analyze, tests, unsigned AAB, `sign` (with the `UPLOAD_CERT_SHA256` check), `e2e` (flows, upgrade from the last tag, Maestro on the signed AAB), then `release-tag`: tag `v<versionName>` and a draft GitHub Release with `dailylah.aab`, `dailylah-mapping.txt` and `whatsnew-en-US`. `play` is skipped and never reads the Play key. |
-| `alpha` (or `internal`, `beta`) | the same tests, then `play` uploads to that track, then `release-tag` tags the commit and keeps the same three files in a draft GitHub Release. With `alpha` and `AUTO_PROMOTE=on`, production follows by itself: "Production release (automatic)". |
+| `alpha` (or `internal`, `beta`) | the same tests, then `play` uploads to that track, then `release-tag` tags the commit and keeps the same three files in a draft GitHub Release. With `alpha` and `AUTO_PROMOTE=on`, production follows after one approval: "Production release (automatic)". |
 
 A manual run (Actions > app > Run workflow on `main`) offers the same `manual` choice next to the
 Play tracks and starts on it; pick a track to upload, or `none` for analyze and tests only.
@@ -77,7 +77,7 @@ Every release tags its commit `v<versionName>` (`app` job `release-tag`, after `
   it reaches a release.
 - The tag is the last release to any track, closed testing included, or the last `manual` release
   (which the owner uploads by hand). Users on production can be a version behind until it is
-  promoted (automatically, right after the tag, while `AUTO_PROMOTE` is on) or uploaded.
+  promoted (right after the tag and the owner's approval, while `AUTO_PROMOTE` is on) or uploaded.
 - The old version is built with its own `pubspec.lock` (`--enforce-lockfile`); a tag from before
   the lockfile was committed (v1.9.1 and older) resolves its dependencies fresh, with a warning.
 - A tag is never moved. Uploading again without a new `version:` (a manual run on another track)
@@ -328,27 +328,37 @@ The PRD is the owner's product requirements document; it is kept outside this re
 
 ## Production release (automatic)
 
-Merging the release PR is the only decision: merge = ship. Nothing below needs a person, a laptop
-or Play Console. It needs the one-time settings in docs/DEPLOY.md "Production releases"
-(`PLAY_PUSH_TRACK=alpha`, `AUTO_PROMOTE=on`, a production service account of its own,
-`play-production` limited to `main` with, in the end, no reviewer). Until those are done, in the order
-given there, a release stops at closed testing and production goes through Actions > promote with
-the owner's approval, as before.
+Merge, one tap, shipped. The owner works alone, so nobody else reviews a pull request; the one
+thing that still needs him is approving the first step to production. Nothing below needs a
+laptop or Play Console. It needs the one-time settings in docs/DEPLOY.md "Production releases"
+(`PLAY_PUSH_TRACK=alpha`, `AUTO_PROMOTE=on`, `AUTO_ROLLOUT=on`, a production service account of
+its own, the two environments). Until `AUTO_PROMOTE` is on, a release stops at closed testing and
+production goes through Actions > promote.
 
 1. **Merge the version bump** (`version:` and `whatsnew-en-US`). The `app` workflow analyzes,
    tests, signs, runs the on-device tests (Maestro on the signed AAB), uploads the AAB to closed
    testing (`alpha`), tags `v<version>` and keeps the AAB, mapping and release notes in a draft
    GitHub Release.
-2. **Auto promote** (`app` job `promote`, right after `release-tag`): the same versionCode goes to
-   production as a staged rollout at **20%**. No rebuild, no upload, release notes from
-   `whatsnew-en-US` of that commit.
-3. **Rollout guard** (`rollout-guard.yml`, daily): after `ROLLOUT_HOLD_HOURS` at a fraction with
-   health OK or unknown it raises 20% → 50% → 100% (100 completes the release). With health
-   worse it halts the release and opens an issue.
+2. **Promote, after one tap** (`app` job `promote`, right after `release-tag`): the job waits in
+   environment `play-production` for the owner's approval (a notification in the GitHub mobile
+   app: Review deployments > Approve). Then the same versionCode goes to production as a staged
+   rollout at **20%**. No rebuild, no upload, release notes from `whatsnew-en-US` of that commit.
+3. **Rollout guard, no tap** (`rollout-guard.yml`, daily): after `ROLLOUT_HOLD_HOURS` at a
+   fraction with health OK or unknown it raises 20% → 50% → 100% (100 completes the release).
+   With health worse it halts the release and opens an issue.
 
-What the owner does: nothing, unless an issue labelled `release-halted` or a failed run arrives
-(GitHub notifies for both). Then, from the phone: Actions > promote > `halt` or `resume`, or ship
-the fix as a new version through step 1 (it replaces the unfinished release).
+What the owner does: approve step 2. After that nothing, unless an issue labelled
+`release-halted` or a failed run arrives (GitHub notifies for both). Then, from the phone:
+Actions > promote > `halt` or `resume`, or ship the fix as a new version through step 1 (it
+replaces the unfinished release).
+
+Why a tap, and why only there: with one developer and no second reviewer, nothing else stands
+between a started workflow and production. The approval is a GitHub setting, not a file in the
+repository, so no pull request can remove it from the promote job. It does not cover the guard's
+environment, whose limits are under "Tooling and keys" ("What `play-rollout` means"). The first 20% is
+where a version meets users; the later steps only widen a release the owner has already let out,
+and the guard stops them when vitals get worse. Revisit both choices when there is a team or
+enough users for vitals to say something.
 
 ### Auto promote (`app` job `promote`)
 - Runs only when all of this holds: the run is a **push to `main`** (never a pull request, a fork
@@ -357,11 +367,15 @@ the fix as a new version through step 1 (it replaces the unfinished release).
   variable **`AUTO_PROMOTE` is `on`**.
 - It promotes only the versionCode this run built (`--code`, the run number): if the alpha
   release of that version holds another one, nothing is promoted.
-- **Kill switch:** set `AUTO_PROMOTE` to anything else, or delete it (unset = off). The promote
-  job and the scheduled guard are then skipped and never read the production key; no code
-  change. Releases still reach closed testing; promote by hand with Actions > promote.
-  Off also stops the guard's automatic **halt**: a release that is staged then stays at its
-  fraction, unwatched, until the owner raises or halts it by hand.
+- It waits for the owner's approval (environment `play-production`, required reviewer).
+  Rejecting leaves the release on closed testing and fails the run (`app result` red). A request
+  nobody answers stays "Waiting" for up to 30 days and can keep the guard and the manual
+  workflow waiting meanwhile ("Tooling and keys"): reject it when the version should not ship.
+- **Switches:** `AUTO_PROMOTE` is for this job, `AUTO_ROLLOUT` for the guard; each is `on` or off
+  (anything else, or unset). Off means the job is skipped and never reads the production key; no
+  code change. With `AUTO_PROMOTE` off, releases still reach closed testing; promote by hand with
+  Actions > promote. With `AUTO_ROLLOUT` off, nothing raises a staged release and nothing halts
+  it either: it stays at its fraction, unwatched, until the owner raises or halts it by hand.
 - Why a job at the end of `app.yml` and not a `workflow_run` workflow: the job gets the track,
   the upload result and the tag as job outputs of the same run, so it cannot act on another run
   or on a pull request's run. A `workflow_run` workflow would have to work out from the API or
@@ -438,7 +452,8 @@ Every day at 10:17 Singapore time, for the release that is staged on production:
 
   | Variable | Default | Meaning |
   | --- | --- | --- |
-  | `AUTO_PROMOTE` | off | `on` = auto promote and the guard act |
+  | `AUTO_PROMOTE` | off | `on` = the promote job of a release run asks for the approval and promotes |
+  | `AUTO_ROLLOUT` | off | `on` = the guard acts |
   | `ROLLOUT_HOLD_HOURS` | `48` | hours at a fraction before the next step (the guard runs once a day, so use multiples of 24) |
   | `ROLLOUT_MIN_USER_DAYS` | `500` | daily users of the new version, summed over the days, below which health is unknown. At 1.09% that is about 5 affected users; fewer is noise |
   | `ROLLOUT_CRASH_BAD_PERCENT` | `1.09` | Google Play's overall bad behaviour threshold for the user-perceived crash rate |
@@ -447,7 +462,7 @@ Every day at 10:17 Singapore time, for the release that is staged on production:
 
 - Actions > rollout-guard > Run workflow with `dry_run` shows the state, the hold, the health
   figures and the decision, lets Google Play check the change in a scratch edit, and changes
-  nothing (no issue, no clock). It works while `AUTO_PROMOTE` is off. Without `dry_run` a manual
+  nothing (no issue, no clock). It works while `AUTO_ROLLOUT` is off. Without `dry_run` a manual
   run is one more guard pass.
 - Not yet seen against real figures: the Reporting API gives a rate as a share of users from 0 to
   1 (`0.0109` = 1.09%). A value outside 0 to 1 fails the run instead of deciding on it.
@@ -455,7 +470,8 @@ Every day at 10:17 Singapore time, for the release that is staged on production:
 ### Manual override (`promote.yml`)
 Actions > promote > Run workflow on `main`, from the GitHub mobile app: `promote` (version empty =
 the newest `v*` tag, rollout 10/20/50/100), `rollout` (only raises), `halt`, `resume`, and
-`dry_run` for any of them. It needs no approval: starting the run is the decision. `rollout`
+`dry_run` for any of them. Every run waits for the owner's approval (environment
+`play-production`), a dry run too, because it reads with the production key. `rollout`
 needs a release in progress, `halt` too, `resume` a halted one; a completed (100%) release cannot
 be halted from here.
 
@@ -471,22 +487,26 @@ A run that changes nothing says so.
   use no action besides `actions/checkout`. The upload action (`r0adkll/upload-google-play`)
   cannot move an existing versionCode without uploading a file; google-auth would add a dependency
   tree to those jobs; fastlane a Ruby toolchain.
-- The production key is only in environment `play-production`: deployment branch `main` only, no
-  reviewer. It belongs to a service account of its own; the scripts refuse the testing account's
-  key (repository variable `PLAY_TESTING_ACCOUNT`). What stands between a commit and production
-  is the `main` ruleset (pull request, required checks), the release gate and the guard, not an
-  approval click: see "What CI enforces before production".
-- **Once the reviewer is gone, whoever can put a commit on `main` can use the production key**,
-  because a job on `main` that names the environment gets its secret and nobody is asked. So
-  nothing but a merged pull request may reach `main`: the data workflows must publish through
-  the branch `data` and the ruleset's bypass must be gone (docs/DEPLOY.md "Data branch", all
-  steps). Two more ways past the
-  reviewer are still to be decided before it is removed: `promote.yml` would run without an
-  approval, and a pull request is merged with no second person.
+- The production key is in two environments, both limited to `main`, and nowhere else:
+  `play-production` (required reviewer: the owner) for the promote job and `promote.yml`, and
+  `play-rollout` (no reviewer) for the guard alone. It belongs to a service account of its own;
+  the scripts refuse the testing account's key (repository variable `PLAY_TESTING_ACCOUNT`).
+- **What `play-rollout` means:** a job on `main` that names that environment gets the key and
+  nobody is asked. So whoever can put a commit on `main` could use it: the owner's merges, any
+  token that can merge as him, and anything in the `main` ruleset's bypass list. That is the
+  price of a guard that needs no tap, accepted for now by the owner. Two things keep it small:
+  nothing but a merged pull request may reach `main` (the data workflows must publish through the
+  branch `data` and the bypass must be gone first, docs/DEPLOY.md "Data branch"), and few things
+  may hold write access to the repository. Putting the reviewer on `play-rollout` as well closes
+  it, at the cost of a tap for every step.
 - One writer to production at a time: the promote job, the guard and `promote.yml` share the
   concurrency group `play-promote`. A second run waits; a third replaces the waiting one. If two
   edits ever commit at the same moment, Google Play refuses the later one and that run fails with
   nothing changed.
+  A run that waits for the owner's approval can hold the group (certain for `promote.yml`, whose
+  group is on the workflow; expected, not yet seen, for the promote job of `app.yml`): the
+  guard's daily run and a manual `halt` then only queue behind it, and a later queued run cancels
+  the earlier one. So approve or reject a waiting promote first; do not leave it.
 
 ## What CI enforces before production
 
@@ -499,7 +519,7 @@ There is no human checklist. A version reaches production only through these, in
 | Signature made with the upload key, certificate fingerprint checked | `app` job `sign` | everything after |
 | On-device tests on that commit: flows on API 29/35/36, upgrade from the last release tag, R8 release build, Maestro on the very AAB that ships | `app` job `e2e` | the upload |
 | Upload to closed testing, release tag | `app` jobs `play`, `release-tag` | the promote |
-| Completed on `alpha`, not older than production, not already there | `app` job `promote` | production |
+| The owner's approval; completed on `alpha`, not older than production, not already there, the versionCode this run built | `app` job `promote` | production |
 | Staged rollout: 20%, then 50%, then 100%, each after the hold, halted when vitals are worse | `rollout-guard` | the next step |
 
 - Security scans are a merge gate, not a release step: CodeQL, osv-scanner and zizmor run on
@@ -508,7 +528,8 @@ There is no human checklist. A version reaches production only through these, in
 - The full scan in a Claude Code session ("/vuln-scan on main", the owner's security toolkit)
   is no longer part of the release gate. Run it when wanted; its details stay in the owner's
   private notes.
-- A real phone is no longer a gate either: the staged rollout with the guard takes that place.
+- A real phone is no longer a gate either: the owner's approval of the first 20% and the staged
+  rollout with the guard take that place.
   The checks below are optional.
 
 ## Real-device checks (optional, only for the areas a release changes)

@@ -44,7 +44,7 @@ Backend env vars (see [`backend/.env.example`](../backend/.env.example)):
 
 Never commit `.env`, API keys or keystores. In CI, the data build keys are repo secrets; the
 signing, Play and data-push keys live in their own GitHub environments (`signing`, `play`,
-`play-production`, `data-push`); none of them is a repository secret. See "CI security" in [`CLAUDE.md`](../CLAUDE.md).
+`play-production`, `play-rollout`, `data-push`); none of them is a repository secret. See "CI security" in [`CLAUDE.md`](../CLAUDE.md).
 
 ## Release signing environments
 Set up by hand under Settings > Environments, each limited to `main` with no admin bypass:
@@ -56,22 +56,22 @@ Set up by hand under Settings > Environments, each limited to `main` with no adm
 - `play`: `PLAY_SERVICE_ACCOUNT_JSON`, the key of the testing service account (testing tracks
   only; uploads from `app.yml`).
 - `play-production`: `PLAY_SERVICE_ACCOUNT_JSON`, the key of the production service account (a
-  different account, see below), no required reviewer ("Production releases" step 3).
-  Used by the `promote` job of `app.yml`, by `rollout-guard.yml` and by `promote.yml`, never by
-  the upload job (`app.yml` offers no production track).
+  different account, see below), required reviewer: the repo owner (prevent self-review off).
+  Used by the `promote` job of `app.yml` and by `promote.yml`, never by the upload job (`app.yml`
+  offers no production track).
+- `play-rollout`: `PLAY_SERVICE_ACCOUNT_JSON`, a key of the same production service account, no
+  reviewer. Used by `rollout-guard.yml` only ("Production releases" step 6).
 
 ## Production releases
 One-time settings for docs/QA.md "Production release (automatic)". All of them work in a phone
 browser (github.com, play.google.com/console and console.cloud.google.com; the GitHub mobile app
 does not show repository settings).
 
-**Order matters.** Steps 3 and 6 take the last person out of the way to production, so do them
-only when nothing but a merged pull request can put a commit on `main`: the `main` ruleset must
-have no bypass ([Data branch](#data-branch), step 6), and the two other ways past the reviewer
-named in docs/QA.md "Tooling and keys" must be decided. Until then, keep the required
-reviewer on `play-production` and leave `AUTO_PROMOTE` unset: releases then go to closed testing
-as before, and production through Actions > promote with your approval. Steps 1, 2, 4 and 5 can be
-done at any time.
+The owner approves the first step of every release to production (20%); the guard then raises
+it without asking. Steps 1 to 5 can be done now. **Steps 6 and 7 come last**: they give the
+guard a production key that no person stands in front of, so do them only when nothing but a
+merged pull request can put a commit on `main` ([Data branch](#data-branch), all steps: the
+`main` ruleset has no bypass).
 
 1. **Version bumps go to closed testing.** GitHub > the repository > Settings > Secrets and
    variables > Actions > Variables tab > New repository variable: Name `PLAY_PUSH_TRACK`, Value
@@ -100,13 +100,11 @@ done at any time.
      belongs to that account; while the variable is missing only a dry run works, with a warning.
      This is a setup check: what keeps the testing account out of production is its Play Console
      permission above.
-3. **`play-production` asks nobody** (only after "Order matters" above). Settings > Environments > `play-production`: under
-   Deployment protection rules untick **Required reviewers** and Save protection rules.
-   Keep: Deployment branches and tags = Selected branches, `main` only; "Allow administrators to
-   bypass configured protection rules" off; no wait timer; the secret `PLAY_SERVICE_ACCOUNT_JSON`
-   listed. From then on a run on `main` reaches the production key without a click, so the
-   `main` ruleset below (pull request, required checks, no bypass at all) is what guards it
-   (docs/QA.md "Tooling and keys").
+3. **`play-production` asks the owner.** Settings > Environments > `play-production`: Required
+   reviewers lists the owner, "Prevent self-review" is off (the owner's merge starts the run and
+   he approves it), Deployment branches and tags = Selected branches, `main` only, "Allow
+   administrators to bypass configured protection rules" off, no wait timer, and the secret
+   `PLAY_SERVICE_ACCOUNT_JSON` is listed. This stays: it is the one tap of a release.
 4. **Android vitals for the guard.** The guard reads crash and ANR rates with the production
    service account:
    - Play Console > Users and permissions > the **production** service account > App permissions
@@ -116,19 +114,32 @@ done at any time.
    - Google Cloud Console (console.cloud.google.com) > the project that owns the service account
      > APIs & Services > Library > search **"Google Play Developer Reporting API"** > Enable.
      ("Google Play Android Developer API" is already enabled there; it is a different API.)
-5. **Check it.** GitHub > Actions > rollout-guard > Run workflow on `main` with `dry_run` on
-   (while the reviewer is still on the environment, approve the run). Its
-   summary shows what production holds, "no staged rollout" or the hold and health lines, and no
-   warning about `PLAY_TESTING_ACCOUNT`. `HTTP 403` naming the Reporting API means step 4 is not
-   done; a permission error on the tracks means step 2.
-6. **Switch it on** (only after step 3). Settings > Secrets and variables > Actions > Variables > New repository
-   variable: Name `AUTO_PROMOTE`, Value `on`. From the next version bump a release goes to
-   production at 20% by itself and the guard raises it. **To stop:** edit the variable to `off`
-   (or delete it); nothing else changes, and Actions > promote still works by hand.
-7. Optional, same Variables tab, only to change a default: `ROLLOUT_HOLD_HOURS` (48),
+5. **Promote after one tap.** Settings > Secrets and variables > Actions > Variables > New
+   repository variable: Name `AUTO_PROMOTE`, Value `on`. From the next version bump the `app` run
+   ends with the job "promote to production (staged, 20%)" waiting for you: GitHub mobile >
+   the notification > Review deployments > Approve. **To stop:** edit the variable to `off` (or
+   delete it); Actions > promote still works by hand.
+6. **The guard's environment** (only after "Data branch" is done, see above). The key file of
+   step 2 was deleted, so make another key for the same account: Google Cloud Console > IAM &
+   Admin > Service accounts > the production account > Keys > Add key > JSON. Then GitHub >
+   Settings > Environments > New environment `play-rollout` (if one with that name is already
+   listed, delete it first and make it new): Deployment branches and tags =
+   Selected branches, `main` only; no required reviewers; "Allow administrators to bypass
+   configured protection rules" off; save and read the branch rule back; only then Add secret `PLAY_SERVICE_ACCOUNT_JSON` = the new key file
+   (all of it); delete the downloaded file. Never paste the key in a chat. Check it: Actions >
+   rollout-guard > Run workflow on `main` with `dry_run` on; its summary shows what production
+   holds, "no staged rollout" or the hold and health lines, and no warning about
+   `PLAY_TESTING_ACCOUNT`. `HTTP 403` naming the Reporting API means step 4 is not done; "Secret
+   PLAY_SERVICE_ACCOUNT_JSON is not set" means the environment has no key yet. Do not run it
+   before the environment exists: GitHub would make an empty `play-rollout` open to every branch.
+7. **Switch the guard on** (only after step 6). Same Variables tab: Name `AUTO_ROLLOUT`, Value
+   `on`. From then on the guard raises a staged release every two days and halts it when vitals
+   are worse. **To stop:** edit the variable to `off` (or delete it); then nothing raises or
+   halts a release until you do it with Actions > promote.
+8. Optional, same Variables tab, only to change a default: `ROLLOUT_HOLD_HOURS` (48),
    `ROLLOUT_MIN_USER_DAYS` (500), `ROLLOUT_CRASH_BAD_PERCENT` (1.09), `ROLLOUT_ANR_BAD_PERCENT`
    (0.47), `ROLLOUT_WORSE_FACTOR` (1.5). Their meaning: docs/QA.md "Rollout guard".
-8. Optional: Issues > Labels > New label `release-halted` and `release-rollout`, to pick their
+9. Optional: Issues > Labels > New label `release-halted` and `release-rollout`, to pick their
    colours (the guard creates both the first time it needs them), and watch the repository's
    issues in the GitHub mobile app so a `release-halted` issue is a push notification.
 
@@ -137,8 +148,9 @@ Repository variable `PLAY_PUSH_TRACK` (Settings > Secrets and variables > Action
 decides what a version bump on `main` does (docs/QA.md "Manual releases"):
 - Not set, or `manual`: build, test, sign, tag `v<version>` and a draft GitHub Release with the AAB,
   mapping and release notes. No Google Play upload; the owner uploads in Play Console by hand.
-- `alpha`: the same, and the `play` job uploads to closed testing. Production then follows by
-  itself while `AUTO_PROMOTE` is `on` ("Production releases" above), else with Actions > promote.
+- `alpha`: the same, and the `play` job uploads to closed testing. Production then follows after
+  one approval while `AUTO_PROMOTE` is `on` ("Production releases" above), else with Actions >
+  promote.
 - Switch the automatic upload back on: New repository variable (or edit), Name `PLAY_PUSH_TRACK`,
   Value `alpha`, Add variable. Turn it off again: set it to `manual` or delete it.
 - Check it on the next release: the `analyze` job says `Release (manual upload)` or
