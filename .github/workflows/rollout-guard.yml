@@ -4,15 +4,17 @@ name: rollout-guard
 # ROLLOUT_HOLD_HOURS at a fraction with Android vitals OK or without data it goes one step up
 # (20% -> 50% -> 100%); with vitals worse than the previous version it is halted and an issue
 # `release-halted` is opened. A halted release is never resumed or raised here. Nothing is built
-# or uploaded. The repository variable AUTO_PROMOTE is the kill switch: anything but `on` and the
-# scheduled job does not start.
+# or uploaded. This is the one step to production nobody approves (the first 20% of a release
+# waits for the owner in environment `play-production`), so it has a switch and an environment
+# of its own: the repository variable AUTO_ROLLOUT (anything but `on` and the scheduled job does
+# not start) and environment `play-rollout`.
 on:
   schedule:
     - cron: "17 2 * * *" # 10:17 Singapore time
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Dry run: read Google Play and vitals, show the decision, change nothing (works while AUTO_PROMOTE is off)"
+        description: "Dry run: read Google Play and vitals, show the decision, change nothing (works while AUTO_ROLLOUT is off)"
         type: boolean
         default: false
 permissions: {}
@@ -23,13 +25,13 @@ concurrency:
 jobs:
   guard:
     name: rollout guard${{ inputs.dry_run && ' (dry run)' || '' }}
-    if: vars.AUTO_PROMOTE == 'on' || (github.event_name == 'workflow_dispatch' && inputs.dry_run)
+    if: vars.AUTO_ROLLOUT == 'on' || (github.event_name == 'workflow_dispatch' && inputs.dry_run)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # The production Play key is only in this environment (main only; no reviewer once the
-    # one-time steps in docs/DEPLOY.md "Production releases" are done). The job
+    # Environment `play-rollout`: main only, no reviewer, a key of the production service
+    # account (docs/DEPLOY.md "Production releases"). Only this workflow uses it. The job
     # installs nothing: checkout, the runner's python3 (standard library) and openssl.
-    environment: play-production
+    environment: play-rollout
     permissions:
       contents: read
       # The guard's clock is a GitHub issue per release, and a halt opens one for the owner.
@@ -51,7 +53,7 @@ jobs:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           PLAY_TESTING_ACCOUNT: ${{ vars.PLAY_TESTING_ACCOUNT }}
           GITHUB_TOKEN: ${{ github.token }}
-          AUTO_PROMOTE: ${{ vars.AUTO_PROMOTE }}
+          AUTO_ROLLOUT: ${{ vars.AUTO_ROLLOUT }}
           ROLLOUT_HOLD_HOURS: ${{ vars.ROLLOUT_HOLD_HOURS }}
           ROLLOUT_MIN_USER_DAYS: ${{ vars.ROLLOUT_MIN_USER_DAYS }}
           ROLLOUT_WORSE_FACTOR: ${{ vars.ROLLOUT_WORSE_FACTOR }}

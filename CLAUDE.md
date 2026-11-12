@@ -122,25 +122,24 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   the Play key, stays read-only. The upload key is only in the `sign` job (environment `signing`:
   sparse checkout of `scripts/sign_aab.sh`, JDK only, no Gradle, pub or cache); the Play key only in
   `play` (environment `play`, testing tracks only: its key goes to a third-party upload action, so
-  `app.yml` has no production track). Production is released without an approval
-  (docs/QA.md "Production release (automatic)"), so three jobs hold the production key, all in
-  `play-production` (deployment branch `main` only; the owner is its required reviewer until the
-  one-time steps in docs/DEPLOY.md "Production releases" are done, then nobody is; its key is a production-only
-  service account, never the one in `play`, checked against the variable `PLAY_TESTING_ACCOUNT`,
-  without which only a dry run works): the `promote` job of `app.yml` (only a push to `main`
-  whose `play` job uploaded to `alpha` and whose `release-tag` tagged the commit, only for the
-  versionCode this run built, and only while
-  the repository variable `AUTO_PROMOTE` is `on`: the kill switch), `rollout-guard.yml` (schedule
-  and manual, skipped while `AUTO_PROMOTE` is off unless a dry run; `issues: write` for its log
-  and the `release-halted` issue) and `promote.yml` (manual only: the override). Each has
-  `contents: read`, the secret only on the step that runs `scripts/play_promote.py` or
-  `scripts/rollout_guard.py` (standard library and openssl; no pip, no action besides checkout),
-  and shares the concurrency group `play-promote`. Never give one of them a pull request,
-  `workflow_run` or fork path, a third-party action or `contents: write`; a change to their
-  triggers, conditions or the environment needs the security gate. Without the reviewer, a commit
-  on `main` can use this key with no approval: nothing but a merged pull request may reach
-  `main` (no ruleset bypass, no workflow that pushes there: `web/data-source.txt` must say
-  `data` first).
+  `app.yml` has no production track). Production (docs/QA.md "Production release (automatic)") is "merge, one tap,
+  shipped": three jobs hold the production key (a production-only service account, never the one
+  in `play`, checked against the variable `PLAY_TESTING_ACCOUNT`, without which only a dry run
+  works), in two environments limited to `main`. `play-production` has the owner as required
+  reviewer, for good: the `promote` job of `app.yml` (only a push to `main` whose `play` job
+  uploaded to `alpha` and whose `release-tag` tagged the commit, only for the versionCode this run
+  built, and only while the repository variable `AUTO_PROMOTE` is `on`) and `promote.yml` (manual
+  only: the override). `play-rollout` has no reviewer and is used by `rollout-guard.yml` alone
+  (schedule and manual, skipped while the variable `AUTO_ROLLOUT` is off unless a dry run;
+  `issues: write` for its log and the `release-halted` issue). Each job has `contents: read`, the
+  secret only on the step that runs `scripts/play_promote.py` or `scripts/rollout_guard.py`
+  (standard library and openssl; no pip, no action besides checkout), and shares the concurrency
+  group `play-promote`. Never give one of them a pull request, `workflow_run` or fork path, a
+  third-party action or `contents: write`, never name `play-rollout` in another workflow, and
+  never move the promote job or `promote.yml` to it; a change to their triggers, conditions or
+  environments needs the security gate. A commit on `main` can use the key in `play-rollout` with
+  no approval: nothing but a merged pull request may reach `main` (no ruleset bypass, no workflow
+  that pushes there: `web/data-source.txt` must say `data` first).
   This protects the keys, not the contents of the
   AAB, which third-party build code still makes. Never use `pull_request_target`. Expressions from
   inputs, vars or step outputs go through `env:`, not straight into `run:`.

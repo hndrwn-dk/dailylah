@@ -398,19 +398,19 @@ jobs:
             app/build/whatsnew-en-US
           retention-days: 30
 
-  # Merge = ship (docs/QA.md "Production release (automatic)"): the versionCode that was just
+  # Merge, one tap, shipped (docs/QA.md "Production release"): the versionCode that was just
   # uploaded to closed testing and tagged goes to production as a staged rollout at 20%, with no
-  # rebuild, no upload and no approval; rollout-guard.yml raises or halts it from there.
+  # rebuild and no upload, once the owner approves this job (environment `play-production`,
+  # required reviewer); rollout-guard.yml raises or halts it from there.
   # Only for a push to main (never a pull request or a manual run), only after `play` uploaded
   # to `alpha` and `release-tag` put v<versionName> on this commit, and only while the repository
-  # variable AUTO_PROMOTE is `on` (the kill switch; unset = off). The production key lives only
-  # in environment `play-production` (main only; no reviewer once docs/DEPLOY.md says so): then
-  # whoever can put a commit on main can use it, so the main ruleset, with no bypass, is its
-  # guard. The job installs nothing: checkout, the
+  # variable AUTO_PROMOTE is `on` (unset = off: promote by hand with promote.yml). The job
+  # installs nothing: checkout, the
   # runner's python3 (standard library) and openssl. scripts/play_promote.py refuses a version
   # that is not completed on alpha, is older than production or is already there.
   promote:
     name: promote to production (staged, 20%)
+    # Waits for the owner's approval: `play-production` has a required reviewer.
     needs: [analyze, play, release-tag]
     if: >-
       ${{ !failure() && !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main'

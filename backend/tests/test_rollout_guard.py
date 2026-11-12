@@ -851,7 +851,7 @@ def cli(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("GITHUB_TOKEN", "ghs_SECRET")
     monkeypatch.setenv("GITHUB_REPOSITORY", "hndrwn-dk/dailylah")
     monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
-    monkeypatch.setenv("AUTO_PROMOTE", "on")
+    monkeypatch.setenv("AUTO_ROLLOUT", "on")
     for name in [v[0] for v in rg._VARIABLES]:
         monkeypatch.delenv(name, raising=False)
     scopes: list[str] = []
@@ -886,17 +886,24 @@ def test_main_raises_and_writes_the_summary(cli):
 
 @pytest.mark.parametrize("value", ["", "off", "ON", "true", "on "])
 def test_main_does_nothing_while_auto_promote_is_not_on(cli, monkeypatch, value):
-    monkeypatch.setenv("AUTO_PROMOTE", value)
+    monkeypatch.setenv("AUTO_ROLLOUT", value)
     if value == "on ":  # surrounding spaces are forgiven, nothing else
         assert cli()[0] == 0 and cli.play.did("commit")
         return
     code, summary, _ = cli()
-    assert code == 0 and "AUTO_PROMOTE is not `on`" in summary
+    assert code == 0 and "AUTO_ROLLOUT is not `on`" in summary
     assert not cli.play.calls and not cli.gh.writes and not cli.scopes
 
 
+def test_the_promote_switch_does_not_start_the_guard(cli, monkeypatch):
+    monkeypatch.delenv("AUTO_ROLLOUT")
+    monkeypatch.setenv("AUTO_PROMOTE", "on")
+    code, summary, _ = cli()
+    assert code == 0 and "AUTO_ROLLOUT is not `on`" in summary and not cli.play.calls
+
+
 def test_main_dry_run_works_while_auto_promote_is_off(cli, monkeypatch):
-    monkeypatch.delenv("AUTO_PROMOTE")
+    monkeypatch.delenv("AUTO_ROLLOUT")
     code, summary, _ = cli("--dry-run")
     assert code == 0 and "## Rollout guard (dry run)" in summary
     assert not cli.play.did("commit") and not cli.gh.writes
@@ -946,18 +953,25 @@ def test_the_guard_workflow_keeps_the_key_in_play_production_and_cannot_run_for_
     assert workflow["permissions"] == {}
     assert workflow["concurrency"] == {"group": "play-promote", "cancel-in-progress": False}
     (job,) = workflow["jobs"].values()
-    assert job["environment"] == "play-production"
+    # An environment of its own (no reviewer): the first 20% and the manual workflow keep theirs.
+    assert job["environment"] == "play-rollout"
     assert job["permissions"] == {"contents": "read", "issues": "write"}
-    # The kill switch: a scheduled run does not even start the job while AUTO_PROMOTE is off.
+    # Its own switch: a scheduled run does not even start the job while AUTO_ROLLOUT is off.
     assert job["if"] == (
-        "vars.AUTO_PROMOTE == 'on' || (github.event_name == 'workflow_dispatch' && inputs.dry_run)"
+        "vars.AUTO_ROLLOUT == 'on' || (github.event_name == 'workflow_dispatch' && inputs.dry_run)"
     )
+    others = {
+        name: yaml.safe_load((ROOT / ".github" / "workflows" / name).read_text())
+        for name in ("app.yml", "promote.yml")
+    }
+    assert "play-rollout" not in json.dumps(others) and "AUTO_ROLLOUT" not in json.dumps(others)
     assert "refs/heads/main" in job["steps"][0]["run"]
     with_secret = [s for s in job["steps"] if "secrets." in json.dumps(s)]
     assert len(with_secret) == 1 and "rollout_guard.py" in with_secret[0]["run"]
     assert text.count("secrets.") == 1 and text.count("github.token") == 1
     assert "github.token" in json.dumps(with_secret[0]["env"])
-    assert with_secret[0]["env"]["AUTO_PROMOTE"] == "${{ vars.AUTO_PROMOTE }}"
+    assert with_secret[0]["env"]["AUTO_ROLLOUT"] == "${{ vars.AUTO_ROLLOUT }}"
+    assert "AUTO_PROMOTE" not in text
     uses = [s["uses"] for s in job["steps"] if "uses" in s]
     assert all(u.startswith("actions/checkout@") and len(u.split("@")[1]) == 40 for u in uses)
     assert "pip" not in text

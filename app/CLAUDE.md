@@ -312,12 +312,14 @@ feature, screen, provider or rule moves, appears or goes away.
   nothing (the owner uploads by hand, docs/QA.md "Manual releases"); `alpha` makes the `play` job
   upload to closed testing. `release-tag` then tags the commit `v<versionName>` and keeps the AAB, mapping and
   `whatsnew-en-US` in a draft GitHub Release (docs/QA.md "Release tags").
-  Production is automatic, merge = ship (docs/QA.md "Production release (automatic)"): after
+  Production is "merge, one tap, shipped" (docs/QA.md "Production release (automatic)"): after
   `release-tag`, the `promote` job of `app.yml` (push to `main` only, track `alpha`, repository
-  variable `AUTO_PROMOTE` = `on`, the kill switch) runs `scripts/play_promote.py --auto` and puts
-  the versionCode that `alpha` holds on production as a staged rollout at 20%, with no rebuild, no
-  upload and no approval, in environment `play-production` (main only, no reviewer). The daily
-  `rollout-guard` workflow (`.github/workflows/rollout-guard.yml`, `scripts/rollout_guard.py`)
+  variable `AUTO_PROMOTE` = `on`) waits for the owner's approval in environment `play-production`
+  (main only, required reviewer), then runs `scripts/play_promote.py --auto` and puts
+  the versionCode that run built on production as a staged rollout at 20%, with no rebuild and no
+  upload. The daily
+  `rollout-guard` workflow (`.github/workflows/rollout-guard.yml`, `scripts/rollout_guard.py`;
+  environment `play-rollout`, no reviewer; repository variable `AUTO_ROLLOUT` = `on`)
   raises it 20 → 50 → 100% after `ROLLOUT_HOLD_HOURS` (48) at a fraction when Android vitals
   (Play Developer Reporting API: user-perceived crash and ANR rate, new versionCode against the
   previous one) are OK or have no data, and halts it and opens an issue `release-halted` when
