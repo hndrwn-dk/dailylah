@@ -133,10 +133,12 @@ merged pull request can put a commit on `main` ([Data branch](#data-branch), all
    PLAY_SERVICE_ACCOUNT_JSON is not set" means the environment has no key yet. Do not run it
    before the environment exists: GitHub would make an empty `play-rollout` open to every branch.
 7. **Switch the guard on** (only after step 6). Same Variables tab: Name `AUTO_ROLLOUT`, Value
-   `on`. From then on the guard raises a staged release every two days and halts it when vitals
-   are worse. **To stop:** edit the variable to `off` (or delete it); then nothing raises or
+   `on`. From then on the guard raises a staged release every six hours (100% within a day of your
+   approval) and halts it when vitals are worse, which within that day they cannot yet show
+   (docs/QA.md "Rollout guard"). **To stop:** edit the variable to `off` (or delete it); then nothing raises or
    halts a release until you do it with Actions > promote.
-8. Optional, same Variables tab, only to change a default: `ROLLOUT_HOLD_HOURS` (48),
+8. Optional, same Variables tab, only to change a default: `ROLLOUT_HOLD_HOURS` (6; `48` or more for a
+   release you want watched by vitals),
    `ROLLOUT_MIN_USER_DAYS` (500), `ROLLOUT_CRASH_BAD_PERCENT` (1.09), `ROLLOUT_ANR_BAD_PERCENT`
    (0.47), `ROLLOUT_WORSE_FACTOR` (1.5). Their meaning: docs/QA.md "Rollout guard".
 9. Optional: Issues > Labels > New label `release-halted` and `release-rollout`, to pick their

@@ -966,6 +966,11 @@ def test_the_guard_workflow_keeps_the_key_in_play_rollout_and_cannot_run_for_a_p
     }
     assert "play-rollout" not in json.dumps(others) and "AUTO_ROLLOUT" not in json.dumps(others)
     assert "refs/heads/main" in job["steps"][0]["run"]
+    # Four runs a day and a 6-hour hold unless the variable says otherwise: 100% within a day.
+    assert triggers["schedule"] == [{"cron": "17 2,8,14,20 * * *"}]
+    env = job["steps"][-1]["env"]
+    assert env["ROLLOUT_HOLD_HOURS"] == "${{ vars.ROLLOUT_HOLD_HOURS || '6' }}"
+    assert rg.read_config({"ROLLOUT_HOLD_HOURS": "6"}).hold_hours == 6.0
     with_secret = [s for s in job["steps"] if "secrets." in json.dumps(s)]
     assert len(with_secret) == 1 and "rollout_guard.py" in with_secret[0]["run"]
     assert text.count("secrets.") == 1 and text.count("github.token") == 1
