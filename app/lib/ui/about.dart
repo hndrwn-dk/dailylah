@@ -22,6 +22,7 @@ const dataGovUrl = 'https://data.gov.sg';
 const muslimSgUrl = 'https://www.muslim.sg';
 const osmCopyrightUrl = 'https://www.openstreetmap.org/copyright';
 const oneMapUrl = 'https://www.onemap.gov.sg';
+const eventfindaUrl = 'https://www.eventfinda.sg';
 const uraUrl = 'https://www.ura.gov.sg';
 const sodlUrl = 'https://data.gov.sg/open-data-licence';
 
@@ -93,6 +94,13 @@ final dataSources = <DataSource>[
     url: uraUrl,
     title: (s) => s.sourceUra,
     powers: (s) => s.sourceUraSub,
+  ),
+  DataSource(
+    key: 'source-eventfinda',
+    icon: Icons.event_outlined,
+    url: eventfindaUrl,
+    title: (s) => s.sourceEventfinda,
+    powers: (s) => s.sourceEventfindaSub,
   ),
 ];
 
@@ -257,7 +265,26 @@ class AboutDailyLahPage extends ConsumerWidget {
             text: s.estimatesNote,
             tone: AlertTone.info,
           ),
-          const SizedBox(height: 4),
+          // Every disclaimer the screens carry, in full and once; the screens keep only a short line.
+          Panel(
+            key: const ValueKey('good-to-know'),
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(s.goodToKnow, style: t.titleSmall),
+                  const SizedBox(height: 8),
+                  for (final note in s.aboutNotes)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(note, style: t.bodySmall),
+                    ),
+                ],
+              ),
+            ),
+          ),
           Panel(
             margin: const EdgeInsets.only(bottom: 12),
             child: Column(

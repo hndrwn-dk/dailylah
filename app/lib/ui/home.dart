@@ -156,11 +156,9 @@ class HomePage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 ...body,
-                const SizedBox(height: 12),
-                Text(s.homeDataNote, style: t.bodySmall),
-                if (private != null && section == 'home') Text(s.uraSource, style: t.bodySmall),
                 if (section == 'home' || section == 'blocks') ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 12),
+                  if (private != null && section == 'home') Text(s.privateHomesNote, style: t.bodySmall),
                   Text(s.homesDisclaimer, style: t.bodySmall),
                 ],
               ],
@@ -324,7 +322,11 @@ class NearItem {
     this.linkUrl,
     this.linkLabel = '',
     this.chips = const [],
+    this.sheetNote = '',
   });
+
+  /// A line under the address on the place sheet only, e.g. the halal disclaimer.
+  final String sheetNote;
 
   /// Labels shown as chips on the place sheet, e.g. park facilities.
   final List<String> chips;
@@ -435,7 +437,7 @@ class _NearGroupState extends ConsumerState<NearGroup> {
                     context,
                     s: s,
                     title: it.name,
-                    subtitle: it.detail,
+                    subtitle: it.sheetNote.isEmpty ? it.detail : '${it.detail}\n${it.sheetNote}',
                     lat: it.lat,
                     lng: it.lng,
                     distance: it.distance,
@@ -1024,7 +1026,7 @@ class _Food extends ConsumerWidget {
             items: [
               for (final (p, d) in halalNear(ref.watch(halalProvider).value ?? const <EPoint>[], home.lat, home.lng,
                   limit: 15, favs: ref.watch(favoritesProvider.select((f) => f.halalPlaces))))
-                NearItem(name: p.name, detail: p.address, lat: p.lat, lng: p.lng, distance: d),
+                NearItem(name: p.name, detail: p.address, lat: p.lat, lng: p.lng, distance: d, sheetNote: s.halalDisclaimer),
             ],
           ),
           Text(s.halalDisclaimer, style: t.bodySmall),

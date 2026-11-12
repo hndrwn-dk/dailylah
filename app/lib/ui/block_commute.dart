@@ -12,7 +12,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import '../data.dart';
 import '../logic.dart';
 import '../providers.dart';
-import 'about.dart' show openExternal;
+import 'about.dart' show AboutDailyLahPage, openExternal;
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -639,7 +639,6 @@ Future<void> showAboutData(BuildContext context) => showModalBottomSheet<void>(
                 children: [
                 Text(s.aboutData, style: t.headlineSmall),
                 const SizedBox(height: 14),
-                part(s.aboutDataSources, s.aboutDataSourcesText),
                 part(s.aboutDataMethod, s.aboutDataMethodText),
                 part(s.aboutDataListings, s.aboutDataListingsText),
                 Align(
@@ -650,6 +649,18 @@ Future<void> showAboutData(BuildContext context) => showModalBottomSheet<void>(
                     onPressed: () => openExternal(context, _hdbUrl, s.cannotOpen(_hdbUrl.toString())),
                     icon: const Icon(Icons.open_in_new, size: 18),
                     label: Text(s.checkEligibility),
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    key: const ValueKey('see-data-sources'),
+                    style: TextButton.styleFrom(foregroundColor: DL.goText(context), padding: EdgeInsets.zero),
+                    onPressed: () => Navigator.of(context)
+                      ..pop()
+                      ..push(MaterialPageRoute(builder: (_) => const AboutDailyLahPage())),
+                    icon: const Icon(Icons.chevron_right, size: 18),
+                    label: Text(s.seeDataSources),
                   ),
                 ),
                 ],

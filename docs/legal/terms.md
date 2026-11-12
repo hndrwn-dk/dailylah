@@ -1,6 +1,6 @@
 # DailyLah Terms of Service
 
-**Last updated: 9 November 2026**
+**Last updated: 12 November 2026**
 App: DailyLah (Android, package `com.tursinalabs.dailylah`)
 Published at: https://www.tursinalabs.com/dailylah/terms
 
@@ -22,11 +22,12 @@ DailyLah is an independent app by Tursina Labs. It is not made, endorsed or oper
 DailyLah contains information from LTA DataMall and from datasets accessed via data.gov.sg, made available under the [Singapore Open Data Licence](https://data.gov.sg/open-data-licence) and the LTA DataMall terms of use. Those sources and their providers are not responsible for how DailyLah presents the data.
 
 Sources, each used under its own open data terms:
-- data.gov.sg: datasets from NEA (weather, hawker centres, dengue), HDB (blocks, resale and rental figures, including the quarterly median rent and resale price on the Where to live? page), CEA and other agencies.
+- data.gov.sg: datasets from NEA (weather, hawker centres, dengue), HDB (blocks, resale and rental figures, including the quarterly median rent and resale price on the Where to live? page), CEA (estate agents), MUIS (prayer times), NParks (parks), NLB (libraries), SportSG (sports facilities), PA (community clubs), MOE (schools), SCDF (AEDs, fire stations, shelters), MOH (CHAS clinics) and MOM (public holidays).
 - LTA DataMall: bus arrivals, bus stops and routes, train service alerts, taxis and EV chargers.
 - OneMap (Singapore Land Authority): address search, places, map tiles and transit travel times.
 - URA: private property transactions and rentals.
 - OpenStreetMap, through Geoapify: place names in Plan a trip and the public toilet list (with NParks park toilets and NEA hawker centres). © OpenStreetMap contributors, available under the [Open Database License](https://opendatacommons.org/licenses/odbl/). Toilets may be closed, moved or inside paid areas.
+- Eventfinda: events near home at the weekend. Check details and tickets on the event's page.
 - Muslim.sg: halal listings. DailyLah is not affiliated with MUIS or Muslim.sg; always verify halal status directly with the outlet or MUIS.
 
 ## 6. Acceptable use

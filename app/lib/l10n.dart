@@ -36,7 +36,6 @@ class S {
   String get add => 'Add';
   String get search => 'Search';
   String get seeAll => 'See all';
-  String get dataSource => 'Data: NEA and HDB via data.gov.sg, and LTA DataMall.';
   String minutesAway(int m) => m == 0 ? 'Arr' : '$m';
   String get min => 'min';
   String metres(double m) => m < 1000 ? '${m.round()} m' : '${(m / 1000).toStringAsFixed(1)} km';
@@ -129,7 +128,7 @@ class S {
       ].where((x) => x.isNotEmpty).join(' · ');
   String evOfFree(int total) => 'of $total free';
   String evPlugFree(EvPlug p) => p.free == null ? '${p.total} chargers' : '${p.free} of ${p.total} free';
-  String get evLiveNote => 'Live from LTA. Not affiliated with the operators.';
+  String get evLiveNote => 'Live counts. Not affiliated with the operators.';
   String evOperator(List<String> ops) => ops.isEmpty ? '' : 'Operator: ${ops.join(', ')}';
 
   // ---------------------------------------------------------------- places
@@ -167,13 +166,14 @@ class S {
   String get days => 'Days';
   String get showHalal => 'Halal food nearby';
   String get showHalalSub => 'Halal places listed on Muslim.sg, in Nearby and Home. Not affiliated with MUIS.';
+  /// Under the address on the sheet of a halal place: the disclaimer goes wherever halal places do.
+  String halalSheetSubtitle(String address) => '$address\n$halalDisclaimer';
   String get halalTab => 'Halal';
   String get halalFood => 'Halal food';
   String get halalDisclaimer =>
       'Not affiliated with MUIS. Always verify halal status directly: look for the MUIS halal certificate at the premises.';
   String get halalSearchHint => 'Search, e.g. nasi padang, cafe, prata';
   String get halalNone => 'No halal places found here.';
-  String get halalSource => 'Halal places: Muslim.sg, refreshed daily.';
   String get goAt => 'Leave home';
   String backAt(String placeKind) => placeKind == 'school' ? 'Leave school' : 'Leave work';
   String get mrtLines => 'Your MRT lines';
@@ -248,14 +248,13 @@ class S {
   String get maskNeeded => 'Mask advised';
   String get noMask => 'No mask needed';
   String get hazeTitle => 'Haze';
-  String get hazeSource => 'PSI and PM2.5: NEA. Health advice follows NEA guidelines; see haze.gov.sg.';
 
   String taxisNear(String place) => 'Taxis near $place';
   String get within200 => 'within 200 m';
   String get within500 => 'within 500 m';
   String get taxiWithin1km => 'within 1 km';
   String get taxiStands => 'Nearest taxi stands';
-  String get taxiLive => 'Free taxis right now, from LTA. Updated every few minutes.';
+  String get taxiLive => 'Free taxis right now. Updated every few minutes.';
   String get taxiMapLegend => 'Dots are free taxis, squares are taxi stands. Rings at 250 m, 500 m and 1 km.';
   String taxiEaseTitle(int level) => switch (level) {
         0 => 'No free taxis nearby',
@@ -526,8 +525,7 @@ class S {
   String get toiletsNearby => 'Toilets nearby';
   String get toiletNoneAhead => 'No toilet found near the stops ahead. Try Nearby > Toilets.';
   String get toiletNoneNear => 'No toilet found nearby.';
-  String get toiletNote => 'Times are estimates. Toilets come from OpenStreetMap, NParks and NEA hawker '
-      'centres; some may be closed or inside paid areas.';
+  String get toiletNote => 'Times are estimates. Some toilets may be closed or inside paid areas.';
   String get toiletDirections => 'Walking directions';
   String toiletKind(ToiletKind k) => switch (k) {
         ToiletKind.mall => 'Mall',
@@ -619,7 +617,7 @@ class S {
   String get fireStations => 'Fire stations';
   String get chasClinics => 'CHAS clinics';
   String get shelters => 'Civil Defence shelters';
-  String get emergencyNote => 'In a life-threatening emergency, call 995 first. Locations are from SCDF, MOH and OneMap and may be out of date.';
+  String get emergencyNote => 'In a life-threatening emergency, call 995 first. Locations may be out of date.';
   String get callLabel => 'Call';
   String fromYou(String d) => '$d from you';
   String away(String d) => '$d away';
@@ -634,7 +632,7 @@ class S {
   String get openInMaps => 'Open in Maps';
   String get mapUnavailable => 'Map preview not available. Directions still work.';
   String get oneMapCredit => 'OneMap © contributors | Singapore Land Authority';
-  String get mapNote => 'Map: OneMap, Singapore Land Authority. Directions open in Google Maps from where you are.';
+  String get directionsNote => 'Directions open in Google Maps from where you are.';
   String get saveCarpark => 'Save car park';
   String get savedCarpark => 'Saved';
   String get directions => 'Directions';
@@ -688,7 +686,6 @@ class S {
   String get fridayNote => 'Friday: Zohor is replaced by Friday prayer.';
   String get findMosque => 'Find a mosque (MUIS directory)';
   String get prayerTab => 'Prayer';
-  String get prayerSource => 'Prayer times: MUIS via data.gov.sg.';
   String get prayerTomorrow => 'Tomorrow';
   String prayerYearPending(int year) => 'MUIS has not published the $year timetable yet. It usually comes out near the end of the year.';
 
@@ -717,7 +714,7 @@ class S {
       '$month · $price · ${(sqm * 10.7639).round()} sq ft${floor == '-' ? '' : ' · floor $floor'}';
   String get rentByBedrooms => 'Median rent, last 12 months';
   String bedrooms(String b) => b == 'NA' ? 'Whole house' : '$b bedroom${b == '1' ? '' : 's'}';
-  String get uraSource => 'Private homes: URA (caveats lodged); figures exclude bulk sales.';
+  String get privateHomesNote => 'From caveats lodged; bulk sales excluded.';
   String get nearestPrimary => 'Nearest primary school';
   String get nearestAed => 'Nearest AED';
   String get nearestHawkerShort => 'Nearest hawker';
@@ -848,7 +845,6 @@ class S {
   String get policeShort => 'Police';
   String get showLess => 'Show less';
   String get findBlock => 'Find another HDB block';
-  String get homeDataNote => 'Works, services and places: OneMap (SLA) and agencies via data.gov.sg. Computed on your phone.';
   String get homesIntro => 'Search a block to see resale prices, rent and the trip to work.';
   String get blockSearchHint => 'Block and street, e.g. 123 Bedok North';
   String get watched => 'Watched blocks';
@@ -882,12 +878,11 @@ class S {
   String get nearestMrt => 'Nearest MRT';
   String get builtLabel => 'Year built';
   String get leaseLabel => 'Lease left (years)';
-  String get ceaSource => 'Data: Council for Estate Agencies (CEA) via data.gov.sg.';
   String get checkAgent => 'Check a property agent';
   String get agentHint => 'CEA registration number, e.g. R012345A';
   String get agentNotFound => 'No agent with this number in the CEA register.';
   String get agentRegistered => 'Registered with CEA';
-  String get homesDisclaimer => 'Past transactions from public data, not current listings. Not financial advice. Check eligibility on hdb.gov.sg.';
+  String get homesDisclaimer => 'Past sales, not listings. Not financial advice.';
   String get emptyWatch => 'Watch a block to get notified about new resale transactions.';
   String newSales(String block, int n) => '$n new resale transaction(s) at $block';
 
@@ -991,22 +986,42 @@ class S {
   String get contactUs => 'Contact us';
   String get dataSources => 'Data sources';
   // The statement the Singapore Open Data Licence asks for: the sources and the licence, in one sentence.
-  String get dataAttribution => 'Contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, SportSG, PA and MOE accessed through data.gov.sg, made available under the Singapore Open Data Licence.';
+  String get dataAttribution => 'Contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, SportSG, PA, MOE, SCDF, MOH and MOM accessed through data.gov.sg, made available under the Singapore Open Data Licence.';
   String get sourceLta => 'LTA DataMall';
-  String get sourceLtaSub => 'Bus arrivals, MRT, car parks and taxis';
+  String get sourceLtaSub => 'Bus arrivals, train alerts, car parks, taxis, EV chargers and bicycle parking';
   String get sourceDataGov => 'data.gov.sg';
-  String get sourceDataGovSub => 'Weather, hawker centres, libraries, schools, parks and more, from:';
+  String get sourceDataGovSub => 'Weather and haze, hawker centres, HDB blocks, prices and rents, prayer times, estate agents, schools, parks, libraries, clinics, AEDs, public holidays and more, from:';
   /// The agencies whose data.gov.sg datasets the app uses, as named in [dataAttribution].
-  List<String> get dataAgencies => const ['NEA', 'HDB', 'CEA', 'MUIS', 'NParks', 'NLB', 'SportSG', 'PA', 'MOE'];
+  List<String> get dataAgencies =>
+      const ['NEA', 'HDB', 'CEA', 'MUIS', 'NParks', 'NLB', 'SportSG', 'PA', 'MOE', 'SCDF', 'MOH', 'MOM'];
   String get sourceMuslimSg => 'Muslim.sg';
-  String get sourceMuslimSgSub => 'Halal places. DailyLah is not affiliated with MUIS.';
+  String get sourceMuslimSgSub => 'Halal places, refreshed daily. DailyLah is not affiliated with MUIS.';
   String get sourceOsm => 'OpenStreetMap via Geoapify';
-  String get sourceOsmSub => 'Place names and public toilets. © OpenStreetMap contributors (ODbL)';
+  String get sourceOsmSub => 'Place names and public toilets (with NParks and NEA hawker centres). © OpenStreetMap contributors (ODbL)';
   String get sourceUra => 'URA';
   String get sourceUraSub => 'Private home sale prices and rents, from the Urban Redevelopment Authority.';
-  String get sourceOneMap => 'OneMap';
-  String get sourceOneMapSub => 'Address search, maps and commute times. $oneMapCredit';
+  String get sourceOneMap => 'OneMap (SLA)';
+  String get sourceOneMapSub => 'Address search, maps, commute times, and works and services near home. $oneMapCredit';
+  String get sourceEventfinda => 'Eventfinda';
+  String get sourceEventfindaSub => 'Weekend events near home.';
   String get estimatesNote => 'Bus times, crowd levels, forecasts and prices are estimates.';
+  String get goodToKnow => 'Good to know';
+  /// Every disclaimer the screens carry, in full, once (About, under the estimates banner).
+  /// The screens keep a short line where the decision is made; source names live here only.
+  List<String> get aboutNotes => [
+        'Halal food: $halalDisclaimer',
+        'Home prices and rents are past transactions from public data, not current listings. Not financial advice. Check eligibility on hdb.gov.sg.',
+        'Private home figures come from caveats lodged with URA and exclude bulk sales.',
+        'Walking, cycling and driving times are rough estimates from the distance, without traffic or waiting. Fares and parking costs marked ≈ are estimates.',
+        'Toilets may be closed, moved or inside paid areas.',
+        'Emergency places (AEDs, hospitals, clinics, fire stations, shelters) may be out of date. In a life-threatening emergency, call 995 first.',
+        'Haze: PSI and PM2.5 are from NEA, and the health advice follows NEA guidelines; see haze.gov.sg.',
+        'EV charger counts are live from LTA. DailyLah is not affiliated with the charging operators.',
+        'School distances are straight-line. MOE uses its own home-to-school measurement for P1 priority.',
+        'Events: check details and tickets on the organiser\'s page.',
+        onPhoneNote,
+      ];
+  String get onPhoneNote => 'Distances, scores and what is near you are computed on your phone.';
   String get openDataLicence => 'Singapore Open Data Licence';
   String get opensWebsite => 'Opens in your browser';
   String get independent => 'DailyLah is an independent app and is not affiliated with LTA, NEA, HDB or the Singapore government.';
@@ -1160,10 +1175,7 @@ class S {
   // One line at the foot of the block page and the comparison; the rest is in "About this data".
   String dataFooter(String updated) => 'Indicative only, not advice.${updated.isEmpty ? '' : ' Updated $updated.'}';
   String get aboutData => 'About this data';
-  String get aboutDataSources => 'Sources';
-  String get aboutDataSourcesText => 'HDB resale prices and median rents of approved HDB rentals via data.gov.sg '
-      '(Singapore Open Data Licence). Trips planned with OneMap (Singapore Land Authority). Bus stops from LTA '
-      'DataMall; schools, parks, hawker centres and dengue clusters from MOE, NParks and NEA via data.gov.sg.';
+  String get seeDataSources => 'See data sources';
   String get aboutDataMethod => 'How the numbers are made';
   String get aboutDataMethodText => 'Resale prices are medians of the last 24 months of sales. Town rents are '
       'quarterly medians, each shown with its own quarter. Commutes are planned weekday 08:30 trips by MRT and '

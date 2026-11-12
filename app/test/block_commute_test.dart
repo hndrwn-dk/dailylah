@@ -208,6 +208,7 @@ void main() {
     expect(find.text(_s.homesDisclaimer), findsNothing);
     await tester.tap(about);
     await settle(tester);
+    expect(find.byKey(const ValueKey('see-data-sources')), findsOneWidget);
     expect(find.text(_s.aboutDataMethod), findsOneWidget);
     expect(find.textContaining('22 working days'), findsOneWidget);
     expect(find.byKey(const ValueKey('check-eligibility')), findsOneWidget);
