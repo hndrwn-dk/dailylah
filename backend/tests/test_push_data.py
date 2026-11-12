@@ -613,6 +613,8 @@ def test_the_site_build_fails_on_a_data_branch_without_a_manifest(site, tmp_path
 def test_vercel_runs_the_build_step_and_ships_it():
     config = json.loads((ROOT / "web/vercel.json").read_text())
     assert config["buildCommand"] == "bash build.sh"
+    # With a build command Vercel wants an output folder: the site itself, as before.
+    assert config["outputDirectory"] == "."
     ignored = (ROOT / "web/.vercelignore").read_text().split()
     assert "build.sh" not in ignored and "data/" not in ignored
     script = (ROOT / "web/build.sh").read_text()
