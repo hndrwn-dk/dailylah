@@ -663,8 +663,8 @@ def test_the_script_pushes_to_main_only_while_main_says_so():
     assert 'fetch --quiet --depth 1 "$remote" refs/heads/main' in script
     assert 'fetch --quiet --depth 1 "$remote" main' not in script
     assert '"$remote" "$DATA_BRANCH"' not in script
-    # The repository itself still publishes from main: switching is a pull request of its own.
-    assert (ROOT / "web/data-source.txt").read_text() == "main\n"
+    # The repository publishes from the data branch (switched in a pull request of its own).
+    assert (ROOT / "web/data-source.txt").read_text() == "data\n"
     assert (ROOT / "web/data/school_holidays.json").exists()
     assert "HAND_KEPT=(web/data/school_holidays.json)" in script
     triggers = yaml.safe_load((ROOT / ".github/workflows/where-to-live.yml").read_text())[True]
