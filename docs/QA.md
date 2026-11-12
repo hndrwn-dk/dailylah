@@ -352,9 +352,10 @@ What the owner does: approve step 2. After that nothing, unless an issue labelle
 Actions > promote > `halt` or `resume`, or ship the fix as a new version through step 1 (it
 replaces the unfinished release).
 
-Why a tap, and why only there: with one developer and no second reviewer, whatever can merge a
-pull request as the owner could otherwise release to production by itself. The approval is a
-GitHub setting, not a file in the repository, so no pull request can remove it. The first 20% is
+Why a tap, and why only there: with one developer and no second reviewer, nothing else stands
+between a started workflow and production. The approval is a GitHub setting, not a file in the
+repository, so no pull request can remove it from the promote job. It does not cover the guard's
+environment, whose limits are under "Tooling and keys" ("What `play-rollout` means"). The first 20% is
 where a version meets users; the later steps only widen a release the owner has already let out,
 and the guard stops them when vitals get worse. Revisit both choices when there is a team or
 enough users for vitals to say something.

@@ -122,9 +122,10 @@ merged pull request can put a commit on `main` ([Data branch](#data-branch), all
 6. **The guard's environment** (only after "Data branch" is done, see above). The key file of
    step 2 was deleted, so make another key for the same account: Google Cloud Console > IAM &
    Admin > Service accounts > the production account > Keys > Add key > JSON. Then GitHub >
-   Settings > Environments > New environment `play-rollout`: Deployment branches and tags =
+   Settings > Environments > New environment `play-rollout` (if one with that name is already
+   listed, delete it first and make it new): Deployment branches and tags =
    Selected branches, `main` only; no required reviewers; "Allow administrators to bypass
-   configured protection rules" off; Add secret `PLAY_SERVICE_ACCOUNT_JSON` = the new key file
+   configured protection rules" off; save and read the branch rule back; only then Add secret `PLAY_SERVICE_ACCOUNT_JSON` = the new key file
    (all of it); delete the downloaded file. Never paste the key in a chat. Check it: Actions >
    rollout-guard > Run workflow on `main` with `dry_run` on; its summary shows what production
    holds, "no staged rollout" or the hold and health lines, and no warning about
