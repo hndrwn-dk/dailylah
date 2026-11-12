@@ -390,7 +390,8 @@ Every day at 10:17 Singapore time, for the release that is staged on production:
   version replaces it. After a resume the guard judges only the vitals of the days from then
   on, so a release it halted is not halted again for the same days; it is halted again if the
   new days are worse too, and it is not raised before vitals cover one whole day since the
-  resume (it waits at most four days for that, so an app without vitals is not stuck).
+  resume (it waits for that until five days after it saw the resume, so an app without vitals
+  is not stuck).
 - The guard writes the reason into its log before it halts. If the `release-halted` issue then
   cannot be opened (the run fails), the next run opens it.
 - **Time at a fraction.** Google Play does not say when a release reached a fraction or left

@@ -63,11 +63,9 @@ MAX_PAGES = 20
 # The daily run does not start at the same minute every day. Without this, a hold of 48 hours
 # would be 47.9 hours at the run two days later and the step would wait a third day.
 SCHEDULE_SLACK_HOURS = 1.0
-# A halted release whose log ends in the guard's `halting` entry was halted by the guard only
-# when that entry is from the last daily run.
-OWN_HALT_AGE = timedelta(hours=26)
-# After a resume the guard waits for a whole day of vitals before it raises, this many days at
-# most: an app without any vitals must not be stuck.
+# After a resume the guard waits for a whole day of vitals before it raises, but only while the
+# first day it asks for (the day after it saw the resume) is less than this many days back: an
+# app whose vitals never arrive must not be stuck.
 RESUME_WAIT_DAYS = 4
 
 OK, WORSE, UNKNOWN = "OK", "WORSE", "UNKNOWN"
@@ -411,15 +409,15 @@ class Log:
         same = last_status == status and abs(last_percent - percent) < 1e-6
         return at if same else None
 
-    def halting(self, percent: float, now: datetime) -> bool:
-        """True when the guard's own halt at this fraction is the newest entry, a day old at most.
-
-        Older than that, or at another fraction, a person halted it later for another reason.
-        """
-        if not self.entries or self.entries[-1][1] != "halting":
-            return False
-        at, _, at_percent = self.entries[-1]
-        return now - at <= OWN_HALT_AGE and abs(at_percent - percent) < 1e-6
+    def halt_decided(self) -> datetime | None:
+        """When the guard last set out to halt, unless it saw the release in progress since."""
+        decided = None
+        for at, status, _ in self.entries:
+            if status == "halting":
+                decided = at
+            elif status == "inProgress":
+                decided = None
+        return decided
 
     @property
     def after_halt(self) -> bool:
@@ -586,29 +584,26 @@ def guard(
             "the fix as a new version."
         )
         at = percent or 0.0  # a halted release may come without a fraction
+        if log.since("halted", at) is None and not dry_run:
+            record(gh, log, release, "halted", at, f"Seen halted at {at:g}%.", now)
+        # The guard set out to halt it and no issue followed (GitHub failed in that run).
+        decided = log.halt_decided()
         title = f"Release halted: {code} at"
-        if log.halting(at, now) and any(
-            _by_bot(i) and i.get("state") == "open" and str(i.get("title", "")).startswith(title)
+        if decided is not None and not any(
+            _by_bot(i) and str(i.get("title", "")).startswith(title) and _time(i) >= decided
             for i in gh.issues(HALT_LABEL)
         ):
-            # The issue was opened; only the log entry after it is missing.
-            if not dry_run:
-                record(gh, log, release, "halted", at, f"Halted by the guard at {at:g}%.", now)
-        elif log.halting(at, now):
-            # The last run halted it and then could not open the issue: open it now.
             if dry_run:
                 out.append(f"- Dry run: would open the missing `{HALT_LABEL}` issue.")
             else:
                 body = (
-                    f"The rollout guard halted versionCode {code} for worse Android vitals, "
-                    "and could not open this issue in that run. The figures and the halt time "
-                    f"are in the guard's log, issue {log.number}.\n\n{HALT_ADVICE}"
+                    f"The rollout guard found worse Android vitals for versionCode {code} and "
+                    "set out to halt it; the release is halted. This issue could not be opened "
+                    "in that run. The figures and the time are in the guard's log, issue "
+                    f"{log.number}.\n\n{HALT_ADVICE}"
                 )
                 number = gh.create_issue(f"{title} {at:g}%", body, [HALT_LABEL], assign=True)
                 out.append(f"- Opened the missing issue {number} (`{HALT_LABEL}`).")
-                record(gh, log, release, "halted", at, f"Halted by the guard at {at:g}%.", now)
-        elif log.since("halted", at) is None and not dry_run:
-            record(gh, log, release, "halted", at, f"Seen halted at {at:g}%.", now)
         out += unchanged
         return out
 
@@ -619,6 +614,8 @@ def guard(
     if since is None:
         since = now
         if dry_run:
+            # Only in this run's copy of the log, so the decision shown is the real run's.
+            log.entries.append((now, "inProgress", percent))
             out.append(
                 f"- First sight of {code} at {percent:g}% ({where}). Dry run: the clock is "
                 "not started."
@@ -681,13 +678,15 @@ def guard(
         )
 
         def report():
+            # The log first: a resume is then known as one, even if the issue cannot be opened
+            # (the next run opens it).
+            record(
+                gh, log, release, "halted", percent, f"Halted by the guard at {percent:g}%.", now
+            )
             number = gh.create_issue(
                 f"Release halted: {code} at {percent:g}%", body, [HALT_LABEL], assign=True
             )
             out.extend(["", f"Opened issue {number} (`{HALT_LABEL}`)."])
-            record(
-                gh, log, release, "halted", percent, f"Halted by the guard at {percent:g}%.", now
-            )
 
         _after_commit(report, f"opening the {HALT_LABEL} issue")
         return out
@@ -704,7 +703,7 @@ def guard(
     if blind:
         out.append(
             f"- **Wait:** {code} was resumed after a halt; the next step waits for a whole day "
-            f"of vitals since then (at most {RESUME_WAIT_DAYS} days)."
+            f"of vitals since then ({RESUME_WAIT_DAYS + 1} days after the resume was seen at most)."
         )
         out += unchanged
         return out

@@ -454,15 +454,15 @@ def test_a_halt_whose_issue_could_not_be_opened_gets_it_at_the_next_run():
     with pytest.raises(pp.CommitError, match="Google Play was changed, but opening the"):
         go(play, vitals(new_crash=2.4, old_crash=0.5), gh)
     assert play.tracks["production"][0]["status"] == "halted"
-    # The reason was written down before the halt.
-    noted = gh.notes[number][-1]["body"]
+    # The reason was written down before the halt, and the halt right after it.
+    noted = gh.notes[number][-2]["body"]
     assert rg.marker(745, "halting", 20) in noted and "2.40% over 3,000 user-days" in noted
+    assert rg.marker(745, "halted", 20) in gh.notes[number][-1]["body"]
     gh.create_issue = opener
     out = go(play, gh=gh)  # the next day
     (issue,) = [w for w in gh.writes if w[0] == "issue"]
     assert issue[1] == "Release halted: 745 at 20%" and issue[3] == ["release-halted"] and issue[4]
     assert f"issue {number}" in issue[2] and "Opened the missing issue" in out
-    assert rg.marker(745, "halted", 20) in gh.notes[number][-1]["body"]
     gh.writes.clear()
     go(play, gh=gh)  # and never a second one
     assert not gh.writes and len(play.did("commit")) == 1
@@ -493,25 +493,64 @@ def test_a_halt_that_failed_on_google_play_keeps_the_hold_and_is_tried_again():
     assert "**Raise** 745 from 20% to 50% (health OK)" in out
 
 
-def test_an_old_halting_entry_does_not_make_a_manual_halt_the_guards():
+def test_a_halt_whose_issue_failed_and_was_resumed_is_not_halted_for_the_same_days():
+    play, gh, fake = staged(0.2), FakeGitHub(), vitals(new_crash=2.4, old_crash=0.5)
+    seen(gh, 20, 5)
+
+    def fail_the_issue(title, body, labels, assign=False):
+        raise pp.PromoteError("POST /repos/o/r/issues: HTTP 502: no details")
+
+    gh.create_issue = fail_the_issue
+    with pytest.raises(pp.CommitError):
+        go(play, fake, gh)
+    play.tracks["production"][0]["status"] = "inProgress"  # the owner resumes before the next run
+    out = go(play, fake, gh)
+    assert "First sight of 745 at 20%" in out and "**Halt**" not in out
+    assert len(play.did("commit")) == 1
+
+
+def test_a_halt_the_guard_gave_up_does_not_make_a_later_manual_halt_the_guards():
     play, gh = staged(0.2, "halted"), FakeGitHub()
     number = seen(gh, 20, 200)
     gh.add_comment(number, rg.marker(745, "halting", 20), at=NOW - timedelta(hours=72))
+    # The halt failed, and the next run saw the release in progress with better figures.
+    gh.add_comment(number, rg.marker(745, "inProgress", 50), at=NOW - timedelta(hours=40))
     out = go(play, gh=gh)
     assert "Opened the missing issue" not in out
     assert not [w for w in gh.writes if w[0] == "issue"]
     assert "Seen halted at 20%" in gh.notes[number][-1]["body"]
 
 
+def test_a_missing_halt_issue_is_opened_however_late_the_next_run_is():
+    play, gh = staged(0.2, "halted"), FakeGitHub()
+    number = seen(gh, 20, 200)
+    gh.add_comment(number, rg.marker(745, "halting", 20), at=NOW - timedelta(hours=30))
+    gh.add_comment(number, rg.marker(745, "halted", 20), at=NOW - timedelta(hours=30))
+    # An older issue of an earlier halt of this release does not count.
+    gh.add_issue("old", label=rg.HALT_LABEL, at=NOW - timedelta(hours=90), state="closed")
+    gh.items[-1]["title"] = "Release halted: 745 at 20%"
+    out = go(play, gh=gh)
+    assert "Opened the missing issue" in out
+    assert len([w for w in gh.writes if w[0] == "issue"]) == 1
+
+
 def test_a_halt_issue_that_exists_is_not_opened_twice():
     play, gh = staged(0.2, "halted"), FakeGitHub()
     number = seen(gh, 20, 30)
     gh.add_comment(number, rg.marker(745, "halting", 20), at=NOW - timedelta(hours=24))
-    gh.add_issue("halted", label=rg.HALT_LABEL)
+    gh.add_issue("halted", label=rg.HALT_LABEL, at=NOW - timedelta(hours=24))
     gh.items[-1]["title"] = "Release halted: 745 at 20%"
     go(play, gh=gh)
     assert not [w for w in gh.writes if w[0] == "issue"]
-    assert "Halted by the guard at 20%" in gh.notes[number][-1]["body"]
+    assert "Seen halted at 20%" in gh.notes[number][-1]["body"]
+
+
+def test_a_dry_run_after_a_resume_shows_what_the_real_run_would_do():
+    play, gh, fake = staged(0.2), FakeGitHub(), vitals(new_crash=5.0, old_crash=0.2)
+    number = seen(gh, 20, 200)
+    gh.add_comment(number, rg.marker(745, "halted", 20), at=NOW - timedelta(hours=100))
+    out = go(play, fake, gh, dry_run=True)
+    assert "**Halt**" not in out and "asked from 2026-11-21" in out and not gh.writes
 
 
 def test_a_halt_that_cannot_be_written_down_first_changes_nothing():
