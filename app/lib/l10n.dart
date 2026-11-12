@@ -962,8 +962,8 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        r"Meal prices in History: when you tap Ate here, pick $4, $6 or $8, type what you paid, or skip it. History adds priced meals to what you spent and says how many meals have a price. It remembers your last price at each place. Prices stay on your phone.",
-        "Better with large text and TalkBack: bus, charger and bus route rows no longer get cut off, and small buttons are bigger and read out properly.",
+        "Short trips in Plan a trip: Walk is picked for you when walking takes about 12 minutes or less, and a bus that is no faster than walking is folded away instead of telling you to leave now.",
+        "Car, Motorbike, Bicycle and Taxi now show live LTA info: free parking lots and bicycle parking near your destination, and free taxis near your start.",
       ];
 
   // about
