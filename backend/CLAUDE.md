@@ -82,8 +82,8 @@ relative to `backend/` when they start with `app/`. Endpoint index: `docs/REPO_M
   which retries without the key on 401/403 and logs a warning; the data workflow then fails
   its last step ("Check data.gov.sg key") so the expiry is visible. Renew it in both GitHub and Render.
   Where the workflow publishes them is `web/data-source.txt` (`scripts/push_data.sh`,
-  docs/DEPLOY.md "Data branch"): to `main` today; after the switch to the branch `data`, which the
-  site's build step lays over `main`, and the files in `web/data/` on `main` are then the copy the
+  docs/DEPLOY.md "Data branch"): to the branch `data`, which the
+  site's build step lays over `main`; the files in `web/data/` on `main` are the copy the
   tests read, refreshed by a pull request when needed (`school_holidays.json` stays hand-written
   on `main`).
   OneMap geocodes are cached in `backend/data/geocode.json` (published with the bundles).
