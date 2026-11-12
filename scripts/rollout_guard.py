@@ -63,6 +63,12 @@ MAX_PAGES = 20
 # The daily run does not start at the same minute every day. Without this, a hold of 48 hours
 # would be 47.9 hours at the run two days later and the step would wait a third day.
 SCHEDULE_SLACK_HOURS = 1.0
+# A halted release whose log ends in the guard's `halting` entry was halted by the guard only
+# when that entry is from the last daily run.
+OWN_HALT_AGE = timedelta(hours=26)
+# After a resume the guard waits for a whole day of vitals before it raises, this many days at
+# most: an app without any vitals must not be stuck.
+RESUME_WAIT_DAYS = 4
 
 OK, WORSE, UNKNOWN = "OK", "WORSE", "UNKNOWN"
 
@@ -246,15 +252,17 @@ def _figure(sample: Sample | None) -> str:
 class Health:
     verdict: str
     lines: list[str] = field(default_factory=list)
+    too_early: bool = False  # vitals do not reach the first day asked for yet
 
 
 def health(vitals, new_code: int, old_code: int | None, start: date, cfg: Config) -> Health:
     """Compare the new versionCode with the previous one over the days from `start` on."""
-    verdicts, lines = [], []
+    verdicts, lines, too_early = [], [], False
     for title, metric_set, metric, bad_key in METRICS:
         bad = getattr(cfg, bad_key)
         end = vitals.latest_day_end(metric_set)
         if end is None or end <= start:
+            too_early = too_early or end is not None
             upto = "no daily data" if end is None else f"data only up to {end - timedelta(days=1)}"
             verdicts.append(UNKNOWN)
             lines.append(f"{title}: {UNKNOWN}, {upto} (asked from {start}).")
@@ -272,7 +280,7 @@ def health(vitals, new_code: int, old_code: int | None, start: date, cfg: Config
         )
     if WORSE in verdicts:
         return Health(WORSE, lines)
-    return Health(OK if OK in verdicts else UNKNOWN, lines)
+    return Health(OK if OK in verdicts else UNKNOWN, lines, too_early)
 
 
 # --- The guard's log: one GitHub issue per versionCode ----------------------------------
@@ -391,16 +399,31 @@ class Log:
     entries: list[tuple[datetime, str, float]] = field(default_factory=list)
 
     def since(self, status: str, percent: float) -> datetime | None:
-        """When the newest entry was written, if it is this very state; else None."""
-        if not self.entries:
+        """When the newest state was written, if it is this very state; else None.
+
+        A `halting` entry is an intention, not a state: a halt that then failed leaves the
+        release in progress, and its hold goes on from where it was.
+        """
+        states = [e for e in self.entries if e[1] != "halting"]
+        if not states:
             return None
-        at, last_status, last_percent = self.entries[-1]
+        at, last_status, last_percent = states[-1]
         same = last_status == status and abs(last_percent - percent) < 1e-6
         return at if same else None
 
+    def halting(self, percent: float, now: datetime) -> bool:
+        """True when the guard's own halt at this fraction is the newest entry, a day old at most.
+
+        Older than that, or at another fraction, a person halted it later for another reason.
+        """
+        if not self.entries or self.entries[-1][1] != "halting":
+            return False
+        at, _, at_percent = self.entries[-1]
+        return now - at <= OWN_HALT_AGE and abs(at_percent - percent) < 1e-6
+
     @property
-    def last_status(self) -> str | None:
-        return self.entries[-1][1] if self.entries else None
+    def after_halt(self) -> bool:
+        return any(status == "halted" for _, status, _ in self.entries)
 
     @property
     def health_from(self) -> date | None:
@@ -562,8 +585,16 @@ def guard(
             "the fix as a new version."
         )
         at = percent or 0.0  # a halted release may come without a fraction
-        if log.last_status == "halting":
-            # An earlier run halted it and then could not open the issue: open it now.
+        title = f"Release halted: {code} at"
+        if log.halting(at, now) and any(
+            _by_bot(i) and i.get("state") == "open" and str(i.get("title", "")).startswith(title)
+            for i in gh.issues(HALT_LABEL)
+        ):
+            # The issue was opened; only the log entry after it is missing.
+            if not dry_run:
+                record(gh, log, release, "halted", at, f"Halted by the guard at {at:g}%.", now)
+        elif log.halting(at, now):
+            # The last run halted it and then could not open the issue: open it now.
             if dry_run:
                 out.append(f"- Dry run: would open the missing `{HALT_LABEL}` issue.")
             else:
@@ -572,9 +603,7 @@ def guard(
                     "and could not open this issue in that run. The figures and the halt time "
                     f"are in the guard's log, issue {log.number}.\n\n{HALT_ADVICE}"
                 )
-                number = gh.create_issue(
-                    f"Release halted: {code} at {at:g}%", body, [HALT_LABEL], assign=True
-                )
+                number = gh.create_issue(f"{title} {at:g}%", body, [HALT_LABEL], assign=True)
                 out.append(f"- Opened the missing issue {number} (`{HALT_LABEL}`).")
                 record(gh, log, release, "halted", at, f"Halted by the guard at {at:g}%.", now)
         elif log.since("halted", at) is None and not dry_run:
@@ -607,7 +636,16 @@ def guard(
     previous = max((c for c in before if c != code), default=None)
     first_day = log.health_from or (now.astimezone(UTC) - timedelta(days=1)).date()
     state = health(vitals, code, previous, first_day, cfg)
-    if state.verdict == UNKNOWN:
+    # Resumed after a halt: do not raise before vitals cover one whole day since the resume.
+    blind = (
+        state.verdict == UNKNOWN
+        and state.too_early
+        and log.after_halt
+        and (now.astimezone(UTC).date() - first_day).days < RESUME_WAIT_DAYS
+    )
+    if state.verdict == UNKNOWN and blind:
+        out.append("- Health: **UNKNOWN, no vitals data** for a day since the resume yet.")
+    elif state.verdict == UNKNOWN:
         out.append("- Health: **UNKNOWN, no vitals data**; this run goes by time only.")
     else:
         out.append(f"- Health: **{state.verdict}**.")
@@ -658,6 +696,14 @@ def guard(
         out.append(
             f"- **Wait:** about {left:.1f} h more at {percent:g}% before the next step "
             f"(a run up to {SCHEDULE_SLACK_HOURS:g} h early counts)."
+        )
+        out += unchanged
+        return out
+
+    if blind:
+        out.append(
+            f"- **Wait:** {code} was resumed after a halt; the next step waits for a whole day "
+            f"of vitals since then (at most {RESUME_WAIT_DAYS} days)."
         )
         out += unchanged
         return out

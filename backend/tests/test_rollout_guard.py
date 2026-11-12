@@ -431,6 +431,10 @@ def test_resumed_after_a_guard_halt_the_old_days_are_not_judged_again():
     # Only whole days after the resume count, and vitals do not reach them yet.
     assert "UNKNOWN, data only up to 2026-11-19 (asked from 2026-11-21)" in out
     assert not fake.asked and not play.did("commit")
+    # Two days later the hold is over, but vitals still do not cover a day since the resume:
+    # no raise without them.
+    out = "\n".join(rg.guard(play, fake, gh, cfg=rg.Config(), now=NOW + timedelta(hours=48)))
+    assert "the next step waits for a whole day of vitals" in out and not play.did("commit")
     # Three days later vitals cover 21 and 22 Nov: still worse, so it is halted again.
     fake.end = date(2026, 11, 23)
     later = NOW + timedelta(hours=72)
@@ -462,6 +466,52 @@ def test_a_halt_whose_issue_could_not_be_opened_gets_it_at_the_next_run():
     gh.writes.clear()
     go(play, gh=gh)  # and never a second one
     assert not gh.writes and len(play.did("commit")) == 1
+
+
+def test_resumed_and_no_vitals_ever_is_not_stuck():
+    play, gh, fake = staged(0.2), FakeGitHub(), FakeVitals(end=date(2026, 11, 1))
+    number = seen(gh, 20, 300)
+    gh.add_comment(number, rg.marker(745, "halted", 20), at=NOW - timedelta(hours=200))
+    gh.add_comment(number, rg.marker(745, "inProgress", 20), at=NOW - timedelta(hours=120))
+    out = go(play, fake, gh)  # five days after the resume was seen
+    assert "**Raise** 745 from 20% to 50% (no vitals data, by time only)" in out
+
+
+def test_a_halt_that_failed_on_google_play_keeps_the_hold_and_is_tried_again():
+    play, gh = staged(0.2), FakeGitHub()
+    number = seen(gh, 20, 60)
+    gh.add_comment(number, rg.marker(745, "halting", 20), at=NOW - timedelta(hours=24))
+    # Still in progress and still worse: halted now, with one issue.
+    out = go(play, vitals(new_crash=2.4, old_crash=0.5), gh)
+    assert "First sight" not in out and "Time at 20%: 60.0 h" in out and "**Halt** 745" in out
+    assert len([w for w in gh.writes if w[0] == "issue"]) == 1
+    # Still in progress and the figures are fine again: the hold was not started again.
+    play, gh = staged(0.2), FakeGitHub()
+    number = seen(gh, 20, 60)
+    gh.add_comment(number, rg.marker(745, "halting", 20), at=NOW - timedelta(hours=24))
+    out = go(play, vitals(new_crash=0.2, old_crash=0.5), gh)
+    assert "**Raise** 745 from 20% to 50% (health OK)" in out
+
+
+def test_an_old_halting_entry_does_not_make_a_manual_halt_the_guards():
+    play, gh = staged(0.2, "halted"), FakeGitHub()
+    number = seen(gh, 20, 200)
+    gh.add_comment(number, rg.marker(745, "halting", 20), at=NOW - timedelta(hours=72))
+    out = go(play, gh=gh)
+    assert "Opened the missing issue" not in out
+    assert not [w for w in gh.writes if w[0] == "issue"]
+    assert "Seen halted at 20%" in gh.notes[number][-1]["body"]
+
+
+def test_a_halt_issue_that_exists_is_not_opened_twice():
+    play, gh = staged(0.2, "halted"), FakeGitHub()
+    number = seen(gh, 20, 30)
+    gh.add_comment(number, rg.marker(745, "halting", 20), at=NOW - timedelta(hours=24))
+    gh.add_issue("halted", label=rg.HALT_LABEL)
+    gh.items[-1]["title"] = "Release halted: 745 at 20%"
+    go(play, gh=gh)
+    assert not [w for w in gh.writes if w[0] == "issue"]
+    assert "Halted by the guard at 20%" in gh.notes[number][-1]["body"]
 
 
 def test_a_halt_that_cannot_be_written_down_first_changes_nothing():
