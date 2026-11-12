@@ -204,17 +204,25 @@ def test_first_sight_starts_the_clock_and_waits():
     (issue,) = [w for w in gh.writes if w[0] == "issue"]
     assert issue[1] == "Production rollout: 2.4.0 (745)" and issue[3] == ["release-rollout"]
     assert rg.marker(745, "inProgress", 20) in issue[2] and issue[4] is False
-    assert "the clock starts now" in out and "**Wait:** 48.0 h more at 20%" in out
+    assert "the clock starts now" in out and "**Wait:** about 47.0 h more at 20%" in out
     assert not play.did("update") and not play.did("commit")
     assert "Nothing was changed on Google Play" in out
 
 
 def test_hold_not_reached_waits():
     play, gh = staged(0.2), FakeGitHub()
-    seen(gh, 20, 47)
+    seen(gh, 20, 46)
     out = go(play, gh=gh)
-    assert "Time at 20%: 47.0 h of 48 h" in out and "**Wait:** 1.0 h more" in out
+    assert "Time at 20%: 46.0 h of 48 h" in out and "**Wait:** about 1.0 h more" in out
     assert not play.did("commit") and not gh.writes
+
+
+def test_a_daily_run_that_starts_a_few_minutes_early_still_counts_as_two_days():
+    play, gh = staged(0.2), FakeGitHub()
+    seen(gh, 20, 47.9)  # first seen by the run two days ago, which started 6 minutes later
+    out = go(play, gh=gh)
+    assert "Time at 20%: 47.9 h of 48 h" in out and "**Raise** 745 from 20% to 50%" in out
+    assert len(play.did("commit")) == 1
 
 
 def test_hold_reached_and_health_ok_raises_20_to_50():
@@ -429,7 +437,7 @@ def test_resumed_by_hand_the_hold_starts_again():
     number = seen(gh, 20, 500)
     gh.add_comment(number, rg.marker(745, "halted", 20), at=NOW - timedelta(hours=30))
     out = go(play, gh=gh)
-    assert "First sight of 745 at 20%" in out and "**Wait:** 48.0 h more" in out
+    assert "First sight of 745 at 20%" in out and "**Wait:** about 47.0 h more" in out
     assert not play.did("commit")
 
 
@@ -488,7 +496,7 @@ def test_a_longer_hold_from_the_variable_waits():
     play, gh = staged(0.2), FakeGitHub()
     seen(gh, 20, 49)
     out = go(play, gh=gh, cfg=rg.read_config({"ROLLOUT_HOLD_HOURS": "72"}))
-    assert "**Wait:** 23.0 h more" in out and not play.did("commit")
+    assert "**Wait:** about 22.0 h more" in out and not play.did("commit")
 
 
 # --- the HTTP side: Reporting API and GitHub -----------------------------------------------
@@ -602,14 +610,18 @@ def test_a_reporting_api_http_error_is_a_clean_error():
 
 
 def test_github_calls_the_issue_endpoints_of_this_repository():
-    http = FakeHttp([[{"number": 3}, {"number": 2, "pull_request": {}}], {"number": 9}, {}, {}])
+    opened = {"number": 9, "labels": [{"name": "release-halted"}]}
+    http = FakeHttp([[{"number": 3}, {"number": 2, "pull_request": {}}], {}, opened, {}, {}])
     gh = rg.GitHub("ghs_tok", "hndrwn-dk/dailylah", opener=http)
     assert gh.issues("release-rollout") == [{"number": 3}]
     assert gh.create_issue("T", "B", ["release-halted"], assign=True) == 9
     gh.comment(9, "note")
     gh.close(9)
-    listed, created, commented, closed = http.requests
+    listed, label, created, commented, closed = http.requests
     base = "https://api.github.com/repos/hndrwn-dk/dailylah"
+    assert label.full_url == f"{base}/labels" and json.loads(label.data) == {
+        "name": "release-halted"
+    }
     assert listed.full_url == (
         f"{base}/issues?labels=release-rollout&state=all&sort=created&direction=desc"
         "&per_page=100&page=1"
@@ -625,6 +637,23 @@ def test_github_calls_the_issue_endpoints_of_this_repository():
     assert closed.get_method() == "PATCH" and json.loads(closed.data) == {"state": "closed"}
     with pytest.raises(pp.PromoteError, match="not owner/name"):
         rg.GitHub("t", "../../orgs/x")
+
+
+def _http_error(code: int) -> urllib.error.HTTPError:
+    return urllib.error.HTTPError("https://x", code, "x", {}, io.BytesIO(b"{}"))
+
+
+def test_a_label_that_exists_is_fine_and_an_issue_without_its_label_is_an_error():
+    opened = {"number": 4, "labels": [{"name": "release-rollout"}]}
+    gh = rg.GitHub("t", "o/r", opener=FakeHttp([_http_error(422), opened]))
+    assert gh.create_issue("T", "B", ["release-rollout"]) == 4
+    # GitHub dropped the label: the guard could never find this log again.
+    gh = rg.GitHub("t", "o/r", opener=FakeHttp([{}, {"number": 5, "labels": []}]))
+    with pytest.raises(pp.PromoteError, match="issue 5 without the label release-rollout"):
+        gh.create_issue("T", "B", ["release-rollout"])
+    gh = rg.GitHub("t", "o/r", opener=FakeHttp([_http_error(403)]))
+    with pytest.raises(pp.PromoteError, match="HTTP 403"):
+        gh.create_issue("T", "B", ["release-rollout"])
 
 
 def test_a_release_name_cannot_write_a_marker_or_markdown_into_the_log():

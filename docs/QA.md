@@ -396,9 +396,12 @@ Every day at 10:17 Singapore time, for the release that is staged on production:
   anyway), and is a readable history of each rollout. A git note or tag would need
   `contents: write` in the job that holds the production key; the workflow token cannot write
   repository variables; no storage outside GitHub.
-- The clock starts at the guard's first run after the promote, up to a day later, so a step
-  comes 48 to 72 hours after the one before it with the defaults. That slack also covers Google's
-  review, which the API does not show: the hold cannot tell "in review" from "live".
+- The clock starts at the guard's first run after the promote, up to a day later; a raise by
+  the guard starts the next hold in the same run. With the defaults that is 50% two to three
+  days after the promote and 100% two days after that. The first day of slack also covers
+  Google's review, which the API does not show: the hold cannot tell "in review" from "live".
+  The daily run does not start at the same minute every day, so a run up to one hour short of
+  the hold counts; otherwise a 48-hour hold would often take 72.
 - **Health** is Android vitals from the Play Developer Reporting API (`v1beta1`,
   `crashRateMetricSet` and `anrRateMetricSet`, `DAILY`, dimension `versionCode`; daily data exists
   only for days in `America/Los_Angeles` and arrives a day or two late, so the guard asks up to
@@ -420,7 +423,7 @@ Every day at 10:17 Singapore time, for the release that is staged on production:
   | Variable | Default | Meaning |
   | --- | --- | --- |
   | `AUTO_PROMOTE` | off | `on` = auto promote and the guard act |
-  | `ROLLOUT_HOLD_HOURS` | `48` | hours at a fraction before the next step |
+  | `ROLLOUT_HOLD_HOURS` | `48` | hours at a fraction before the next step (the guard runs once a day, so use multiples of 24) |
   | `ROLLOUT_MIN_USER_DAYS` | `500` | daily users of the new version, summed over the days, below which health is unknown. At 1.09% that is about 5 affected users; fewer is noise |
   | `ROLLOUT_CRASH_BAD_PERCENT` | `1.09` | Google Play's overall bad behaviour threshold for the user-perceived crash rate |
   | `ROLLOUT_ANR_BAD_PERCENT` | `0.47` | the same for the user-perceived ANR rate |

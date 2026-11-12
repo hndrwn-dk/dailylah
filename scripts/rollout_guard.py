@@ -60,6 +60,9 @@ STEPS = (20, 50, 100)  # the fractions the guard raises to, in percent
 # DAILY vitals exist only for calendar days in this time zone (Google's API reference).
 VITALS_ZONE = "America/Los_Angeles"
 MAX_PAGES = 20
+# The daily run does not start at the same minute every day. Without this, a hold of 48 hours
+# would be 47.9 hours at the run two days later and the step would wait a third day.
+SCHEDULE_SLACK_HOURS = 1.0
 
 OK, WORSE, UNKNOWN = "OK", "WORSE", "UNKNOWN"
 
@@ -312,13 +315,30 @@ class GitHub:
     def comments(self, number: int) -> list[dict]:
         return self._pages(f"/issues/{int(number)}/comments?")
 
+    def ensure_label(self, name: str) -> None:
+        """Create the label if it is not there: the guard finds its log by this label."""
+        try:
+            self._call("POST", "/labels", body={"name": name})
+        except pp.PromoteError as e:
+            if "HTTP 422" not in str(e):  # 422: the label already exists
+                raise
+
     def create_issue(self, title: str, body: str, labels: list[str], assign: bool = False) -> int:
+        for label in labels:
+            self.ensure_label(label)
         issue = {"title": title, "body": body, "labels": labels}
         if assign:
             issue["assignees"] = [self.owner]
-        number = self._call("POST", "/issues", body=issue).get("number")
+        answer = self._call("POST", "/issues", body=issue)
+        number = answer.get("number") if isinstance(answer, dict) else None
         if not number:
             raise pp.PromoteError("GitHub opened no issue.")
+        got = {str(label.get("name")) for label in answer.get("labels") or []}
+        if not set(labels) <= got:
+            # GitHub drops labels it may not set. Without its label the log is never found again.
+            raise pp.PromoteError(
+                f"GitHub opened issue {number} without the label {', '.join(labels)}."
+            )
         return int(number)
 
     def comment(self, number: int, body: str) -> None:
@@ -575,9 +595,11 @@ def guard(
         _after_commit(report, f"opening the {HALT_LABEL} issue")
         return out
 
-    if held < cfg.hold_hours:
+    left = cfg.hold_hours - SCHEDULE_SLACK_HOURS - held
+    if left > 0:
         out.append(
-            f"- **Wait:** {cfg.hold_hours - held:.1f} h more at {percent:g}% before the next step."
+            f"- **Wait:** about {left:.1f} h more at {percent:g}% before the next step "
+            f"(a run up to {SCHEDULE_SLACK_HOURS:g} h early counts)."
         )
         out += unchanged
         return out
