@@ -12,14 +12,17 @@ workflow, the release environments and the rulesets.
 3. **Schedule the poller** once Render is live:
    `QSTASH_TOKEN=... API_URL=https://<your-service>.onrender.com ./scripts/create-qstash-schedule.sh`
 4. **Neon**: create a project, enable PostGIS (`CREATE EXTENSION postgis;`) and set `DATABASE_URL`.
-5. **Vercel**: import the repo, set Root Directory to `web`, no build command. The app tries
+5. **Vercel**: import the repo, set Root Directory to `web`, Framework Preset "Other". The build
+   command and output folder come from `web/vercel.json` (`bash build.sh`: with the data
+   published from the branch `data` it lays that branch over the site, see
+   [Data branch](#data-branch)); leave the dashboard's build and output settings empty. The app tries
    `https://dailylah.sg`, then `https://dailylah.tursinalabs.com`, then
    `https://dailylah-web.vercel.app`. To use a single other host, build with
    `--dart-define=WEB_URL=https://<host>`.
 6. **Data bundles**: add the repo secrets `LTA_ACCOUNT_KEY`, `ONEMAP_EMAIL` and `ONEMAP_PASSWORD`
    (`DATAGOV_API_KEY` and `GEOAPIFY_API_KEY` are optional; see the header of `data.yml`). The push
-   job also needs the `data-push` environment with its deploy key `DATA_PUSH_SSH_KEY`, set up as in
-   [Rulesets](#rulesets) below. Then run the `data` workflow once (Actions > data > Run
+   job also needs the `data-push` environment with its deploy key `DATA_PUSH_SSH_KEY` and the
+   Vercel deploy hook, set up as in [Data branch](#data-branch) below. Then run the `data` workflow once (Actions > data > Run
    workflow). After that it runs daily.
 
 ## Secrets
@@ -63,9 +66,9 @@ browser (github.com, play.google.com/console and console.cloud.google.com; the G
 does not show repository settings).
 
 **Order matters.** Steps 3 and 6 take the last person out of the way to production, so do them
-only when nothing but a merged pull request can put a commit on `main`: the data workflows must
-no longer push to `main` with the deploy key, and the `main` ruleset must have no bypass
-([Rulesets](#rulesets), item 4). While the deploy key is still a bypass, keep the required
+only when nothing but a merged pull request can put a commit on `main`: the `main` ruleset must
+have no bypass ([Data branch](#data-branch), step 6), and the two other ways past the reviewer
+named in docs/QA.md "Tooling and keys" must be decided. Until then, keep the required
 reviewer on `play-production` and leave `AUTO_PROMOTE` unset: releases then go to closed testing
 as before, and production through Actions > promote with your approval. Steps 1, 2, 4 and 5 can be
 done at any time.
@@ -102,10 +105,8 @@ done at any time.
    Keep: Deployment branches and tags = Selected branches, `main` only; "Allow administrators to
    bypass configured protection rules" off; no wait timer; the secret `PLAY_SERVICE_ACCOUNT_JSON`
    listed. From then on a run on `main` reaches the production key without a click, so the
-   `main` ruleset below (pull request, required checks, no bypass for people) is what guards it,
-   together with its one bypass: the data deploy key can push to `main`, so from this step on it
-   is worth as much as the production key (docs/QA.md "Tooling and keys"). Keep exactly one
-   deploy key on the repository, only in environment `data-push`.
+   `main` ruleset below (pull request, required checks, no bypass at all) is what guards it
+   (docs/QA.md "Tooling and keys").
 4. **Android vitals for the guard.** The guard reads crash and ANR rates with the production
    service account:
    - Play Console > Users and permissions > the **production** service account > App permissions
@@ -154,19 +155,11 @@ Set up by hand: Settings > Rules > Rulesets > New.
    GitHub Actions (names exactly as GitHub shows them; docs/QA.md "Required checks"):
    `app result`, `emulator result`, `backend result`, `web result`, `repo map and AGENTS.md up to date`, `CodeQL (actions)`, `CodeQL (python)`,
    `osv-scanner (dependencies)`, `zizmor (workflows)`.
-4. Bypass list: one bypass, Deploy keys (Always). GitHub Actions cannot be a bypass actor on a
-   personal repository, so `data.yml` and `where-to-live.yml` build in a read-only job, then a `push` job in environment
-   `data-push` applies the patch to the newest `main` and pushes over SSH with
-   `scripts/push_data.sh` (GitHub's host key pinned, key file removed after).
-   - The key, set up by hand once: create a pair (`ssh-keygen -t ed25519 -f dailylah-data-push
-     -N ""`, on a laptop or in Termux); Settings > Deploy keys > Add: the `.pub` file, title
-     `data-push`, **Allow write access**; Settings > Environments > New `data-push`: Deployment
-     branches `main` only, no admin bypass; Add secret `DATA_PUSH_SSH_KEY` = the private key file
-     (all lines, including BEGIN and END); then delete both local key files. Never paste the
-     private key in a chat.
-   - Check it: Actions > data > Run workflow, then Actions > where-to-live > Run workflow; the
-     `push` job must say "Pushed: ..." or the build must say "No data changes".
-     `screenshots.yml` never pushes to `main` and `goldens.yml` skips `main`.
+4. Bypass list: Deploy keys (Always) while `web/data-source.txt` says `main` (the data workflows
+   then push to `main` with the deploy key); **empty** once the data is published from the branch
+   `data` ([Data branch](#data-branch), step 6). Nothing pushes to `main` then: only a merged pull
+   request puts a commit there. `screenshots.yml` never pushes to `main` and `goldens.yml` skips
+   `main`.
 5. Do not add yourself as a bypass actor: merges go through PRs like everything else.
 
 **`v*` tags** (New tag ruleset; Enforcement: Active; Target: Include by pattern `v*`):
@@ -176,6 +169,89 @@ Set up by hand: Settings > Rules > Rulesets > New.
 
 After both are on, check: a docs-only PR shows all nine checks green and can be squash-merged;
 `git push --force` to `main` and `git push --delete origin v1.9.2` are refused.
+
+## Data branch
+Where the daily and weekly data (`data.yml`, `where-to-live.yml`) is published from is one word in
+`web/data-source.txt` on `main`, changed only by a pull request:
+
+- **`main`** (today): the push job pushes the update to `main` with the deploy key, as it always
+  did, and Vercel deploys on that push. The deploy key is in the `main` ruleset's bypass list. The
+  branch `data` gets a copy of the data files after each update; nothing reads it yet.
+- **`data`**: the push job pushes to the branch `data` and never to `main`, then calls a Vercel
+  deploy hook; the site's build step (`web/build.sh`) lays the `data` branch over `main` in every
+  deployment. The `main` ruleset needs no bypass any more.
+
+The `data` branch holds only data files: `web/data/*.json`, the generated town pages
+`web/where-to-live-towns/*.html`, `web/sitemap.xml`, and the builds' caches
+`backend/data/geocode.json`, `where_to_live_routes.json` and `build_report.json`. Each workflow
+builds in a read-only job and hands a patch to a `push` job in environment `data-push`, which
+runs `scripts/push_data.sh` (GitHub's host key pinned, key file removed after). With source
+`data` it starts from the newest `main` for the code, lays the newest `data` branch over it,
+checks and applies the patch, runs main's own page generator, and pushes a commit with only
+those files to `data`. The copies of these files on `main` are then what the tests read; refresh
+them with an ordinary pull request when a test needs newer data (a new town also needs its
+share image, `scripts/build_og_images.py`). Two things on `main` still reach the published data:
+`web/data/school_holidays.json` (written by hand; main's copy always wins, and a change to it
+starts the `data` workflow) and the page generator `backend/app/where_to_live_pages.py` (a
+change to it starts `where-to-live`, which makes the published pages again).
+
+**Moving from `main` to `data`**, all in a phone browser, in this order:
+
+1. **Deploy key and environment** (already there): create a pair (`ssh-keygen -t ed25519 -f
+   dailylah-data-push -N ""`, on a laptop or in Termux); Settings > Deploy keys > Add: the `.pub`
+   file, title `data-push`, **Allow write access**; Settings > Environments > New `data-push`:
+   Deployment branches `main` only, no admin bypass; Add secret `DATA_PUSH_SSH_KEY` = the private
+   key file (all lines, including BEGIN and END); then delete both local key files. Never paste
+   the private key in a chat. Keep exactly one deploy key on the repository.
+2. **Only the deploy key may write the `data` branch.** First delete the branch `data` if it is
+   there (the repository's Branches page > the bin next to `data`): what it holds from before the
+   ruleset is not to be trusted, and the next data update makes it again from `main`. Then
+   Settings > Rules > Rulesets > New branch
+   ruleset `data`: Enforcement Active; Target: Include by pattern `data`; tick **Restrict
+   creations**, **Restrict updates**, **Restrict deletions** and **Block force pushes**; Bypass
+   list: **Deploy keys** (Always), nothing else. This is required, not optional: once the site
+   is built from this branch, whoever can push to it can change what the site and the app show,
+   and without the ruleset every workflow with write access could. Check it: wait for a `data` run
+   whose `push` job says "Pushed to main" with no warning about the copy on the data branch (a run
+   that says "No data changes" has not made the branch); the Branches page then shows `data`
+   again, updated by dailylah-bot.
+3. **Deploy hook.** vercel.com > the project (dailylah-web) > Settings > Git > Deploy Hooks: Name
+   `data`, Branch `main`, Create Hook, copy the URL (it starts with
+   `https://api.vercel.com/v1/integrations/deploy/`). GitHub > Settings > Environments >
+   `data-push` > Add secret: Name `VERCEL_DEPLOY_HOOK`, Value that URL. The URL can only start a
+   deployment of `main`; still, never paste it in a chat.
+4. **Switch.** Right after a `data` run that ended without a warning about the copy (so the
+   `data` branch equals `main`'s data): a pull request that changes `web/data-source.txt` from
+   `main` to `data`, and nothing else. Its Vercel
+   preview already builds from the `data` branch: the build log must show
+   "data: N .json files from the data branch", and the preview's `/data/manifest.json` must be the
+   current one. Merge it. Both data workflows start once on that merge.
+5. **Check it.** Actions > data > Run workflow: the `push` job says "Pushed to data: ..." and
+   "Asked Vercel to deploy the site." (or the build says "No data changes"). In Vercel the new
+   deployment's build log shows the same line as in step 4, and
+   `https://dailylah.sg/data/manifest.json` shows today's version.
+6. **Take the deploy key out of the `main` ruleset.** Only after step 5 worked: Settings > Rules >
+   Rulesets > `main` > Bypass list > remove "Deploy keys" > Save. From then on nothing but a
+   merged pull request reaches `main`.
+7. Optional: Vercel > Settings > Git > Ignored Build Step, the command
+   `[ "$VERCEL_GIT_COMMIT_REF" = "data" ]` stops Vercel from building a preview for every push to
+   the `data` branch.
+
+Going back takes three steps, in this order, because by then the copies on `main` are old:
+put "Deploy keys" back in the `main` ruleset's bypass list; merge a pull request that brings the
+current files of the `data` branch onto `main` (the bundles, town pages, sitemap and the three
+files in `backend/data/`); only then the pull request that changes `web/data-source.txt` back to
+`main`. Reversing the switch alone would make the site serve the old copies until the next
+data runs.
+
+What the `data` branch can and cannot do once it is the source: whoever can write it can change
+the data the app and the site show and the town pages (served with the site's CSP), as the deploy
+key could before. They cannot put a commit on `main`, so no workflow, script or app code.
+`web/build.sh` takes only plain `.json` files into `data/`, `.html` files into
+`where-to-live-towns/` and a sitemap that is nothing but a list of dailylah.sg URLs;
+`push_data.sh` refuses a `data` branch that holds anything else before it runs main's generator,
+and reads `main` and `data` by their full branch names. If the branch cannot be downloaded, the
+site build fails and the previous deployment stays up.
 
 ## GitHub security settings
 Settings > Advanced Security (or Code security):

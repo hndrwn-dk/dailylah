@@ -30,6 +30,8 @@ This file maps that plan to the automated tests in this repo and describes how a
 | Agent docs `docs.yml` | GitHub Actions `docs` | every PR and push to `main` | `docs/REPO_MAP.md` and every `AGENTS.md` match the code and CLAUDE.md (`scripts/repo_map.py --check`) |
 
 The screen matrix uses the bundles committed in `web/data/`, so screens render with real data.
+Once the data is published from the branch `data` (docs/DEPLOY.md "Data branch"), that copy on
+`main` is no longer updated daily; refresh it with a pull request when a test needs newer data.
 The API, location and storage are faked. A test fails on any exception or layout overflow.
 
 ## Manual releases (no Play upload)
@@ -119,7 +121,7 @@ pull request, by the names GitHub shows:
 | --- | --- | --- |
 | `app result` | `app.yml` | `analyze` (analyze, tests, unsigned AAB) when `app/`, `contracts/` or `app.yml` change |
 | `emulator result` | `emulator.yml` | `flows (API 29/35/36)`, `upgrade (previous version → this build)`, `release build (R8) starts and runs`, `Maestro flows (release APK)` when `app/`, `scripts/emulator_*.sh` or `emulator.yml` change |
-| `backend result` | `backend.yml` | `test` (ruff, pytest, pip-audit) when `backend/`, `contracts/`, `scripts/play_promote.py`, `scripts/rollout_guard.py`, `promote.yml`, `rollout-guard.yml`, `app.yml` or `backend.yml` change |
+| `backend result` | `backend.yml` | `test` (ruff, pytest, pip-audit) when `backend/`, `contracts/`, `scripts/play_promote.py`, `scripts/rollout_guard.py`, `scripts/push_data.sh`, `web/build.sh`, `web/vercel.json`, `promote.yml`, `rollout-guard.yml`, `app.yml`, `data.yml`, `where-to-live.yml` or `backend.yml` change |
 | `web result` | `web.yml` | `page logic (node --test)` and `layout (Playwright)` when `web/` (not `web/data/`) or `web.yml` change |
 | `repo map and AGENTS.md up to date` | `docs.yml` | `scripts/repo_map.py --check` |
 | `CodeQL (actions)`, `CodeQL (python)` | `security.yml` | CodeQL on workflows and Python |
@@ -329,7 +331,7 @@ The PRD is the owner's product requirements document; it is kept outside this re
 Merging the release PR is the only decision: merge = ship. Nothing below needs a person, a laptop
 or Play Console. It needs the one-time settings in docs/DEPLOY.md "Production releases"
 (`PLAY_PUSH_TRACK=alpha`, `AUTO_PROMOTE=on`, a production service account of its own,
-`play-production` limited to `main` with no reviewer). Until those are done, in the order
+`play-production` limited to `main` with, in the end, no reviewer). Until those are done, in the order
 given there, a release stops at closed testing and production goes through Actions > promote with
 the owner's approval, as before.
 
@@ -474,11 +476,13 @@ A run that changes nothing says so.
   key (repository variable `PLAY_TESTING_ACCOUNT`). What stands between a commit and production
   is the `main` ruleset (pull request, required checks), the release gate and the guard, not an
   approval click: see "What CI enforces before production".
-- **Whoever can put a commit on `main` can use the production key**, because a job on `main`
-  that names the environment gets its secret and nobody is asked. That is the owner's merge, and
-  the ruleset's one bypass: the data deploy key (`DATA_PUSH_SSH_KEY`, environment `data-push`).
-  Treat that key like the production key itself. With a reviewer on `play-production` it reached
-  closed testing only.
+- **Once the reviewer is gone, whoever can put a commit on `main` can use the production key**,
+  because a job on `main` that names the environment gets its secret and nobody is asked. So
+  nothing but a merged pull request may reach `main`: the data workflows must publish through
+  the branch `data` and the ruleset's bypass must be gone (docs/DEPLOY.md "Data branch", all
+  steps). Two more ways past the
+  reviewer are still to be decided before it is removed: `promote.yml` would run without an
+  approval, and a pull request is merged with no second person.
 - One writer to production at a time: the promote job, the guard and `promote.yml` share the
   concurrency group `play-promote`. A second run waits; a third replaces the waiting one. If two
   edits ever commit at the same moment, Google Play refuses the later one and that run fails with

@@ -26,7 +26,8 @@ jobs:
     if: vars.AUTO_PROMOTE == 'on' || (github.event_name == 'workflow_dispatch' && inputs.dry_run)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # The production Play key is only in this environment (main only, no reviewer). The job
+    # The production Play key is only in this environment (main only; no reviewer once the
+    # one-time steps in docs/DEPLOY.md "Production releases" are done). The job
     # installs nothing: checkout, the runner's python3 (standard library) and openssl.
     environment: play-production
     permissions:

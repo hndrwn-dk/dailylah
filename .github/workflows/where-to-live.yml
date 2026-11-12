@@ -1,13 +1,19 @@
 name: where-to-live
 # Rebuilds web/data/where-to-live.json (HDB median rent and resale per town + OneMap transit
-# times to office areas) once a week and pushes it to main only when its data changed (push job,
-# deploy key in environment data-push, scripts/push_data.sh).
-# Vercel redeploys web/ on push. backend/data/where_to_live_routes.json caches the routes
+# times to office areas) once a week and publishes it only when its data changed (push job,
+# deploy key in environment data-push, scripts/push_data.sh; where it goes is
+# web/data-source.txt, docs/DEPLOY.md "Data branch"). A change to the page generator on main also
+# starts it, so the published town pages are made again. backend/data/where_to_live_routes.json caches the routes
 # (asked again after 30 days). Secrets: ONEMAP_EMAIL, ONEMAP_PASSWORD; DATAGOV_API_KEY optional.
 on:
   schedule:
     - cron: "41 19 * * 0" # Monday 03:41 SGT
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "backend/app/where_to_live_pages.py"
+      - "web/data-source.txt"
 permissions: {}
 concurrency:
   group: where-to-live
@@ -37,6 +43,9 @@ jobs:
       - name: Show what is built
         run: |
           echo "Built from $(git rev-parse HEAD) (run queued at $GITHUB_SHA)" | tee -a "$GITHUB_STEP_SUMMARY"
+      # The published data is on the data branch (see data.yml): start from it.
+      - name: Start from the published data
+        run: bash scripts/push_data.sh --baseline
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
@@ -67,16 +76,19 @@ jobs:
           path: ${{ runner.temp }}/data.patch
           retention-days: 3
 
-  # Pushes the patch to main with the deploy key that the main ruleset lets bypass its rules
-  # (docs/DEPLOY.md, "Rulesets"). Environment data-push holds DATA_PUSH_SSH_KEY and is
-  # limited to main. Only GitHub's own actions and scripts/push_data.sh run in this job, plus main's
-  # own backend/app/where_to_live_pages.py (stdlib only, the runner's python3, no pip), which
-  # push_data.sh runs on the patched main to write the "Living in <town>" pages and the sitemap.
-  # The patch itself may carry only the two JSON files.
+  # Publishes the patch with the deploy key (docs/DEPLOY.md, "Data branch"): to main while
+  # web/data-source.txt says main, else to the branch `data`, followed by a Vercel deploy. After
+  # a change to the generator on main it runs with no patch (`-`), only to make the pages again;
+  # that does something only with the data on its own branch. Environment data-push holds
+  # DATA_PUSH_SSH_KEY and VERCEL_DEPLOY_HOOK and is limited to main. Only GitHub's own actions and
+  # scripts/push_data.sh run in this job, plus main's own backend/app/where_to_live_pages.py
+  # (stdlib only, the runner's python3, no pip), which push_data.sh runs on main with the patched
+  # data to write the "Living in <town>" pages and the sitemap. The patch itself may carry only
+  # the two JSON files, and the data branch only data files, so the generator is always main's.
   push:
     name: where-to-live (push)
     needs: build
-    if: needs.build.outputs.changed == 'true' && github.ref == 'refs/heads/main'
+    if: (needs.build.outputs.changed == 'true' || github.event_name == 'push') && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: data-push
     permissions:
@@ -87,14 +99,19 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.build.outputs.changed == 'true'
         with:
           name: where-to-live-patch
           path: ${{ runner.temp }}/patch
-      - name: Push to main
+      - name: Publish the data
         env:
           DATA_PUSH_SSH_KEY: ${{ secrets.DATA_PUSH_SSH_KEY }}
+          VERCEL_DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+          CHANGED: ${{ needs.build.outputs.changed }}
           PATCH: ${{ runner.temp }}/patch/data.patch
         run: |
+          # No data change (the generator changed on main): no patch, only the pages.
+          if [ "$CHANGED" != true ]; then PATCH=-; fi
           bash scripts/push_data.sh \
             --generate 'cd backend && python3 -E -s -m app.where_to_live_pages ../web' \
             --generated 'web/where-to-live-towns/*.html' --generated web/sitemap.xml \

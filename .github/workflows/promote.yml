@@ -41,7 +41,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # The production Play key (a service account of its own, not the one in `play`) is only in
-    # this environment: main only, no reviewer (starting this run is the owner's decision).
+    # this environment: main only, and the owner as required reviewer until docs/DEPLOY.md
+    # "Production releases" says otherwise.
     # The job installs nothing: checkout, git, the runner's python3 (standard library) and openssl.
     environment: play-production
     permissions:

@@ -58,7 +58,7 @@ Singapore time and also checks the policy redirects and the data manifest on all
 | Poll scheduler | Upstash QStash | Upstash |
 | Real-time cache | Upstash Redis | Upstash |
 | Static and spatial data | PostgreSQL + PostGIS | Neon |
-| Website, data bundles | Static HTML/JSON, no build step | Vercel |
+| Website, data bundles | Static HTML/JSON; the only build step can copy the daily data in | Vercel |
 | Alerts | On-device (WorkManager, local notifications) | none |
 
 Upstream data: data.gov.sg (NEA, HDB, CEA), LTA DataMall, OneMap, URA and Geoapify.
