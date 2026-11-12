@@ -38,7 +38,7 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
 ## Repo layout
 - `backend/` — Python 3.12, FastAPI. Deployed to Render (free) via `render.yaml`.
 - `app/` — Flutter app (Riverpod, dio). Platform folders are generated with `flutter create`.
-- `web/` — static site on Vercel; its only build step, `web/build.sh`, lays the published data from the branch `data` over the site once `web/data-source.txt` says `data` (today it says `main` and the step does nothing): landing page, the "Where to live?" page
+- `web/` — static site on Vercel; its only build step, `web/build.sh`, lays the published data from the branch `data` over the site (`web/data-source.txt` says `data`; with `main` the step does nothing): landing page, the "Where to live?" page
   (`web/where-to-live/`) and its generated town pages
   (`web/where-to-live-towns/`, never hand-edited) with their share images (`web/og/where-to-live/`,
   made by `scripts/build_og_images.py`), the Play button as plain HTML on every page (no script; `web/tests` checks all pages carry the same link), the landing
@@ -101,14 +101,15 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   that `git push`. `data.yml` and `where-to-live.yml` build in a read-only job and hand a patch to a
   separate `push` job (environment `data-push`, deploy key `DATA_PUSH_SSH_KEY`, deploy hook
   `VERCEL_DEPLOY_HOOK`) that runs `scripts/push_data.sh` and nothing from pip. Where it publishes is
-  `web/data-source.txt` on `main` (docs/DEPLOY.md "Data branch"): `main` (today) pushes to `main`
-  with the deploy key, the `main` ruleset's one bypass, and copies the data files to the branch
-  `data`, which nothing reads; `data` pushes to that branch and never to `main` (no bypass then)
-  and starts a Vercel deploy, whose build step (`web/build.sh`) lays the branch over `main`. The
+  `web/data-source.txt` on `main` (docs/DEPLOY.md "Data branch"): `data` (today) pushes to the branch `data` and never to `main` (no ruleset bypass needed)
+  and starts a Vercel deploy, whose build step (`web/build.sh`) lays the branch over `main`;
+  `main` (before, and the way back) pushes to `main` with the deploy key, which then needs to be
+  the `main` ruleset's one bypass, and copies the data files to the branch `data`. The
   `data` branch holds only data files (`BRANCH_PATHS` in the script): the script refuses a branch
   that holds anything else, reads `main` and `data` by full ref name, and `build.sh` takes only
-  plain `.json`, town page `.html` and a plain sitemap from it. Then the copies on `main` are
-  for the tests, except `web/data/school_holidays.json` (written by hand: main's wins). Never
+  plain `.json`, town page `.html` and a plain sitemap from it. The copies on `main` are
+  for the tests (a pull request that edits one does not change the site or its preview), except
+  `web/data/school_holidays.json` (written by hand: main's wins in the next data run). Never
   change `web/data-source.txt` together with anything else; that pull request needs the security
   gate and the `data` branch ruleset in place. The patch may carry only
   JSON files that parse; files the site serves as pages (the where-to-live town pages, the sitemap)
@@ -139,7 +140,7 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   never move the promote job or `promote.yml` to it; a change to their triggers, conditions or
   environments needs the security gate. A commit on `main` can use the key in `play-rollout` with
   no approval: nothing but a merged pull request may reach `main` (no ruleset bypass, no workflow
-  that pushes there: `web/data-source.txt` must say `data` first).
+  that pushes there: `web/data-source.txt` must keep saying `data`).
   This protects the keys, not the contents of the
   AAB, which third-party build code still makes. Never use `pull_request_target`. Expressions from
   inputs, vars or step outputs go through `env:`, not straight into `run:`.

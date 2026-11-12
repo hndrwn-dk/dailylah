@@ -1,7 +1,7 @@
 """scripts/push_data.sh and web/build.sh against local git repos and tarballs.
 
 Most tests run with the published data on the data branch (web/data-source.txt says `data`),
-the state after the switch; `source_main` puts main back to how it is today."""
+the state after the switch; `source_main` puts main back to how it was before the switch."""
 
 import json
 import os

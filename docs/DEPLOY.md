@@ -167,10 +167,10 @@ Set up by hand: Settings > Rules > Rulesets > New.
    GitHub Actions (names exactly as GitHub shows them; docs/QA.md "Required checks"):
    `app result`, `emulator result`, `backend result`, `web result`, `repo map and AGENTS.md up to date`, `CodeQL (actions)`, `CodeQL (python)`,
    `osv-scanner (dependencies)`, `zizmor (workflows)`.
-4. Bypass list: Deploy keys (Always) while `web/data-source.txt` says `main` (the data workflows
-   then push to `main` with the deploy key); **empty** once the data is published from the branch
-   `data` ([Data branch](#data-branch), step 6). Nothing pushes to `main` then: only a merged pull
-   request puts a commit there. `screenshots.yml` never pushes to `main` and `goldens.yml` skips
+4. Bypass list: **empty**. The data is published from the branch `data`
+   ([Data branch](#data-branch), step 6), so nothing pushes to `main`: only a merged pull
+   request puts a commit there. (Deploy keys were on this list while `web/data-source.txt` said
+   `main`; going back needs them again.) `screenshots.yml` never pushes to `main` and `goldens.yml` skips
    `main`.
 5. Do not add yourself as a bypass actor: merges go through PRs like everything else.
 
@@ -186,12 +186,13 @@ After both are on, check: a docs-only PR shows all nine checks green and can be 
 Where the daily and weekly data (`data.yml`, `where-to-live.yml`) is published from is one word in
 `web/data-source.txt` on `main`, changed only by a pull request:
 
-- **`main`** (today): the push job pushes the update to `main` with the deploy key, as it always
-  did, and Vercel deploys on that push. The deploy key is in the `main` ruleset's bypass list. The
-  branch `data` gets a copy of the data files after each update; nothing reads it yet.
-- **`data`**: the push job pushes to the branch `data` and never to `main`, then calls a Vercel
-  deploy hook; the site's build step (`web/build.sh`) lays the `data` branch over `main` in every
-  deployment. The `main` ruleset needs no bypass any more.
+- **`data`** (today, since 12 Nov 2026): the push job pushes to the branch `data` and never to
+  `main`, then calls a Vercel deploy hook; the site's build step (`web/build.sh`) lays the `data`
+  branch over `main` in every deployment, previews of pull requests included. The `main` ruleset
+  needs no bypass.
+- **`main`** (before): the push job pushes the update to `main` with the deploy key, and Vercel
+  deploys on that push. The deploy key must then be in the `main` ruleset's bypass list. The
+  branch `data` gets a copy of the data files after each update; nothing reads it.
 
 The `data` branch holds only data files: `web/data/*.json`, the generated town pages
 `web/where-to-live-towns/*.html`, `web/sitemap.xml`, and the builds' caches
@@ -200,14 +201,16 @@ builds in a read-only job and hands a patch to a `push` job in environment `data
 runs `scripts/push_data.sh` (GitHub's host key pinned, key file removed after). With source
 `data` it starts from the newest `main` for the code, lays the newest `data` branch over it,
 checks and applies the patch, runs main's own page generator, and pushes a commit with only
-those files to `data`. The copies of these files on `main` are then what the tests read; refresh
+those files to `data`. The copies of these files on `main` are what the tests read: a pull
+request that edits one changes neither the site nor its Vercel preview. Refresh
 them with an ordinary pull request when a test needs newer data (a new town also needs its
 share image, `scripts/build_og_images.py`). Two things on `main` still reach the published data:
 `web/data/school_holidays.json` (written by hand; in the push job main's copy always wins, and a
 change to it starts the `data` workflow, whose update brings it to the site a few minutes later) and the page generator `backend/app/where_to_live_pages.py` (a
 change to it starts `where-to-live`, which makes the published pages again).
 
-**Moving from `main` to `data`**, all in a phone browser, in this order:
+**Moving from `main` to `data`** (done on 12 Nov 2026; kept for a new repository or after going
+back), all in a phone browser, in this order:
 
 1. **Deploy key and environment** (already there): create a pair (`ssh-keygen -t ed25519 -f
    dailylah-data-push -N ""`, on a laptop or in Termux); Settings > Deploy keys > Add: the `.pub`
@@ -249,8 +252,9 @@ change to it starts `where-to-live`, which makes the published pages again).
    `[ "$VERCEL_GIT_COMMIT_REF" = "data" ]` stops Vercel from building a preview for every push to
    the `data` branch.
 
-Going back takes three steps, in this order, because by then the copies on `main` are old:
-put "Deploy keys" back in the `main` ruleset's bypass list; merge a pull request that brings the
+Going back takes these steps, in this order, because by then the copies on `main` are old:
+first set `AUTO_ROLLOUT` to `off` and delete the secret in environment `play-rollout` (the guard's
+key must not sit behind a `main` that a deploy key can push to); put "Deploy keys" back in the `main` ruleset's bypass list; merge a pull request that brings the
 current files of the `data` branch onto `main` (the bundles, town pages, sitemap and the three
 files in `backend/data/`); only then the pull request that changes `web/data-source.txt` back to
 `main`. Reversing the switch alone would make the site serve the old copies until the next
