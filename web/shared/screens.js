@@ -1,12 +1,13 @@
 // "Four tabs for your day" on a phone: instead of a sideways row of screenshots with their
 // captions, a deck. One screen at a time with the next peeking behind; they play in turn (DWELL ms
 // each) while the section is on screen, with the tab names as buttons and the current tab's
-// caption under them. A tap on a button or a swipe takes over and stops the play. Wide screens
-// keep the 4-across row with captions (CSS). Without JS the sideways row stays as it is.
+// caption under them. A tap on a button or a swipe takes over and stops the play. From 760 px the
+// CSS shows all four with their captions (2 x 2, then 4 across); the width below is the same as
+// there, and width alone decides. Without JS the sideways row stays as it is.
 
 const DWELL = 4000;
 const list = document.querySelector("[data-shots]");
-const narrow = matchMedia("(max-width: 999px)");
+const narrow = matchMedia("(max-width: 759px)");
 const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 if (list) {
