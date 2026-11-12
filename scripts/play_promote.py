@@ -386,10 +386,21 @@ def find_on_alpha(alpha: list[dict], version: str) -> dict:
 
 
 def plan_promote(
-    alpha: list[dict], production: list[dict], version: str, percent: int, notes: list[dict]
+    alpha: list[dict],
+    production: list[dict],
+    version: str,
+    percent: int,
+    notes: list[dict],
+    expect_code: int | None = None,
 ) -> tuple[list[dict], list[str]]:
     source = find_on_alpha(alpha, version)
     code = codes(source)[0]
+    if expect_code is not None and code != expect_code:
+        # A release run promotes the build it made and tested, not whatever alpha calls 2.4.0.
+        raise PromoteError(
+            f"The alpha release of {version} holds versionCode {code}, not {expect_code}, "
+            "the one this run built. Nothing is promoted; look at closed testing in Play Console."
+        )
     live = [c for release in production for c in codes(release)]
     if code in live:
         current = next(r for r in production if code in codes(r))
@@ -498,6 +509,7 @@ def run(
     notes: list[dict] | None = None,
     dry_run: bool = False,
     out: list[str] | None = None,
+    expect_code: int | None = None,
 ) -> list[str]:
     """Read the tracks, plan, and (unless dry_run) commit. Returns the summary lines.
 
@@ -514,7 +526,9 @@ def run(
         if action == "promote":
             alpha = api.get_track(edit, "alpha")
             out += table("alpha", alpha) + table("production", production)[2:]
-            releases, plan = plan_promote(alpha, production, version, percent, notes or [])
+            releases, plan = plan_promote(
+                alpha, production, version, percent, notes or [], expect_code
+            )
         else:
             out += table("production", production)
             if action == "rollout":
@@ -585,6 +599,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--notes", type=Path, help="whatsnew-en-US of that version")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(
+        "--code", type=int, help="promote only: the versionCode the alpha release must hold"
+    )
+    parser.add_argument(
         "--auto",
         action="store_true",
         help="called by a release run, not by a person: only with AUTO_PROMOTE=on",
@@ -624,6 +641,7 @@ def main(argv: list[str] | None = None) -> int:
             notes=notes,
             dry_run=args.dry_run,
             out=out,
+            expect_code=args.code,
         )
     except PromoteError as e:
         message = " ".join(str(e).split())

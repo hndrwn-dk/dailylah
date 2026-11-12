@@ -117,7 +117,8 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   `play-production` (deployment branch `main` only, no reviewer; its key is a production-only
   service account, never the one in `play`, checked against the variable `PLAY_TESTING_ACCOUNT`,
   without which only a dry run works): the `promote` job of `app.yml` (only a push to `main`
-  whose `play` job uploaded to `alpha` and whose `release-tag` tagged the commit, and only while
+  whose `play` job uploaded to `alpha` and whose `release-tag` tagged the commit, only for the
+  merge commit of a pull request and the versionCode this run built, and only while
   the repository variable `AUTO_PROMOTE` is `on`: the kill switch), `rollout-guard.yml` (schedule
   and manual, skipped while `AUTO_PROMOTE` is off unless a dry run; `issues: write` for its log
   and the `release-halted` issue) and `promote.yml` (manual only: the override). Each has

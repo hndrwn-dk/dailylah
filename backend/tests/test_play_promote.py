@@ -626,6 +626,15 @@ def test_auto_promote_keeps_every_refusal(cli, monkeypatch, alpha, production, w
     assert not cli.api.did("commit") and cli.api.tracks == before
 
 
+def test_auto_promote_ships_only_the_version_code_this_run_built(cli, monkeypatch):
+    monkeypatch.setenv("AUTO_PROMOTE", "on")
+    code, summary, _ = cli("--auto", "--version", "2.4.0", "--code", "744")
+    assert code == 1 and "holds versionCode 745, not 744" in summary
+    assert not cli.api.did("update") and not cli.api.did("commit")
+    code, _, _ = cli("--auto", "--version", "2.4.0", "--code", "745")
+    assert code == 0 and cli.api.did("commit")
+
+
 def test_the_token_can_ask_for_another_scope():
     form = pp.token_request(
         json.dumps({"type": "service_account", "client_email": "a@b", "private_key": "k"}),
@@ -670,9 +679,13 @@ def test_app_yml_promotes_only_a_tagged_alpha_release_pushed_to_main_with_the_sw
         assert must in condition
     assert "||" not in condition  # every condition must hold
     assert job["environment"] == "play-production"
-    assert job["permissions"] == {"contents": "read"}
+    assert job["permissions"] == {"contents": "read", "pull-requests": "read"}
     assert job["concurrency"] == {"group": "play-promote", "cancel-in-progress": False}
-    (checkout, run) = job["steps"]
+    (merged, checkout, run) = job["steps"]
+    # First of all, and before the key is read: the commit is a merged pull request's.
+    assert "commits/$GITHUB_SHA/pulls" in merged["run"] and "exit 1" in merged["run"]
+    assert ".merge_commit_sha == $sha" in merged["run"] and '.base.ref == "main"' in merged["run"]
+    assert "secrets." not in json.dumps(merged) and "${{" not in merged["run"]
     assert checkout["uses"].startswith("actions/checkout@") and len(checkout["uses"]) == 57
     assert checkout["with"]["persist-credentials"] is False
     assert checkout["with"]["sparse-checkout"].split() == [
@@ -681,7 +694,8 @@ def test_app_yml_promotes_only_a_tagged_alpha_release_pushed_to_main_with_the_sw
     ]
     command = " ".join(run["run"].replace("\\\n", " ").split())
     assert "python3 -I scripts/play_promote.py --auto --action promote" in command
-    assert '--version "$TAG" --rollout 20' in command and "pip" not in run["run"]
+    assert '--version "$TAG" --code "$GITHUB_RUN_NUMBER" --rollout 20' in command
+    assert "pip" not in run["run"]
     assert run["env"]["TAG"] == "${{ needs.release-tag.outputs.tag }}"
     assert run["env"]["AUTO_PROMOTE"] == "${{ vars.AUTO_PROMOTE }}"
     assert "${{" not in run["run"]  # values reach the shell through env only

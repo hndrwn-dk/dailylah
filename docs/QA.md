@@ -349,8 +349,11 @@ the fix as a new version through step 1 (it replaces the unfinished release).
 ### Auto promote (`app` job `promote`)
 - Runs only when all of this holds: the run is a **push to `main`** (never a pull request, a fork
   or a manual run), `play` uploaded to `alpha` (so `PLAY_PUSH_TRACK` is `alpha`; with any other
-  track nothing is promoted), `release-tag` put `v<version>` on this commit, and the repository
-  variable **`AUTO_PROMOTE` is `on`**.
+  track nothing is promoted), `release-tag` put `v<version>` on this commit, the repository
+  variable **`AUTO_PROMOTE` is `on`**, and the commit is the merge commit of a pull request into
+  `main` (the job asks GitHub first; a commit pushed straight to `main` stops at closed testing).
+- It promotes only the versionCode this run built (`--code`, the run number): if the alpha
+  release of that version holds another one, nothing is promoted.
 - **Kill switch:** set `AUTO_PROMOTE` to anything else, or delete it (unset = off). The promote
   job and the scheduled guard are then skipped and never read the production key; no code
   change. Releases still reach closed testing; promote by hand with Actions > promote.

@@ -420,11 +420,25 @@ jobs:
     environment: play-production
     permissions:
       contents: read
+      # To ask GitHub whether this commit is a pull request's merge commit (first step).
+      pull-requests: read
     # The same group as promote.yml and rollout-guard.yml: one writer to production at a time.
     concurrency:
       group: play-promote
       cancel-in-progress: false
     steps:
+      # Merge = ship, and only a merge: the commit must be the merge commit of a pull request
+      # into main. A commit pushed straight to main (the data deploy key can, past the ruleset)
+      # still goes to closed testing, never to production by itself.
+      - name: Only a merged pull request ships
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pulls=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls")
+          merged=$(jq --arg sha "$GITHUB_SHA" \
+            '[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $sha)] | length' <<<"$pulls")
+          [ "$merged" -ge 1 ] || { echo "::error::${GITHUB_SHA::7} is not the merge commit of a pull request into main: not promoted. Promote by hand with Actions > promote if it should ship."; exit 1; }
+          echo "Merge commit of pull request #$(jq -r --arg sha "$GITHUB_SHA" '[.[] | select(.merge_commit_sha == $sha)][0].number' <<<"$pulls")."
       # The script and this commit's release notes (the tag is on this commit), nothing else.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -443,8 +457,9 @@ jobs:
           TAG: ${{ needs.release-tag.outputs.tag }}
         run: |
           # -I: no site packages from the user or the working directory, no PYTHON* variables.
+          # --code: versionCode is the run number (job analyze), so only this run's build ships.
           python3 -I scripts/play_promote.py --auto --action promote --version "$TAG" \
-            --rollout 20 --notes docs/store/whatsnew/whatsnew-en-US
+            --code "$GITHUB_RUN_NUMBER" --rollout 20 --notes docs/store/whatsnew/whatsnew-en-US
 
   # The one check to require for this workflow: fails if any job failed or was cancelled,
   # passes when they passed or were skipped (no app change).

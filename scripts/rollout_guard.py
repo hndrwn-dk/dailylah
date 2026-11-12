@@ -484,7 +484,8 @@ def record(gh, log: Log, release: dict, status: str, percent: float, note: str, 
             # The guard reads every comment of its log: keep strangers from filling it up.
             gh.lock(log.number)
         except pp.PromoteError:
-            pass  # the log works unlocked too
+            # The log works unlocked too, but then anyone can comment on it.
+            print(f"::warning title=rollout guard::Issue {log.number} could not be locked.")
     else:
         gh.comment(log.number, text)
     log.entries.append((now, status, percent))
