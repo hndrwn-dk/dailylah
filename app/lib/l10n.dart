@@ -970,7 +970,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "A cleaner look: data sources are now credited once, in About > Data sources, instead of under every list. The notes that matter stay where you need them.",
+        "Better layout on foldables and tablets: on wide screens DailyLah now stays in a comfortable centred column instead of stretching edge to edge.",
       ];
 
   // about

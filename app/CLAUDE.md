@@ -29,6 +29,15 @@ relative to `app/` unless they start with a top-level folder. File and symbol in
   `StateProvider` comes from `package:flutter_riverpod/legacy.dart`; read async values with `.value`.
 - `AppFrame` (`ui/app_frame.dart`, MaterialApp.builder) keeps every route above the system navigation
   bar (Android draws edge to edge; the 3-button bar hid Setup's Save), so pages need no bottom inset.
+  On a window wider than `kMaxContentWidth` (600 dp: an unfolded foldable, a tablet, a phone on its
+  side) it also keeps every route, sheet, dialog, banner and the bottom bar in one centred column of
+  that width, with the page colour beside it, and gives the column a `MediaQuery` whose width is the
+  column's. So screens are laid out for a phone only: read the width from `MediaQuery` or
+  `LayoutBuilder`, never from the view, and do not add a second width limit per page. Orientation is
+  not locked. The frame is the one entry of a full-window `Overlay`, which is therefore the root
+  overlay: Flutter puts the Cut/Copy/Paste toolbar of a text field there and places it by window
+  coordinates, so anything else put in the root overlay must do the same. Tests: `test/app_frame_test.dart`, the "foldable landscape" row of the screen matrix
+  and the two `*-fold-landscape` goldens.
 - Keyboard: `KeyboardNavigatorObserver` closes it whenever a page, sheet or dialog opens or closes, and
   `KeyboardRepaint` forces a fresh frame once it is gone (some phones left a blank area where it was);
   pickers pop with `popAfterKeyboard`. Both are wired in `main.dart` (`ui/keyboard.dart`).
@@ -374,9 +383,10 @@ feature, screen, provider or rule moves, appears or goes away.
   flows once more; a pass on that retry is a "Maestro flaky" warning to read, not to ignore.
 - `test/contract_test.dart` runs the parsers on the shared API examples in `contracts/v1/`; a parser
   that reads a new field or endpoint gets an example and a check there (docs/QA.md "Contract tests").
-- `test/golden_test.dart` compares Today, Nearby, Home and More (light and dark) with the images in
+- `test/golden_test.dart` compares Today, Nearby, Home and More (light and dark), and Today and
+  History on a foldable held on its side (880×600 dp), with the images in
   `test/goldens/`, on Linux CI only. A PR that changes how those tabs look on purpose updates the
   images with the `goldens` workflow on its branch and says so in the description (docs/QA.md
   "Golden tests").
 - `test/screens_matrix_test.dart` renders every screen under every condition in docs/QA.md (offline,
-  denied location, 200% text, dark, small screen); a new screen or tab section is added there.
+  denied location, 200% text, dark, small screen, foldable on its side); a new screen or tab section is added there.

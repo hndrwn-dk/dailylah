@@ -365,6 +365,8 @@ const conditions = [
   Condition('dark mode', dark: true),
   Condition('small screen 320dp', size: Size(320, 568)),
   Condition('text 200% on 320dp', textScale: 2.0, size: Size(320, 640)),
+  // A Galaxy Z Fold opened flat and held on its side: wide and short.
+  Condition('foldable landscape 880dp', size: Size(880, 600)),
 ];
 
 /// Applies a condition to the test view and fakes. Call at the start of each test.
