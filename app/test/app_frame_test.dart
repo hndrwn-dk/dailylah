@@ -50,12 +50,10 @@ void main() {
     return seen;
   }
 
-  testWidgets('a phone (400 dp) gets the full width and no column', (tester) async {
+  testWidgets('a phone (400 dp) gets the full width and the same MediaQuery as before', (tester) async {
     final seen = await pumpFrame(tester, const Size(400, 800));
     expect(tester.getRect(find.byKey(const Key('page'))), const Rect.fromLTWH(0, 0, 400, 800));
     expect(seen.size, const Size(400, 800));
-    // No column: nothing in the frame is held at the column's width.
-    expect(find.byWidgetPredicate((w) => w is SizedBox && w.width == kMaxContentWidth), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -118,5 +116,93 @@ void main() {
     final seen = await pumpFrame(tester, const Size(880, 600));
     expect(seen.displayFeatures.single.bounds, const Rect.fromLTWH(300, 0, 0, 600));
     expect(seen.displayFeatures.single.state, DisplayFeatureState.postureHalfOpened);
+  });
+
+  // Flutter places this toolbar by window coordinates in the topmost overlay. With the
+  // Navigator's overlay on top (moved to the column) it was held to the window's first 600 dp:
+  // away from a selection on the right, and dead to taps where it reached beside the column.
+  for (final (where, dx) in [('left', 20.0), ('right', 560.0)]) {
+    testWidgets('Cut/Copy/Paste is at the selection and can be tapped ($where of the field)', (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(880, 600);
+      addTearDown(tester.view.reset);
+      const before = 'Tampines Street 12 beside the big market and the interchange for all buses';
+      final text = TextEditingController(text: before);
+      addTearDown(text.dispose);
+      await tester.pumpWidget(MaterialApp(
+        builder: (context, child) => AppFrame(child: child!),
+        home: Scaffold(
+          body: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 200, 16, 0),
+            child: TextField(controller: text),
+          ),
+        ),
+      ));
+      final field = tester.getRect(find.byType(TextField));
+      expect(field.left, 156);
+      final press = field.centerLeft + Offset(dx, 0);
+      await tester.longPressAt(press);
+      await tester.pumpAndSettle();
+      final toolbar = tester.getRect(find.text('Cut')).expandToInclude(tester.getRect(find.text('Select all')));
+      expect(toolbar.left, lessThan(press.dx));
+      expect(toolbar.right, greaterThan(press.dx));
+      await tester.tap(find.text('Cut'));
+      await tester.pumpAndSettle();
+      expect(text.text, isNot(before));
+    });
+  }
+
+  testWidgets('a feature beside the column is dropped, one across its edge is cut', (tester) async {
+    tester.view.displayFeatures = const [
+      DisplayFeature(
+        bounds: Rect.fromLTWH(0, 0, 60, 600),
+        type: DisplayFeatureType.cutout,
+        state: DisplayFeatureState.unknown,
+      ),
+      DisplayFeature(
+        bounds: Rect.fromLTWH(100, 0, 80, 600),
+        type: DisplayFeatureType.hinge,
+        state: DisplayFeatureState.postureFlat,
+      ),
+    ];
+    final seen = await pumpFrame(tester, const Size(880, 600));
+    expect(seen.displayFeatures.single.bounds, const Rect.fromLTRB(0, 0, 40, 600));
+  });
+
+  testWidgets('folding and unfolding keep the page, its state and the focus', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(400, 800);
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(
+      builder: (context, child) => AppFrame(child: child!),
+      home: const Scaffold(body: TextField()),
+    ));
+    await tester.enterText(find.byType(TextField), 'Bedok');
+    final state = tester.state(find.byType(TextField));
+    final focus = tester.widget<EditableText>(find.byType(EditableText)).focusNode;
+    expect(focus.hasFocus, isTrue);
+    for (final size in const [Size(880, 600), Size(400, 800)]) {
+      tester.view.physicalSize = size;
+      await tester.pumpAndSettle();
+      expect(tester.state(find.byType(TextField)), same(state));
+      expect(find.text('Bedok'), findsOneWidget);
+      expect(focus.hasFocus, isTrue);
+      expect(tester.getRect(find.byType(Scaffold)).width, size.width > 600 ? 600 : size.width);
+    }
+  });
+
+  testWidgets('the frame follows a new child from MaterialApp', (tester) async {
+    Widget app(String label) => Directionality(
+          textDirection: TextDirection.ltr,
+          child: MediaQuery(
+            data: const MediaQueryData(size: Size(400, 800)),
+            child: Theme(data: ThemeData(), child: AppFrame(child: Text(label))),
+          ),
+        );
+    await tester.pumpWidget(app('one'));
+    expect(find.text('one'), findsOneWidget);
+    await tester.pumpWidget(app('two'));
+    await tester.pump();
+    expect(find.text('two'), findsOneWidget);
   });
 }

@@ -34,7 +34,9 @@ relative to `app/` unless they start with a top-level folder. File and symbol in
   that width, with the page colour beside it, and gives the column a `MediaQuery` whose width is the
   column's. So screens are laid out for a phone only: read the width from `MediaQuery` or
   `LayoutBuilder`, never from the view, and do not add a second width limit per page. Orientation is
-  not locked. Tests: `test/app_frame_test.dart`, the "foldable landscape" row of the screen matrix
+  not locked. The frame is the one entry of a full-window `Overlay`, which is therefore the root
+  overlay: Flutter puts the Cut/Copy/Paste toolbar of a text field there and places it by window
+  coordinates, so anything else put in the root overlay must do the same. Tests: `test/app_frame_test.dart`, the "foldable landscape" row of the screen matrix
   and the two `*-fold-landscape` goldens.
 - Keyboard: `KeyboardNavigatorObserver` closes it whenever a page, sheet or dialog opens or closes, and
   `KeyboardRepaint` forces a fresh frame once it is gone (some phones left a blank area where it was);
