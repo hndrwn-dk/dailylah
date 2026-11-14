@@ -39,7 +39,8 @@ relative to `app/` unless they start with a top-level folder. File and symbol in
   phone, two columns when wide, in reading order (left column, then right; split where the heights
   are closest, `splitColumns`). A child wrapped in `FullWidth` spans both columns (banners, a row of
   tiles, a section's heading, notes; also a section widget that has its own `CardColumns`); a
-  `SectionTitle` or an empty `SizedBox` stays with the card after it; a `CardColumns` inside one of
+  `SectionTitle`, a child wrapped in `KeepWithNext` (any other heading) or an empty `SizedBox` stays with
+  the card after it; a `CardColumns` inside one of
   the two columns just stacks. One and two columns are the same widgets, so fold, unfold and
   rotation keep scroll position and card state. A new tab section puts its cards in a `CardColumns`.
   Every pushed page is laid out for a phone: `ColumnPageTransitionsBuilder` (the theme's page

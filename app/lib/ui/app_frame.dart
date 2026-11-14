@@ -178,7 +178,6 @@ class _Framed extends StatelessWidget {
             // turning the phone keep the state below (focus, the keyboard repaint).
             final media = MediaQuery.of(context);
             final width = frameWidth(box.maxWidth, media.textScaler.scale(16) / 16);
-            final wide = width < box.maxWidth;
             return Center(
               child: SizedBox(
                 // A phone: the full width, exactly as without the column.
@@ -186,7 +185,11 @@ class _Framed extends StatelessWidget {
                 child: MediaQuery(
                   // Code that asks MediaQuery for the width (the tabs, sheets, dialogs) must
                   // get the column's width, and a fold or hinge its place as seen from it.
-                  data: wide ? _columnMedia(media, width, left + (box.maxWidth - width) / 2) : media,
+                  // Wider than a phone, the column's own place counts also when it fills the
+                  // room beside a side cutout (two columns at 840 to 1040 dp).
+                  data: box.maxWidth > kMaxContentWidth
+                      ? _columnMedia(media, width, left + (box.maxWidth - width) / 2)
+                      : media,
                   child: KeyboardRepaint(child: child),
                 ),
               ),

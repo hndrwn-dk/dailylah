@@ -1390,13 +1390,23 @@ class FullWidth extends StatelessWidget {
   Widget build(BuildContext context) => child;
 }
 
+/// Marks a child of [CardColumns] that belongs to the child after it (a heading that is not a
+/// [SectionTitle]): on a wide window it stays in that card's column. On a phone it is just its child.
+class KeepWithNext extends StatelessWidget {
+  const KeepWithNext({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => child;
+}
+
 /// The cards of a tab: one column on a phone, two on a wide window ([isWide]).
 ///
 /// On a phone the children are stacked and stretched to the width, like the `Column` the tabs
 /// always had. On a wide window they keep their order: each run of cards between two
 /// [FullWidth] children is split once, where the two columns come out closest in height, and
-/// reads down the left column and then down the right one. A [SectionTitle] or an empty
-/// `SizedBox` spacer stays in the column of the card after it.
+/// reads down the left column and then down the right one. A [SectionTitle], a [KeepWithNext]
+/// child or an empty `SizedBox` spacer stays in the column of the card after it.
 ///
 /// Both layouts are the same widgets, so folding, unfolding and turning the phone keep the
 /// state of the cards (an opened list, a typed text).
@@ -1407,12 +1417,16 @@ class CardColumns extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Already in one of two columns (a section's list inside a card of the page's list): stack.
-    final two = isWide(context) && !(context.dependOnInheritedWidgetOfExactType<_Cell>()?.inColumn ?? false);
+    final inside = context.dependOnInheritedWidgetOfExactType<_Cell>()?.inColumn ?? false;
+    final two = isWide(context) && !inside;
     return _Columns(
       two: two,
       spans: [for (final c in children) c is FullWidth],
-      leads: [for (final c in children) c is SectionTitle || (c is SizedBox && c.child == null)],
-      children: [for (final c in children) c is FullWidth ? c : _Cell(inColumn: two, child: c)],
+      leads: [
+        for (final c in children) c is SectionTitle || c is KeepWithNext || (c is SizedBox && c.child == null),
+      ],
+      // Still inside a column when this list only stacks there: a list below must not split either.
+      children: [for (final c in children) c is FullWidth ? c : _Cell(inColumn: two || inside, child: c)],
     );
   }
 }

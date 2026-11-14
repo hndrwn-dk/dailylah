@@ -127,7 +127,7 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 - Types: `WakeMePage`, `WakeBanner`
 
 ### `lib/ui/widgets.dart`
-- Types: `BusPlate`, `LoadMeter`, `LineChip`, `Panel`, `SectionTitle`, `AlertTone (enum)`, `AlertBanner`, `EmptyNote`, `Stat`, `PlaceSelector`, `HeroHeader`, `StickerIconButton`, `PageTitle`, `BentoTile`, `PillRow`, `Pulse`, `PillNav`, `StationChip`, `PaintedBlockNumber`, `BoardRow`, `LoadBars`, `BusBoard`, `ParkTimeBanner`, `InfoChips`, `FacilityIcons`, `DialogButtons`, `BigNumber`, `CrowdPeople`, `MealPricePicker`, `FullWidth`, `CardColumns`
+- Types: `BusPlate`, `LoadMeter`, `LineChip`, `Panel`, `SectionTitle`, `AlertTone (enum)`, `AlertBanner`, `EmptyNote`, `Stat`, `PlaceSelector`, `HeroHeader`, `StickerIconButton`, `PageTitle`, `BentoTile`, `PillRow`, `Pulse`, `PillNav`, `StationChip`, `PaintedBlockNumber`, `BoardRow`, `LoadBars`, `BusBoard`, `ParkTimeBanner`, `InfoChips`, `FacilityIcons`, `DialogButtons`, `BigNumber`, `CrowdPeople`, `MealPricePicker`, `FullWidth`, `KeepWithNext`, `CardColumns`
 - Functions: `placeTitle`, `facilityIcon`, `showActionSnackBar`, `popAfterKeyboard`, `askMealPrice`, `splitColumns`
 
 ### `lib/wake_session.dart`

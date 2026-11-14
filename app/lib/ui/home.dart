@@ -1041,7 +1041,10 @@ class _Food extends ConsumerWidget {
             items: NearItem.pois(shops, home, radius: 2000),
           ),
         if (closures.isNotEmpty) ...[
-          Padding(padding: const EdgeInsets.fromLTRB(4, 4, 4, 8), child: Text(s.hawkerClosures, style: t.titleSmall)),
+          KeepWithNext(
+            child: Padding(
+                padding: const EdgeInsets.fromLTRB(4, 4, 4, 8), child: Text(s.hawkerClosures, style: t.titleSmall)),
+          ),
           Panel(
             child: Column(
               children: [
@@ -1093,7 +1096,7 @@ class _WatchedAndAgent extends ConsumerWidget {
           label: Text(s.findBlock),
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BlockSearchPage())),
         ),
-        _Heading(s.propertyAgents, Icons.verified_user_outlined),
+        KeepWithNext(child: _Heading(s.propertyAgents, Icons.verified_user_outlined)),
         Panel(
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),

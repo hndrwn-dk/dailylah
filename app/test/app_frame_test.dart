@@ -330,4 +330,19 @@ void main() {
       expect(tester.getRect(find.byType(TextField)).width, size.width > 600 ? 600 : size.width);
     }
   });
+
+  testWidgets('two columns beside a side cutout: a fold is still where the column sees it', (tester) async {
+    tester.view.displayFeatures = const [
+      DisplayFeature(
+        bounds: Rect.fromLTWH(488, 0, 0, 600),
+        type: DisplayFeatureType.fold,
+        state: DisplayFeatureState.postureHalfOpened,
+      ),
+    ];
+    // 976 dp with 48 dp on each side: 880 dp of room, all of it used.
+    final seen = await pumpFrame(tester, const Size(976, 600), padding: const FakeViewPadding(left: 48, right: 48));
+    expect(tester.getRect(find.byKey(const Key('page'))), const Rect.fromLTWH(48, 0, 880, 600));
+    expect(seen.size.width, 880);
+    expect(seen.displayFeatures.single.bounds, const Rect.fromLTWH(440, 0, 0, 600));
+  });
 }

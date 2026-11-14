@@ -110,6 +110,30 @@ void main() {
     expect(tester.getRect(find.text('One')).left, lessThan(448));
   });
 
+  testWidgets('880 dp: a heading marked KeepWithNext stays above its card', (tester) async {
+    // Without the mark the split falls after the heading: 110 | 85 beats 48 | 147.
+    await _pump(tester, 880, [
+      _card('button', 48),
+      KeepWithNext(child: _card('heading', 62)),
+      _card('panel', 85),
+    ]);
+    expect(_rect(tester, 'button').left, 16);
+    expect(_rect(tester, 'heading'), const Rect.fromLTWH(448, 0, 416, 62));
+    expect(_rect(tester, 'panel'), const Rect.fromLTWH(448, 62, 416, 85));
+  });
+
+  testWidgets('880 dp: a list two levels inside a column does not split either', (tester) async {
+    await _pump(tester, 880, [
+      CardColumns(children: [
+        CardColumns(children: [_card('a1', 100), _card('a2', 100)]),
+      ]),
+      _card('b', 200),
+    ]);
+    expect(_rect(tester, 'a1'), const Rect.fromLTWH(16, 0, 416, 100));
+    expect(_rect(tester, 'a2'), const Rect.fromLTWH(16, 100, 416, 100));
+    expect(_rect(tester, 'b'), const Rect.fromLTWH(448, 0, 416, 200));
+  });
+
   testWidgets('880 dp: a list inside one of the columns does not split again', (tester) async {
     await _pump(tester, 880, [
       CardColumns(children: [_card('a1', 100), _card('a2', 100)]),
