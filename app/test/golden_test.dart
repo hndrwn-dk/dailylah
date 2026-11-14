@@ -1,6 +1,6 @@
-// Visual regression: the four main tabs in light and dark, and Today and History on an unfolded
-// foldable held on its side, compared pixel by pixel with test/goldens/*.png (docs/QA.md,
-// "Golden tests").
+// Visual regression: the four main tabs in light and dark, and all five tabs on an unfolded
+// foldable held on its side (two columns of cards), compared pixel by pixel with
+// test/goldens/*.png (docs/QA.md, "Golden tests").
 //
 // Text rendering differs between operating systems, so the reference images are made and checked
 // on Linux CI only: the `app` workflow sets GOLDENS=1, elsewhere these tests are skipped. After a
@@ -20,9 +20,9 @@ final _skip = !(Platform.isLinux && Platform.environment['GOLDENS'] == '1');
 /// Tabs in the shell, by index.
 const _tabs = {'today': 0, 'nearby': 1, 'home': 2, 'more': 4};
 
-/// Tabs also checked on a wide window (a Galaxy Z Fold opened flat and held on its side): the
-/// app stays in a centred column (`AppFrame`, `kMaxContentWidth`) with the page colour beside it.
-const _wideTabs = {'today': 0, 'history': 3};
+/// Tabs also checked on a wide window (a Galaxy Z Fold opened flat and held on its side): from
+/// `kTwoColumnMinWidth` on, the cards sit in two columns (`CardColumns`).
+const _wideTabs = {'today': 0, 'nearby': 1, 'home': 2, 'history': 3, 'more': 4};
 const _foldLandscape = Size(880, 600);
 
 Future<void> _loadFonts() async {

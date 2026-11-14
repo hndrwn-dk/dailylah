@@ -29,15 +29,30 @@ relative to `app/` unless they start with a top-level folder. File and symbol in
   `StateProvider` comes from `package:flutter_riverpod/legacy.dart`; read async values with `.value`.
 - `AppFrame` (`ui/app_frame.dart`, MaterialApp.builder) keeps every route above the system navigation
   bar (Android draws edge to edge; the 3-button bar hid Setup's Save), so pages need no bottom inset.
-  On a window wider than `kMaxContentWidth` (600 dp: an unfolded foldable, a tablet, a phone on its
-  side) it also keeps every route, sheet, dialog, banner and the bottom bar in one centred column of
-  that width, with the page colour beside it, and gives the column a `MediaQuery` whose width is the
-  column's. So screens are laid out for a phone only: read the width from `MediaQuery` or
-  `LayoutBuilder`, never from the view, and do not add a second width limit per page. Orientation is
-  not locked. The frame is the one entry of a full-window `Overlay`, which is therefore the root
-  overlay: Flutter puts the Cut/Copy/Paste toolbar of a text field there and places it by window
-  coordinates, so anything else put in the root overlay must do the same. Tests: `test/app_frame_test.dart`, the "foldable landscape" row of the screen matrix
-  and the two `*-fold-landscape` goldens.
+  On a wider window it keeps the app in a centred column with the page colour beside it and gives
+  that column a `MediaQuery` whose width is the column's (`frameWidth`): up to `kMaxContentWidth`
+  (600 dp) the whole window; then 600 dp (a foldable opened upright, a phone on its side); from
+  `kTwoColumnMinWidth` (840 dp: a foldable opened flat on its side, a tablet) up to `kMaxWideWidth`
+  (1040 dp), unless large text would make each column of cards narrower than a 320 dp phone at
+  100% text (then 600 dp). Only the tabs use the wide column: `isWide(context)` is true there, and
+  the cards of each tab are a `CardColumns` (widgets.dart) instead of a `Column`: stacked on a
+  phone, two columns when wide, in reading order (left column, then right; split where the heights
+  are closest, `splitColumns`). A child wrapped in `FullWidth` spans both columns (banners, a row of
+  tiles, a section's heading, notes; also a section widget that has its own `CardColumns`); a
+  `SectionTitle` or an empty `SizedBox` stays with the card after it; a `CardColumns` inside one of
+  the two columns just stacks. One and two columns are the same widgets, so fold, unfold and
+  rotation keep scroll position and card state. A new tab section puts its cards in a `CardColumns`.
+  Every pushed page is laid out for a phone: `ColumnPageTransitionsBuilder` (the theme's page
+  transition) puts each `MaterialPageRoute` except the first in a `PhoneColumn` (600 dp, centred,
+  its own `MediaQuery`), first-run Setup gets one in `main.dart`, and sheets are limited to 600 dp
+  by the theme. So read the width from `MediaQuery` or `LayoutBuilder`, never from the view, push
+  pages with `MaterialPageRoute`, and do not add a width limit per page. Dimming of a sheet or
+  dialog covers the app's column (the whole window up to 1040 dp). Orientation is not locked. The
+  frame is the one entry of a full-window `Overlay`, which is therefore the root overlay: Flutter
+  puts the Cut/Copy/Paste toolbar of a text field there and places it by window coordinates, so
+  anything else put in the root overlay must do the same. Tests: `test/app_frame_test.dart`,
+  `test/card_columns_test.dart`, the "foldable landscape" and "tablet" rows of the screen matrix
+  and the five `*-fold-landscape` goldens.
 - Keyboard: `KeyboardNavigatorObserver` closes it whenever a page, sheet or dialog opens or closes, and
   `KeyboardRepaint` forces a fresh frame once it is gone (some phones left a blank area where it was);
   pickers pop with `popAfterKeyboard`. Both are wired in `main.dart` (`ui/keyboard.dart`).
@@ -383,10 +398,10 @@ feature, screen, provider or rule moves, appears or goes away.
   flows once more; a pass on that retry is a "Maestro flaky" warning to read, not to ignore.
 - `test/contract_test.dart` runs the parsers on the shared API examples in `contracts/v1/`; a parser
   that reads a new field or endpoint gets an example and a check there (docs/QA.md "Contract tests").
-- `test/golden_test.dart` compares Today, Nearby, Home and More (light and dark), and Today and
-  History on a foldable held on its side (880×600 dp), with the images in
+- `test/golden_test.dart` compares Today, Nearby, Home and More (light and dark), and all five
+  tabs on a foldable held on its side (880×600 dp, two columns), with the images in
   `test/goldens/`, on Linux CI only. A PR that changes how those tabs look on purpose updates the
   images with the `goldens` workflow on its branch and says so in the description (docs/QA.md
   "Golden tests").
 - `test/screens_matrix_test.dart` renders every screen under every condition in docs/QA.md (offline,
-  denied location, 200% text, dark, small screen, foldable on its side); a new screen or tab section is added there.
+  denied location, 200% text, dark, small screen, foldable on its side, tablet); a new screen or tab section is added there.

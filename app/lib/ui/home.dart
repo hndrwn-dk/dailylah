@@ -96,17 +96,17 @@ class HomePage extends ConsumerWidget {
             const _WatchedAndAgent(),
           ]
         : switch (section) {
-            'works' => [_Works(home: home)],
-            'schools' => [_Schools(home: home)],
-            'emergency' => [_Emergency(home: home)],
-            'shelter' => [_Shelters(home: home)],
-            'health' => [_Dengue(home: home), _Health(home: home)],
-            'community' => [_Community(home: home)],
-            'weekend' => [_Weekend(home: home)],
-            'recycling' => [_Recycling(home: home)],
-            'food' => [_Food(home: home)],
-            'parking' => [_Parking(home: home)],
-            'blocks' => [const _WatchedAndAgent()],
+            'works' => [FullWidth(child: _Works(home: home))],
+            'schools' => [FullWidth(child: _Schools(home: home))],
+            'emergency' => [FullWidth(child: _Emergency(home: home))],
+            'shelter' => [FullWidth(child: _Shelters(home: home))],
+            'health' => [FullWidth(child: _Dengue(home: home)), FullWidth(child: _Health(home: home))],
+            'community' => [FullWidth(child: _Community(home: home))],
+            'weekend' => [FullWidth(child: _Weekend(home: home))],
+            'recycling' => [FullWidth(child: _Recycling(home: home))],
+            'food' => [FullWidth(child: _Food(home: home))],
+            'parking' => [FullWidth(child: _Parking(home: home))],
+            'blocks' => [const FullWidth(child: _WatchedAndAgent())],
             _ => [
                 if (block != null) _MyBlock(block: block) else if (private != null) _PrivateCard(project: private)
                 else Panel(child: EmptyNote(s.notHdb, icon: Icons.home_work_outlined)),
@@ -152,14 +152,15 @@ class HomePage extends ConsumerWidget {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 6, 18, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            // A section with its own heading lays its cards out itself (FullWidth here); the
+            // home section's cards share the two columns of a wide window.
+            child: CardColumns(
               children: [
                 ...body,
                 if (section == 'home' || section == 'blocks') ...[
-                  const SizedBox(height: 12),
-                  if (private != null && section == 'home') Text(s.privateHomesNote, style: t.bodySmall),
-                  Text(s.homesDisclaimer, style: t.bodySmall),
+                  const FullWidth(child: SizedBox(height: 12)),
+                  if (private != null && section == 'home') FullWidth(child: Text(s.privateHomesNote, style: t.bodySmall)),
+                  FullWidth(child: Text(s.homesDisclaimer, style: t.bodySmall)),
                 ],
               ],
             ),
@@ -629,10 +630,9 @@ class _Works extends ConsumerWidget {
           if (s.projectWhen(p.from, p.to).isNotEmpty) s.projectWhen(p.from, p.to),
         ].join(' · ');
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return CardColumns(
       children: [
-        _Heading(s.worksTitle, Icons.construction_outlined),
+        FullWidth(child: _Heading(s.worksTitle, Icons.construction_outlined)),
         for (final p in mine)
           AlertBanner(icon: Icons.elevator_outlined, text: s.atYourBlock(line(p))),
         if (near.isEmpty)
@@ -679,10 +679,9 @@ class _Dengue extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final all = ref.watch(dengueProvider).value;
     final near = all == null ? const <(DengueCluster, double)>[] : dengueNear(all, home.lat, home.lng, km: 2);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return CardColumns(
       children: [
-        _Heading(s.dengueHeading, Icons.bug_report_outlined),
+        FullWidth(child: _Heading(s.dengueHeading, Icons.bug_report_outlined)),
         if (near.isEmpty)
           Panel(child: EmptyNote(all == null ? s.loading : s.dengueNone, icon: Icons.check_circle_outline))
         else
@@ -715,15 +714,14 @@ class _Schools extends ConsumerWidget {
     if (pois == null) return const SizedBox.shrink();
     final (near, far) = schoolsByBand(pois.of(PoiKind.primarySchool), home.lat, home.lng);
     NearItem item((Poi, double) x) => NearItem(name: x.$1.name, lat: x.$1.lat, lng: x.$1.lng, distance: x.$2);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return CardColumns(
       children: [
-        _Heading(s.schoolsTitle, Icons.school_outlined),
+        FullWidth(child: _Heading(s.schoolsTitle, Icons.school_outlined)),
         NearGroup(title: '${s.primarySchools} · ${s.within1km}', icon: Icons.school_outlined, items: [for (final x in near) item(x)]),
         NearGroup(title: '${s.primarySchools} · ${s.between1and2km}', icon: Icons.school_outlined, items: [for (final x in far) item(x)]),
         NearGroup(title: s.secondarySchools, icon: Icons.school_outlined, items: NearItem.pois(pois.of(PoiKind.school), home)),
         NearGroup(title: s.preschools, icon: Icons.child_care_outlined, items: NearItem.pois(pois.of(PoiKind.preschool), home, radius: 1000)),
-        Text(s.p1Note, style: Theme.of(context).textTheme.bodySmall),
+        FullWidth(child: Text(s.p1Note, style: Theme.of(context).textTheme.bodySmall)),
       ],
     );
   }
@@ -740,10 +738,9 @@ class _Health extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final em = ref.watch(emergencyProvider).value ?? EmergencySet.empty;
     final around = ref.watch(aroundProvider).value ?? AroundSet.empty;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return CardColumns(
       children: [
-        _Heading(s.healthTitle, Icons.health_and_safety_outlined),
+        FullWidth(child: _Heading(s.healthTitle, Icons.health_and_safety_outlined)),
         NearGroup(title: s.chasClinics, icon: Icons.medical_services_outlined, items: NearItem.points(em.of(EmergencyKind.clinic), home, radius: 2000)),
         NearGroup(title: s.pharmacies, icon: Icons.local_pharmacy_outlined, items: NearItem.points(around.of('pharmacy'), home)),
       ],
@@ -761,17 +758,16 @@ class _Shelters extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final em = ref.watch(emergencyProvider).value ?? EmergencySet.empty;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return CardColumns(
       children: [
-        _Heading(s.meetingPoints, Icons.shield_outlined),
+        FullWidth(child: _Heading(s.meetingPoints, Icons.shield_outlined)),
         NearGroup(
           title: s.within2km,
           icon: Icons.shield_outlined,
           show: 5,
           items: NearItem.points(em.of(EmergencyKind.shelter), home, radius: 2000),
         ),
-        Text(s.shelterNote, style: Theme.of(context).textTheme.bodySmall),
+        FullWidth(child: Text(s.shelterNote, style: Theme.of(context).textTheme.bodySmall)),
       ],
     );
   }
@@ -811,10 +807,9 @@ class _Emergency extends ConsumerWidget {
           ),
         );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return CardColumns(
       children: [
-        _Heading(s.emergency, Icons.emergency_outlined),
+        FullWidth(child: _Heading(s.emergency, Icons.emergency_outlined)),
         call('995', s.call995, DL.stopDeep, Colors.white),
         call('999', s.call999, DL.stopDeep, Colors.white),
         call('1777', s.call1777, DL.card, DL.ink),
@@ -822,7 +817,7 @@ class _Emergency extends ConsumerWidget {
         NearGroup(title: s.aeds, icon: Icons.monitor_heart_outlined, items: NearItem.points(em.of(EmergencyKind.aed), home, radius: 1000)),
         NearGroup(title: s.police, icon: Icons.local_police_outlined, items: NearItem.points(around.of('police'), home, radius: 5000, limit: 5)),
         NearGroup(title: s.scdfFireStations, icon: Icons.fire_truck_outlined, items: NearItem.points(em.of(EmergencyKind.fire), home, radius: 8000, limit: 2)),
-        Text(s.emergencyNote, style: t.bodySmall),
+        FullWidth(child: Text(s.emergencyNote, style: t.bodySmall)),
       ],
     );
   }
@@ -839,10 +834,9 @@ class _Community extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final around = ref.watch(aroundProvider).value ?? AroundSet.empty;
     final pois = ref.watch(poisProvider).value;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return CardColumns(
       children: [
-        _Heading(s.communityTitle, Icons.groups_outlined),
+        FullWidth(child: _Heading(s.communityTitle, Icons.groups_outlined)),
         if (pois != null) ...[
           NearGroup(title: s.communityClubs, icon: Icons.groups_outlined, items: NearItem.pois(pois.of(PoiKind.cc), home)),
           NearGroup(title: s.libraries, icon: Icons.local_library_outlined, items: NearItem.pois(pois.of(PoiKind.library), home, radius: 5000)),
@@ -868,13 +862,12 @@ class _Recycling extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final around = ref.watch(aroundProvider).value ?? AroundSet.empty;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return CardColumns(
       children: [
-        _Heading(s.recyclingTitle, Icons.recycling),
+        FullWidth(child: _Heading(s.recyclingTitle, Icons.recycling)),
         NearGroup(title: s.ewastePoints, icon: Icons.battery_charging_full_outlined, items: NearItem.points(around.of('ewaste'), home, radius: 2000)),
         NearGroup(title: s.reuseChannels, icon: Icons.volunteer_activism_outlined, items: NearItem.points(around.of('reuse'), home, radius: 5000)),
-        Text(s.recyclingNote, style: Theme.of(context).textTheme.bodySmall),
+        FullWidth(child: Text(s.recyclingNote, style: Theme.of(context).textTheme.bodySmall)),
       ],
     );
   }
@@ -891,10 +884,9 @@ class _Weekend extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final around = ref.watch(aroundProvider).value ?? AroundSet.empty;
     final pois = ref.watch(poisProvider).value;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return CardColumns(
       children: [
-        _Heading(s.weekendTitle, Icons.park_outlined),
+        FullWidth(child: _Heading(s.weekendTitle, Icons.park_outlined)),
         if (eventsNear(ref.watch(eventsProvider).value ?? const <PublicEvent>[], home.lat, home.lng,
                 ref.watch(clockProvider).value ?? DateTime.now(),
                 days: 7, limit: 10) case final evs when evs.isNotEmpty)
@@ -962,10 +954,9 @@ class _Parking extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final carparks = ref.watch(carparkInfoProvider).value ?? const <Carpark>[];
     final lots = ref.watch(carparkLiveProvider).value ?? const <String, (int, int)>{};
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return CardColumns(
       children: [
-        _Heading(s.parkingTitle, Icons.local_parking),
+        FullWidth(child: _Heading(s.parkingTitle, Icons.local_parking)),
         NearGroup(
           title: s.hdbCarparks,
           icon: Icons.local_parking,
@@ -1004,10 +995,10 @@ class _Food extends ConsumerWidget {
     final closures = upcomingClosures(hawkers, home.lat, home.lng, now);
     final halal = ref.watch(favoritesProvider.select((f) => f.showHalal));
     String day(DateTime d) => '${d.day}/${d.month}';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return CardColumns(
       children: [
-        Row(
+        FullWidth(
+          child: Row(
           children: [
             Expanded(child: _Heading(s.foodTitle, Icons.restaurant_outlined)),
             // Same setting as More > Extras > Halal food nearby, one tap away here.
@@ -1019,7 +1010,10 @@ class _Food extends ConsumerWidget {
             ),
           ],
         ),
-        if (halal) ...[
+        ),
+        // One child, so the halal note stays under its list when the cards go into two columns.
+        if (halal)
+          Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           NearGroup(
             title: s.halalFood,
             icon: Icons.restaurant_outlined,
@@ -1031,7 +1025,7 @@ class _Food extends ConsumerWidget {
           ),
           Text(s.halalDisclaimer, style: t.bodySmall),
           const SizedBox(height: 12),
-        ],
+        ]),
         NearGroup(
           title: s.hawkers,
           icon: Icons.storefront_outlined,
@@ -1077,10 +1071,9 @@ class _WatchedAndAgent extends ConsumerWidget {
     final fav = ref.watch(favoritesProvider);
     final blocks = ref.watch(hdbBlocksProvider).value ?? const <HdbBlock>[];
     final byKey = {for (final b in blocks) b.key: b};
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return CardColumns(
       children: [
-        _Heading(s.watched, Icons.visibility_outlined),
+        FullWidth(child: _Heading(s.watched, Icons.visibility_outlined)),
         if (fav.compareBlocks.length >= 2)
           Padding(
             padding: const EdgeInsets.only(bottom: 14),

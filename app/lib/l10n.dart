@@ -970,7 +970,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Better layout on foldables and tablets: on wide screens DailyLah now stays in a comfortable centred column instead of stretching edge to edge.",
+        "On foldables and tablets DailyLah now shows two columns, so more fits on screen at once.",
       ];
 
   // about

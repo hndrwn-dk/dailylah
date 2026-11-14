@@ -11,6 +11,7 @@ import 'package:dailylah/data.dart';
 import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
+import 'package:dailylah/ui/app_frame.dart';
 import 'package:dailylah/ui/theme.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -367,6 +368,10 @@ const conditions = [
   Condition('text 200% on 320dp', textScale: 2.0, size: Size(320, 640)),
   // A Galaxy Z Fold opened flat and held on its side: wide and short.
   Condition('foldable landscape 880dp', size: Size(880, 600)),
+  // The narrowest two columns there are: 416 dp each, at the largest text that still gets two.
+  Condition('foldable landscape 880dp, text 130%', textScale: 1.3, size: Size(880, 600)),
+  // Wider than the two-column layout gets: the page colour shows beside it.
+  Condition('tablet 1280dp', size: Size(1280, 800)),
 ];
 
 /// Applies a condition to the test view and fakes. Call at the start of each test.
@@ -411,7 +416,9 @@ Widget pageUnder(Condition c, Favorites fav, DateTime now, Widget page) => Provi
       child: MaterialApp(
         theme: buildTheme(Brightness.light),
         darkTheme: buildTheme(Brightness.dark),
-        home: page,
+        // As in the app: the frame, and a pushed page in its phone-wide column.
+        builder: (context, child) => AppFrame(child: child!),
+        home: PhoneColumn(child: page),
       ),
     );
 

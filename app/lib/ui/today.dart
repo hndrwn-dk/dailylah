@@ -70,12 +70,19 @@ class TodayPage extends ConsumerWidget {
     final tripMode = modeEnd == null ? null : ref.watch(modeOverrideProvider)[modeEnd.kind.name] ?? modeEnd.mode;
 
     final dests = <Widget>[
-      if (whatsNewDue(fav, ref.watch(releaseVersionProvider))) const WhatsNewCard(),
-      for (final a in alerts) AlertBanner(icon: _alertIcon(a.kind), text: a.text),
+      // What's new and the alerts span both columns on a wide window; the cards share them.
+      if (whatsNewDue(fav, ref.watch(releaseVersionProvider))) const FullWidth(child: WhatsNewCard()),
+      for (final a in alerts) FullWidth(child: AlertBanner(icon: _alertIcon(a.kind), text: a.text)),
       if (publicHoliday != null)
-        AlertBanner(icon: Icons.celebration_outlined, tone: AlertTone.info, text: s.publicHolidayToday(publicHoliday.name)),
+        FullWidth(
+          child: AlertBanner(
+              icon: Icons.celebration_outlined, tone: AlertTone.info, text: s.publicHolidayToday(publicHoliday.name)),
+        ),
       if (schoolHoliday != null)
-        AlertBanner(icon: Icons.beach_access_outlined, tone: AlertTone.info, text: s.schoolHolidayToday(schoolHoliday.name)),
+        FullWidth(
+          child: AlertBanner(
+              icon: Icons.beach_access_outlined, tone: AlertTone.info, text: s.schoolHolidayToday(schoolHoliday.name)),
+        ),
       if (origin != null) _WeatherTiles(origin: origin),
       if (commute && origin != null && dest != null)
         TripSection(
@@ -91,8 +98,8 @@ class TodayPage extends ConsumerWidget {
       if (!commute && fav.places[PlaceKind.home] != null) _WeekendCard(home: fav.places[PlaceKind.home]!),
       const PlanTripCard(),
       if (fav.carparks.isNotEmpty) const _SavedParking(),
-      const SizedBox(height: 8),
-      Text(s.pullToRefresh, style: t.bodySmall, textAlign: TextAlign.center),
+      const FullWidth(child: SizedBox(height: 8)),
+      FullWidth(child: Text(s.pullToRefresh, style: t.bodySmall, textAlign: TextAlign.center)),
     ];
 
     return Scaffold(
@@ -131,7 +138,7 @@ class TodayPage extends ConsumerWidget {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 14, 18, 8),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: dests),
+              child: CardColumns(children: dests),
             ),
           ],
         ),

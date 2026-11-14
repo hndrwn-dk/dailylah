@@ -8,7 +8,7 @@ This file maps that plan to the automated tests in this repo and describes how a
 | Layer | Where | When | Covers (plan section) |
 | --- | --- | --- | --- |
 | Logic tests `app/test/logic_test.dart` | GitHub Actions `app` | every push | parsing and rules |
-| Screen matrix `app/test/screens_matrix_test.dart` | GitHub Actions `app` | every push | 2 (every tab, section and page) × 4 (normal, offline with cache, offline first install, location denied, 200% text, dark mode, 320 dp screen, 200% text on a 320 dp screen, foldable on its side 880×600 dp) |
+| Screen matrix `app/test/screens_matrix_test.dart` | GitHub Actions `app` | every push | 2 (every tab, section and page) × 4 (normal, offline with cache, offline first install, location denied, 200% text, dark mode, 320 dp screen, 200% text on a 320 dp screen, foldable on its side 880×600 dp, the same at 130% text, tablet 1280×800 dp) |
 | Alert rules `app/test/background_rules_test.dart` | GitHub Actions `app` | every push | 2 Notifications, 3B: runs the real `runChecks` pass |
 | Upgrade formats `app/test/upgrade_test.dart` | GitHub Actions `app` | every push | 5: old stored data still loads |
 | On-device flows `app/integration_test/app_test.dart` | GitHub Actions `emulator` (API 29 = minSdk / Android 10, API 35, API 36 = Play's required target) | every PR touching `app/` | 1, 3A, 3B, 3C: real SharedPreferences, notification read back from Android's active notifications, widget provider in the package, location revoked |
@@ -247,9 +247,9 @@ and the `response` the app reads.
 `app/test/golden_test.dart` renders Today, Nearby, Home and More in light and dark (8 images,
 824x1830, the app's fonts and Material icons) with the test household, a fixed clock (Tuesday
 7 am), `FakeApi` and the committed bundles, and compares each with `app/test/goldens/<tab>-<mode>.png`.
-Two more images, `today-fold-landscape.png` and `history-fold-landscape.png` (1760x1200), are Today
-and History on a Galaxy Z Fold opened flat and held on its side (880×600 dp): the app must stay in
-its centred 600 dp column (`AppFrame`) instead of stretching from edge to edge.
+Five more images, `<tab>-fold-landscape.png` (1760x1200), are Today, Nearby, Home, History and More
+on a Galaxy Z Fold opened flat and held on its side (880×600 dp): the cards sit in two columns
+(`CardColumns`) instead of stretching from edge to edge.
 
 - Linux CI only: fonts render a little differently on macOS and Windows, so the tests are skipped
   unless `GOLDENS=1` on Linux (the `app` workflow sets it). `flutter test` on a laptop skips them.

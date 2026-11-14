@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'app_frame.dart';
+
 /// DailyLah design tokens.
 ///
 /// Concept: chunky "sticker" UI. Pale sky paper, near-black ink outlines (2.5 px) and
@@ -287,8 +289,11 @@ ThemeData buildTheme(Brightness brightness) {
       enabledBorder: OutlineInputBorder(borderRadius: r12, borderSide: stroke),
       focusedBorder: OutlineInputBorder(borderRadius: r12, borderSide: stroke.copyWith(color: scheme.primary)),
     ),
+    // Sheets stay as wide as a phone page, also over the two-column tabs.
+    bottomSheetTheme: const BottomSheetThemeData(constraints: BoxConstraints(maxWidth: kMaxContentWidth)),
+    // Android's transition, with every pushed page in a phone-wide column (app_frame.dart).
     pageTransitionsTheme: const PageTransitionsTheme(builders: {
-      TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+      TargetPlatform.android: ColumnPageTransitionsBuilder(),
     }),
   );
 }
