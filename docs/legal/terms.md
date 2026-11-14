@@ -1,6 +1,6 @@
 # DailyLah Terms of Service
 
-**Last updated: 12 November 2026**
+**Last updated: 14 November 2026**
 App: DailyLah (Android, package `com.tursinalabs.dailylah`)
 Published at: https://www.tursinalabs.com/dailylah/terms
 
@@ -13,13 +13,24 @@ DailyLah is a free app that shows bus arrivals, MRT/LRT service status, platform
 ## 3. Public data and accuracy
 DailyLah displays information from public sources, mainly LTA DataMall and data.gov.sg (including NEA data). Bus arrival times, crowd levels and forecasts are **estimates** and can be late, incomplete or wrong. Notifications can be delayed or missed, for example when your phone is offline or Android limits background activity to save battery.
 
+More specifically:
+- **Travel times, fares and costs.** Walking, cycling and driving times are rough estimates from the distance, without traffic or waiting. Fares and parking costs marked ≈ are estimates.
+- **Home prices and rents** are past transactions from public data, not current listings, and are not financial advice. Check eligibility on hdb.gov.sg. Private home figures come from caveats lodged with URA and exclude bulk sales.
+- **Schools.** Distances are straight-line from your saved address. MOE uses its own home-to-school measurement for Primary 1 priority.
+- **Emergency places** (AEDs, hospitals, clinics, fire stations, shelters) may be out of date. In a life-threatening emergency, call 995 first.
+- **Haze.** PSI and PM2.5 readings are from NEA, and the health advice follows NEA guidelines; see haze.gov.sg.
+- **EV chargers.** Charger counts are live from LTA. DailyLah is not affiliated with the charging operators.
+- **Halal food.** DailyLah is not affiliated with MUIS. Always verify halal status directly: look for the MUIS halal certificate at the premises.
+- **Toilets** may be closed, moved or inside paid areas.
+- **Events.** Check details and tickets on the organiser's page.
+
 Use DailyLah as a convenience only. Always follow official announcements, station signage and staff instructions. Do not rely on DailyLah for safety-critical or emergency decisions.
 
 ## 4. Not affiliated with the Government
 DailyLah is an independent app by Tursina Labs. It is not made, endorsed or operated by the Land Transport Authority, the National Environment Agency, GovTech or any other Singapore Government agency.
 
 ## 5. Data attribution
-DailyLah contains information from LTA DataMall and from datasets accessed via data.gov.sg, made available under the [Singapore Open Data Licence](https://data.gov.sg/open-data-licence) and the LTA DataMall terms of use. Those sources and their providers are not responsible for how DailyLah presents the data.
+DailyLah contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, SportSG, PA, MOE, SCDF, MOH, MOM and ECDA accessed through data.gov.sg, made available under the [Singapore Open Data Licence](https://data.gov.sg/open-data-licence) and the LTA DataMall terms of use. Those sources and their providers are not responsible for how DailyLah presents the data.
 
 Sources, each used under its own open data terms:
 - data.gov.sg: datasets from NEA (weather, hawker centres, dengue), HDB (blocks, resale and rental figures, including the quarterly median rent and resale price on the Where to live? page), CEA (estate agents), MUIS (prayer times), NParks (parks), NLB (libraries), SportSG (sports facilities), PA (community clubs), MOE (schools), SCDF (AEDs, fire stations, shelters), MOH (CHAS clinics), MOM (public holidays) and ECDA (preschools).

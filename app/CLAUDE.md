@@ -19,10 +19,10 @@ relative to `app/` unless they start with a top-level folder. File and symbol in
 - Sources are credited once, in About > Data sources. A card, tab or sheet has no "Data: ..." footnote and
   names no source or agency in its notes. What stays on a screen: a short disclaimer where the decision is
   made (halal, past sales / not financial advice, estimates, emergency, toilets), with the full wording in
-  `S.aboutNotes` on About; a privacy line where the user types something that is sent (address and place
+  the Terms of Service (`docs/legal/terms.md` section 3, linked from About); a privacy line where the user types something that is sent (address and place
   search); and the credit a provider asks for next to its data (the OneMap logo and credit on the map,
-  `S.placesAttribution` with Geoapify results and toilets, the Eventfinda line with events). "Computed on your
-  phone" is said once, in About (`S.onPhoneNote`). Tests: `test/source_notes_test.dart`.
+  `S.placesAttribution` with Geoapify results and toilets, the Eventfinda line with events). What is computed on
+  the phone is said in the privacy policy (`docs/legal/privacy.md`), not on a screen. Tests: `test/source_notes_test.dart`.
 - `lib/providers.dart` holds all Riverpod providers (Riverpod 3); widgets in `lib/ui/` only render.
   Every `ProviderScope` and `ProviderContainer` (app and tests) passes `retry: noRetry`: Riverpod 3
   would otherwise retry failed providers up to 10 times on its own, on top of `_live`'s rules.
@@ -138,11 +138,13 @@ feature, screen, provider or rule moves, appears or goes away.
 - About > Data sources (`AboutDailyLahPage` in `ui/about.dart`): one card with a row per credited source
   (`dataSources`, `DataSource`: LTA DataMall, data.gov.sg with the agencies as chips from `S.dataAgencies`,
   Muslim.sg, OpenStreetMap via Geoapify, OneMap (SLA), URA, Eventfinda; a tap opens the source's page, URLs are
-  constants in about.dart), the full Singapore Open Data Licence statement under it (`S.dataAttribution`), the
-  estimates note as an info `AlertBanner`, a "Good to know" card with every disclaimer in full and the "computed
-  on your phone" line (`S.aboutNotes`), a licences card (open data licence, in-app open-source licences) and the
+  constants in about.dart), the
+  estimates note as an info `AlertBanner`, a licences card (open data licence, in-app open-source licences) and the
   independence line as the footer. It is the only place that credits sources: a new data source gets a row
-  there (and its agency a chip and a place in `S.dataAttribution`), a new disclaimer a line in `S.aboutNotes`.
+  there (and its agency a chip, and a place in the Singapore Open Data Licence statement of
+  `docs/legal/terms.md` section 5, which is not repeated on the page). About has no list of disclaimers: a new
+  disclaimer gets a short line on its screen and its full wording in `docs/legal/terms.md` section 3 (About
+  links to the Terms of Service).
   Tests: `test/about_test.dart`, `test/source_notes_test.dart`.
 - Appearance: More > Appearance picks follow the phone / light / dark (`Favorites.theme`: '', 'light',
   'dark'; `themeModeFor` in theme.dart). Dark mode keeps sticker surfaces (mint, sky, amber) with ink text.
