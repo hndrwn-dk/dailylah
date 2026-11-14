@@ -272,45 +272,19 @@ void main() {
       }
     });
 
-    testWidgets('the licence statement, the OpenStreetMap credit and every disclaimer are there', (tester) async {
+    testWidgets('the OpenStreetMap credit and the estimates note are there, the licence statement is not', (tester) async {
       await open(tester, _normal);
       final text = await allText(tester);
-      expect(
-        text,
-        contains('Contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, '
-            'SportSG, PA, MOE, SCDF, MOH, MOM and ECDA accessed through data.gov.sg, made available under the '
-            'Singapore Open Data Licence.'),
-      );
+      // The licence statement is in the Terms of Service (docs/legal/terms.md, section 5).
+      expect(text, isNot(contains('Contains information from')));
       expect(text, contains('© OpenStreetMap contributors'));
       expect(text, contains(_s.oneMapCredit));
       expect(text, contains(_s.estimatesNote));
-      expect(text, contains('Halal food: $_halal'));
-      expect(text, contains('past transactions from public data, not current listings. Not financial advice. '
-          'Check eligibility on hdb.gov.sg.'));
-      expect(text, contains('caveats lodged with URA and exclude bulk sales'));
-      expect(text, contains('rough estimates'));
-      expect(text, contains('Toilets may be closed, moved or inside paid areas.'));
-      expect(text, contains('call 995 first'));
-      expect(text, contains('health advice follows NEA guidelines; see haze.gov.sg'));
-      expect(text, contains('not affiliated with the charging operators'));
-      expect(text, contains('MOE uses its own home-to-school measurement'));
-      expect(text, contains('check details and tickets'));
-      expect(text, contains('Distances, scores and what is near you are computed on your phone.'));
-      for (final note in _s.aboutNotes) {
-        expect(text, contains(note), reason: note);
-      }
+      // The disclaimers in full are in the Terms of Service (docs/legal/terms.md, section 3),
+      // one tap away on this page; About itself credits sources and says the figures are estimates.
+      expect(find.byKey(const ValueKey('good-to-know')), findsNothing);
+      expect(text, isNot(contains('Good to know')));
     });
-
-    for (final c in _large) {
-      testWidgets('the Good to know card holds at ${c.name}', (tester) async {
-        await open(tester, c);
-        final card = find.byKey(const ValueKey('good-to-know'));
-        await _showText(tester, card);
-        await scrollThrough(tester);
-        expect(tester.takeException(), isNull);
-        expect(tester.getSize(card).width, lessThanOrEqualTo(320));
-      });
-    }
   });
 
   group('About this data (block page)', () {

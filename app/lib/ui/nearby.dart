@@ -249,10 +249,9 @@ class _BusSection extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final stops = ref.watch(busStopsProvider).value ?? const <BusStop>[];
     final near = within(stops, place.lat, place.lng, 500, latOf: (b) => b.lat, lngOf: (b) => b.lng, limit: 3);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return CardColumns(
       children: [
-        SectionTitle(s.busesNearHere, padding: const EdgeInsets.fromLTRB(4, 8, 4, 10)),
+        FullWidth(child: SectionTitle(s.busesNearHere, padding: const EdgeInsets.fromLTRB(4, 8, 4, 10))),
         if (near.isEmpty)
           Panel(child: EmptyNote(stops.isEmpty ? s.bundlesLoading : s.noStopsNear))
         else
@@ -405,25 +404,30 @@ class _EatSection extends ConsumerWidget {
           ],
         );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return CardColumns(
       children: [
-        SectionTitle(s.eat,
-            trailing: _seeAll(s, () => _openFull(context, s.hawkers, _HawkerTab(place: place)))),
+        FullWidth(
+          child: SectionTitle(s.eat,
+              trailing: _seeAll(s, () => _openFull(context, s.hawkers, _HawkerTab(place: place)))),
+        ),
         if (fav.learnHabits)
           if (mealNudge(ref.watch(habitsProvider).meals, all, DateTime.now(), place.lat, place.lng) case final n?)
-            AlertBanner(
+            FullWidth(
+              child: AlertBanner(
               icon: Icons.explore_outlined,
               tone: AlertTone.info,
               text: s.mealNudge(n.usual.name, n.times, n.instead.name, s.metres(n.distance)),
             ),
+            ),
         // Delivery only when it helps: rain, unhealthy air, or the nearest hawker closed.
         if (why != null) ...[
-          AlertBanner(icon: Icons.delivery_dining_outlined, text: s.orderInWhy(why)),
-          orderButtons(),
-          Padding(
+          FullWidth(child: AlertBanner(icon: Icons.delivery_dining_outlined, text: s.orderInWhy(why))),
+          FullWidth(child: orderButtons()),
+          FullWidth(
+            child: Padding(
             padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
             child: Text(s.orderInNote, style: t.bodySmall),
+          ),
           ),
         ],
         Panel(
@@ -556,7 +560,8 @@ class _GreenSection extends ConsumerWidget {
     final pois = ref.watch(poisProvider).value;
     final items = pois == null ? const <NearItem>[] : NearItem.pois(pois.of(PoiKind.park), place, radius: 2000);
     if (items.isEmpty) return Panel(child: EmptyNote(pois == null ? s.bundlesLoading : s.notAvailable));
-    return Padding(
+    return CardColumns(children: [
+      Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: NearGroup(
         title: s.parks,
@@ -568,7 +573,8 @@ class _GreenSection extends ConsumerWidget {
           null => null,
         },
       ),
-    );
+    ),
+    ]);
   }
 }
 
@@ -603,8 +609,7 @@ class _ParkSection extends ConsumerWidget {
         : live.isNotEmpty
             ? (live.first.$1.name, live.first.$1.lat, live.first.$1.lng)
             : (place.address ?? s.hereNow, place.lat, place.lng);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return CardColumns(
       children: [
         _ParkedCard(
           name: parkName,
@@ -810,8 +815,7 @@ class _TaxiSection extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final taxis = ref.watch(taxiProvider).value;
     final n = taxis == null ? null : taxisWithin(taxis, place.lat, place.lng);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return CardColumns(
       children: [
         SectionTitle(s.taxiNearby),
         BentoTile(
@@ -853,8 +857,7 @@ class _PrayerSection extends ConsumerWidget {
       (null, _, _) when prayer != null && prayer.days.isNotEmpty => (s.prayerYearPending(now.year), null),
       _ => (s.notAvailable, null),
     };
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return CardColumns(
       children: [
         SectionTitle(s.prayerTimes,
             trailing: _seeAll(s, () => _openFull(context, s.prayerTab, const _PrayerTab()))),
@@ -889,8 +892,7 @@ class _HelpSection extends ConsumerWidget {
     ];
     // Civil Defence shelters: where to go from here if something happens.
     final shelters = nearestPoints(em.of(EmergencyKind.shelter), place.lat, place.lng, limit: 2, radius: 3000);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return CardColumns(
       children: [
         SectionTitle(s.helpNearby,
             trailing: _seeAll(s, () => _openFull(context, s.emergency, _EmergencyTab(place: place)))),

@@ -67,8 +67,7 @@ class ToiletsNearby extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final near = ref.watch(toiletsNearProvider((lat, lng)));
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return CardColumns(
       children: [
         SectionTitle(s.toiletsNearby),
         if (near == null && ref.watch(toiletsProvider).isLoading)
@@ -79,7 +78,7 @@ class ToiletsNearby extends ConsumerWidget {
           ToiletRows(stops: [
             for (final (toilet, m) in near) ToiletStop(at: '', rideMinutes: 0, toilet: toilet, metres: m),
           ]),
-        const ToiletFooter(),
+        const FullWidth(child: ToiletFooter()),
       ],
     );
   }

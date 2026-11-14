@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import '../l10n.dart';
 import '../logic.dart';
 import '../models.dart';
+import 'app_frame.dart';
 import 'theme.dart';
 
 /// Bus service number on a solid plate, like the number boards on stop poles.
@@ -1375,4 +1377,225 @@ class _MealPriceDialogState extends State<_MealPriceDialog> {
       ],
     );
   }
+}
+
+
+/// Marks a child of [CardColumns] that spans both columns on a wide window: a banner, a row
+/// of tiles, a note under the cards. On a phone it is just its child.
+class FullWidth extends StatelessWidget {
+  const FullWidth({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => child;
+}
+
+/// Marks a child of [CardColumns] that belongs to the child after it (a heading that is not a
+/// [SectionTitle]): on a wide window it stays in that card's column. On a phone it is just its child.
+class KeepWithNext extends StatelessWidget {
+  const KeepWithNext({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => child;
+}
+
+/// The cards of a tab: one column on a phone, two on a wide window ([isWide]).
+///
+/// On a phone the children are stacked and stretched to the width, like the `Column` the tabs
+/// always had. On a wide window they keep their order: each run of cards between two
+/// [FullWidth] children is split once, where the two columns come out closest in height, and
+/// reads down the left column and then down the right one. A [SectionTitle], a [KeepWithNext]
+/// child or an empty `SizedBox` spacer stays in the column of the card after it.
+///
+/// Both layouts are the same widgets, so folding, unfolding and turning the phone keep the
+/// state of the cards (an opened list, a typed text).
+class CardColumns extends StatelessWidget {
+  const CardColumns({super.key, required this.children});
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    // Already in one of two columns (a section's list inside a card of the page's list): stack.
+    final inside = context.dependOnInheritedWidgetOfExactType<_Cell>()?.inColumn ?? false;
+    final two = isWide(context) && !inside;
+    return _Columns(
+      two: two,
+      spans: [for (final c in children) c is FullWidth],
+      leads: [
+        for (final c in children) c is SectionTitle || c is KeepWithNext || (c is SizedBox && c.child == null),
+      ],
+      // Still inside a column when this list only stacks there: a list below must not split either.
+      children: [for (final c in children) c is FullWidth ? c : _Cell(inColumn: two || inside, child: c)],
+    );
+  }
+}
+
+/// Says whether its child sits in one of two columns, so a [CardColumns] below does not split again.
+class _Cell extends InheritedWidget {
+  const _Cell({required this.inColumn, required super.child});
+  final bool inColumn;
+
+  @override
+  bool updateShouldNotify(_Cell old) => old.inColumn != inColumn;
+}
+
+class _Columns extends MultiChildRenderObjectWidget {
+  const _Columns({required this.two, required this.spans, required this.leads, required super.children});
+
+  /// Two columns, or one.
+  final bool two;
+
+  /// Per child: spans both columns.
+  final List<bool> spans;
+
+  /// Per child: belongs to the child after it (a heading, a spacer).
+  final List<bool> leads;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => _RenderColumns(two, spans, leads);
+
+  @override
+  void updateRenderObject(BuildContext context, covariant _RenderColumns renderObject) =>
+      renderObject.update(two, spans, leads);
+}
+
+class _ColumnsParentData extends ContainerBoxParentData<RenderBox> {}
+
+/// Where to split a run of cards with these [heights] into a left and a right column: the
+/// number of cards on the left. The taller column is as short as it can be (on a tie the left
+/// one is the taller), and a card whose [leads] flag is set is never the last on the left.
+int splitColumns(List<double> heights, List<bool> leads) {
+  final total = heights.fold<double>(0, (a, b) => a + b);
+  var best = heights.length;
+  var bestTall = total;
+  var left = 0.0;
+  for (var k = 1; k < heights.length; k++) {
+    left += heights[k - 1];
+    if (leads[k - 1]) continue;
+    final right = total - left;
+    final tall = left > right ? left : right;
+    if (tall < bestTall || (tall == bestTall && left >= right)) {
+      best = k;
+      bestTall = tall;
+    }
+  }
+  return best;
+}
+
+class _RenderColumns extends RenderBox
+    with
+        ContainerRenderObjectMixin<RenderBox, _ColumnsParentData>,
+        RenderBoxContainerDefaultsMixin<RenderBox, _ColumnsParentData> {
+  _RenderColumns(this._two, this._spans, this._leads);
+
+  bool _two;
+  List<bool> _spans;
+  List<bool> _leads;
+
+  void update(bool two, List<bool> spans, List<bool> leads) {
+    _two = two;
+    _spans = spans;
+    _leads = leads;
+    markNeedsLayout();
+  }
+
+  @override
+  void setupParentData(RenderBox child) {
+    if (child.parentData is! _ColumnsParentData) child.parentData = _ColumnsParentData();
+  }
+
+  /// Lays the children out for [width] and returns the height. [heightOf] gives a child's
+  /// height at a width; [place] is told where each child goes (not when only measuring).
+  double _arrange(
+    double width,
+    double Function(RenderBox child, double width) heightOf,
+    void Function(RenderBox child, Offset at)? place,
+  ) {
+    final column = _two ? (width - kColumnGap) / 2 : width;
+    final boxes = getChildrenAsList();
+    var y = 0.0;
+    var i = 0;
+    while (i < boxes.length) {
+      if (!_two || _spans[i]) {
+        place?.call(boxes[i], Offset(0, y));
+        y += heightOf(boxes[i], width);
+        i++;
+        continue;
+      }
+      var end = i;
+      while (end < boxes.length && !_spans[end]) {
+        end++;
+      }
+      final heights = [for (var n = i; n < end; n++) heightOf(boxes[n], column)];
+      final k = splitColumns(heights, _leads.sublist(i, end));
+      var left = 0.0;
+      var right = 0.0;
+      for (var n = 0; n < heights.length; n++) {
+        if (n < k) {
+          place?.call(boxes[i + n], Offset(0, y + left));
+          left += heights[n];
+        } else {
+          place?.call(boxes[i + n], Offset(column + kColumnGap, y + right));
+          right += heights[n];
+        }
+      }
+      y += left > right ? left : right;
+      i = end;
+    }
+    return y;
+  }
+
+  @override
+  void performLayout() {
+    final width = constraints.maxWidth;
+    final height = _arrange(
+      width,
+      (child, w) {
+        child.layout(BoxConstraints.tightFor(width: w), parentUsesSize: true);
+        return child.size.height;
+      },
+      (child, at) => (child.parentData! as _ColumnsParentData).offset = at,
+    );
+    size = constraints.constrain(Size(width, height));
+  }
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) {
+    final width = constraints.maxWidth;
+    final height =
+        _arrange(width, (child, w) => child.getDryLayout(BoxConstraints.tightFor(width: w)).height, null);
+    return constraints.constrain(Size(width, height));
+  }
+
+  @override
+  double computeMinIntrinsicHeight(double width) =>
+      _arrange(width, (child, w) => child.getMinIntrinsicHeight(w), null);
+
+  @override
+  double computeMaxIntrinsicHeight(double width) =>
+      _arrange(width, (child, w) => child.getMaxIntrinsicHeight(w), null);
+
+  double _widest(double Function(RenderBox child) widthOf) {
+    var widest = 0.0;
+    for (final (i, child) in getChildrenAsList().indexed) {
+      final w = widthOf(child);
+      final needs = _two && !_spans[i] ? 2 * w + kColumnGap : w;
+      if (needs > widest) widest = needs;
+    }
+    return widest;
+  }
+
+  @override
+  double computeMinIntrinsicWidth(double height) => _widest((c) => c.getMinIntrinsicWidth(double.infinity));
+
+  @override
+  double computeMaxIntrinsicWidth(double height) => _widest((c) => c.getMaxIntrinsicWidth(double.infinity));
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
+      defaultHitTestChildren(result, position: position);
+
+  @override
+  void paint(PaintingContext context, Offset offset) => defaultPaint(context, offset);
 }

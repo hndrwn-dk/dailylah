@@ -52,8 +52,7 @@ class MorePage extends ConsumerWidget {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: CardColumns(
               children: [
                 SectionTitle(s.yourSetup),
                 Panel(

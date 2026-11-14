@@ -254,36 +254,13 @@ class AboutDailyLahPage extends ConsumerWidget {
               ],
             ),
           ),
-          // The statement the Singapore Open Data Licence asks for stays in full under the card.
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
-            child: Text(s.dataAttribution, style: t.bodySmall),
-          ),
+          // The statement the Singapore Open Data Licence asks for is in the Terms of Service
+          // (docs/legal/terms.md, section 5); the card above names every source and agency.
           AlertBanner(
             key: const ValueKey('estimates-note'),
             icon: Icons.info_outline,
             text: s.estimatesNote,
             tone: AlertTone.info,
-          ),
-          // Every disclaimer the screens carry, in full and once; the screens keep only a short line.
-          Panel(
-            key: const ValueKey('good-to-know'),
-            margin: const EdgeInsets.only(bottom: 12),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(s.goodToKnow, style: t.titleSmall),
-                  const SizedBox(height: 8),
-                  for (final note in s.aboutNotes)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(note, style: t.bodySmall),
-                    ),
-                ],
-              ),
-            ),
           ),
           Panel(
             margin: const EdgeInsets.only(bottom: 12),

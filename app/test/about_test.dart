@@ -1,6 +1,8 @@
 // About > Data sources: one row per source that opens its page, the estimate banner, the licences
 // card and the attribution wording the data licences ask for. The layout under 200% text, dark mode
 // and a small screen is also in screens_matrix_test.dart, text contrast in contrast_test.dart.
+import 'dart:io';
+
 import 'package:dailylah/l10n.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/ui/about.dart';
@@ -103,16 +105,12 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('the attribution the licences ask for stays on screen', (tester) async {
+  testWidgets('the credits the providers ask for stay on screen', (tester) async {
     await _open(tester);
-    await _show(tester, find.text(_s.dataAttribution));
-    // Singapore Open Data Licence: the source and the licence, in one sentence.
-    expect(
-      find.text('Contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, '
-          'SportSG, PA, MOE, SCDF, MOH, MOM and ECDA accessed through data.gov.sg, made available under the '
-          'Singapore Open Data Licence.'),
-      findsOneWidget,
-    );
+    // The Singapore Open Data Licence statement is in the Terms of Service, not on this page;
+    // the sources card names every source and agency, and the licence itself is one tap away.
+    expect(find.textContaining('Contains information from'), findsNothing);
+    await _show(tester, find.textContaining('© OpenStreetMap contributors (ODbL)'));
     expect(find.textContaining('© OpenStreetMap contributors (ODbL)'), findsOneWidget);
     expect(find.textContaining('Geoapify'), findsWidgets);
     expect(find.textContaining('DailyLah is not affiliated with MUIS'), findsOneWidget);
@@ -164,7 +162,7 @@ void main() {
   ]) {
     testWidgets('holds at ${c.name}: nothing overflows and every row is at least 48 dp', (tester) async {
       await _open(tester, c);
-      for (final key in [..._sources.keys, 'estimates-note', 'good-to-know', 'licence-sodl', 'licence-oss']) {
+      for (final key in [..._sources.keys, 'estimates-note', 'licence-sodl', 'licence-oss']) {
         final row = find.byKey(ValueKey(key));
         await _show(tester, row);
         expect(tester.takeException(), isNull, reason: key);
@@ -176,4 +174,14 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  test('the licence statement in the terms names every agency shown as a chip', () {
+    final terms = File('../docs/legal/terms.md').readAsStringSync();
+    expect(
+      terms,
+      contains('DailyLah contains information from LTA DataMall and from datasets by '
+          '${_s.dataAgencies.take(_s.dataAgencies.length - 1).join(', ')} and ${_s.dataAgencies.last} '
+          'accessed through data.gov.sg, made available under the [Singapore Open Data Licence]'),
+    );
+  });
 }

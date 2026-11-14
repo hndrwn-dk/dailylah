@@ -970,7 +970,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Better layout on foldables and tablets: on wide screens DailyLah now stays in a comfortable centred column instead of stretching edge to edge.",
+        "On foldables and tablets DailyLah now shows two columns, so more fits on screen at once.",
       ];
 
   // about
@@ -984,13 +984,11 @@ class S {
   String get termsOfService => 'Terms of service';
   String get contactUs => 'Contact us';
   String get dataSources => 'Data sources';
-  // The statement the Singapore Open Data Licence asks for: the sources and the licence, in one sentence.
-  String get dataAttribution => 'Contains information from LTA DataMall and from datasets by NEA, HDB, CEA, MUIS, NParks, NLB, SportSG, PA, MOE, SCDF, MOH, MOM and ECDA accessed through data.gov.sg, made available under the Singapore Open Data Licence.';
   String get sourceLta => 'LTA DataMall';
   String get sourceLtaSub => 'Bus arrivals, train alerts, car parks, taxis, EV chargers and bicycle parking';
   String get sourceDataGov => 'data.gov.sg';
   String get sourceDataGovSub => 'Weather and haze, hawker centres, HDB blocks, prices and rents, prayer times, estate agents, schools, parks, libraries, clinics, AEDs, public holidays and more, from:';
-  /// The agencies whose data.gov.sg datasets the app uses, as named in [dataAttribution].
+  /// The agencies whose data.gov.sg datasets the app uses, as named in the terms (docs/legal/terms.md, section 5).
   List<String> get dataAgencies =>
       const ['NEA', 'HDB', 'CEA', 'MUIS', 'NParks', 'NLB', 'SportSG', 'PA', 'MOE', 'SCDF', 'MOH', 'MOM', 'ECDA'];
   String get sourceMuslimSg => 'Muslim.sg';
@@ -1004,23 +1002,6 @@ class S {
   String get sourceEventfinda => 'Eventfinda';
   String get sourceEventfindaSub => 'Weekend events near home.';
   String get estimatesNote => 'Bus times, crowd levels, forecasts and prices are estimates.';
-  String get goodToKnow => 'Good to know';
-  /// Every disclaimer the screens carry, in full, once (About, under the estimates banner).
-  /// The screens keep a short line where the decision is made; source names live here only.
-  List<String> get aboutNotes => [
-        'Halal food: $halalDisclaimer',
-        'Home prices and rents are past transactions from public data, not current listings. Not financial advice. Check eligibility on hdb.gov.sg.',
-        'Private home figures come from caveats lodged with URA and exclude bulk sales.',
-        'Walking, cycling and driving times are rough estimates from the distance, without traffic or waiting. Fares and parking costs marked ≈ are estimates.',
-        'Toilets may be closed, moved or inside paid areas.',
-        'Emergency places (AEDs, hospitals, clinics, fire stations, shelters) may be out of date. In a life-threatening emergency, call 995 first.',
-        'Haze: PSI and PM2.5 are from NEA, and the health advice follows NEA guidelines; see haze.gov.sg.',
-        'EV charger counts are live from LTA. DailyLah is not affiliated with the charging operators.',
-        'School distances are straight-line. MOE uses its own home-to-school measurement for P1 priority.',
-        'Events: check details and tickets on the organiser\'s page.',
-        onPhoneNote,
-      ];
-  String get onPhoneNote => 'Distances, scores and what is near you are computed on your phone.';
   String get openDataLicence => 'Singapore Open Data Licence';
   String get opensWebsite => 'Opens in your browser';
   String get independent => 'DailyLah is an independent app and is not affiliated with LTA, NEA, HDB or the Singapore government.';

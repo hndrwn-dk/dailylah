@@ -53,7 +53,7 @@ class DailyLahApp extends ConsumerWidget {
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
       themeMode: themeModeFor(theme),
-      home: onboarded ? const AppShell() : const SetupPage(firstRun: true),
+      home: onboarded ? const AppShell() : const PhoneColumn(child: SetupPage(firstRun: true)),
     );
   }
 }

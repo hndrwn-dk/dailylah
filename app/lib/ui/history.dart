@@ -73,11 +73,12 @@ class HistoryPage extends ConsumerWidget {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            // Totals, notes and the empty state span both columns on a wide window; the days share them.
+            child: CardColumns(
               children: [
                 if (!on)
-                  Panel(
+                  FullWidth(
+                    child: Panel(
                     child: EmptyNote(
                       s.historyOff,
                       icon: Icons.history,
@@ -88,8 +89,10 @@ class HistoryPage extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  ),
                 // Totals for the period; wraps at large text.
-                Wrap(
+                FullWidth(
+                  child: Wrap(
                   spacing: 10,
                   runSpacing: 10,
                   children: [
@@ -110,13 +113,17 @@ class HistoryPage extends ConsumerWidget {
                       ),
                   ],
                 ),
-                Padding(
+                ),
+                FullWidth(
+                  child: Padding(
                   padding: const EdgeInsets.fromLTRB(4, 10, 4, 0),
                   child: Text(s.historyCostNote, style: t.bodySmall),
                 ),
+                ),
                 // Clean up many at once, e.g. meals logged by mistake.
                 if (entries.isNotEmpty)
-                  Align(
+                  FullWidth(
+                    child: Align(
                     alignment: Alignment.centerLeft,
                     child: TextButton.icon(
                       icon: const Icon(Icons.delete_sweep_outlined),
@@ -146,9 +153,10 @@ class HistoryPage extends ConsumerWidget {
                       },
                     ),
                   ),
+                  ),
                 if (on && entries.isEmpty) ...[
-                  const SizedBox(height: 16),
-                  Panel(child: EmptyNote(s.historyEmpty, icon: Icons.history)),
+                  const FullWidth(child: SizedBox(height: 16)),
+                  FullWidth(child: Panel(child: EmptyNote(s.historyEmpty, icon: Icons.history))),
                 ],
                 for (final (day, list) in historyByDay(entries)) ...[
                   SectionTitle(_dayLabel(s, day, now)),
