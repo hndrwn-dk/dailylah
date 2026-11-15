@@ -4,7 +4,8 @@
 // time; the ends resist softly. It plays through the day while on screen until someone touches it.
 // Everything comes from the list in the HTML (time, words and the small picture of each card), so
 // without this script the page shows that list as it is. With reduced motion nothing plays by
-// itself and the clock moves at once; arrow keys work on the clock either way.
+// itself and the clock moves at once; arrow keys work on the clock either way. The notification
+// is announced to a screen reader only once someone moved the clock, never while the day plays.
 
 import { Spring, Velocity, calm, clamp, rubber, settle } from "./spring.js";
 
@@ -71,7 +72,6 @@ if (day) {
   const clockFace = el("div", "clock");
   clockFace.append(weekday, big);
   const notif = el("div", "notif");
-  notif.setAttribute("aria-live", "polite");
   const app = el("div", "app");
   app.append(el("i", null, "lah"), "DailyLah", el("span", null, "now"));
   const nTitle = el("b", "n-title");
@@ -134,7 +134,8 @@ if (day) {
     if (!grab) clock.jump(Math.max(cur, 0) * gap());
   }
 
-  // Drag: grab the clock where it was touched; a press elsewhere on the line glides it there.
+  // Drag: grab the clock where it was touched; a press elsewhere on the line glides it there, and
+  // a plain click (no move) settles on the time nearest the click, not nearest the half-done glide.
   let grab = null;
   scrub.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;
@@ -142,7 +143,7 @@ if (day) {
     clock.stop();
     const left = scrub.getBoundingClientRect().left;
     const onThumb = thumb.contains(e.target);
-    grab = { id: e.pointerId, left, offset: onThumb ? e.clientX - left - clock.x : 0, speed: new Velocity() };
+    grab = { id: e.pointerId, left, offset: onThumb ? e.clientX - left - clock.x : 0, moved: false, speed: new Velocity() };
     scrub.setPointerCapture(e.pointerId);
     scrub.classList.add("dragging");
     if (!onThumb) clock.to(clamp(e.clientX - left, 0, length), { response: 0.3, damping: 1 });
@@ -153,16 +154,19 @@ if (day) {
     let x = e.clientX - grab.left - grab.offset;
     if (x < 0) x = -rubber(-x, length * 0.3);
     else if (x > length) x = length + rubber(x - length, length * 0.3);
+    grab.moved = true;
     clock.jump(x);
     grab.speed.add(x, e.timeStamp);
   });
   const letGo = (e) => {
     if (!grab || (e && e.pointerId !== grab.id)) return;
-    const velocity = grab.speed.get();
+    const { moved } = grab;
+    const velocity = moved ? grab.speed.get() : 0;
     grab = null;
     scrub.classList.remove("dragging");
-    const target = settle(clock.x, velocity, stops.map((_, i) => i * gap()), 0.995);
-    clock.to(target, { velocity, response: 0.4, damping: Math.abs(velocity) > 300 ? 0.82 : 1 });
+    const target = settle(moved ? clock.x : clock.target, velocity, stops.map((_, i) => i * gap()), 0.995);
+    if (moved) clock.to(target, { velocity, response: 0.4, damping: Math.abs(velocity) > 300 ? 0.82 : 1 });
+    else clock.to(target, { response: 0.4, damping: 1 }); // keeps the speed of the glide
   };
   scrub.addEventListener("pointerup", letGo);
   scrub.addEventListener("pointercancel", letGo);
@@ -180,8 +184,7 @@ if (day) {
   let onScreen = false;
   let timer = 0;
   const label = () => {
-    play.textContent = playing ? "Pause the day" : "Play the day";
-    play.setAttribute("aria-pressed", String(playing));
+    play.textContent = playing ? "Pause the day" : "Play the day"; // the words say the state
   };
   function tick() {
     clearTimeout(timer);
@@ -195,10 +198,12 @@ if (day) {
     playing = false;
     clearTimeout(timer);
     label();
+    notif.setAttribute("aria-live", "polite"); // someone took the clock: now it speaks
   }
   play.addEventListener("click", () => {
     if (playing) return stopPlay();
     playing = true;
+    notif.removeAttribute("aria-live");
     label();
     tick();
   });

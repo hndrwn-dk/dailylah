@@ -241,7 +241,7 @@ for (const width of [360, 768, 1280]) {
     const { context, page } = await home(width, ".device");
     try {
       assert.deepEqual(await phoneState(page), { inside: ["Today"], selected: ["Today"], title: "Today", text: true, captions: 0, sideways: false });
-      await page.locator(".tabbar [role=tab]", { hasText: "Home" }).dispatchEvent("pointerdown", { button: 0 });
+      await page.locator(".tabbar [role=tab]", { hasText: "Home" }).click();
       assert.deepEqual(await phoneState(page), { inside: ["Home"], selected: ["Home"], title: "Home", text: true, captions: 0, sideways: false });
       // Arrow keys on the tab bar, like any tab list.
       await page.locator(".tabbar [role=tab][aria-selected=true]").press("ArrowRight");
@@ -257,10 +257,16 @@ test("home, four tabs: a swipe on the phone goes to the next tab, a small nudge 
   try {
     const box = await page.locator(".pager").boundingBox();
     const y = box.y + box.height / 2;
+    // A slow hand: 8 steps with a pause between them, so the speed at the release is the
+    // gesture's own (a 12 px nudge is about 50 px/s), not how fast Playwright sends the events.
     const drag = async (dx) => {
-      await page.mouse.move(box.x + box.width * 0.75, y);
+      const x0 = box.x + box.width * 0.75;
+      await page.mouse.move(x0, y);
       await page.mouse.down();
-      await page.mouse.move(box.x + box.width * 0.75 + dx, y + 2, { steps: 8 });
+      for (let step = 1; step <= 8; step++) {
+        await page.waitForTimeout(30);
+        await page.mouse.move(x0 + (dx * step) / 8, y + 2);
+      }
       await page.mouse.up();
       await page.waitForTimeout(900); // the spring settles
     };
@@ -270,6 +276,27 @@ test("home, four tabs: a swipe on the phone goes to the next tab, a small nudge 
     assert.deepEqual((await phoneState(page)).inside, ["Nearby"]);
     await drag(box.width * 0.6);
     assert.deepEqual((await phoneState(page)).inside, ["Today"]);
+  } finally {
+    await context.close();
+  }
+});
+
+test("home, four tabs: a button let go outside the phone ends the drag", async () => {
+  const { context, page } = await home(1280, ".device");
+  try {
+    const box = await page.locator(".pager").boundingBox();
+    const y = box.y + box.height / 2;
+    // Press near the edge and leave before the 8 px that would start a swipe; release outside.
+    await page.mouse.move(box.x + 4, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x - 40, y);
+    await page.mouse.up();
+    // Hovering over the phone afterwards must not drag the strip along.
+    await page.mouse.move(box.x + box.width * 0.8, y);
+    await page.mouse.move(box.x + box.width * 0.2, y, { steps: 5 });
+    await page.waitForTimeout(100);
+    assert.deepEqual((await phoneState(page)).inside, ["Today"]);
+    assert.equal(await page.locator(".pager.dragging").count(), 0);
   } finally {
     await context.close();
   }
@@ -297,12 +324,148 @@ test("home, a day: the clock moves by keys and by its time labels, and the lock 
   }
 });
 
+test("home, a day with motion on: a click on the line lands on the clicked time", async () => {
+  const { context, page } = await home(1280, ".day-stage", { reducedMotion: "no-preference" });
+  try {
+    await page.locator(".day-play").click(); // pause, so only the click moves the clock
+    assert.equal(await page.textContent(".day-play"), "Play the day");
+    assert.equal(await page.locator(".day-play").getAttribute("aria-pressed"), null);
+    const box = await page.locator(".scrub").boundingBox();
+    const times = await page.$$eval(".stops button", (els) => els.map((el) => el.textContent));
+    const gap = box.width / (times.length - 1);
+    const now = () => page.$eval(".thumb", (el) => Number(el.getAttribute("aria-valuenow")));
+    // From 7:00, three times away, then five, then back: a plain click, no move in between.
+    for (const i of [3, 5, 1]) {
+      await page.mouse.click(box.x + i * gap, box.y + box.height / 2);
+      await page.waitForTimeout(900); // the spring settles
+      assert.equal(await now(), i, `a click on ${times[i]}`);
+      assert.equal(await page.locator(".stops button.on").textContent(), times[i]);
+    }
+  } finally {
+    await context.close();
+  }
+});
+
+/** What a reader sees move: the bus board, the tab in the phone and the day's time. */
+function moving(page) {
+  return page.evaluate(() => ({
+    board: [...document.querySelectorAll(".board .row")].map((r) => r.textContent.replace(/\s+/g, " ").trim()),
+    answer: document.querySelector("[data-answer-card]").textContent,
+    asked: [...document.querySelectorAll(".q[aria-pressed=true]")].map((q) => q.textContent),
+    running: document.querySelectorAll(".q.run").length,
+    tab: document.querySelector(".tab-title").textContent,
+    strip: document.querySelector(".pager .track").style.transform,
+    time: document.querySelector(".lock .clock b").textContent,
+    thumb: document.querySelector(".thumb").style.transform,
+    play: document.querySelector(".day-play").textContent,
+  }));
+}
+
+test("home with reduced motion: nothing moves by itself (bus board, tabs, the day), and nothing is a live region yet", async () => {
+  // A tall window, so the hero, the phone and the day are all on screen and would play if they could.
+  // The page's clock is ours, so a minute of timers runs at once: long enough for a bus to leave.
+  const context = await browser.newContext({ viewport: { width: 1280, height: 6000 }, reducedMotion: "reduce" });
+  const page = await context.newPage();
+  try {
+    await page.clock.install();
+    await page.route((url) => !url.href.startsWith(base), (route) => route.abort());
+    await page.goto(base + "/", { waitUntil: "load" });
+    await page.waitForSelector(".day-stage");
+    await page.waitForSelector(".device");
+    await page.waitForSelector("[data-answer-card]:not([hidden])");
+    await page.clock.runFor(500); // the observers have reported what is on screen
+    const first = await moving(page);
+    assert.equal(first.answer, "36 arrivingSeats available. Your stop is 2 minutes' walk.");
+    assert.deepEqual(first.asked, ["Bus coming?"]);
+    assert.match(first.board[0], /Arr/);
+    assert.equal(first.running, 0);
+    assert.equal(first.tab, "Today");
+    assert.equal(first.time, "7:00");
+    assert.equal(first.play, "Play the day");
+    await page.clock.runFor(60000);
+    assert.deepEqual(await moving(page), first);
+    assert.equal(await page.locator("[aria-live]").count(), 0);
+    // After a tap the answer is announced; after a key on the clock the notification is.
+    await page.locator(".q", { hasText: "Makan where?" }).click();
+    assert.equal(await page.getAttribute("[data-answer-card]", "aria-live"), "polite");
+    await page.locator(".thumb").press("ArrowRight");
+    assert.equal(await page.getAttribute(".notif", "aria-live"), "polite");
+  } finally {
+    await context.close();
+  }
+});
+
+test("home with motion on: the questions take turns only while the hero is on screen, and the bus stays at Arr while it is asked", async () => {
+  const { context, page } = await home(360, "[data-answer-card]:not([hidden])", { reducedMotion: "no-preference" });
+  try {
+    await page.waitForSelector(".q.run");
+    assert.equal(await page.locator("[aria-live]").count(), 0, "nothing is announced while it plays by itself");
+    await page.locator(".faq, footer").first().scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => document.querySelectorAll(".q.run").length === 0);
+    const asked = await page.locator(".q[aria-pressed=true]").textContent();
+    await page.waitForTimeout(4000); // longer than one turn
+    assert.equal(await page.locator(".q[aria-pressed=true]").textContent(), asked, "no turn was taken off screen");
+    await page.locator("[data-hero]").scrollIntoViewIfNeeded();
+    await page.waitForSelector(".q.run");
+    // A tap ends the turns; the bus asked for stays at Arr while the others count down.
+    await page.locator(".q", { hasText: "Bus coming?" }).click();
+    assert.equal(await page.locator(".q.run").count(), 0);
+    assert.equal(await page.getAttribute("[data-answer-card]", "aria-live"), "polite");
+    const rows = () => page.$$eval(".board .row .eta", (els) => els.map((el) => el.textContent));
+    const before = await rows();
+    assert.equal(before[0], "Arr");
+    await page.waitForFunction((was) => document.querySelectorAll(".board .row .eta")[1].textContent !== was, before[1], { timeout: 30000 });
+    assert.equal((await rows())[0], "Arr");
+  } finally {
+    await context.close();
+  }
+});
+
+test("home without JS: the answer card, the town teaser and the privacy drawing are not shown", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, javaScriptEnabled: false });
+  const page = await context.newPage();
+  try {
+    await page.route((url) => !url.href.startsWith(base), (route) => route.abort());
+    await page.goto(base + "/", { waitUntil: "load" });
+    const shown = await page.$$eval(".vault, .answer, .town-demo", (els) =>
+      els.map((el) => [el.className, getComputedStyle(el).display, el.getBoundingClientRect().height]));
+    assert.deepEqual(shown.map((s) => s[0]).sort(), ["answer", "town-demo", "vault"]);
+    for (const [name, display, height] of shown) {
+      assert.equal(display, "none", name);
+      assert.equal(height, 0, name);
+    }
+  } finally {
+    await context.close();
+  }
+});
+
+test("home: the privacy drawing is shown once it was drawn, and stays hidden in a browser that cannot draw it", async () => {
+  const { context, page } = await home(1280, ".vault");
+  try {
+    assert.equal(await page.$eval(".vault", (c) => getComputedStyle(c).display), "block");
+    assert.ok(await page.$eval(".vault", (c) => c.width > 0 && c.getContext("2d").getImageData(0, 0, c.width, c.height).data.some((v) => v > 0)), "something was drawn");
+  } finally {
+    await context.close();
+  }
+  const old = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: "reduce" });
+  try {
+    await old.addInitScript(() => delete CanvasRenderingContext2D.prototype.roundRect);
+    const page = await old.newPage();
+    await page.route((url) => !url.href.startsWith(base), (route) => route.abort());
+    await page.goto(base + "/", { waitUntil: "load" });
+    await page.waitForSelector(".day-stage"); // the modules ran
+    assert.equal(await page.$eval(".vault", (c) => getComputedStyle(c).display), "none");
+  } finally {
+    await old.close();
+  }
+});
+
 test("home, hero: tapping a question answers it in the stop card; the bus board has three rows", async () => {
   const { context, page } = await home(360, "[data-answer-card]:not([hidden])");
   try {
     // Reduced motion starts on the bus, as the page shows without JS.
     assert.equal(await page.textContent("[data-answer-card] b"), "36 arriving");
-    await page.locator(".q", { hasText: "MRT disrupted?" }).dispatchEvent("pointerdown", { button: 0 });
+    await page.locator(".q", { hasText: "MRT disrupted?" }).click();
     assert.equal(await page.textContent("[data-answer-card] b"), "EWL disrupted");
     assert.equal(await page.locator(".q[aria-pressed=true]").textContent(), "MRT disrupted?");
     assert.equal(await page.locator(".board .row").count(), 3);
@@ -318,7 +481,7 @@ test("home, where to live: the teaser ranks towns from the published data and re
     const order = () => page.$$eval(".town-rows li b", (els) => els.map((el) => el.textContent));
     const first = await order();
     assert.equal(first.length, 6);
-    await page.locator(".seg button", { hasText: "Jurong East" }).dispatchEvent("pointerdown", { button: 0 });
+    await page.locator(".seg button", { hasText: "Jurong East" }).click();
     const second = await order();
     assert.equal(second[0], "Jurong West");
     assert.notDeepEqual(second, first);

@@ -3,7 +3,7 @@
 // from the same published bundle as /where-to-live (/data/where-to-live.json), never from this
 // file. Without JS, or when the bundle does not load, the card is just its words and two links.
 
-import { Spring, clamp } from "./spring.js";
+import { Spring, clamp, onPress } from "./spring.js";
 
 const OFFICES = ["cbd", "one-north", "jurong-east"];
 const TOWNS = ["bishan", "queenstown", "tampines", "punggol", "jurong-west", "woodlands"];
@@ -86,14 +86,7 @@ async function start() {
       buttons.forEach((x, k) => x.setAttribute("aria-pressed", String(k === i)));
       rank(office, false);
     };
-    b.addEventListener("pointerdown", (e) => {
-      if (e.button === 0) choose();
-    });
-    b.addEventListener("keydown", (e) => {
-      if (e.key !== "Enter" && e.key !== " ") return;
-      e.preventDefault();
-      choose();
-    });
+    onPress(b, choose);
     seg.append(b);
     return b;
   });

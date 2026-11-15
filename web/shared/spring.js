@@ -88,6 +88,10 @@ export function onPress(el, action) {
     handled = true;
     action();
   });
+  // A press that slides off the control never becomes a click: forget it.
+  el.addEventListener("pointerleave", () => {
+    handled = false;
+  });
   el.addEventListener("click", () => {
     if (handled) handled = false;
     else action();

@@ -30,7 +30,7 @@ import {
   timeBand,
   writeQuery,
 } from "../where-to-live/logic.js";
-import { Spring, Velocity, clamp, project, rubber, settle } from "../shared/spring.js";
+import { Spring, Velocity, clamp, onPress, project, rubber, settle } from "../shared/spring.js";
 import { minutesTo } from "../shared/towns.js";
 
 const web = new URL("../", import.meta.url);
@@ -383,16 +383,54 @@ test("home: every script is loaded from /shared, and none writes HTML from strin
   }
 });
 
-test("home: motion is an extra. The page reads without JS, and every script honours reduced motion", () => {
+test("onPress: a mouse acts on the press, everything else on the click, and never twice", () => {
+  const handlers = {};
+  const el = { addEventListener: (type, fn) => (handlers[type] = fn) };
+  let count = 0;
+  onPress(el, () => count++);
+  handlers.pointerdown({ pointerType: "mouse", button: 0 });
+  assert.equal(count, 1, "a mouse press acts at once");
+  handlers.click();
+  assert.equal(count, 1, "the click after that press is skipped");
+  handlers.click();
+  assert.equal(count, 2, "a keyboard or screen reader click acts");
+  handlers.pointerdown({ pointerType: "touch", button: 0 });
+  assert.equal(count, 2, "a touch may become a scroll: it waits for the click");
+  handlers.click();
+  assert.equal(count, 3);
+  handlers.pointerdown({ pointerType: "mouse", button: 2 });
+  assert.equal(count, 3, "only the main button");
+  // A press that slides off never clicks; the next click (a keyboard's) must not be swallowed.
+  handlers.pointerdown({ pointerType: "mouse", button: 0 });
+  handlers.pointerleave();
+  handlers.click();
+  assert.equal(count, 5);
+});
+
+// What the files say; that nothing moves by itself with reduced motion is checked in a browser
+// (web/tests/e2e, "with reduced motion nothing moves by itself").
+test("home: motion is an extra. The content is in the HTML, the extras start hidden, and the scripts ask spring.js about reduced motion", () => {
   const html = read("index.html");
   // What the scripts build on is in the HTML: the questions with their answers, the cards, the day list.
   const answers = [...html.matchAll(/<span class="q" style="--i:(\d)" data-answer="([^"|]+)\|([^"]+)"/g)];
   assert.deepEqual(answers.map((m) => Number(m[1])), [0, 1, 2, 3, 4, 5, 6]);
   assert.match(html, /data-answer="EWL disrupted\|/);
-  assert.match(html, /<p class="answer" data-answer-card aria-live="polite" hidden>/);
+  assert.match(html, /<p class="answer" data-answer-card hidden>/);
+  // Nothing on the page is a live region from the start: the scripts turn it on after a tap, key or drag.
+  assert.doesNotMatch(html, /aria-live/);
+  assert.match(read("shared/hero.js"), /if \(byUser\) \{\s+auto = false;\s+card\.setAttribute\("aria-live", "polite"\)/);
+  assert.match(read("shared/day.js"), /function stopPlay\(\) \{[^}]*notif\.setAttribute\("aria-live", "polite"\)/);
+  assert.equal(read("shared/day.js").match(/setAttribute\("aria-live"/g).length, 1);
+  assert.doesNotMatch(read("shared/day.js"), /aria-pressed/);
+  assert.match(html, /\.vault\[hidden\] \{ display: none; \}/);
   assert.match(html, /<div class="town-demo" data-towns hidden><\/div>/);
   assert.match(html, /<canvas class="vault" data-vault aria-hidden="true" hidden><\/canvas>/);
   // Each script that moves something asks spring.js whether the reader wants less motion.
+  // The controls answer a click (touch, keyboard, screen reader), not only a pointer press.
+  for (const file of ["hero.js", "screens.js", "towns.js"]) {
+    assert.match(read(`shared/${file}`), /\bonPress\(/, file);
+    assert.doesNotMatch(read(`shared/${file}`), /addEventListener\("pointerdown", \(e\) => \{\s+if \(e\.button === 0\) (?:pick|choose)/, file);
+  }
   for (const file of ["hero.js", "screens.js", "day.js", "vault.js"]) assert.match(read(`shared/${file}`), /\bcalm\(\)/, file);
   assert.match(read("shared/spring.js"), /prefers-reduced-motion: reduce/);
   // The town teaser shows the published minutes, never numbers of its own.

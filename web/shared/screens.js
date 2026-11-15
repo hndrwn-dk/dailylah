@@ -6,7 +6,7 @@
 // a phone, 2 x 2, then 4 across): this script builds the phone out of that same list.
 // With reduced motion nothing plays by itself and a tab change is immediate.
 
-import { Spring, Velocity, calm, clamp, project, rubber } from "./spring.js";
+import { Spring, Velocity, calm, clamp, onPress, project, rubber } from "./spring.js";
 
 const DWELL = 4500; // ms a tab stays while it plays in turn
 const list = document.querySelector("[data-shots]");
@@ -53,23 +53,17 @@ if (list) {
     const b = el("button", null, name);
     b.type = "button";
     b.setAttribute("role", "tab");
-    b.addEventListener("pointerdown", (e) => {
-      if (e.button !== 0) return;
+    onPress(b, () => {
       stop();
-      go(i); // on the press, not the release
+      go(i);
     });
     b.addEventListener("keydown", (e) => {
       const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
-      if (step) {
-        const to = clamp(shown + step, 0, n - 1);
-        stop();
-        go(to);
-        buttons[to].focus();
-      } else if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        stop();
-        go(i);
-      }
+      if (!step) return;
+      const to = clamp(shown + step, 0, n - 1);
+      stop();
+      go(to);
+      buttons[to].focus();
     });
     bar.append(b);
     return b;
@@ -145,6 +139,7 @@ if (list) {
   });
   pager.addEventListener("pointermove", (e) => {
     if (!drag || e.pointerId !== drag.id) return;
+    if (e.buttons === 0) return release(0); // the button was let go outside the phone
     const dx = e.clientX - drag.x0;
     const dy = e.clientY - drag.y0;
     if (!drag.axis) {

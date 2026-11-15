@@ -2,15 +2,16 @@
 // a dot sets off toward a crossed-out cloud and turns back. Decoration only (the list beside it
 // says the same in words), so it is hidden from assistive technology. Drawn only while on screen;
 // with reduced motion it is one still frame. Colours are the page's own tokens, read at draw time
-// so light and dark both work.
+// so light and dark both work. The canvas is hidden in the HTML and shown only once the first
+// frame was drawn: without this script, or in a browser that cannot draw it, there is no empty box.
 
 import { calm } from "./spring.js";
 
 const canvas = document.querySelector("[data-vault]");
 
-if (canvas && canvas.getContext) {
-  const ctx = canvas.getContext("2d");
-  canvas.hidden = false; // hidden in the HTML: without this script there is nothing to draw
+const ctx = canvas?.getContext?.("2d");
+
+if (ctx && typeof ctx.roundRect === "function") {
   const still = calm();
   const born = performance.now();
   const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -138,12 +139,21 @@ if (canvas && canvas.getContext) {
     draw();
     if (onScreen && !still) requestAnimationFrame(loop);
   };
-  new IntersectionObserver(([e]) => {
-    const was = onScreen;
-    onScreen = e.isIntersecting;
-    if (onScreen && !was) loop();
-  }, { threshold: 0.1 }).observe(canvas);
-  new ResizeObserver(draw).observe(canvas);
-  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
-  draw();
+  canvas.hidden = false; // it has no size while hidden
+  let drawn = false;
+  try {
+    draw();
+    drawn = true;
+  } catch {
+    canvas.hidden = true;
+  }
+  if (drawn) {
+    new IntersectionObserver(([e]) => {
+      const was = onScreen;
+      onScreen = e.isIntersecting;
+      if (onScreen && !was) loop();
+    }, { threshold: 0.1 }).observe(canvas);
+    new ResizeObserver(draw).observe(canvas);
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+  }
 }
