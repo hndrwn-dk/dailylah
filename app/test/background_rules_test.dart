@@ -34,6 +34,23 @@ var richOk = true;
 List<String> pillsOf(Map<Object?, Object?> note) =>
     [for (final p in note['pills'] as List) '${(p as Map)['text']}'];
 
+/// NSL and EWL both disrupted, NSL listed first.
+class TwoLinesApi extends FakeApi {
+  @override
+  Future<Map<String, dynamic>> trainAlerts() async => {
+        'data': {
+          'value': {
+            'Status': 2,
+            'AffectedSegments': [
+              {'Line': 'NSL', 'Direction': 'Both', 'Stations': 'NS1,NS2'},
+              {'Line': 'EWL', 'Direction': 'Both', 'Stations': 'EW1,EW2,EW3'},
+            ],
+            'Message': [],
+          },
+        },
+      };
+}
+
 /// Heat stress High at the station next to the household's home, UV index 8 (or no reading).
 class HotApi extends FakeApi {
   HotApi({this.uvFails = false});
@@ -266,6 +283,15 @@ void main() {
       expect(pills.first['lineColor'], 0x009645);
       expect(pills, hasLength(3), reason: 'the household has a direct bus from home to work');
       expect(pills.last['tone'], 'board');
+    });
+
+    test('MRT: with two lines disrupted, the pill shows the line of the trip the bus goes around', () async {
+      // NSL and EWL are watched; the trip home > work rides EWL. LTA lists NSL first.
+      await _withFavorites(householdFavorites.copyWith(lines: {'NSL', 'EWL'}));
+      await runChecks(TwoLinesApi(), rainyBeforeWork, bundles: FileBundles());
+      final note = rich.singleWhere((n) => n['id'] == 1);
+      expect(pillsOf(note).take(2), ['EWL', 'Disrupted']);
+      expect(pillsOf(note), hasLength(3));
     });
 
     test('MRT: a disruption on a line that is not on the trip has no bus pill', () async {

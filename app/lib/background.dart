@@ -67,7 +67,7 @@ Future<void> showNote(RichNote n, {S s = const S()}) async {
 }
 
 /// More > Alerts > Show me an example: posts the eight alerts with sample values, each under
-/// its own alert's id. Asks for the notification permission first; false (and nothing
+/// its own id (the alert's + 100). Asks for the notification permission first; false (and nothing
 /// posted) when it is refused. Never touches `AlertLog`, so the real alerts still fire.
 Future<bool> showExampleAlerts(S s) async {
   await initNotifications();
@@ -169,13 +169,13 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     final id = 'mrt:$day:${bad.map((x) => '${x.line}${x.detail}').join('|').hashCode}';
     if (await log.alreadySent(id)) return;
     // Plan B: a direct bus, when the disrupted line is on today's trip. Bundles only.
-    String? planB;
+    ({String line, String bus})? planB;
     try {
-      planB = await _planBBus(repo, fav, kind, now, off, train);
+      planB = await _planBBus(repo, fav, kind, now, off, train, [for (final x in bad) x.line]);
     } on Object catch (e) {
       debugPrint('plan B bus not found: $e');
     }
-    await showNote(mrtNote(s, bad, planBBus: planB), s: s);
+    await showNote(mrtNote(s, bad, planB: planB), s: s);
     await log.markSent(id);
   });
 
@@ -471,8 +471,8 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
 
 /// The first direct bus of today's trip when a disrupted line is on its MRT route
 /// (`planBBus`), from the bundles; null when there is no trip today.
-Future<String?> _planBBus(BundleRepository repo, Favorites fav, CardKind kind, DateTime now, DaysOff off,
-    Map<String, dynamic> trainAlerts) async {
+Future<({String line, String bus})?> _planBBus(BundleRepository repo, Favorites fav, CardKind kind, DateTime now,
+    DaysOff off, Map<String, dynamic> trainAlerts, List<String> disruptedLines) async {
   final from = fav.places[originFor(kind, fav, now, off)];
   final dest = destinationFor(kind, fav, now, off);
   final to = dest == null ? null : fav.places[dest];
@@ -488,6 +488,7 @@ Future<String?> _planBBus(BundleRepository repo, Favorites fav, CardKind kind, D
     plan: plan,
     alerts: trainAlerts,
     directServices: [for (final st in usableStops(from)) ...tripRides(routes, st, to, destStops).keys],
+    disruptedLines: disruptedLines,
   );
 }
 

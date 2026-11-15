@@ -187,8 +187,10 @@ feature, screen, provider or rule moves, appears or goes away.
   only `LinearLayout`/`TextView`/`ImageView`, pills filled row by row by a character budget that shrinks with
   larger text, colours as resources (values-night). The other alerts (dengue, lightning, parking, resale,
   holiday, MRT ride) stay plain; giving one a layout is a new `...Note` builder. More > Alerts > "Show me an
-  example" (`showExampleAlerts`, `sampleNotes`) posts the eight with sample values and never touches
-  `AlertLog`. Tests: "rich notes" in `test/logic_test.dart`, "alerts with pills" in
+  example" (`showExampleAlerts`, `sampleNotes`) posts the eight with sample values, titled "Example: ..." and
+  under their own IDs (the alert's + 100), so a sample never replaces a real alert, and never touches
+  `AlertLog`. The MRT note's line pill is the trip's line the plan B bus goes around (`planBBus`), not just the
+  first disrupted one. The body gives way to the pills: 9 lines with none (a long digest), two fewer per row. Tests: "rich notes" in `test/logic_test.dart`, "alerts with pills" in
   `test/background_rules_test.dart`, `test/dailylah_notify_test.dart`, and on emulators "every sample alert
   posts with the custom layout" in `integration_test/app_test.dart`. How the layout looks on a real shade is
   checked by eye with Show me an example.

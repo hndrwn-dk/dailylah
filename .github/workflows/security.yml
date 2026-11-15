@@ -43,7 +43,7 @@ jobs:
             android=true
           elif ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             android=true # new branch or force push: no base to compare with
-          elif git diff --name-only "$BASE" HEAD | grep -qE '^(app/android/|\.github/workflows/security\.yml$)'; then
+          elif git diff --name-only "$BASE" HEAD | grep -qE '^(app/android/|app/packages/|\.github/workflows/security\.yml$)'; then
             android=true
           fi
           if [ "$android" = true ]; then

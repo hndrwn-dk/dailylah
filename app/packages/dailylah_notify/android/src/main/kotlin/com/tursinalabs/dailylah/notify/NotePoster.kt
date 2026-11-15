@@ -62,8 +62,10 @@ internal object NotePoster {
         val large = ctx.resources.configuration.fontScale >= 1.3f
 
         // The shade cuts a custom view from the bottom, where the pills are. So the text gives
-        // way to them: fewer body lines for each extra row of pills and for large text. The
-        // pop-up is short: title, one line of text and the first row only.
+        // way to them: two body lines fewer for each row of pills, and two fewer at large text.
+        // A note with no pills keeps 9 lines (7 at large text), so a long digest is not cut
+        // short; one row leaves 7, two 5, three 3, never under 2. The pop-up is short: title,
+        // one line of text and the first row only.
         fun views(headsUp: Boolean) = RemoteViews(ctx.packageName, R.layout.dl_note).apply {
             setTextViewText(R.id.dl_note_title, title)
             setTextViewText(R.id.dl_note_body, body)
@@ -79,7 +81,7 @@ internal object NotePoster {
                 setViewVisibility(R.id.dl_note_row_2, View.GONE)
                 setViewVisibility(R.id.dl_note_row_3, View.GONE)
             } else {
-                val lines = 5 - (used - 1).coerceAtLeast(0) - (if (large) 1 else 0)
+                val lines = (if (large) 7 else 9) - 2 * used
                 setInt(R.id.dl_note_body, "setMaxLines", lines.coerceAtLeast(2))
             }
         }

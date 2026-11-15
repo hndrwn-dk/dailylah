@@ -226,3 +226,12 @@ integration test uses the same samples.
 - Sample alerts are titled "Example: ...", so a sample never reads like a real warning.
 - The digest's bars and cost come from `weekHabits` (logic.dart).
 
+## Changes after the PR review (2026-11-15)
+
+- Body lines: 9 with no pill row (7 at large text), two fewer for each row, never under 2, so a
+  long digest is not cut at 5 lines.
+- Samples post under their own IDs (the alert's + 100), so a sample never replaces a real alert.
+- The MRT line pill and text are those of the trip's line the plan B bus goes around; the bus
+  shows only when that line is one the alert is about.
+- CodeQL java-kotlin also runs on a PR that changes `app/packages/`.
+

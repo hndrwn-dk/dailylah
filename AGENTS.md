@@ -153,7 +153,7 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   (`if: always()`, fails on any failed or cancelled job). Never add a workflow-level `paths:` filter
   to `pull_request` for a workflow whose result is required: the check would never report.
 - `security.yml` (every PR and push to main, weekly on Monday): CodeQL for actions, python and
-  java-kotlin (Kotlin only when `app/android/` changes, plus the weekly run), osv-scanner and
+  java-kotlin (Kotlin only when `app/android/` or `app/packages/` changes, plus the weekly run), osv-scanner and
   zizmor. osv-scanner and zizmor fail on High/Critical; Medium/Low are warnings. Dart is not
   supported by CodeQL: `dart analyze` covers it. Baselines (`osv-scanner.toml`,
   `.github/zizmor.yml`) take Low findings only, each with a reason.

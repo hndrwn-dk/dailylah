@@ -2557,7 +2557,7 @@ void main() {
 
     const ewl = LineStatus(line: 'EWL', disrupted: true, detail: 'No train service between Bugis and Lavender.');
     test('MRT: the line in its colour, Disrupted and the plan B bus', () {
-      final n = mrtNote(s, const [ewl, LineStatus(line: 'DTL', disrupted: true)], planBBus: '858');
+      final n = mrtNote(s, const [ewl, LineStatus(line: 'DTL', disrupted: true)], planB: (line: 'EWL', bus: '858'));
       expect(n.id, 1);
       expect(n.title, 'Disruption on EWL, DTL');
       expect(n.body, 'No train service between Bugis and Lavender.');
@@ -2588,18 +2588,35 @@ void main() {
           },
         };
 
-    test('planBBus is the first direct bus when the disrupted line is on the plan', () {
-      expect(planBBus(plan: plan, alerts: disrupted('DTL'), directServices: ['858', '36']), '858');
+    test('planBBus is the first direct bus, with the disrupted line of the trip', () {
+      final b = planBBus(plan: plan, alerts: disrupted('DTL'), directServices: ['858', '36'], disruptedLines: ['DTL'])!;
+      expect(b.bus, '858');
+      expect(b.line, 'DTL');
     });
 
     test('planBBus is null when the disrupted line is not on the plan', () {
-      expect(planBBus(plan: plan, alerts: disrupted('NEL'), directServices: ['858']), isNull);
+      expect(planBBus(plan: plan, alerts: disrupted('NEL'), directServices: ['858'], disruptedLines: ['NEL']), isNull);
     });
 
     test('planBBus is null with no direct service, no plan or no alerts', () {
-      expect(planBBus(plan: plan, alerts: disrupted('DTL'), directServices: const []), isNull);
-      expect(planBBus(plan: null, alerts: disrupted('DTL'), directServices: ['858']), isNull);
-      expect(planBBus(plan: plan, alerts: null, directServices: ['858']), isNull);
+      expect(planBBus(plan: plan, alerts: disrupted('DTL'), directServices: const [], disruptedLines: ['DTL']), isNull);
+      expect(planBBus(plan: null, alerts: disrupted('DTL'), directServices: ['858'], disruptedLines: ['DTL']), isNull);
+      expect(planBBus(plan: plan, alerts: null, directServices: ['858'], disruptedLines: ['DTL']), isNull);
+    });
+
+    test('planBBus is null when the trip line is disrupted but is not one the alert is about', () {
+      // NSL is starred and disrupted; the trip rides DTL, also disrupted but not watched.
+      expect(planBBus(plan: plan, alerts: disrupted('DTL'), directServices: ['858'], disruptedLines: ['NSL']), isNull);
+    });
+
+    test('MRT: the line pill is the line the bus goes around, not just the first disrupted one', () {
+      const nsl = LineStatus(line: 'NSL', disrupted: true, detail: 'NSL delayed.');
+      const dtl = LineStatus(line: 'DTL', disrupted: true, detail: 'DTL: no service at Expo.');
+      final n = mrtNote(s, const [nsl, dtl], planB: (line: 'DTL', bus: '858'));
+      expect(n.title, 'Disruption on NSL, DTL');
+      expect(texts(n), ['DTL', 'Disrupted', '858']);
+      expect(n.pills.first.lineColor, 0x005EC4);
+      expect(n.body, 'DTL: no service at Expo.');
     });
 
     test('wake: your stop is next in amber, may have passed in red, no tab link', () {
@@ -2669,7 +2686,8 @@ void main() {
 
     test('sampleNotes has the eight alerts under their own ids', () {
       final notes = sampleNotes(s);
-      expect([for (final n in notes) n.id], [2, 8, 9, 1, 10, 3, 5, 12]);
+      // Their own ids (the alert's id + 100), so a sample never replaces a real alert in the shade.
+      expect([for (final n in notes) n.id], [102, 108, 109, 101, 110, 103, 105, 112]);
       expect(notes.every((n) => n.pills.isNotEmpty && n.pills.length <= 3), isTrue);
       // A sample must not read like a real disruption or haze warning.
       expect(notes.every((n) => n.title.startsWith('Example: ')), isTrue);

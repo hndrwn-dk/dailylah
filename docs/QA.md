@@ -136,7 +136,7 @@ pull request, by the names GitHub shows:
   skipped. A job skipped by its `if:` counts as passed; a workflow that never started does not.
 - Pushes keep their `paths:` filters, and a release (push to main or a manual run) always runs
   every job, so nothing changes for the release gate.
-- Not required: `CodeQL (java-kotlin)` (a matrix entry that exists only when `app/android/`
+- Not required: `CodeQL (java-kotlin)` (a matrix entry that exists only when `app/android/` or `app/packages/`
   changes), the code scanning checks `CodeQL`, `osv-scanner` and `zizmor` (SARIF uploads, already
   covered by their jobs), `web-check` (only when its script changes), and the main-only jobs
   `sign the App Bundle`, `upload to Google Play (…)`, `tag the release` and
@@ -152,7 +152,7 @@ None of these block the Google Play upload; a red `security` run is fixed before
 | Tool | Scans | Fails the run on | Baseline |
 | --- | --- | --- | --- |
 | CodeQL `actions`, `python` | workflows, `backend/`, `scripts/` | results show in Security > Code scanning (PR check) | dismiss in the Security tab with a reason |
-| CodeQL `java-kotlin` | `app/android` (MainActivity, home screen widget), built with `flutter build apk --debug` | same | same |
+| CodeQL `java-kotlin` | `app/android` (MainActivity, home screen widget) and `app/packages` (the alert notification plugin), built with `flutter build apk --debug` | same | same |
 | osv-scanner v2.7.0 | `app/pubspec.lock`, `backend/requirements*.txt`, `.github/tools/requirements.txt`, `web/tests/e2e/package-lock.json` | High/Critical (CVSS ≥ 7.0); Medium/Low are warnings | `osv-scanner.toml` |
 | zizmor | `.github/workflows/` | High; Medium is a warning | `.github/zizmor.yml` |
 | ruff `S` (bandit) | `backend/` | any finding | inline `# noqa: Sxxx` with the reason; tests may assert and use fake tokens |
@@ -161,7 +161,7 @@ None of these block the Google Play upload; a red `security` run is fixed before
 
 - **Dart is not supported by CodeQL.** The app's Dart code is covered by `dart analyze`
   (infos are fatal) in the `app` workflow and by the AI review.
-- The java-kotlin build takes about 10 minutes, so on PRs it only runs when `app/android/`
+- The java-kotlin build takes about 10 minutes, so on PRs it only runs when `app/android/` or `app/packages/`
   or `security.yml` changes; the Monday run and manual runs always include it.
 - A baseline takes **Low findings only**, each with a reason (and for osv a date to look
   again). Anything higher is fixed or the dependency is replaced.

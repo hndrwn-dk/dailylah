@@ -899,8 +899,9 @@ class RichNote {
   /// What a tap opens (`dailylah://today`, `nearby`, `home`); null opens the app as it is.
   final String? link;
 
-  RichNote withTitle(String title) => RichNote(
-      id: id, title: title, body: body, pills: pills, art: art, artValue: artValue, bars: bars, link: link);
+  /// The same note as a sample: [title] instead of its own, under its own id (this one + 100).
+  RichNote asSample(String title) => RichNote(
+      id: id + 100, title: title, body: body, pills: pills, art: art, artValue: artValue, bars: bars, link: link);
 
   /// Plain data for the method channel.
   Map<String, Object?> toMap() => {

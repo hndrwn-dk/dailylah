@@ -3783,30 +3783,38 @@ RichNote leaveNote(S s, LeaveBy lb, {int id = 9, String? placeName, int? usualMi
   );
 }
 
-/// Disrupted lines ([bad], not empty). [planBBus] from [planBBus].
-RichNote mrtNote(S s, List<LineStatus> bad, {String? planBBus}) {
-  final first = bad.first;
+/// Disrupted lines ([bad], not empty). With a [planB] (from [planBBus]) the line pill and the
+/// text are those of the trip's line the bus goes around; otherwise the first disrupted line.
+RichNote mrtNote(S s, List<LineStatus> bad, {({String line, String bus})? planB}) {
+  final shown = planB == null ? bad.first : bad.firstWhere((x) => x.line == planB.line, orElse: () => bad.first);
   return RichNote(
     id: 1,
     title: s.mrtAlert([for (final x in bad) x.line].join(', ')),
-    body: first.detail?.isNotEmpty == true ? first.detail! : s.checkAlternatives,
+    body: shown.detail?.isNotEmpty == true ? shown.detail! : s.checkAlternatives,
     pills: [
-      NotePill(first.line, PillTone.line, lineColor: mrtLineColors[first.line]),
+      NotePill(shown.line, PillTone.line, lineColor: mrtLineColors[shown.line]),
       NotePill(s.disruptedPill, PillTone.red),
-      if (planBBus != null) NotePill(planBBus, PillTone.board),
+      if (planB != null) NotePill(planB.bus, PillTone.board),
     ],
     link: _todayLink,
   );
 }
 
-/// The first direct bus of today's trip, when a disrupted line is on its MRT [plan].
-String? planBBus({
+/// The first direct bus of today's trip, with the line it goes around: a line on the trip's
+/// MRT [plan] that is disrupted and is one of [disruptedLines] (the lines the alert is about,
+/// so the pill never names a line the user does not watch). Null when there is none.
+({String line, String bus})? planBBus({
   required MrtPlan? plan,
   required Map<String, dynamic>? alerts,
   required Iterable<String> directServices,
+  required Iterable<String> disruptedLines,
 }) {
-  if (directServices.isEmpty || planDisruption(plan, alerts).lines.isEmpty) return null;
-  return directServices.first;
+  if (directServices.isEmpty) return null;
+  final about = disruptedLines.toSet();
+  for (final line in planDisruption(plan, alerts).lines) {
+    if (about.contains(line)) return (line: line, bus: directServices.first);
+  }
+  return null;
 }
 
 /// Wake me at my stop: the stop is next, or may have been passed.
@@ -3878,17 +3886,18 @@ RichNote digestNote(S s, List<String> lines, {int? weekCents, List<int> tripsPer
 }
 
 /// The eight alerts with the landing page's values, for More > Alerts > Show me an example.
-/// Each title starts with "Example:" so a sample never reads like a real warning.
+/// Each title starts with "Example:" so a sample never reads like a real warning, and each has
+/// its own id (the alert's + 100), so it never replaces a real alert still in the shade.
 List<RichNote> sampleNotes(S s) => [
       for (final n in [
       rainNote(s, placeKind: 'work', f: const AreaForecast(area: 'Bishan', forecast: 'Showers', validText: '5 PM to 7 PM')),
       hazeNote(s, const AirQuality(region: 'central', psi24: 128, level: AirLevel.unhealthy)),
       leaveNote(s, const LeaveBy('36', 6, 2), usualMinutes: 38),
-      mrtNote(s, [LineStatus(line: 'EWL', disrupted: true, detail: s.sampleMrtDetail)], planBBus: '858'),
+      mrtNote(s, [LineStatus(line: 'EWL', disrupted: true, detail: s.sampleMrtDetail)], planB: (line: 'EWL', bus: '858')),
       wakeNote(s, WakeEvent.wake, s.sampleStop),
       hawkerNote(s, s.sampleHawker, altName: s.sampleHawkerAlt, altMetres: 400),
       heatNote(s, place: s.placeLabel('school'), level: 'High', uv: 11),
       digestNote(s, s.sampleDigest, weekCents: 2460, tripsPerDay: const [3, 4, 3, 5, 4, 1, 1]),
       ])
-        n.withTitle(s.exampleTitle(n.title)),
+        n.asSample(s.exampleTitle(n.title)),
     ];

@@ -534,7 +534,7 @@ void main() {
     testWidgets('posts the eight sample alerts and leaves the alert log alone', (tester) async {
       allowed = true;
       await openMore(tester);
-      expect(rich.map((n) => n['id']).toSet(), {2, 8, 9, 1, 10, 3, 5, 12});
+      expect(rich.map((n) => n['id']).toSet(), {102, 108, 109, 101, 110, 103, 105, 112});
       expect(rich.every((n) => (n['pills'] as List).isNotEmpty), isTrue);
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getStringList('alerts.sent'), isNull, reason: 'a sample must not stop the real alert');
