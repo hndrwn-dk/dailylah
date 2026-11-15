@@ -34,6 +34,15 @@ function questions(asks, scenes, card, rows, hold) {
   hero.classList.add("live");
   hero.style.setProperty("--dwell", `${DWELL}ms`);
   card.hidden = false;
+  // The questions now look like the buttons they are; say so, and frame the stop card as a phone.
+  const hint = document.createElement("p");
+  hint.className = "ask-hint";
+  hint.textContent = "Ask it something. The phone answers.";
+  asks[0].closest(".asks").before(hint);
+  const notch = document.createElement("span");
+  notch.className = "notch";
+  notch.setAttribute("aria-hidden", "true");
+  card.before(notch);
 
   function pick(i, byUser) {
     if (byUser) {
