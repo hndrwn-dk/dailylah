@@ -1,47 +1,215 @@
-// "A day with DailyLah" on the landing page: the timeline is an MRT line. As you scroll, the line
-// fills, a train rides down it, and each station's card comes in with its small picture.
-// Progressive enhancement: without this script (or with reduced motion) the cards are all shown
-// as they are in the HTML; the CSS hides them only under the .moving class added here.
+// "A day with DailyLah": a clock you drag through the day. The phone's lock screen shows what
+// DailyLah would have told you at that time, the words beside it follow, and the card's colour
+// drifts from morning to afternoon. A flick carries the clock on and it settles on the nearest
+// time; the ends resist softly. It plays through the day while on screen until someone touches it.
+// Everything comes from the list in the HTML (time, words and the small picture of each card), so
+// without this script the page shows that list as it is. With reduced motion nothing plays by
+// itself and the clock moves at once; arrow keys work on the clock either way.
 
-const list = document.querySelector("[data-day]");
-const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+import { Spring, Velocity, calm, clamp, rubber, settle } from "./spring.js";
 
-if (list) {
-  const items = [...list.querySelectorAll("li")];
-  if (calm || !("IntersectionObserver" in window)) {
-    items.forEach((li) => li.classList.add("on"));
-    list.style.setProperty("--p", "1");
-  } else {
-    list.classList.add("moving");
-    const seen = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) {
-            e.target.classList.add("on");
-            seen.unobserve(e.target);
-          }
-        }
-      },
-      { rootMargin: "0px 0px -20% 0px" },
-    );
-    items.forEach((li) => seen.observe(li));
+const DWELL = 3600; // ms a time stays while the day plays
+// Hue and saturation of the card behind each time: dawn, haze, clear morning ..., noon, heat, Sunday.
+const SKY = [[35, 75], [45, 28], [195, 55], [205, 40], [190, 60], [48, 85], [22, 85], [168, 45]];
+const day = document.querySelector("[data-day]");
 
-    // How far the middle of the screen is down the line, 0 to 1.
-    let queued = false;
-    const draw = () => {
-      queued = false;
-      const r = list.getBoundingClientRect();
-      const p = (innerHeight * 0.6 - r.top) / r.height;
-      list.style.setProperty("--p", Math.min(1, Math.max(0, p)).toFixed(3));
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
+}
+
+if (day) {
+  const stops = [...day.querySelectorAll("li")].map((li) => {
+    const title = li.querySelector(".dcard b").textContent;
+    return {
+      time: li.querySelector("time").textContent,
+      title,
+      text: li.querySelector(".dcard p").textContent.replace(title, "").trim(),
+      mini: li.querySelector(".mini"),
     };
-    const ask = () => {
-      if (!queued) {
-        queued = true;
-        requestAnimationFrame(draw);
-      }
-    };
-    addEventListener("scroll", ask, { passive: true });
-    addEventListener("resize", ask);
-    draw();
+  });
+  const n = stops.length;
+
+  // Left: the clock, the times, the words. Right: the lock screen.
+  const stage = el("div", "day-stage sticker");
+  const copy = el("div", "day-copy");
+  const scrub = el("div", "scrub");
+  const fill = el("span", "fill");
+  const thumb = el("div", "thumb");
+  thumb.setAttribute("role", "slider");
+  thumb.setAttribute("aria-label", "Time of day");
+  thumb.setAttribute("aria-valuemin", "0");
+  thumb.setAttribute("aria-valuemax", String(n - 1));
+  thumb.tabIndex = 0;
+  const ticks = stops.map(() => el("span", "tick"));
+  scrub.append(el("span", "line"), fill, ...ticks, thumb);
+  const labels = el("div", "stops");
+  const labelButtons = stops.map((s, i) => {
+    const b = el("button", null, s.time);
+    b.type = "button";
+    b.addEventListener("click", () => {
+      stopPlay();
+      clock.to(i * gap());
+    });
+    labels.append(b);
+    return b;
+  });
+  const title = el("h3", "day-title");
+  const text = el("p", "day-text");
+  const play = el("button", "day-play");
+  play.type = "button";
+  copy.append(
+    el("p", "lead", "Drag the clock through a day. The phone shows what you would have heard, before you needed it."),
+    scrub, labels, title, text, play,
+  );
+
+  const lock = el("div", "lock");
+  const weekday = el("small");
+  const big = el("b");
+  const clockFace = el("div", "clock");
+  clockFace.append(weekday, big);
+  const notif = el("div", "notif");
+  notif.setAttribute("aria-live", "polite");
+  const app = el("div", "app");
+  app.append(el("i", null, "lah"), "DailyLah", el("span", null, "now"));
+  const nTitle = el("b", "n-title");
+  const nText = el("p");
+  const nMini = el("div", "n-mini");
+  nMini.setAttribute("aria-hidden", "true");
+  notif.append(app, nTitle, nText, nMini);
+  lock.append(el("span", "notch"), clockFace, notif, el("span", "home-ind"));
+
+  stage.append(copy, lock);
+  day.before(stage);
+  day.hidden = true; // the same content, now shown one time at a time
+
+  let length = 1;
+  let cur = -1;
+  const gap = () => length / (n - 1);
+  const clock = new Spring(0, { response: 0.4, damping: 1 });
+  clock.onUpdate = (x) => {
+    thumb.style.transform = `translateX(${x}px)`;
+    fill.style.transform = `scaleX(${clamp(x / length, 0, 1)})`;
+    // The colour blends between the two times the clock is between.
+    const f = clamp(x / gap(), 0, n - 1);
+    const a = SKY[Math.floor(f) % SKY.length];
+    const b = SKY[Math.min(n - 1, Math.floor(f) + 1) % SKY.length];
+    const t = f - Math.floor(f);
+    let h = b[0];
+    if (Math.abs(h - a[0]) > 180) h += h < a[0] ? 360 : -360; // the short way round
+    stage.style.setProperty("--day-h", (((a[0] + (h - a[0]) * t) % 360) + 360) % 360);
+    stage.style.setProperty("--day-s", `${a[1] + (b[1] - a[1]) * t}%`);
+    const near = clamp(Math.round(f), 0, n - 1);
+    if (near !== cur) show(near);
+  };
+
+  function show(i) {
+    const dir = i > cur ? 1 : -1;
+    cur = i;
+    const s = stops[i];
+    const timed = s.time.includes(":");
+    thumb.setAttribute("aria-valuenow", String(i));
+    thumb.setAttribute("aria-valuetext", `${s.time}: ${s.title}`);
+    labelButtons.forEach((b, k) => b.classList.toggle("on", k === i));
+    title.textContent = s.title;
+    text.textContent = s.text;
+    weekday.textContent = timed ? "Monday" : "Sunday";
+    big.textContent = timed ? s.time : "10:00";
+    nTitle.textContent = s.title;
+    nText.textContent = s.text;
+    nMini.replaceChildren(...(s.mini ? [...s.mini.cloneNode(true).childNodes] : []));
+    // The notification drops in from the side the clock came from.
+    notif.style.setProperty("--dir", String(dir));
+    notif.classList.remove("in");
+    void notif.offsetWidth;
+    notif.classList.add("in");
   }
+
+  function layout() {
+    length = scrub.clientWidth || 1;
+    ticks.forEach((tick, i) => (tick.style.left = `${i * gap()}px`));
+    labelButtons.forEach((b, i) => (b.style.left = `${i * gap()}px`));
+    if (!grab) clock.jump(Math.max(cur, 0) * gap());
+  }
+
+  // Drag: grab the clock where it was touched; a press elsewhere on the line glides it there.
+  let grab = null;
+  scrub.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    stopPlay();
+    clock.stop();
+    const left = scrub.getBoundingClientRect().left;
+    const onThumb = thumb.contains(e.target);
+    grab = { id: e.pointerId, left, offset: onThumb ? e.clientX - left - clock.x : 0, speed: new Velocity() };
+    scrub.setPointerCapture(e.pointerId);
+    scrub.classList.add("dragging");
+    if (!onThumb) clock.to(clamp(e.clientX - left, 0, length), { response: 0.3, damping: 1 });
+    grab.speed.add(clock.x, e.timeStamp);
+  });
+  scrub.addEventListener("pointermove", (e) => {
+    if (!grab || e.pointerId !== grab.id) return;
+    let x = e.clientX - grab.left - grab.offset;
+    if (x < 0) x = -rubber(-x, length * 0.3);
+    else if (x > length) x = length + rubber(x - length, length * 0.3);
+    clock.jump(x);
+    grab.speed.add(x, e.timeStamp);
+  });
+  const letGo = (e) => {
+    if (!grab || (e && e.pointerId !== grab.id)) return;
+    const velocity = grab.speed.get();
+    grab = null;
+    scrub.classList.remove("dragging");
+    const target = settle(clock.x, velocity, stops.map((_, i) => i * gap()), 0.995);
+    clock.to(target, { velocity, response: 0.4, damping: Math.abs(velocity) > 300 ? 0.82 : 1 });
+  };
+  scrub.addEventListener("pointerup", letGo);
+  scrub.addEventListener("pointercancel", letGo);
+  thumb.addEventListener("keydown", (e) => {
+    const step = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[e.key];
+    const to = step ? clamp(cur + step, 0, n - 1) : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : null;
+    if (to === null) return;
+    e.preventDefault();
+    stopPlay();
+    clock.to(to * gap());
+  });
+
+  // The day plays by itself while the card is on screen, until someone touches it.
+  let playing = !calm();
+  let onScreen = false;
+  let timer = 0;
+  const label = () => {
+    play.textContent = playing ? "Pause the day" : "Play the day";
+    play.setAttribute("aria-pressed", String(playing));
+  };
+  function tick() {
+    clearTimeout(timer);
+    if (!playing || !onScreen) return;
+    timer = setTimeout(() => {
+      clock.to(((cur + 1) % n) * gap(), { response: 0.9, damping: 1 });
+      tick();
+    }, DWELL);
+  }
+  function stopPlay() {
+    playing = false;
+    clearTimeout(timer);
+    label();
+  }
+  play.addEventListener("click", () => {
+    if (playing) return stopPlay();
+    playing = true;
+    label();
+    tick();
+  });
+  label();
+
+  new ResizeObserver(layout).observe(scrub);
+  new IntersectionObserver(([e]) => {
+    onScreen = e.isIntersecting;
+    tick();
+  }, { threshold: 0.35 }).observe(stage);
+  layout();
+  show(0);
+  clock.onUpdate(0);
 }

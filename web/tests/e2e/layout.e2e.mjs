@@ -147,12 +147,9 @@ test("home at 360 px: Compare towns, then Browse all towns under it with a gap",
   }
 });
 
-/**
- * "Four tabs for your day" at a width: how many screenshots share the first row, how many rows,
- * whether the phone deck's tab buttons show, and the first screenshot's transform under the pointer.
- */
-async function fourTabs(width, options = {}) {
-  const context = await browser.newContext({ viewport: { width, height: 900 }, ...options });
+/** "Four tabs for your day" without JS at a width: the cards, their rows and captions. */
+async function fourCards(width, options = {}) {
+  const context = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled: false, ...options });
   const page = await context.newPage();
   try {
     await page.route((url) => !url.href.startsWith(base), (route) => route.abort());
@@ -168,7 +165,7 @@ async function fourTabs(width, options = {}) {
         firstRow: tops.filter((t) => t === tops[0]).length,
         rows: new Set(tops).size,
         captions: [...list.querySelectorAll("figcaption")].filter(shown).length,
-        deckButtons: shown(document.querySelector(".shot-tabs")),
+        phone: shown(document.querySelector(".device")),
         sideways: list.scrollWidth > list.clientWidth + 1,
         lifted: getComputedStyle(list.querySelector("li img")).transform !== "none",
       };
@@ -178,45 +175,154 @@ async function fourTabs(width, options = {}) {
   }
 }
 
-// The layout follows the width alone: a phone asking for the desktop site (980 px, touch) and a
-// tablet get the same cards as a laptop of that width, with or without JS.
+// Without JS the layout follows the width alone: a phone asking for the desktop site (980 px,
+// touch) and a tablet get the same cards as a laptop of that width.
 const touch = { hasTouch: true, isMobile: true };
 for (const [name, width, options] of [
   ["a laptop at 1280 px", 1280, {}],
-  ["a tablet at 1024 px (touch)", 1024, touch],
   ["Chrome Android's desktop site, 980 px (touch)", 980, touch],
-  ["980 px with a mouse", 980, {}],
-  ["980 px without JS", 980, { javaScriptEnabled: false }],
   ["the hero's two-column width, 880 px", 880, touch],
 ]) {
-  test(`home, four tabs on ${name}: 4 cards in one row with their captions`, async () => {
-    const tabs = await fourTabs(width, options);
+  test(`home without JS, four tabs on ${name}: 4 cards in one row with their captions`, async () => {
+    const tabs = await fourCards(width, options);
     assert.deepEqual(
-      { firstRow: tabs.firstRow, rows: tabs.rows, captions: tabs.captions, deckButtons: tabs.deckButtons, sideways: tabs.sideways },
-      { firstRow: 4, rows: 1, captions: 4, deckButtons: false, sideways: false },
+      { firstRow: tabs.firstRow, rows: tabs.rows, captions: tabs.captions, phone: tabs.phone, sideways: tabs.sideways },
+      { firstRow: 4, rows: 1, captions: 4, phone: false, sideways: false },
     );
   });
 }
 
-for (const [name, options] of [["with JS (touch)", touch], ["without JS", { javaScriptEnabled: false }]]) {
-  test(`home, four tabs at 768 px ${name}: 2 x 2 cards with their captions`, async () => {
-    const tabs = await fourTabs(768, options);
-    assert.deepEqual(
-      { firstRow: tabs.firstRow, rows: tabs.rows, captions: tabs.captions, deckButtons: tabs.deckButtons, sideways: tabs.sideways },
-      { firstRow: 2, rows: 2, captions: 4, deckButtons: false, sideways: false },
-    );
-  });
-}
-
-test("home, four tabs on a phone (360 px): the deck with its tab buttons", async () => {
-  const tabs = await fourTabs(360, touch);
-  assert.equal(tabs.deckButtons, true);
-  assert.equal(tabs.captions, 0);
+test("home without JS, four tabs at 768 px: 2 x 2 cards with their captions", async () => {
+  const tabs = await fourCards(768, touch);
+  assert.deepEqual(
+    { firstRow: tabs.firstRow, rows: tabs.rows, captions: tabs.captions, phone: tabs.phone, sideways: tabs.sideways },
+    { firstRow: 2, rows: 2, captions: 4, phone: false, sideways: false },
+  );
 });
 
-test("home, four tabs: a screenshot lifts under a mouse, not on a touch screen", async () => {
-  assert.equal((await fourTabs(980, {})).lifted, true, "mouse at 980 px");
-  assert.equal((await fourTabs(1280, {})).lifted, true, "mouse at 1280 px");
-  assert.equal((await fourTabs(980, touch)).lifted, false, "touch at 980 px");
-  assert.equal((await fourTabs(1280, { reducedMotion: "reduce" })).lifted, false, "reduced motion");
+test("home without JS, four tabs: a screenshot lifts under a mouse, not on a touch screen", async () => {
+  assert.equal((await fourCards(980, {})).lifted, true, "mouse at 980 px");
+  assert.equal((await fourCards(980, touch)).lifted, false, "touch at 980 px");
+  assert.equal((await fourCards(1280, { reducedMotion: "reduce" })).lifted, false, "reduced motion");
+});
+
+/** The home page with JS at a width, scrolled to a selector; reduced motion so nothing plays by itself. */
+async function home(width, selector, options = {}) {
+  const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: "reduce", ...options });
+  const page = await context.newPage();
+  await page.route((url) => !url.href.startsWith(base), (route) => route.abort());
+  await page.goto(base + "/", { waitUntil: "load" });
+  await page.waitForSelector(selector);
+  await page.locator(selector).first().scrollIntoViewIfNeeded();
+  return { context, page };
+}
+
+/** Which screenshot fills the phone, the tab that is selected and the words beside it. */
+function phoneState(page) {
+  return page.$eval(".pager", (pager) => {
+    const box = pager.getBoundingClientRect();
+    const inside = [...pager.querySelectorAll("li")].filter((li) => {
+      const r = li.getBoundingClientRect();
+      return r.left >= box.left - 3 && r.right <= box.right + 3;
+    });
+    return {
+      inside: inside.map((li) => li.querySelector("h3").textContent),
+      selected: [...document.querySelectorAll(".tabbar [role=tab][aria-selected=true]")].map((b) => b.textContent),
+      title: document.querySelector(".tab-title").textContent,
+      text: document.querySelector(".tab-text").textContent.length > 20,
+      captions: [...pager.querySelectorAll("figcaption")].filter((c) => getComputedStyle(c).display !== "none").length,
+      sideways: document.documentElement.scrollWidth > innerWidth + 1,
+    };
+  });
+}
+
+for (const width of [360, 768, 1280]) {
+  test(`home, four tabs at ${width} px: one phone with one screenshot, and a tab moves it`, async () => {
+    const { context, page } = await home(width, ".device");
+    try {
+      assert.deepEqual(await phoneState(page), { inside: ["Today"], selected: ["Today"], title: "Today", text: true, captions: 0, sideways: false });
+      await page.locator(".tabbar [role=tab]", { hasText: "Home" }).dispatchEvent("pointerdown", { button: 0 });
+      assert.deepEqual(await phoneState(page), { inside: ["Home"], selected: ["Home"], title: "Home", text: true, captions: 0, sideways: false });
+      // Arrow keys on the tab bar, like any tab list.
+      await page.locator(".tabbar [role=tab][aria-selected=true]").press("ArrowRight");
+      assert.equal((await phoneState(page)).title, "History");
+    } finally {
+      await context.close();
+    }
+  });
+}
+
+test("home, four tabs: a swipe on the phone goes to the next tab, a small nudge springs back", async () => {
+  const { context, page } = await home(1280, ".device", { reducedMotion: "no-preference" });
+  try {
+    const box = await page.locator(".pager").boundingBox();
+    const y = box.y + box.height / 2;
+    const drag = async (dx) => {
+      await page.mouse.move(box.x + box.width * 0.75, y);
+      await page.mouse.down();
+      await page.mouse.move(box.x + box.width * 0.75 + dx, y + 2, { steps: 8 });
+      await page.mouse.up();
+      await page.waitForTimeout(900); // the spring settles
+    };
+    await drag(-box.width * 0.6);
+    assert.deepEqual((await phoneState(page)).inside, ["Nearby"]);
+    await drag(-12); // a hesitant nudge is not a swipe
+    assert.deepEqual((await phoneState(page)).inside, ["Nearby"]);
+    await drag(box.width * 0.6);
+    assert.deepEqual((await phoneState(page)).inside, ["Today"]);
+  } finally {
+    await context.close();
+  }
+});
+
+test("home, a day: the clock moves by keys and by its time labels, and the lock screen follows", async () => {
+  const { context, page } = await home(360, ".day-stage");
+  try {
+    const state = () => page.evaluate(() => ({
+      now: document.querySelector(".thumb").getAttribute("aria-valuenow"),
+      title: document.querySelector(".day-title").textContent,
+      notif: document.querySelector(".notif .n-title").textContent,
+      clock: document.querySelector(".lock .clock b").textContent,
+      listHidden: document.querySelector("[data-day]").hidden,
+    }));
+    assert.deepEqual(await state(), { now: "0", title: "Rain before you leave.", notif: "Rain before you leave.", clock: "7:00", listHidden: true });
+    await page.locator(".thumb").press("ArrowRight");
+    assert.equal((await state()).clock, "7:05");
+    await page.locator(".stops button", { hasText: "7:55" }).click();
+    assert.deepEqual(await state(), { now: "3", title: "MRT disrupted? Plan B.", notif: "MRT disrupted? Plan B.", clock: "7:55", listHidden: true });
+    await page.locator(".thumb").press("End");
+    assert.equal((await state()).title, "Your week.");
+  } finally {
+    await context.close();
+  }
+});
+
+test("home, hero: tapping a question answers it in the stop card; the bus board has three rows", async () => {
+  const { context, page } = await home(360, "[data-answer-card]:not([hidden])");
+  try {
+    // Reduced motion starts on the bus, as the page shows without JS.
+    assert.equal(await page.textContent("[data-answer-card] b"), "36 arriving");
+    await page.locator(".q", { hasText: "MRT disrupted?" }).dispatchEvent("pointerdown", { button: 0 });
+    assert.equal(await page.textContent("[data-answer-card] b"), "EWL disrupted");
+    assert.equal(await page.locator(".q[aria-pressed=true]").textContent(), "MRT disrupted?");
+    assert.equal(await page.locator(".board .row").count(), 3);
+    assert.match(await page.locator(".board .row .eta").first().textContent(), /^(Arr|\d+min)$/);
+  } finally {
+    await context.close();
+  }
+});
+
+test("home, where to live: the teaser ranks towns from the published data and re-ranks for another office", async () => {
+  const { context, page } = await home(1280, ".town-rows li");
+  try {
+    const order = () => page.$$eval(".town-rows li b", (els) => els.map((el) => el.textContent));
+    const first = await order();
+    assert.equal(first.length, 6);
+    await page.locator(".seg button", { hasText: "Jurong East" }).dispatchEvent("pointerdown", { button: 0 });
+    const second = await order();
+    assert.equal(second[0], "Jurong West");
+    assert.notDeepEqual(second, first);
+  } finally {
+    await context.close();
+  }
 });

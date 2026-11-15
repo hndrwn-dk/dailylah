@@ -30,6 +30,8 @@ import {
   timeBand,
   writeQuery,
 } from "../where-to-live/logic.js";
+import { Spring, Velocity, clamp, project, rubber, settle } from "../shared/spring.js";
+import { minutesTo } from "../shared/towns.js";
 
 const web = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, web), "utf8");
@@ -351,21 +353,118 @@ test("footers are short and the full sources live in the Terms", () => {
   assert.equal((wtlFooter.match(/<a /g) ?? []).length, 3);
 });
 
-test("home: the four-tabs deck ends where the 2 x 2 cards start, in the CSS and in screens.js alike", () => {
+test("home: without JS the four tabs are cards by width; with JS screens.js makes one phone at every width", () => {
   const html = read("index.html");
   const js = read("shared/screens.js");
-  // The deck (max-width) and the grid (min-width) meet with no gap; 4 across starts with the hero's two columns.
-  const deck = Number(html.match(/@media \(max-width: (\d+)px\) \{\s*\.screens\.deck \{/)[1]);
+  // The no-JS cards: 2 x 2 from one width, 4 across from the width where the hero goes two columns.
   const [grid, row] = [...html.matchAll(/@media \(min-width: (\d+)px\) \{ \.screens \{/g)].map((m) => Number(m[1]));
   const hero = Number(html.match(/@media \(min-width: (\d+)px\) \{ \.hero \{/)[1]);
-  assert.equal(grid, deck + 1);
   assert.equal(row, hero);
   assert.ok(grid < row);
-  assert.equal(Number(js.match(/matchMedia\("\(max-width: (\d+)px\)"\)/)[1]), deck);
-  // Width alone picks the layout: hover and pointer only decide the lift under a mouse.
-  assert.doesNotMatch(js, /hover|pointer:|ontouch|maxTouchPoints|userAgent/);
+  // The phone is built from the same list, whatever the width or the device: no sniffing.
+  assert.match(js, /querySelector\("\[data-shots\]"\)/);
+  assert.match(html, /<ul class="screens" data-shots>/);
+  assert.doesNotMatch(js, /matchMedia\("\(m(?:ax|in)-width|hover|pointer:|ontouch|maxTouchPoints|userAgent/);
   for (const [, query] of html.matchAll(/@media ([^{]*(?:hover|pointer)[^{]*)\{/g)) {
     assert.match(query, /\(hover: hover\) and \(pointer: fine\)|\(hover: none\), \(pointer: coarse\)/, query);
+  }
+});
+
+const SHARED = ["spring.js", "hero.js", "screens.js", "day.js", "towns.js", "vault.js"];
+
+test("home: every script is loaded from /shared, and none writes HTML from strings", () => {
+  const html = read("index.html");
+  const loaded = [...html.matchAll(/<script type="module" src="\/shared\/([a-z]+\.js)"><\/script>/g)].map((m) => m[1]);
+  assert.deepEqual(loaded.sort(), SHARED.filter((f) => f !== "spring.js").sort());
+  assert.equal((html.match(/<script/g) ?? []).length, loaded.length, "no inline or third-party script");
+  for (const file of SHARED) {
+    const src = read(`shared/${file}`).replace(/^\s*\/\/.*$/gm, "");
+    assert.doesNotMatch(src, /\.innerHTML|\.outerHTML|insertAdjacentHTML|document\.write|\beval\(|new Function/, file);
+  }
+});
+
+test("home: motion is an extra. The page reads without JS, and every script honours reduced motion", () => {
+  const html = read("index.html");
+  // What the scripts build on is in the HTML: the questions with their answers, the cards, the day list.
+  const answers = [...html.matchAll(/<span class="q" style="--i:(\d)" data-answer="([^"|]+)\|([^"]+)"/g)];
+  assert.deepEqual(answers.map((m) => Number(m[1])), [0, 1, 2, 3, 4, 5, 6]);
+  assert.match(html, /data-answer="EWL disrupted\|/);
+  assert.match(html, /<p class="answer" data-answer-card aria-live="polite" hidden>/);
+  assert.match(html, /<div class="town-demo" data-towns hidden><\/div>/);
+  assert.match(html, /<canvas class="vault" data-vault aria-hidden="true" hidden><\/canvas>/);
+  // Each script that moves something asks spring.js whether the reader wants less motion.
+  for (const file of ["hero.js", "screens.js", "day.js", "vault.js"]) assert.match(read(`shared/${file}`), /\bcalm\(\)/, file);
+  assert.match(read("shared/spring.js"), /prefers-reduced-motion: reduce/);
+  // The town teaser shows the published minutes, never numbers of its own.
+  const towns = read("shared/towns.js");
+  assert.match(towns, /fetch\("\/data\/where-to-live\.json"\)/);
+  assert.doesNotMatch(towns.replace(/^\s*\/\/.*$/gm, ""), /\bmin: \d|\[\d+, \d+, \d+\]/);
+});
+
+test("spring: arrives without overshoot at damping 1, carries a flick, and can be re-aimed mid-flight", () => {
+  const s = new Spring(0, { response: 0.4, damping: 1 });
+  s.target = 100;
+  let peak = 0;
+  let rested = false;
+  for (let i = 0; i < 200 && !rested; i++) {
+    rested = s.step(1 / 60);
+    peak = Math.max(peak, s.x);
+  }
+  assert.ok(rested, "settles within about three seconds");
+  assert.equal(s.x, 100);
+  assert.ok(peak <= 100.001, `no overshoot (peak ${peak})`);
+  // Less damping after a flick: a little bounce past the target, then rest.
+  const b = new Spring(0, { response: 0.4, damping: 0.8 });
+  b.target = 100;
+  b.v = 800;
+  let top = 0;
+  for (let i = 0; i < 300 && !b.step(1 / 60); i++) top = Math.max(top, b.x);
+  assert.ok(top > 100 && top < 140, `bounces a little (peak ${top})`);
+  // A new target mid-flight starts from where it is, with the speed it has: no jump.
+  const r = new Spring(0);
+  r.target = 100;
+  for (let i = 0; i < 6; i++) r.step(1 / 60);
+  const [x, v] = [r.x, r.v];
+  r.target = 0;
+  r.step(1 / 600);
+  assert.ok(Math.abs(r.x - x) < 1 && r.v > 0 && r.v < v, "still moving forward, only slower");
+});
+
+test("spring helpers: a flick's resting point, the snap nearest to it, drag speed and soft edges", () => {
+  // Apple's scroll projection: v / 1000 * d / (1 - d).
+  assert.ok(Math.abs(project(1000) - 499) < 0.001);
+  assert.equal(project(0), 0);
+  assert.ok(project(-1000, 0.99) < 0 && Math.abs(project(-1000, 0.99) + 99) < 0.001);
+  // A slow release stays; a flick goes on to the next point even from before the halfway mark.
+  assert.equal(settle(40, 0, [0, 100, 200]), 0);
+  assert.equal(settle(40, 300, [0, 100, 200], 0.99), 100);
+  assert.equal(settle(160, -1500, [0, 100, 200], 0.99), 0);
+  // Speed from the last 100 ms of a drag, in units per second.
+  const speed = new Velocity();
+  for (let t = 0; t <= 300; t += 20) speed.add(t * 0.5, t);
+  assert.ok(Math.abs(speed.get() - 500) < 1e-6);
+  assert.ok(speed.samples.length <= 7, "older samples are dropped");
+  assert.equal(new Velocity().get(), 0);
+  // Past an edge the content follows less and less, and never further than the dimension allows.
+  assert.equal(rubber(0, 300), 0);
+  assert.ok(rubber(100, 300) < 100 && rubber(200, 300) - rubber(100, 300) < rubber(100, 300));
+  assert.ok(rubber(1e6, 300) < 300);
+  assert.equal(clamp(5, 0, 3), 3);
+});
+
+test("town teaser: minutes come from the bundle, 0 for the office's own town, null without a route", () => {
+  const data = JSON.parse(read("data/where-to-live.json"));
+  const town = (id) => data.towns.find((t) => t.id === id);
+  assert.equal(minutesTo(town("woodlands"), "woodlands"), 0);
+  assert.equal(minutesTo(town("bishan"), "cbd"), town("bishan").commute.cbd.min);
+  assert.equal(minutesTo(town("bishan"), "nowhere"), null);
+  assert.equal(minutesTo(undefined, "cbd"), null);
+  // The towns and offices the teaser asks for exist in the published bundle.
+  const src = read("shared/towns.js");
+  for (const [, list] of src.matchAll(/const (?:OFFICES|TOWNS) = \[([^\]]+)\]/g)) {
+    for (const [, id] of list.matchAll(/"([a-z-]+)"/g)) {
+      assert.ok(data.areas.some((a) => a.id === id) || town(id), id);
+    }
   }
 });
 
