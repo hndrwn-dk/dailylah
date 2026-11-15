@@ -1,6 +1,6 @@
 # Rich notifications: the alerts look like the landing page
 
-Date: 2026-11-15. Status: design, waiting for the owner's approval.
+Date: 2026-11-15. Status: approved by the owner on 2026-11-15.
 
 ## Why
 
@@ -170,11 +170,14 @@ Future<void> showNote(RichNote n) async {
 `notifyNow` gains the same path for the wake alert. The plain fallback is exactly today's
 notification. Other alerts keep calling `notifications.show`.
 
-### 5. Preview
+### 5. Show me an example
 
-Debug builds only (`kDebugMode`): More > Alerts gets "Preview alerts", which posts the eight notes
-with sample values, so the owner and the integration test can see every layout without waiting for
-rain. Not in release builds (author's call).
+In every build (owner's decision): More > Alerts gets a row "Show me an example". It posts the
+eight notes with sample values (the landing page's: PSI 128, bus 36, EWL and 858, UV 11), each
+under its own alert's ID, so the owner can check every layout on the alpha build before promoting
+and a user can see what the alerts look like. It asks for the notification permission first when
+it is missing. The samples do not touch `AlertLog`, so a real alert still fires afterwards. The
+integration test uses the same samples.
 
 ### 6. Tests
 
@@ -187,7 +190,7 @@ rain. Not in release builds (author's call).
   real plugin and find it among the active notifications; no crash on any API level.
 - `scripts/emulator_release.sh` already runs the WorkManager job on the R8 build; it must still
   pass (catches a stripped plugin class).
-- How it looks on a real shade is checked by the owner on a phone with the debug preview; CI
+- How it looks on a real shade is checked by the owner on a phone with "Show me an example" on the alpha build; CI
   cannot judge that.
 
 ### 7. Docs and release
