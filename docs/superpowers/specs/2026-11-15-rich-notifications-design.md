@@ -212,3 +212,17 @@ integration test uses the same samples.
 - Exact `S` strings where the table gives an example.
 - Whether the note classes live in `models.dart` or `logic.dart`.
 - Whether the keep rule is needed.
+
+## Changes made while building (2026-11-15)
+
+- The layout always shows the title and the body itself: Android does not show the content title
+  with a decorated custom view.
+- Pills go in up to three rows (not two), filled by a character budget that shrinks with larger
+  text. The body gives way to them: 5 lines with one row, one fewer for each extra row and for
+  large text (never under 2). The pop-up shows the title, one line and the first row.
+- The MRT line pill uses one drawable per line colour (a rounded, outlined background cannot be
+  tinted through `RemoteViews` on Android 10 and 11).
+- The plugin's Dart test is `app/test/dailylah_notify_test.dart`, so CI runs it with the app's.
+- Sample alerts are titled "Example: ...", so a sample never reads like a real warning.
+- The digest's bars and cost come from `weekHabits` (logic.dart).
+

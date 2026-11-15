@@ -139,7 +139,7 @@ void main() {
         isTrue);
     final active = await android.getActiveNotifications();
     expect(active.map((n) => n.id), containsAll([for (final n in notes) n.id, 99]));
-    expect(active.map((n) => n.title ?? ''), contains('Rain before you leave.'));
+    expect(active.map((n) => n.title ?? ''), contains('Example: Rain before you leave.'));
     await notifications.cancelAll();
   });
 

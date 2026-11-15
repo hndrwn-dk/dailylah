@@ -1298,6 +1298,7 @@ class S {
   String weekCostPill(String money) => '≈ $money this week';
   String get alertExample => 'Show me an example';
   String get alertExampleSub => 'Posts sample alerts so you can see how they look';
+  String exampleTitle(String title) => 'Example: $title';
   String get alertExampleOff => 'Allow notifications to see the examples';
   // sample values for "Show me an example"
   String get sampleMrtDetail => 'No train service between Bugis and Lavender. Free bridging buses are running.';

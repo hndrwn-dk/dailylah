@@ -3878,7 +3878,9 @@ RichNote digestNote(S s, List<String> lines, {int? weekCents, List<int> tripsPer
 }
 
 /// The eight alerts with the landing page's values, for More > Alerts > Show me an example.
+/// Each title starts with "Example:" so a sample never reads like a real warning.
 List<RichNote> sampleNotes(S s) => [
+      for (final n in [
       rainNote(s, placeKind: 'work', f: const AreaForecast(area: 'Bishan', forecast: 'Showers', validText: '5 PM to 7 PM')),
       hazeNote(s, const AirQuality(region: 'central', psi24: 128, level: AirLevel.unhealthy)),
       leaveNote(s, const LeaveBy('36', 6, 2), usualMinutes: 38),
@@ -3887,4 +3889,6 @@ List<RichNote> sampleNotes(S s) => [
       hawkerNote(s, s.sampleHawker, altName: s.sampleHawkerAlt, altMetres: 400),
       heatNote(s, place: s.placeLabel('school'), level: 'High', uv: 11),
       digestNote(s, s.sampleDigest, weekCents: 2460, tripsPerDay: const [3, 4, 3, 5, 4, 1, 1]),
+      ])
+        n.withTitle(s.exampleTitle(n.title)),
     ];

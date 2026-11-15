@@ -43,7 +43,9 @@ class DailylahNotifyPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                 call.argument<String>("channelName") ?: "DailyLah alerts",
                 call.argument<String>("channelDescription") ?: "",
             )
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            // Also an Error (out of memory for a bitmap, a method a phone's Android lacks):
+            // the plain notification is better than a crashed background check.
             Log.w("DailylahNotify", "rich notification not posted", e)
             false
         }

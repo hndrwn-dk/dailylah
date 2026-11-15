@@ -2671,6 +2671,9 @@ void main() {
       final notes = sampleNotes(s);
       expect([for (final n in notes) n.id], [2, 8, 9, 1, 10, 3, 5, 12]);
       expect(notes.every((n) => n.pills.isNotEmpty && n.pills.length <= 3), isTrue);
+      // A sample must not read like a real disruption or haze warning.
+      expect(notes.every((n) => n.title.startsWith('Example: ')), isTrue);
+      expect(notes.first.title, 'Example: Rain before you leave.');
     });
 
     test('toMap is plain data a method channel can carry', () {

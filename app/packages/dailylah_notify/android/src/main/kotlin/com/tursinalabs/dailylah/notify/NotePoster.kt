@@ -59,16 +59,29 @@ internal object NotePoster {
             (note["bars"] as? List<*>).orEmpty().mapNotNull { (it as? Number)?.toDouble() },
         )
 
-        fun views(bodyLines: Int) = RemoteViews(ctx.packageName, R.layout.dl_note).apply {
+        val large = ctx.resources.configuration.fontScale >= 1.3f
+
+        // The shade cuts a custom view from the bottom, where the pills are. So the text gives
+        // way to them: fewer body lines for each extra row of pills and for large text. The
+        // pop-up is short: title, one line of text and the first row only.
+        fun views(headsUp: Boolean) = RemoteViews(ctx.packageName, R.layout.dl_note).apply {
             setTextViewText(R.id.dl_note_title, title)
             setTextViewText(R.id.dl_note_body, body)
             setViewVisibility(R.id.dl_note_body, if (body.isEmpty()) View.GONE else View.VISIBLE)
-            setInt(R.id.dl_note_body, "setMaxLines", bodyLines)
             if (art != null) {
                 setImageViewBitmap(R.id.dl_note_art, art)
                 setViewVisibility(R.id.dl_note_art, View.VISIBLE)
             }
-            fill(ctx, this, pills, art != null)
+            val used = fill(ctx, this, pills, art != null)
+            if (headsUp) {
+                setInt(R.id.dl_note_title, "setMaxLines", 1)
+                setInt(R.id.dl_note_body, "setMaxLines", 1)
+                setViewVisibility(R.id.dl_note_row_2, View.GONE)
+                setViewVisibility(R.id.dl_note_row_3, View.GONE)
+            } else {
+                val lines = 5 - (used - 1).coerceAtLeast(0) - (if (large) 1 else 0)
+                setInt(R.id.dl_note_body, "setMaxLines", lines.coerceAtLeast(2))
+            }
         }
 
         val builder = Notification.Builder(ctx, CHANNEL)
@@ -76,9 +89,8 @@ internal object NotePoster {
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(Notification.DecoratedCustomViewStyle())
-            .setCustomBigContentView(views(5))
-            // The pop-up is short: two lines of text leave room for the pills.
-            .setCustomHeadsUpContentView(views(2))
+            .setCustomBigContentView(views(headsUp = false))
+            .setCustomHeadsUpContentView(views(headsUp = true))
             .setAutoCancel(true)
             .setShowWhen(true)
         launch(ctx, id, note["link"] as? String)?.let { builder.setContentIntent(it) }
@@ -90,8 +102,9 @@ internal object NotePoster {
      * Puts the pills in the slots row by row. A pill that would not fit beside the ones
      * before it starts the next row, by a character budget that shrinks with larger text,
      * so nothing has to be measured (RemoteViews cannot) and no pill is cut in the usual case.
+     * Returns how many rows it used.
      */
-    private fun fill(ctx: Context, v: RemoteViews, pills: List<Pill>, hasArt: Boolean) {
+    private fun fill(ctx: Context, v: RemoteViews, pills: List<Pill>, hasArt: Boolean): Int {
         val budget = (ROW_CHARS / ctx.resources.configuration.fontScale.coerceAtLeast(0.85f)).toInt()
         var row = 0
         var slot = 0
@@ -115,6 +128,7 @@ internal object NotePoster {
             slot++
             used += need
         }
+        return if (pills.isEmpty() && !hasArt) 0 else row + 1
     }
 
     private fun background(p: Pill): Int = when (p.tone) {
