@@ -66,6 +66,20 @@ Future<void> showNote(RichNote n, {S s = const S()}) async {
   );
 }
 
+/// More > Alerts > Show me an example: posts the eight alerts with sample values, each under
+/// its own alert's id. Asks for the notification permission first; false (and nothing
+/// posted) when it is refused. Never touches `AlertLog`, so the real alerts still fire.
+Future<bool> showExampleAlerts(S s) async {
+  await initNotifications();
+  await requestNotificationPermission();
+  final android = notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+  if (await android?.areNotificationsEnabled() == false) return false;
+  for (final n in sampleNotes(s)) {
+    await showNote(n, s: s);
+  }
+  return true;
+}
+
 Future<void> requestNotificationPermission() async {
   await notifications
       .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
