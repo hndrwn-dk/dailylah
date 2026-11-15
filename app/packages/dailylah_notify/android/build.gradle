@@ -1,0 +1,44 @@
+group 'com.tursinalabs.dailylah.notify'
+version '1.0'
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: 'com.android.library'
+
+// The app sets android.builtInKotlin=false (Flutter template), so the Kotlin plugin is
+// applied here unless AGP's built-in Kotlin is on. Same rule as the plugins from pub.
+def agpMajor = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')[0] as int
+def builtInKotlin = agpMajor >= 9 &&
+    project.findProperty('android.builtInKotlin')?.toString() != 'false'
+if (!builtInKotlin) {
+    apply plugin: 'kotlin-android'
+}
+
+android {
+    namespace 'com.tursinalabs.dailylah.notify'
+    compileSdk 36
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+    defaultConfig {
+        minSdk 29
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+// The app builds with AGP 9, where the Kotlin compiler is set up through the `kotlin`
+// extension (kotlinOptions inside android {} is gone). Kept in step with compileOptions.
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}

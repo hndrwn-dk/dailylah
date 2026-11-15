@@ -20,6 +20,9 @@ dependencies:
   url_launcher: ^6.3.1
   qr_flutter: ^4.1.0
   share_plus: ^13.3.1
+  # Alert notifications with pills (packages/dailylah_notify, Android only).
+  dailylah_notify:
+    path: packages/dailylah_notify
 
 dev_dependencies:
   flutter_test:
