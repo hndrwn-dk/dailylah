@@ -33,45 +33,34 @@
     <p class="lead">Stay where ah? Pick your office and budget, we rank every HDB town by MRT time lah.</p>
   </section>
 
+  <!-- Every choice is one tap or one drag: chips for the office, rent or buy and the flat type,
+       sliders for the budget and the travel time. app.js fills the chips and the slider ranges
+       from the data. -->
   <form id="choices" class="choices sticker" aria-label="Your choices">
-    <label class="field">
-      <span>Office area</span>
-      <select id="area" name="area"></select>
-    </label>
+    <div class="field wide">
+      <span id="area-label">Office area</span>
+      <div id="area" class="pick" role="radiogroup" aria-labelledby="area-label"></div>
+    </div>
     <div class="field">
       <span id="mode-label">I want to</span>
-      <div class="seg" role="radiogroup" aria-labelledby="mode-label">
+      <div class="pick" role="radiogroup" aria-labelledby="mode-label">
         <label><input type="radio" name="mode" value="rent" checked><span>Rent</span></label>
         <label><input type="radio" name="mode" value="buy"><span>Buy resale</span></label>
       </div>
     </div>
-    <label class="field">
-      <span>Flat type</span>
-      <select id="flat" name="flat"></select>
+    <div class="field">
+      <span id="flat-label">Flat type</span>
+      <div id="flat" class="pick" role="radiogroup" aria-labelledby="flat-label"></div>
+    </div>
+    <label class="field slide">
+      <span><span id="budget-label">Max rent per month</span><output id="budget-out" for="budget">Any</output></span>
+      <input id="budget" name="budget" type="range">
     </label>
-    <label class="field">
-      <span id="budget-label">Max rent per month ($)</span>
-      <input id="budget" name="budget" type="text" inputmode="numeric" autocomplete="off" placeholder="Any" pattern="[0-9,]*">
-    </label>
-    <label class="field">
-      <span>Travel time</span>
-      <select id="max" name="max"></select>
+    <label class="field slide">
+      <span>Travel time<output id="max-out" for="max">Any time</output></span>
+      <input id="max" name="max" type="range" min="0" max="5" step="1" value="5">
     </label>
   </form>
-
-  <section id="compare" class="compare sticker" aria-labelledby="compare-title" hidden>
-    <div class="compare-top">
-      <div>
-        <h2 id="compare-title" tabindex="-1">Compare towns</h2>
-        <p id="compare-sub" class="compare-sub"></p>
-      </div>
-      <button id="compare-close" class="compare-close" type="button">Back to the list</button>
-    </div>
-    <div class="table-wrap" id="compare-scroll">
-      <table id="compare-table" class="compare-table"></table>
-    </div>
-    <p class="compare-note">Best in each line is marked where the towns can be compared. Estimates from planned weekday 08:30 trips and 22 working days there and back.</p>
-  </section>
 
   <div class="results">
     <section class="board-wrap sticker" aria-labelledby="board-title">
@@ -85,8 +74,8 @@
       <p id="share-note" class="share-note" role="status"></p>
       <p class="towns-link"><a href="/where-to-live/towns">Browse all HDB towns</a></p>
       <dl id="picks" class="picks" aria-live="polite" hidden>
-        <div><dt>Fastest:</dt><dd id="pick-fast"></dd></div>
-        <div><dt>Best value:</dt><dd id="pick-value"></dd></div>
+        <div><dt>Fastest</dt><dd id="pick-fast"></dd></div>
+        <div class="value"><dt>Best value</dt><dd id="pick-value"></dd></div>
       </dl>
       <div id="board-body" class="board"></div>
     </section>
@@ -124,6 +113,24 @@
     </nav>
   </footer>
 </main>
+<!-- The comparison is a sheet that comes up from the bottom over the list (app.js): drag its top
+     down, press Back to the list or Escape to put it away. -->
+<section id="compare" class="compare" aria-labelledby="compare-title" hidden>
+  <div id="compare-grip" class="compare-grip">
+    <span class="grip-bar" aria-hidden="true"></span>
+    <div class="compare-top">
+      <div>
+        <h2 id="compare-title" tabindex="-1">Compare towns</h2>
+        <p id="compare-sub" class="compare-sub"></p>
+      </div>
+      <button id="compare-close" class="compare-close" type="button">Back to the list</button>
+    </div>
+  </div>
+  <div class="table-wrap" id="compare-scroll">
+    <table id="compare-table" class="compare-table"></table>
+  </div>
+  <p class="compare-note">Best in each line is marked where the towns can be compared. Estimates from planned weekday 08:30 trips and 22 working days there and back.</p>
+</section>
 <div id="compare-bar" class="compare-bar" role="region" aria-label="Towns to compare" hidden>
   <div class="wrap compare-bar-in">
     <ul id="compare-chips" class="chips"></ul>

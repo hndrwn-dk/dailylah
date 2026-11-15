@@ -34,76 +34,104 @@ h1 { font: 700 clamp(48px, 9vw, 84px)/0.92 var(--display); margin: 0 0 14px; let
 .lead { margin: 0; color: var(--mist); max-width: 62ch; font-size: 18px; }
 
 /* ---------------- choices */
-.choices { display: grid; gap: 14px 18px; padding: 18px; margin-bottom: 24px; }
-@media (min-width: 640px) { .choices { grid-template-columns: 1fr 1fr; } }
-@media (min-width: 1000px) { .choices { grid-template-columns: 1.3fr 1.1fr 0.9fr 1fr 1fr; align-items: end; } }
+/* Chips to tap and sliders to drag; the list answers while a slider moves. On a wide screen the
+   card stays under the top of the window while the list scrolls, and the page shows through it. */
+.choices { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px 22px; padding: 16px 18px; margin-bottom: 24px;
+           position: relative; z-index: 900; }
+@media (min-width: 960px) {
+  .choices { display: grid; grid-template-columns: auto auto minmax(0, 1fr) minmax(0, 1fr); align-items: end; }
+  .field.wide { grid-column: 1 / -1; }
+  .choices { position: sticky; top: 10px; background: color-mix(in srgb, var(--card) 82%, transparent);
+             -webkit-backdrop-filter: blur(18px) saturate(170%); backdrop-filter: blur(18px) saturate(170%); }
+}
+@media (prefers-reduced-transparency: reduce) { .choices { background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; } }
 .field { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
-.field > span, .field legend { font-weight: 700; font-size: 15px; padding: 0; }
-select, input[type=text] {
-  font: 600 16px/1.2 var(--body); color: var(--ink); background: var(--paper); width: 100%;
-  border: 2px solid var(--edge); border-radius: 10px; padding: 0 12px; height: 46px; }
-input[type=text]::placeholder { color: var(--mist); }
-/* Rent / Buy resale: two segments side by side, same height as the selects. */
-.seg { display: grid; grid-template-columns: 1fr 1fr; border: 2px solid var(--edge); border-radius: 10px; overflow: hidden;
-       background: var(--paper); }
-.seg label { position: relative; cursor: pointer; }
-.seg label + label { border-left: 2px solid var(--edge); }
-.seg input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
-.seg span { display: flex; align-items: center; justify-content: center; min-height: 42px; padding: 0 10px;
-            font: 700 16px/1.1 var(--body); text-align: center; white-space: nowrap; }
-.seg input:checked + span { background: var(--amber); color: #0F1618; }
-.seg input:focus-visible + span { outline: 3px solid var(--teal); outline-offset: -5px; }
+.field.wide { flex-basis: 100%; }
+.field.slide { flex: 1 1 200px; }
+.field > span { display: flex; justify-content: space-between; gap: 12px; font-weight: 700; font-size: 13px; color: var(--mist);
+                letter-spacing: 0.04em; text-transform: uppercase; }
+.field output { color: var(--ink); font-size: 15px; letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
+/* A group of chips: radio buttons underneath, so the keyboard and a screen reader get a real choice. */
+.pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.pick label { position: relative; cursor: pointer; }
+.pick input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.pick span { display: flex; align-items: center; min-height: 38px; padding: 0 13px; border: 2px solid var(--edge); border-radius: 999px;
+             background: var(--paper); font: 700 15px/1.1 var(--body); white-space: nowrap; }
+.pick input:checked + span { background: var(--ink); color: var(--paper); }
+.pick label:active span { transform: scale(0.96); }
+.pick input:focus-visible + span { outline: 3px solid var(--amber); outline-offset: 2px; }
+.slide input { width: 100%; height: 30px; margin: 0; accent-color: var(--teal); cursor: pointer; }
+@media (max-width: 639px) {
+  /* The offices in one row to swipe, so the card stays short on a phone. */
+  #area { flex-wrap: nowrap; overflow-x: auto; margin: 0 -18px; padding: 3px 18px 5px; scrollbar-width: none; }
+  #area::-webkit-scrollbar { display: none; }
+  #area label { flex: none; }
+}
 
 /* ---------------- results */
 .results { display: grid; gap: 24px; margin-bottom: 32px; }
 @media (min-width: 960px) {
   .results { grid-template-columns: 1.1fr 1fr; align-items: start; }
-  .map-wrap { position: sticky; top: 16px; }
+  /* Under the choices card, whose height app.js writes to --choices. */
+  .map-wrap { position: sticky; top: calc(var(--choices, 150px) + 22px); }
 }
 
-/* The board: like the bus arrival board on the landing page. */
-.board-wrap { background: var(--board); border-color: var(--edge); color: var(--led); padding: 18px 18px 8px; }
-.board-wrap h2 { font: 700 clamp(32px, 5vw, 44px)/1 var(--display); margin: 0; color: var(--led); }
-.board-sub { margin: 4px 0 8px; color: var(--led-dim); font-size: 14px; }
+/* The ranked list: a number, the town with a bar for its travel time, minutes, price. */
+.board-wrap { padding: 18px 18px 8px; }
+.board-wrap h2 { font: 700 clamp(32px, 5vw, 44px)/1 var(--display); margin: 0; }
+.board-wrap h2:focus { outline: none; }
+.board-sub { margin: 4px 0 8px; color: var(--mist); font-size: 14px; }
 .board-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.share { flex: none; margin-top: 4px; padding: 7px 12px; background: var(--led); color: #101719; border: 0;
+.share { flex: none; margin-top: 4px; padding: 7px 12px; background: var(--paper); color: var(--ink); border: 2px solid var(--edge);
          border-radius: 10px; font: 700 14px/1.2 var(--body); cursor: pointer; }
-.share:focus-visible { outline: 3px solid #FFFFFF; outline-offset: 2px; }
-.share-note { margin: 0; min-height: 0; color: var(--led-dim); font-size: 13px; }
+.share-note { margin: 0; min-height: 0; color: var(--mist); font-size: 13px; }
 .share-note:empty { display: none; }
-/* Fastest and Best value: two short lines above the list. */
-.picks { margin: 10px 0 4px; padding: 10px 12px; display: grid; gap: 4px; border: 1.5px solid rgba(255, 182, 39, 0.45);
-         border-radius: 10px; }
+/* Fastest and Best value: two cards above the list, the second one loud like the bus board. */
+.picks { margin: 12px 0 6px; display: grid; gap: 10px; }
+@media (min-width: 520px) { .picks { grid-template-columns: 1fr 1fr; } }
 .picks[hidden] { display: none; }
-.picks div { display: flex; flex-wrap: wrap; gap: 0 6px; align-items: baseline; }
-.picks dt { font: 600 13px/1.3 var(--body); color: var(--led-dim); }
-.picks dd { margin: 0; font: 700 18px/1.25 var(--display); color: var(--led); }
-.group summary { font: 600 15px/1.3 var(--body); color: var(--led-dim); margin: 16px 0 6px; cursor: pointer; }
+.picks div { min-width: 0; padding: 12px 14px; border: 2px solid var(--edge); border-radius: 14px; background: var(--paper); }
+.picks dt { font: 700 12px/1.3 var(--body); letter-spacing: 0.07em; text-transform: uppercase; color: var(--mist); }
+.picks dd { margin: 0; }
+.pick-town { display: block; margin: 5px 0 2px; font: 700 30px/1 var(--display); }
+.pick-line { display: block; font: 700 15px/1.3 var(--body); font-variant-numeric: tabular-nums; }
+.picks .value { background: var(--board); border-color: var(--board); color: #E6F2F4; }
+.picks .value dt { color: var(--led-dim); }
+.picks .value .pick-town { color: var(--led); }
+.group summary { font: 700 13px/1.3 var(--body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--mist); margin: 18px 0 6px; cursor: pointer; }
 .group summary:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
-.group h3 { font: 600 14px/1.3 var(--body); color: var(--led-dim); margin: 16px 0 2px; }
+.group h3 { font: 700 13px/1.3 var(--body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--mist); margin: 18px 0 2px; }
 .rows { list-style: none; margin: 0; padding: 0; }
-.row { border-top: 1px solid rgba(255, 182, 39, 0.22); }
-/* One line per town: name, minutes, price. The whole line is the button that opens the details. */
-.line { display: grid; grid-template-columns: minmax(0, 1fr) auto 6.4em; align-items: baseline; gap: 10px; width: 100%;
-        padding: 10px 4px; margin: 0; background: none; border: 0; border-radius: 6px; color: var(--led);
-        font: 700 16px/1.1 var(--display); text-align: left; cursor: pointer; }
-.line:hover .town { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; }
+.row { border-top: 1px solid color-mix(in srgb, var(--ink) 14%, transparent); border-radius: 10px; }
+.rank { font: 700 14px/1 var(--body); color: var(--mist); text-align: right; font-variant-numeric: tabular-nums; }
+/* The line is the button that opens the details. On a phone the price sits under the minutes. */
+.line { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "town eta" "town price"; align-items: center;
+        column-gap: 12px; width: 100%; padding: 10px 4px; margin: 0; background: none; border: 0; border-radius: 8px;
+        color: var(--ink); font: 700 16px/1.2 var(--body); text-align: left; cursor: pointer; }
+@media (min-width: 560px) { .line { grid-template-columns: minmax(0, 1fr) 4.6em 6.2em; grid-template-areas: "town eta price"; } }
 .line:focus-visible { outline: 3px solid var(--amber); outline-offset: -2px; }
-.town { font-size: 25px; line-height: 1.05; overflow-wrap: anywhere; }
-.eta { font-size: 27px; white-space: nowrap; text-align: right; }
-.eta small { font-size: 15px; }
-.price { font-size: 22px; white-space: nowrap; text-align: right; }
-.price.none { font: 600 14px/1.2 var(--body); color: var(--led-off); }
-.row.on .line { background: rgba(255, 182, 39, 0.1); }
-.more { display: grid; gap: 1px; padding: 0 4px 12px; font-size: 14px; line-height: 1.45; color: var(--led-dim); }
+.town { grid-area: town; min-width: 0; }
+.town-name { display: block; font-size: 17px; overflow-wrap: anywhere; }
+.line:hover .town-name { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; }
+.tbar { display: block; height: 8px; margin-top: 6px; border-radius: 4px; overflow: hidden; background: color-mix(in srgb, var(--ink) 11%, transparent); }
+.tbar i { display: block; height: 100%; border-radius: 4px; transform-origin: left; transform: scaleX(0); }
+.eta { grid-area: eta; font-size: 16px; white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+.eta small { font-size: 13px; }
+.price { grid-area: price; font-size: 15px; white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+.price.none { font-weight: 600; font-size: 13px; color: var(--mist); }
+.row.on, .row.hot { background: var(--paper); }
+.more { display: grid; gap: 1px; padding: 0 4px 12px; font-size: 14px; line-height: 1.45; color: var(--mist); }
 .more[hidden] { display: none; }
-.why { color: var(--led); font-weight: 700; }
-.row.noPrice .line { color: var(--led-dim); }
-.row.other .line { color: var(--led-off); }
-.show-all { margin: 6px 0 10px; padding: 8px 14px; background: none; color: var(--led); border: 2px solid var(--led);
+.why { color: var(--ink); font-weight: 700; }
+.row.noPrice .line, .row.other .line { color: var(--mist); }
+.row.other .tbar i { background: #9AAAAE; }
+.show-all { margin: 8px 0 10px; padding: 8px 14px; background: var(--paper); color: var(--ink); border: 2px solid var(--edge);
             border-radius: 10px; font: 700 15px/1.2 var(--body); cursor: pointer; }
-.show-all:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
-.empty { color: var(--led-dim); margin: 6px 0 12px; font-size: 15px; }
+.empty { color: var(--mist); margin: 6px 0 12px; font-size: 15px; }
+@media (prefers-reduced-motion: no-preference) {
+  .tbar i { transition: transform 0.45s cubic-bezier(.2,.9,.3,1); }
+  .row { transition: background-color 0.2s; }
+}
 
 /* ---------------- map */
 .map-wrap { overflow: hidden; }
@@ -130,6 +158,9 @@ input[type=text]::placeholder { color: var(--mist); }
                       box-shadow: none; }
 .pill.noprice { border-style: dashed; }
 .pill.on { outline: 3px solid #FFB627; outline-offset: 1px; transform: translate(-50%, -50%) scale(1.2); }
+/* The town under the pointer in the list (app.js adds .hot to its pill, and to the row of a pill under the pointer). */
+.pill.hot { outline: 3px solid #0F1618; outline-offset: 1px; transform: translate(-50%, -50%) scale(1.2); }
+@media (prefers-reduced-motion: no-preference) { .pill { transition: transform 0.15s ease-out; } }
 .key { transform: none; font-size: 13px; padding: 0 6px; box-shadow: none; }
 .office { display: block; transform: translate(-50%, -100%); }
 .office svg { display: block; }
@@ -194,30 +225,37 @@ input[type=text]::placeholder { color: var(--mist); }
 .town-list a { font: 700 22px/1.1 var(--display); }
 .town-list span { color: var(--mist); font-size: 14px; }
 /* tool: costs and links to town pages */
-.allin { display: block; font: 600 13px/1.3 var(--body); color: var(--led-dim); margin-top: 2px; }
+.allin { display: block; font: 500 13px/1.35 var(--body); color: var(--mist); margin-top: 5px; }
+.picks .value .allin { color: var(--led-dim); }
 .towns-link { margin: 4px 0 12px; font-size: 14px; }
-.towns-link a { color: var(--led); }
-.more .cost { color: var(--led); font-weight: 600; }
-.more .town-link { color: var(--led); font-weight: 700; margin-top: 4px; width: fit-content; }
+.more .cost { color: var(--ink); font-weight: 600; }
+.more .town-link { font-weight: 700; margin-top: 4px; width: fit-content; }
 .more .town-link:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
 .town-page .lead + .lead { margin-top: 12px; }
 
 /* ---------------- compare: "+ Compare" on each row, the bar at the bottom, the table */
 /* Phones: the button sits on its own short line under the town, so the names keep their width.
    Wider screens: beside the line. */
-.row { display: grid; grid-template-columns: minmax(0, 1fr); }
-.cmp { justify-self: start; display: inline-flex; align-items: center; gap: 5px; min-height: 32px; margin: 0 0 10px 4px;
-       padding: 0 10px; background: none; color: var(--led); border: 1.5px solid rgba(255, 182, 39, 0.55);
-       border-radius: 999px; font: 700 13px/1.1 var(--body); cursor: pointer; }
-.cmp-mark { font: 700 16px/1 var(--display); }
-.cmp.on { background: var(--led); color: #101719; border-color: var(--led); }
-.cmp:disabled { opacity: 0.35; cursor: not-allowed; }
-.cmp:focus-visible { outline: 3px solid #FFFFFF; outline-offset: 1px; }
-@media (min-width: 560px) {
-  .row { grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; align-items: center; }
-  .row .more { grid-column: 1 / -1; }
-  .cmp { margin: 0; min-height: 36px; min-width: 108px; justify-content: center; }
+/* A row: its number, the line, and a round + to add the town to the comparison (a tick once added). */
+.row { display: grid; grid-template-columns: 1.5em minmax(0, 1fr) auto; column-gap: 8px; align-items: center; padding: 0 4px; }
+.row .more { grid-column: 2 / -1; }
+.cmp { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; background: var(--paper); color: var(--ink);
+       border: 2px solid var(--edge); border-radius: 50%; cursor: pointer; }
+.cmp-mark { font: 700 20px/1 var(--display); }
+/* The word is for screen readers and for the button's name; the mark is what shows. */
+.cmp-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.cmp.on { background: var(--ink); color: var(--paper); }
+.cmp:active { transform: scale(0.9); }
+/* A phone: less padding and slightly smaller figures, so a town's name keeps its width. */
+@media (max-width: 559px) {
+  .board-wrap { padding: 14px 10px 6px; }
+  .row { grid-template-columns: 1.1em minmax(0, 1fr) auto; column-gap: 6px; padding: 0 2px; }
+  .line { column-gap: 8px; }
+  .town-name { font-size: 16px; overflow-wrap: break-word; }
+  .eta { font-size: 15px; }
+  .price { font-size: 14px; }
 }
+.cmp:disabled { opacity: 0.35; cursor: not-allowed; }
 
 /* A first guess; app.js sets the real bar height (it grows when the chips wrap). */
 body.has-bar { padding-bottom: 160px; }
@@ -240,8 +278,21 @@ body.has-bar { padding-bottom: 160px; }
 .compare-go[hidden] { display: none; }
 .compare-go:focus-visible { outline: 3px solid #FFFFFF; outline-offset: 2px; }
 
-.compare { padding: 18px; margin-bottom: 24px; }
+/* The comparison: a sheet that comes up from the bottom over the list and the bar. app.js moves it
+   with a spring (transform through the CSSOM); its top is the part to drag. No dimming behind it:
+   the list stays usable, so it is a panel beside the task, not a dialog. A large surface, so it is
+   nearly solid, with a soft shadow. */
+.compare { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1100; width: min(860px, 100%); max-height: 86vh; margin: 0 auto;
+           display: flex; flex-direction: column; padding: 0 18px calc(14px + env(safe-area-inset-bottom));
+           background: color-mix(in srgb, var(--card) 94%, transparent); -webkit-backdrop-filter: blur(24px) saturate(170%);
+           backdrop-filter: blur(24px) saturate(170%); border: 2.5px solid var(--edge); border-bottom: 0; border-radius: 22px 22px 0 0;
+           box-shadow: 0 -10px 34px rgba(0, 0, 0, 0.22); will-change: transform; }
 .compare[hidden] { display: none; }
+@media (prefers-reduced-transparency: reduce) { .compare { background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; } }
+.compare-grip { flex: none; padding-top: 18px; position: relative; cursor: grab; touch-action: none; -webkit-user-select: none; user-select: none; }
+.compare-grip.dragging { cursor: grabbing; }
+.grip-bar { position: absolute; top: 7px; left: 50%; width: 44px; height: 5px; margin-left: -22px; border-radius: 3px; background: var(--ink); opacity: 0.3; }
+.compare .table-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; }
 .compare-top { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 12px;
                margin-bottom: 10px; }
 .compare h2 { font: 700 clamp(28px, 4.5vw, 38px)/1.02 var(--display); margin: 0; }

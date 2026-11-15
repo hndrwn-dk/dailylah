@@ -15,7 +15,6 @@ import {
   commuteText,
   flatLabel,
   flatTypes,
-  highlightText,
   allInText,
   highlights,
   pillText,
@@ -30,6 +29,8 @@ import {
   timeBand,
   writeQuery,
 } from "./logic.js";
+// The landing page's motion helpers: the spring, a drag's speed, where a flick ends, soft edges.
+import { Spring, Velocity, calm, clamp, project, rubber } from "/shared/spring.js";
 
 const DATA_URL = "/data/where-to-live.json";
 const TILE_URL = "https://www.onemap.gov.sg/maps/tiles/{style}/{z}/{x}/{y}.png";
@@ -57,46 +58,93 @@ function el(tag, className, text) {
   return node;
 }
 
-function option(value, text, selected) {
-  const o = document.createElement("option");
-  o.value = value;
-  o.text = text;
-  o.selected = selected;
-  return o;
-}
-
 // ---------------------------------------------------------------- form
 
-function fillForm(data, state) {
-  $("area").replaceChildren(...data.areas.map((a) => option(a.id, a.name, a.id === state.area)));
-  for (const input of document.querySelectorAll("input[name=mode]")) input.checked = input.value === state.mode;
-  $("flat").replaceChildren(...flatTypes(data, state.mode).map((f) => option(f, flatLabel(f), f === state.flat)));
-  $("budget-label").textContent = state.mode === "buy" ? "Max price ($)" : "Max rent per month ($)";
-  $("budget").value = state.budget ?? "";
-  $("max").replaceChildren(
-    option("", "Any time", state.max == null),
-    ...MAX_MINUTES.map((m) => option(String(m), `Up to ${m} min`, m === state.max)),
-  );
+const ANY_TIME = MAX_MINUTES.length; // the travel time slider's last step
+const dollars = new Intl.NumberFormat("en-SG");
+
+/** One chip: a radio button with its label, so the keyboard and a screen reader get a real choice. */
+function chip(name, value, text, checked) {
+  const label = el("label");
+  const input = document.createElement("input");
+  input.type = "radio";
+  input.name = name;
+  input.value = value;
+  input.checked = checked;
+  label.append(input, el("span", null, text));
+  return label;
 }
 
-function formQuery() {
+/** Fill a group of chips. They are rebuilt only when the list changes, so focus stays put. */
+function fillChips(box, name, items, chosen) {
+  const have = [...box.querySelectorAll("input")].map((input) => input.value);
+  if (have.length !== items.length || have.some((value, i) => value !== items[i][0])) {
+    box.replaceChildren(...items.map(([value, text]) => chip(name, value, text, value === chosen)));
+  } else {
+    for (const input of box.querySelectorAll("input")) input.checked = input.value === chosen;
+  }
+}
+
+/**
+ * The budget slider for a mode: from the lowest to the highest median in the data, in steps of
+ * $100 (rent) or $25,000 (resale). One step past the top means "Any".
+ */
+function budgetRange(data, mode) {
+  const key = mode === "buy" ? "resale" : "rent";
+  const step = mode === "buy" ? 25000 : 100;
+  const all = data.towns.flatMap((t) => Object.values(t[key] ?? {}).map((c) => c?.median).filter(Number.isFinite));
+  if (!all.length) return { min: 0, top: step, step, any: step * 2 };
+  const top = Math.ceil(Math.max(...all) / step) * step;
+  return { min: Math.floor(Math.min(...all) / step) * step, top, step, any: top + step };
+}
+
+function fillForm(data, state) {
+  fillChips($("area"), "area", data.areas.map((a) => [a.id, a.name]), state.area);
+  for (const input of document.querySelectorAll("input[name=mode]")) input.checked = input.value === state.mode;
+  fillChips($("flat"), "flat", flatTypes(data, state.mode).map((f) => [f, flatLabel(f)]), state.flat);
+  const range = budgetRange(data, state.mode);
+  const budget = $("budget");
+  budget.min = String(range.min);
+  budget.max = String(range.any);
+  budget.step = String(range.step);
+  budget.value = String(state.budget == null ? range.any : clamp(state.budget, range.min, range.top));
+  // A budget from a link may sit between two steps: it is kept until the slider is moved.
+  if (state.budget == null) delete budget.dataset.moved;
+  $("budget-label").textContent = state.mode === "buy" ? "Max price" : "Max rent per month";
+  $("budget-out").textContent = state.budget == null ? "Any" : `$${dollars.format(state.budget)}`;
+  $("max").value = String(state.max == null ? ANY_TIME : MAX_MINUTES.indexOf(state.max));
+  $("max-out").textContent = state.max == null ? "Any time" : `Up to ${state.max} min`;
+}
+
+function formQuery(state) {
   const q = new URLSearchParams();
-  q.set("area", $("area").value);
-  q.set("mode", document.querySelector("input[name=mode]:checked")?.value ?? "rent");
-  q.set("flat", $("flat").value);
-  if ($("budget").value) q.set("budget", $("budget").value.replace(/[^\d]/g, ""));
-  if ($("max").value) q.set("max", $("max").value);
+  const picked = (name) => document.querySelector(`input[name=${name}]:checked`)?.value;
+  q.set("area", picked("area") ?? state.area);
+  q.set("mode", picked("mode") ?? "rent");
+  q.set("flat", picked("flat") ?? state.flat);
+  const slider = $("budget");
+  const budget = !slider.dataset.moved ? state.budget : Number(slider.value) >= Number(slider.max) ? null : Number(slider.value);
+  if (budget != null) q.set("budget", String(budget));
+  const step = Number($("max").value);
+  if (step < ANY_TIME) q.set("max", String(MAX_MINUTES[step]));
   return `?${q}`;
 }
 
 // ---------------------------------------------------------------- board
 
-/** One line per town (name, minutes, price); tapping it opens the details below. */
-function boardRow(row, view, actions) {
+const FULL_BAR = 90; // minutes that fill a row's bar
+
+/**
+ * One row per town: its place, the name over a bar as long as the trip, minutes and price; tapping
+ * the line opens the details below. [place] is the town's number among those that fit, or null.
+ */
+function boardRow(row, view, actions, place) {
   const { state } = view;
   const open = view.open === row.town.id;
   const li = el("li", `row ${row.group}${view.selected === row.town.id ? " on" : ""}`);
   li.id = `row-${row.town.id}`;
+  const number = el("span", "rank", place == null ? "–" : String(place));
+  number.setAttribute("aria-hidden", "true");
   const line = el("button", "line");
   line.type = "button";
   line.setAttribute("aria-expanded", String(open));
@@ -107,9 +155,22 @@ function boardRow(row, view, actions) {
     eta.textContent = String(row.commute.min);
     eta.append(el("small", null, " min"));
   } else eta.textContent = "--";
-  line.append(el("span", "town", row.town.name), eta, el("span", row.price ? "price" : "price none", shortPrice(state.mode, row.price)));
+  // The bar takes the map pill's colour for the same travel time band.
+  const band = timeBand(row.commute);
+  const fill = el("i", band == null ? null : `b${band}`);
+  fill.style.transform = `scaleX(${row.commute ? clamp(row.minutes / FULL_BAR, 0.03, 1) : 0})`;
+  const bar = el("span", "tbar");
+  bar.setAttribute("aria-hidden", "true");
+  bar.append(fill);
+  const town = el("span", "town");
+  // A zero-width space after a slash lets "Kallang/Whampoa" break there on a narrow phone.
+  town.append(el("span", "town-name", row.town.name.replace("/", "/​")), bar);
+  line.append(town, eta, el("span", row.price ? "price" : "price none", shortPrice(state.mode, row.price)));
   line.addEventListener("click", () => actions.toggle(row.town.id));
-  li.append(line);
+  // The row under the pointer marks its pill on the map.
+  li.addEventListener("pointerenter", () => actions.hover(row.town.id, true));
+  li.addEventListener("pointerleave", () => actions.hover(row.town.id, false));
+  li.append(number, line);
   const more = el("div", "more");
   more.id = `more-${row.town.id}`;
   more.hidden = !open;
@@ -189,8 +250,7 @@ function watchBarHeight() {
 
 /** The side-by-side table: a column per town, the best value in each line marked. */
 function renderCompare(data, view, actions) {
-  const panel = $("compare");
-  panel.hidden = !view.comparing;
+  // The sheet itself is shown and put away by makeSheet; here only what it holds.
   if (!view.comparing) return;
   const { state } = view;
   const { towns, lines } = compareTable(data, state);
@@ -232,7 +292,7 @@ function renderCompare(data, view, actions) {
 }
 
 function group(title, rows, view, actions, opts = {}) {
-  const { emptyText = null, folded = false, top = null, key } = opts;
+  const { emptyText = null, folded = false, top = null, key, numbered = false } = opts;
   if (!rows.length && !emptyText) return null;
   const heading = `${title} (${rows.length})`;
   const section = el(folded ? "details" : "section", "group");
@@ -250,7 +310,7 @@ function group(title, rows, view, actions, opts = {}) {
   }
   const cut = top != null && !view.showAll && rows.length > top ? top : rows.length;
   const ol = el("ol", "rows");
-  ol.append(...rows.slice(0, cut).map((r) => boardRow(r, view, actions)));
+  ol.append(...rows.slice(0, cut).map((r, i) => boardRow(r, view, actions, numbered ? i + 1 : null)));
   section.append(ol);
   if (cut < rows.length) {
     const more = el("button", "show-all", `Show all ${rows.length}`);
@@ -272,6 +332,7 @@ function renderBoard(data, view, groups, actions) {
     group("Fits your choices", groups.match, view, actions, {
       emptyText: "Alamak, nothing fits. Try a bigger budget or longer travel time.",
       top: TOP_ROWS,
+      numbered: true,
     }),
     group(`No ${flatLabel(state.flat)} price data`, groups.noPrice, view, actions),
     // Folded while some town fits, so the map is not pushed far down on a phone.
@@ -291,11 +352,108 @@ function renderPicks(state, groups) {
   if (!picks) return;
   for (const [id, row] of [["pick-fast", picks.fastest], ["pick-value", picks.value]]) {
     const cost = allInText(state, row);
+    const time = row.commute.same_area ? "In this area" : `${row.commute.min} min`;
     $(id).replaceChildren(
-      document.createTextNode(highlightText(row, state.mode)),
+      el("strong", "pick-town", row.town.name),
+      el("span", "pick-line", `${time} · ${shortPrice(state.mode, row.price)}`),
       ...(cost ? [el("span", "allin", cost)] : []),
     );
   }
+}
+
+/**
+ * The rows glide to their new places when the order changes, instead of jumping: each row starts
+ * from where it was on screen a moment ago ([before]: town id to its top) and settles; a row that
+ * was not there fades in. With reduced motion they simply change.
+ */
+function slideRows(before) {
+  if (calm() || !before.size) return;
+  for (const li of document.querySelectorAll("#board-body .row")) {
+    const was = before.get(li.id);
+    if (was == null) {
+      li.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260, easing: "ease-out" });
+      continue;
+    }
+    const dy = was - li.getBoundingClientRect().top;
+    if (Math.abs(dy) > 1) {
+      li.animate([{ transform: `translateY(${dy}px)` }, { transform: "none" }], { duration: 420, easing: "cubic-bezier(.2,.9,.3,1)" });
+    }
+  }
+}
+
+/** Where every row is on screen right now, by its id. */
+function rowTops() {
+  return new Map([...document.querySelectorAll("#board-body .row")].map((li) => [li.id, li.getBoundingClientRect().top]));
+}
+
+// ---------------------------------------------------------------- compare sheet
+
+/**
+ * The comparison as a sheet from the bottom. set(true) brings it up, set(false) puts it away; its
+ * top can be dragged: it follows the finger, resists softly above its open place, and a flick or
+ * a drag past 40% of its height dismisses it ([onDismiss], with the speed of the release).
+ */
+function makeSheet(onDismiss) {
+  const panel = $("compare");
+  const grip = $("compare-grip");
+  const y = new Spring(0, { response: 0.35, damping: 1 });
+  let open = false;
+  let leaving = false;
+  y.onUpdate = (v) => {
+    panel.style.transform = `translateY(${v}px)`;
+    if (leaving && v >= panel.offsetHeight - 0.5) {
+      leaving = false;
+      panel.hidden = true;
+    }
+  };
+  let drag = null;
+  grip.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || e.target.closest("button, a")) return;
+    y.stop(); // grab it where it is, even mid-flight
+    drag = { id: e.pointerId, y0: e.clientY, from: y.x, speed: new Velocity() };
+    drag.speed.add(y.x, e.timeStamp);
+    grip.setPointerCapture(e.pointerId);
+    grip.classList.add("dragging");
+  });
+  grip.addEventListener("pointermove", (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (e.buttons === 0) return release(e);
+    let to = drag.from + (e.clientY - drag.y0);
+    if (to < 0) to = -rubber(-to, panel.offsetHeight);
+    y.jump(to);
+    drag.speed.add(to, e.timeStamp);
+  });
+  function release(e) {
+    if (!drag || (e && e.pointerId !== drag.id)) return;
+    const velocity = drag.speed.get();
+    drag = null;
+    grip.classList.remove("dragging");
+    const rest = y.x + project(velocity, 0.99);
+    if (rest > panel.offsetHeight * 0.4) onDismiss(velocity);
+    else y.to(0, { velocity, response: 0.3, damping: Math.abs(velocity) > 300 ? 0.8 : 1 });
+  }
+  grip.addEventListener("pointerup", release);
+  grip.addEventListener("pointercancel", release);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && open) onDismiss(0);
+  });
+  return {
+    set(want, velocity = 0) {
+      if (want === open) return;
+      open = want;
+      if (want) {
+        leaving = false;
+        if (panel.hidden) {
+          panel.hidden = false;
+          y.jump(panel.offsetHeight); // start below the screen
+        }
+        y.to(0, { velocity, response: 0.35, damping: 1 });
+      } else {
+        leaving = true;
+        y.to(panel.offsetHeight, { velocity, response: 0.3, damping: 1 });
+      }
+    },
+  };
 }
 
 // ---------------------------------------------------------------- share
@@ -444,6 +602,9 @@ function renderMap(m, data, view, groups, actions) {
         zIndexOffset: selected ? 1000 : row.group === "match" ? 200 : 0,
       }).bindPopup(() => popup(row, view.state));
       marker.on("click", () => actions.fromMap(row.town.id));
+      // The pill under the pointer marks its row in the list.
+      marker.on("mouseover", () => $(`row-${row.town.id}`)?.classList.add("hot"));
+      marker.on("mouseout", () => $(`row-${row.town.id}`)?.classList.remove("hot"));
       marker.addTo(layer);
       markers.set(row.town.id, marker);
     }
@@ -507,18 +668,30 @@ async function main() {
   const syncUrl = () =>
     window.history.replaceState(null, "", `${window.location.pathname}${writeQuery(view.state)}`);
   const draw = () => {
+    const before = rowTops();
     renderBoard(data, view, groups, actions);
+    slideRows(before);
     renderMap(m, data, view, groups, actions);
     renderCompareBar(data, view, actions);
     fitBar();
     renderCompare(data, view, actions);
+    sheet.set(view.comparing);
   };
   const showCompare = () => {
     view.comparing = true;
     draw();
-    $("compare").scrollIntoView({ block: "start" });
     $("compare-title").focus({ preventScroll: true });
   };
+  /** Put the comparison away (the button, Escape, or a drag down with [velocity]). */
+  const closeCompare = (velocity = 0) => {
+    view.comparing = false;
+    sheet.set(false, velocity);
+    draw();
+    // The keyboard goes back to where the sheet was opened from, without scrolling the list.
+    const go = $("compare-go");
+    (go.disabled || $("compare-bar").hidden ? $("board-title") : go).focus({ preventScroll: true });
+  };
+  const sheet = makeSheet(closeCompare);
   const reveal = (id) => {
     // Make sure the row is on the board: past the top rows, or in the folded group.
     const row = [...groups.match, ...groups.noPrice, ...groups.other].find((r) => r.town.id === id);
@@ -553,6 +726,9 @@ async function main() {
       view.showAll = true;
       draw();
     },
+    hover(id, on) {
+      m?.markers.get(id)?.getElement()?.querySelector(".pill")?.classList.toggle("hot", on);
+    },
     compare(id) {
       // draw() rebuilds the buttons, so remember where the keyboard was and put it back.
       const from = document.activeElement;
@@ -580,30 +756,36 @@ async function main() {
     },
   };
   $("compare-go").addEventListener("click", showCompare);
-  $("compare-close").addEventListener("click", () => {
-    view.comparing = false;
-    draw();
-    $("board-title").scrollIntoView({ block: "start" });
-    // The button was inside the table that just closed: move the keyboard to the board.
-    $("board-title").focus({ preventScroll: true });
-  });
+  $("compare-close").addEventListener("click", () => closeCompare());
   const update = () => {
-    // changeChoices drops the budget when the mode changes; fillForm then clears the field.
+    // changeChoices drops the budget when the mode changes; fillForm then puts the slider on "Any".
     // The towns to compare stay: the table follows the new office area, mode and flat type.
-    view.state = { ...changeChoices(view.state, formQuery(), data), compare: view.state.compare };
+    view.state = { ...changeChoices(view.state, formQuery(view.state), data), compare: view.state.compare };
     view.open = null;
     view.selected = null;
     view.showAll = false;
     groups = rank(data, view.state);
     fillForm(data, view.state);
     draw();
-    syncUrl();
   };
-  $("choices").addEventListener("change", update);
+  // "input" fires while a slider is being dragged, so the list answers under the finger; the
+  // address bar is written once the drag ends ("change"), not on every step.
+  $("choices").addEventListener("input", (e) => {
+    if (e.target.id === "budget") e.target.dataset.moved = "1";
+    update();
+  });
+  $("choices").addEventListener("change", syncUrl);
   $("choices").addEventListener("submit", (e) => {
     e.preventDefault();
     update();
+    syncUrl();
   });
+  // The map sticks under the choices card on a wide screen: tell the CSS how tall the card is.
+  if (typeof ResizeObserver === "function") {
+    new ResizeObserver(() => {
+      document.documentElement.style.setProperty("--choices", `${Math.ceil($("choices").getBoundingClientRect().height)}px`);
+    }).observe($("choices"));
+  }
   renderSources(data);
   setUpShare();
   fillForm(data, view.state);
@@ -616,9 +798,7 @@ async function main() {
     reveal(focusTown);
   }
   draw();
-  if (view.comparing) {
-    $("compare").scrollIntoView({ block: "start" });
-  } else if (focusTown) {
+  if (!view.comparing && focusTown) {
     m?.markers.get(focusTown)?.openPopup();
     $(`row-${focusTown}`)?.scrollIntoView({ block: "center" });
   }
