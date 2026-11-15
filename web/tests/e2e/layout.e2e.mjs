@@ -564,3 +564,45 @@ test("home, where to live: the teaser ranks towns from the published data and re
     await context.close();
   }
 });
+
+test("home, hero: with JS the questions are chips under a line that says what a tap does; without JS, plain lines", async () => {
+  const look = (page) => page.evaluate(() => {
+    const q = document.querySelector(".asks .q");
+    const style = getComputedStyle(q);
+    const tops = [...document.querySelectorAll(".asks .q")].map((el) => Math.round(el.getBoundingClientRect().top));
+    return {
+      hint: document.querySelector(".ask-hint")?.textContent ?? null,
+      chip: Number.parseFloat(style.borderTopWidth) > 0 && Number.parseFloat(style.paddingLeft) >= 10,
+      questions: tops.length,
+      notch: Boolean(document.querySelector(".stop .notch")),
+      sideways: document.documentElement.scrollWidth > innerWidth + 1,
+    };
+  });
+  for (const width of [360, 1280]) {
+    const { context, page } = await home(width, ".ask-hint");
+    try {
+      assert.deepEqual(await look(page), { hint: "Ask it something. The phone answers.", chip: true, questions: 7, notch: true, sideways: false });
+      // Where they sit: the line right above the chips; on a phone the stop card above both and the button below.
+      const top = (selector) => page.$eval(selector, (el) => el.getBoundingClientRect().top + scrollY);
+      const [stop, hint, chip, cta] = await Promise.all([".stop", ".ask-hint", ".asks .q", ".cta"].map(top));
+      assert.ok(hint < chip && chip < cta, `hint ${hint}, first chip ${chip}, button ${cta}`);
+      if (width < 880) assert.ok(stop < hint, `stop card ${stop} above the hint ${hint}`);
+      // The shown question is the dark chip; tapping another moves it.
+      const dark = () => page.$$eval(".asks .q", (els) => els.filter((el) => getComputedStyle(el).backgroundColor === getComputedStyle(document.body).color).map((el) => el.textContent));
+      await page.locator(".q", { hasText: "Haze bad or not?" }).click();
+      await page.waitForTimeout(350);
+      assert.deepEqual(await dark(), ["Haze bad or not?"]);
+    } finally {
+      await context.close();
+    }
+  }
+  const context = await browser.newContext({ viewport: { width: 360, height: 900 }, javaScriptEnabled: false });
+  const page = await context.newPage();
+  try {
+    await page.route((url) => !url.href.startsWith(base), (route) => route.abort());
+    await page.goto(base + "/", { waitUntil: "load" });
+    assert.deepEqual(await look(page), { hint: null, chip: false, questions: 7, notch: false, sideways: false });
+  } finally {
+    await context.close();
+  }
+});
