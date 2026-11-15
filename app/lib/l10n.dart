@@ -970,7 +970,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "On foldables and tablets DailyLah now shows two columns, so more fits on screen at once.",
+        "Alerts have a new look: rain, haze, heat, your bus and MRT disruptions now show the key facts as coloured tags. See them under More > Alerts > Show me an example.",
       ];
 
   // about

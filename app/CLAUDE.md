@@ -171,6 +171,27 @@ feature, screen, provider or rule moves, appears or goes away.
 - Alerts run on-device: WorkManager every 15 min (`lib/background.dart`) calls the API and
   reads the cached bundles, then shows local notifications. Keep the alert rules (quiet
   hours, one per event, max 3 rain alerts a day) in `logic.dart` / `AlertLog`.
+  Eight alerts show with pills and a small picture, like the landing page's "A day with DailyLah": rain (ID 2),
+  haze (8), leave by (9, 13+i for custom places), MRT disruption (1), Wake me at my stop (10), hawker closed
+  tomorrow (3), heat stress (5) and the Sunday digest (12). What each shows is a `RichNote` (models.dart: title,
+  body, up to 3 `NotePill`s with a `PillTone`, a `NoteArt`, the tab a tap opens) built in logic.dart by
+  `rainNote`, `hazeNote`, `leaveNote`, `mrtNote`, `wakeNote`, `hawkerNote`, `heatNote`, `digestNote`; a pill
+  whose value is not known is left out (UV from `/v1/weather/uv` only when the heat alert shows; the plan B bus
+  only when the disrupted line is on today's trip, `planBBus`; "Usually 38 min" and the digest's week,
+  `weekHabits`, only with `learnHabits`). `showNote` (background.dart) sends the note to the in-repo plugin
+  `packages/dailylah_notify` (Android only, channel `dailylah/notify`; a real plugin because the WorkManager
+  isolate has no `MainActivity` channels) and shows the plain notification with the same title and body when
+  the plugin answers false, so an alert is never lost. The plugin (`NotePoster.kt`, `NoteArt.kt`,
+  `res/layout/dl_note.xml`, kept by hand like the widget) posts on the same channel `dailylah_alerts` and IDs
+  with `DecoratedCustomViewStyle`: real text only (pills are `TextView`s, pictures are decorative bitmaps),
+  only `LinearLayout`/`TextView`/`ImageView`, pills filled row by row by a character budget that shrinks with
+  larger text, colours as resources (values-night). The other alerts (dengue, lightning, parking, resale,
+  holiday, MRT ride) stay plain; giving one a layout is a new `...Note` builder. More > Alerts > "Show me an
+  example" (`showExampleAlerts`, `sampleNotes`) posts the eight with sample values and never touches
+  `AlertLog`. Tests: "rich notes" in `test/logic_test.dart`, "alerts with pills" in
+  `test/background_rules_test.dart`, `test/dailylah_notify_test.dart`, and on emulators "every sample alert
+  posts with the custom layout" in `integration_test/app_test.dart`. How the layout looks on a real shade is
+  checked by eye with Show me an example.
 - Nearby (`ui/nearby.dart`) is "I am here now": starts on Here, chips for one section at a time
   (`nearbySectionProvider`: bus, eat, green = parks, park = car parking, taxi, prayer, help). The taxi sheet
   (`TaxiSheet` in `ui/today.dart`) answers first (`TaxiEaseCard`, `taxiEase`), then the nearest stand with
