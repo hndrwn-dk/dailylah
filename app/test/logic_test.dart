@@ -5,6 +5,7 @@ import 'package:dailylah/data.dart';
 import 'package:dailylah/l10n.dart';
 import 'package:dailylah/logic.dart';
 import 'package:dailylah/models.dart';
+import 'package:flutter/services.dart' show StandardMessageCodec;
 import 'package:flutter_test/flutter_test.dart' hide within;
 
 import 'support/harness.dart' show householdFavorites, saturdayMorning, tuesdayEvening, tuesdayMorning;
@@ -2477,6 +2478,217 @@ void main() {
       expect(s.rackName('TAMPINES MRT B'), 'TAMPINES MRT B');
       expect(s.rackName('CAPITASPRING-1'), 'CAPITASPRING-1');
       expect(s.lotsAsOf('8:05'), 'Lots as of 8:05');
+    });
+  });
+
+  group('rich notes', () {
+    const s = S();
+    List<String> texts(RichNote n) => [for (final p in n.pills) p.text];
+    List<PillTone> tones(RichNote n) => [for (final p in n.pills) p.tone];
+
+    test('rain: place, area and forecast, umbrella pill and the forecast window', () {
+      final n = rainNote(s,
+          placeKind: 'work', f: const AreaForecast(area: 'Bishan', forecast: 'Showers', validText: '12 PM to 2 PM'));
+      expect(n.id, 2);
+      expect(n.title, 'Rain before you leave.');
+      expect(n.body, 'Rain near your office (Bishan): Showers. Bring an umbrella.');
+      expect(texts(n), ['☂ Rain near Work', 'Forecast 12 PM to 2 PM']);
+      expect(tones(n), [PillTone.amber, PillTone.sky]);
+      expect(n.art, NoteArt.rain);
+      expect(n.link, 'dailylah://today');
+    });
+
+    test('rain without a forecast window has only the umbrella pill', () {
+      final n = rainNote(s, placeKind: 'home', f: const AreaForecast(area: 'Tampines', forecast: 'Thundery Showers'));
+      expect(n.body, 'Rain near home (Tampines): Thundery Showers. Bring an umbrella.');
+      expect(texts(n), ['☂ Rain near Home']);
+    });
+
+    test('haze: PSI pill in red and the marker on the bar', () {
+      final n = hazeNote(s, const AirQuality(region: 'east', psi24: 128, pm25: 40, level: AirLevel.unhealthy));
+      expect(n.id, 8);
+      expect(n.title, 'Haze: unhealthy');
+      expect(n.body, s.airAdviceShort(AirLevel.unhealthy));
+      expect(texts(n), ['PSI 128 Unhealthy']);
+      expect(tones(n), [PillTone.red]);
+      expect(n.art, NoteArt.psi);
+      expect(n.artValue, closeTo(128 / 300, 1e-9));
+      expect(n.link, 'dailylah://today');
+    });
+
+    test('PSI 420 caps the marker at 1', () {
+      final n = hazeNote(s, const AirQuality(region: 'east', psi24: 420, level: AirLevel.hazardous));
+      expect(n.artValue, 1);
+      expect(texts(n), ['PSI 420 Hazardous']);
+    });
+
+    test('PM2.5 62 with PSI 80 shows the PM2.5 pill', () {
+      final n = hazeNote(s, const AirQuality(region: 'east', psi24: 80, pm25: 62, level: AirLevel.unhealthy));
+      expect(texts(n), ['PM2.5 62 Unhealthy']);
+      expect(n.artValue, closeTo(80 / 300, 1e-9));
+    });
+
+    test('haze with no PSI reading has the PM2.5 pill and no bar', () {
+      final n = hazeNote(s, const AirQuality(region: 'east', pm25: 160, level: AirLevel.veryUnhealthy));
+      expect(texts(n), ['PM2.5 160 Very unhealthy']);
+      expect(n.art, NoteArt.none);
+    });
+
+    test('leave by: the bus, when to leave and the usual trip time', () {
+      final n = leaveNote(s, const LeaveBy('36', 6, 4), usualMinutes: 38);
+      expect(n.id, 9);
+      expect(n.title, 'Time to go');
+      expect(n.body, s.leaveIn('36', 6, 4));
+      expect(texts(n), ['36', 'Leave in 6 min', 'Usually 38 min']);
+      expect(tones(n), [PillTone.board, PillTone.teal, PillTone.sky]);
+      expect(n.link, 'dailylah://today');
+    });
+
+    test('no usual time leaves the sky pill out, and 0 minutes says Leave now', () {
+      final n = leaveNote(s, const LeaveBy('36', 0, 4));
+      expect(texts(n), ['36', 'Leave now']);
+    });
+
+    test('leave by for a custom place keeps its id and names the place', () {
+      final n = leaveNote(s, const LeaveBy('12', 3, 2), id: 14, placeName: 'Piano');
+      expect(n.id, 14);
+      expect(n.body, s.leaveForPlace('Piano', s.leaveIn('12', 3, 2)));
+    });
+
+    const ewl = LineStatus(line: 'EWL', disrupted: true, detail: 'No train service between Bugis and Lavender.');
+    test('MRT: the line in its colour, Disrupted and the plan B bus', () {
+      final n = mrtNote(s, const [ewl, LineStatus(line: 'DTL', disrupted: true)], planBBus: '858');
+      expect(n.id, 1);
+      expect(n.title, 'Disruption on EWL, DTL');
+      expect(n.body, 'No train service between Bugis and Lavender.');
+      expect(texts(n), ['EWL', 'Disrupted', '858']);
+      expect(tones(n), [PillTone.line, PillTone.red, PillTone.board]);
+      expect(n.pills.first.lineColor, 0x009645);
+      expect(n.link, 'dailylah://today');
+    });
+
+    test('MRT without a plan B bus or LTA text', () {
+      final n = mrtNote(s, const [LineStatus(line: 'NSL', disrupted: true)]);
+      expect(n.body, s.checkAlternatives);
+      expect(texts(n), ['NSL', 'Disrupted']);
+    });
+
+    const expo = MrtStation(name: 'Expo', codes: ['CG1', 'DT35'], lat: 1.334, lng: 103.961);
+    const segar = MrtStation(name: 'Segar', codes: ['BP11'], lat: 1.387, lng: 103.769);
+    const plan = MrtPlan(board: expo, walkToBoard: 300, alight: segar, walkFromAlight: 400);
+    Map<String, dynamic> disrupted(String line) => {
+          'data': {
+            'value': {
+              'Status': 2,
+              'AffectedSegments': [
+                {'Line': line, 'Stations': 'X1,X2'},
+              ],
+              'Message': [],
+            },
+          },
+        };
+
+    test('planBBus is the first direct bus when the disrupted line is on the plan', () {
+      expect(planBBus(plan: plan, alerts: disrupted('DTL'), directServices: ['858', '36']), '858');
+    });
+
+    test('planBBus is null when the disrupted line is not on the plan', () {
+      expect(planBBus(plan: plan, alerts: disrupted('NEL'), directServices: ['858']), isNull);
+    });
+
+    test('planBBus is null with no direct service, no plan or no alerts', () {
+      expect(planBBus(plan: plan, alerts: disrupted('DTL'), directServices: const []), isNull);
+      expect(planBBus(plan: null, alerts: disrupted('DTL'), directServices: ['858']), isNull);
+      expect(planBBus(plan: plan, alerts: null, directServices: ['858']), isNull);
+    });
+
+    test('wake: your stop is next in amber, may have passed in red, no tab link', () {
+      final n = wakeNote(s, WakeEvent.wake, 'Blk 123');
+      expect(n.id, 10);
+      expect(n.title, s.wakeTitle);
+      expect(n.body, s.wakeNowAt('Blk 123'));
+      expect(texts(n), ['Your stop is next']);
+      expect(tones(n), [PillTone.amber]);
+      expect(n.art, NoteArt.phone);
+      expect(n.link, isNull);
+      final p = wakeNote(s, WakeEvent.passed, 'Blk 123');
+      expect(p.body, s.wakePassed('Blk 123'));
+      expect(texts(p), ['May have passed']);
+      expect(tones(p), [PillTone.red]);
+    });
+
+    test('hawker: closed tomorrow and where is open, opens Nearby', () {
+      final n = hawkerNote(s, 'Maxwell Food Centre', altName: 'Amoy Street Food Centre', altMetres: 400);
+      expect(n.id, 3);
+      expect(n.title, s.hawkerTomorrowTitle);
+      expect(n.body,
+          '${s.hawkerClosedTomorrow('Maxwell Food Centre')}. ${s.tryInstead('Amoy Street Food Centre', '400 m')}');
+      expect(texts(n), ['Closed tomorrow', 'Open: Amoy Street Food Centre, 400 m']);
+      expect(tones(n), [PillTone.red, PillTone.mint]);
+      expect(n.link, 'dailylah://nearby');
+      final alone = hawkerNote(s, 'Maxwell Food Centre');
+      expect(alone.body, s.hawkerClosedTomorrow('Maxwell Food Centre'));
+      expect(texts(alone), ['Closed tomorrow']);
+    });
+
+    test('heat: level and UV pills with the thermometer', () {
+      final n = heatNote(s, place: 'School', level: 'High', uv: 11);
+      expect(n.id, 5);
+      expect(n.title, 'Heat stress high.');
+      expect(n.body, 'Near School. Bring water and take the sheltered way.');
+      expect(texts(n), ['Heat stress High', 'UV 11']);
+      expect(tones(n), [PillTone.red, PillTone.amber]);
+      expect(n.art, NoteArt.heat);
+      expect(n.artValue, 1);
+    });
+
+    test('uv 0 and null leave the UV pill out', () {
+      expect(texts(heatNote(s, place: 'Home', level: 'High', uv: 0)), ['Heat stress High']);
+      expect(texts(heatNote(s, place: 'Home', level: 'High')), ['Heat stress High']);
+    });
+
+    test('digest: the lines, the week in bars and what it cost', () {
+      final n = digestNote(s, ['Maxwell closed Mon', 'Holiday on Fri'],
+          weekCents: 2460, tripsPerDay: [1, 2, 0, 4, 2, 0, 0]);
+      expect(n.id, 12);
+      expect(n.title, s.digestTitle);
+      expect(n.body, 'Maxwell closed Mon\nHoliday on Fri');
+      expect(texts(n), ['≈ \$24.60 this week']);
+      expect(tones(n), [PillTone.sky]);
+      expect(n.art, NoteArt.week);
+      expect(n.bars, [0.25, 0.5, 0, 1, 0.5, 0, 0]);
+    });
+
+    test('digest with no trips has no art, and no cost no pill', () {
+      final n = digestNote(s, ['Holiday on Fri'], weekCents: 0, tripsPerDay: [0, 0, 0, 0, 0, 0, 0]);
+      expect(n.art, NoteArt.none);
+      expect(n.bars, isEmpty);
+      expect(n.pills, isEmpty);
+      expect(digestNote(s, ['x']).pills, isEmpty);
+    });
+
+    test('sampleNotes has the eight alerts under their own ids', () {
+      final notes = sampleNotes(s);
+      expect([for (final n in notes) n.id], [2, 8, 9, 1, 10, 3, 5, 12]);
+      expect(notes.every((n) => n.pills.isNotEmpty && n.pills.length <= 3), isTrue);
+    });
+
+    test('toMap is plain data a method channel can carry', () {
+      for (final n in sampleNotes(s)) {
+        final m = n.toMap();
+        final back = const StandardMessageCodec().decodeMessage(const StandardMessageCodec().encodeMessage(m)) as Map;
+        expect(back['id'], n.id);
+        expect(back['title'], n.title);
+        expect(back['art'], n.art.name);
+        expect((back['pills'] as List).length, n.pills.length);
+        expect(((back['pills'] as List).first as Map)['tone'], n.pills.first.tone.name);
+      }
+      final mrt = mrtNote(s, const [ewl]).toMap();
+      expect(((mrt['pills'] as List).first as Map)['lineColor'], 0x009645);
+    });
+
+    test('every MRT line has its colour in pure Dart', () {
+      expect(mrtLineColors.keys, containsAll(['NSL', 'EWL', 'CCL', 'DTL', 'NEL', 'TEL', 'BPL', 'SLRT', 'PLRT']));
     });
   });
 }

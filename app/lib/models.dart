@@ -846,3 +846,68 @@ class Habits {
         ],
       );
 }
+
+// ---------------------------------------------------------------- alert notifications
+
+/// Sticker colour of a pill in an alert notification. `line` is an MRT line's own colour.
+enum PillTone { amber, red, teal, mint, sky, board, line }
+
+/// The small picture beside the pills.
+enum NoteArt { none, rain, psi, heat, week, phone }
+
+class NotePill {
+  const NotePill(this.text, this.tone, {this.lineColor});
+  final String text;
+  final PillTone tone;
+
+  /// 0xRRGGBB of the MRT line, for [PillTone.line] only.
+  final int? lineColor;
+
+  Map<String, Object?> toMap() => {'text': text, 'tone': tone.name, 'lineColor': lineColor};
+}
+
+/// One alert as the notification shows it: plain title and body, plus pills and a picture
+/// for the custom layout (the dailylah_notify plugin). Built by the `...Note` functions in
+/// logic.dart.
+class RichNote {
+  const RichNote({
+    required this.id,
+    required this.title,
+    required this.body,
+    this.pills = const [],
+    this.art = NoteArt.none,
+    this.artValue,
+    this.bars = const [],
+    this.link,
+  });
+
+  /// The Android notification id (one per kind of alert, as before the custom layout).
+  final int id;
+  final String title;
+  final String body;
+
+  /// At most three, in the order shown.
+  final List<NotePill> pills;
+  final NoteArt art;
+
+  /// psi: where the marker sits on the bar; heat: how full the thermometer is. 0 to 1.
+  final double? artValue;
+
+  /// week: seven bar heights, 0 to 1.
+  final List<double> bars;
+
+  /// What a tap opens (`dailylah://today`, `nearby`, `home`); null opens the app as it is.
+  final String? link;
+
+  /// Plain data for the method channel.
+  Map<String, Object?> toMap() => {
+        'id': id,
+        'title': title,
+        'body': body,
+        'pills': [for (final p in pills) p.toMap()],
+        'art': art.name,
+        'artValue': artValue,
+        'bars': bars,
+        'link': link,
+      };
+}
