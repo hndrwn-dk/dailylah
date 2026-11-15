@@ -606,3 +606,161 @@ test("home, hero: with JS the questions are chips under a line that says what a 
     await context.close();
   }
 });
+
+/** /where-to-live at a width, once its rows are drawn; reduced motion so nothing is mid-flight. */
+async function tool(width, query = "", options = {}) {
+  const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: "reduce", ...options });
+  const page = await context.newPage();
+  await page.route((url) => !url.href.startsWith(base), (route) => route.abort());
+  await page.goto(`${base}/where-to-live${query}`, { waitUntil: "load" });
+  await page.waitForSelector("#board-body .row .cmp");
+  return { context, page };
+}
+const towns = (page) => page.$$eval("#board-body .group:first-child .town-name", (els) => els.map((el) => el.textContent.replace("\u200b", "")));
+
+for (const width of [360, 1280]) {
+  test(`where-to-live at ${width} px: chips and sliders choose, the list re-ranks and the address follows`, async () => {
+    const { context, page } = await tool(width);
+    try {
+      assert.equal(await page.locator("#area input").count(), 6);
+      assert.equal(await page.locator("#area input:checked").inputValue(), "cbd");
+      const first = await towns(page);
+      assert.equal(first[0], "Central Area");
+      // Another office: one tap on its chip.
+      await page.locator("#area label", { hasText: "Woodlands" }).click();
+      assert.equal(await page.textContent("#board-title"), "To Woodlands");
+      assert.equal((await towns(page))[0], "Woodlands");
+      assert.match(page.url(), /area=woodlands/);
+      // Travel time: the slider's first step is 30 minutes, and fewer towns fit.
+      const fits = () => page.locator("#board-body .group:first-child .row").count();
+      const before = await page.textContent("#board-body .group:first-child h3");
+      await page.locator("#max").fill("0");
+      assert.equal(await page.textContent("#max-out"), "Up to 30 min");
+      assert.notEqual(await page.textContent("#board-body .group:first-child h3"), before);
+      assert.ok((await fits()) >= 1);
+      assert.match(page.url(), /max=30/);
+      // Budget: dragging to the lowest step leaves nothing, and the page says so.
+      await page.locator("#budget").fill(await page.getAttribute("#budget", "min"));
+      assert.match(await page.textContent("#budget-out"), /^\$[\d,]+$/);
+      assert.match(page.url(), /budget=\d+/);
+      assert.equal(await fits(), 0);
+      assert.match(await page.textContent("#board-body .group:first-child .empty"), /nothing fits/);
+      // Buying instead: the budget goes back to "Any" and the flat types are chips too.
+      await page.locator(".pick label", { hasText: "Buy resale" }).click();
+      assert.equal(await page.textContent("#budget-out"), "Any");
+      assert.equal(await page.textContent("#budget-label"), "Max price");
+      assert.ok((await page.locator("#flat input").count()) >= 3);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
+    } finally {
+      await context.close();
+    }
+  });
+}
+
+test("where-to-live: a budget from a link is kept as it is until the slider is moved", async () => {
+  const { context, page } = await tool(1280, "?budget=3333");
+  try {
+    assert.equal(await page.textContent("#budget-out"), "$3,333");
+    await page.locator("#area label", { hasText: "one-north" }).click();
+    assert.match(page.url(), /budget=3333/);
+  } finally {
+    await context.close();
+  }
+});
+
+test("where-to-live: rows carry their place, a bar and a round + ; the picks are two cards", async () => {
+  const { context, page } = await tool(360);
+  try {
+    const row = await page.$eval("#board-body .row", (li) => ({
+      rank: li.querySelector(".rank").textContent,
+      bar: li.querySelector(".tbar i").getBoundingClientRect().width > 0,
+      cmp: [li.querySelector(".cmp").getBoundingClientRect().width, li.querySelector(".cmp").getAttribute("aria-label")],
+      nameLines: Math.round(li.querySelector(".town-name").getBoundingClientRect().height / parseFloat(getComputedStyle(li.querySelector(".town-name")).lineHeight)),
+    }));
+    assert.deepEqual(row, { rank: "1", bar: true, cmp: [36, "Compare Central Area"], nameLines: 1 });
+    assert.deepEqual(await page.$$eval("#picks dt", (els) => els.map((el) => el.textContent)), ["Fastest", "Best value"]);
+    assert.equal(await page.textContent("#pick-value .pick-town"), "Hougang");
+  } finally {
+    await context.close();
+  }
+});
+
+test("where-to-live: the comparison is a sheet over the list; Escape and its button put it away", async () => {
+  const { context, page } = await tool(1280, "?compare=bishan,hougang");
+  try {
+    const sheet = () => page.$eval("#compare", (el) => ({
+      shown: !el.hidden && el.getBoundingClientRect().bottom <= innerHeight + 1 && el.getBoundingClientRect().top >= 0,
+      fixed: getComputedStyle(el).position === "fixed",
+      columns: el.querySelectorAll("thead th").length,
+    }));
+    assert.deepEqual(await sheet(), { shown: true, fixed: true, columns: 2 });
+    await page.keyboard.press("Escape");
+    assert.equal(await page.$eval("#compare", (el) => el.hidden), true);
+    assert.equal(await page.evaluate(() => document.activeElement.id), "compare-go");
+    await page.locator("#compare-go").click();
+    assert.equal((await sheet()).shown, true);
+    await page.locator("#compare-close").click();
+    assert.equal(await page.$eval("#compare", (el) => el.hidden), true);
+    // The list did not scroll away while the sheet came and went.
+    assert.equal(await page.evaluate(() => scrollY), 0);
+  } finally {
+    await context.close();
+  }
+});
+
+test("where-to-live: dragging the sheet's top down dismisses it, a small pull springs back", async () => {
+  const { context, page } = await tool(1280, "?compare=bishan,hougang", { reducedMotion: "no-preference" });
+  try {
+    // Wait for what happens, not for a time: the sheet resting in its open place, or put away.
+    const inPlace = () => page.waitForFunction(() => {
+      const el = document.getElementById("compare");
+      return !el.hidden && Math.abs(innerHeight - el.getBoundingClientRect().bottom) < 1;
+    });
+    const away = () => page.waitForFunction(() => document.getElementById("compare").hidden);
+    await inPlace();
+    const pull = async (dy) => {
+      const box = await page.locator("#compare-title").boundingBox();
+      await page.mouse.move(box.x + 10, box.y + 10);
+      await page.mouse.down();
+      for (let i = 1; i <= 8; i++) {
+        await page.mouse.move(box.x + 10, box.y + 10 + (dy * i) / 8);
+        await page.waitForTimeout(30);
+      }
+      await page.mouse.up();
+    };
+    await pull(30);
+    await inPlace();
+    const bar = () => page.$eval("#compare-bar", (el) => [el.inert, getComputedStyle(el).visibility]);
+    assert.deepEqual(await bar(), [true, "hidden"], "the bar steps aside while the sheet is up");
+    await pull(400);
+    await away();
+    assert.deepEqual(await bar(), [false, "visible"]);
+    // A grab in the very moment it starts to leave must not bring back a sheet the page thinks is
+    // closed. In one step in the page, so the press lands while the sheet is still there.
+    await page.locator("#compare-go").click();
+    await inPlace();
+    await page.evaluate(() => {
+      const grip = document.getElementById("compare-grip");
+      const y = grip.getBoundingClientRect().top + 6;
+      document.getElementById("compare-close").click();
+      const press = { bubbles: true, button: 0, pointerId: 1, pointerType: "mouse", clientX: 80, clientY: y };
+      grip.dispatchEvent(new PointerEvent("pointerdown", { ...press, buttons: 1 }));
+      grip.dispatchEvent(new PointerEvent("pointerup", press));
+    });
+    await away();
+    // Escape while the sheet is being dragged: the drag ends and the sheet goes away.
+    await page.locator("#compare-go").click();
+    await inPlace();
+    const box = await page.locator("#compare-title").boundingBox();
+    await page.mouse.move(box.x + 10, box.y + 10);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 10, box.y + 40, { steps: 3 });
+    await page.keyboard.press("Escape");
+    await page.mouse.move(box.x + 10, box.y + 60, { steps: 3 });
+    await page.mouse.up();
+    await away();
+    assert.deepEqual(await bar(), [false, "visible"]);
+  } finally {
+    await context.close();
+  }
+});
