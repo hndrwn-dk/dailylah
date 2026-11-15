@@ -72,8 +72,12 @@ h1 { font: 700 clamp(48px, 9vw, 84px)/0.92 var(--display); margin: 0 0 14px; let
 .results { display: grid; gap: 24px; margin-bottom: 32px; }
 @media (min-width: 960px) {
   .results { grid-template-columns: 1.1fr 1fr; align-items: start; }
-  /* Under the choices card, whose height app.js writes to --choices. */
+  /* Under the choices card, whose height app.js writes to --choices. The map is as tall as what is
+     left of the window, so its key and the OneMap credit stay in view on a short laptop screen. */
   .map-wrap { position: sticky; top: calc(var(--choices, 150px) + 22px); }
+  .map-wrap .map { height: clamp(260px, calc(100vh - var(--choices, 150px) - 120px), 640px); }
+  /* A row scrolled into view (from a pill on the map, or with Tab) stops below the card, not under it. */
+  html { scroll-padding-top: calc(var(--choices, 150px) + 22px); }
 }
 
 /* The ranked list: a number, the town with a bar for its travel time, minutes, price. */

@@ -1,7 +1,7 @@
 // /where-to-live: the form, the ranked board and the map. Logic lives in logic.js.
 //
 // Every string from where-to-live.json (town and station names, attribution, ids) reaches the page
-// through textContent, createTextNode or option.text, never innerHTML.
+// through textContent or createTextNode, never innerHTML.
 // Map pills and popups are DOM elements. Query values are checked against the data.
 
 import {
@@ -209,6 +209,8 @@ function renderCompareBar(data, view, actions) {
   const ids = view.state.compare;
   const bar = $("compare-bar");
   bar.hidden = ids.length === 0;
+  // Under the open sheet the bar cannot be seen: keep the keyboard out of it until the sheet is away.
+  bar.inert = view.comparing;
   document.body.classList.toggle("has-bar", ids.length > 0);
   const names = ids.map((id) => data.towns.find((t) => t.id === id)?.name ?? id);
   $("compare-chips").replaceChildren(
@@ -238,13 +240,21 @@ function renderCompareBar(data, view, actions) {
  */
 function watchBarHeight() {
   const bar = $("compare-bar");
+  const sheet = $("compare");
   const fit = () => {
-    const room = bar.hidden ? "" : `${Math.ceil(bar.getBoundingClientRect().height) + 16}px`;
+    // While the comparison sheet is up it is the taller of the two: the last rows and the footer
+    // can still be scrolled clear of it.
+    const height = Math.max(bar.hidden ? 0 : bar.getBoundingClientRect().height, sheet.hidden ? 0 : sheet.getBoundingClientRect().height);
+    const room = height ? `${Math.ceil(height) + 16}px` : "";
     document.body.style.paddingBottom = room;
     // A row focused with the keyboard is scrolled clear of the bar, not under it.
     document.documentElement.style.scrollPaddingBottom = room;
   };
-  if (typeof ResizeObserver === "function") new ResizeObserver(fit).observe(bar);
+  if (typeof ResizeObserver === "function") {
+    const watch = new ResizeObserver(fit);
+    watch.observe(bar);
+    watch.observe(sheet); // also when it is shown or put away
+  }
   return fit;
 }
 
@@ -381,9 +391,13 @@ function slideRows(before) {
   }
 }
 
-/** Where every row is on screen right now, by its id. */
+/** Where every row is on screen right now, by its id. A row in a folded group is nowhere: left out. */
 function rowTops() {
-  return new Map([...document.querySelectorAll("#board-body .row")].map((li) => [li.id, li.getBoundingClientRect().top]));
+  return new Map(
+    [...document.querySelectorAll("#board-body .row")]
+      .filter((li) => li.getClientRects().length > 0)
+      .map((li) => [li.id, li.getBoundingClientRect().top]),
+  );
 }
 
 // ---------------------------------------------------------------- compare sheet
@@ -408,7 +422,8 @@ function makeSheet(onDismiss) {
   };
   let drag = null;
   grip.addEventListener("pointerdown", (e) => {
-    if (e.button !== 0 || e.target.closest("button, a")) return;
+    // Not while it is on its way out: a grab then would bring back a sheet the page thinks is closed.
+    if (!open || e.button !== 0 || e.target.closest("button, a")) return;
     y.stop(); // grab it where it is, even mid-flight
     drag = { id: e.pointerId, y0: e.clientY, from: y.x, speed: new Velocity() };
     drag.speed.add(y.x, e.timeStamp);
@@ -425,7 +440,8 @@ function makeSheet(onDismiss) {
   });
   function release(e) {
     if (!drag || (e && e.pointerId !== drag.id)) return;
-    const velocity = drag.speed.get();
+    // With the time of the release: a finger that held still before letting go has no speed left.
+    const velocity = drag.speed.get(e?.timeStamp ?? performance.now());
     drag = null;
     grip.classList.remove("dragging");
     const rest = y.x + project(velocity, 0.99);

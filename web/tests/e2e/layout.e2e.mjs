@@ -643,6 +643,8 @@ for (const width of [360, 1280]) {
       await page.locator("#budget").fill(await page.getAttribute("#budget", "min"));
       assert.match(await page.textContent("#budget-out"), /^\$[\d,]+$/);
       assert.match(page.url(), /budget=\d+/);
+      assert.equal(await fits(), 0);
+      assert.match(await page.textContent("#board-body .group:first-child .empty"), /nothing fits/);
       // Buying instead: the budget goes back to "Any" and the flat types are chips too.
       await page.locator(".pick label", { hasText: "Buy resale" }).click();
       assert.equal(await page.textContent("#budget-out"), "Any");
@@ -709,7 +711,13 @@ test("where-to-live: the comparison is a sheet over the list; Escape and its but
 test("where-to-live: dragging the sheet's top down dismisses it, a small pull springs back", async () => {
   const { context, page } = await tool(1280, "?compare=bishan,hougang", { reducedMotion: "no-preference" });
   try {
-    await page.waitForTimeout(700); // the sheet has come up
+    // Wait for what happens, not for a time: the sheet resting in its open place, or put away.
+    const inPlace = () => page.waitForFunction(() => {
+      const el = document.getElementById("compare");
+      return !el.hidden && Math.abs(innerHeight - el.getBoundingClientRect().bottom) < 1;
+    });
+    const away = () => page.waitForFunction(() => document.getElementById("compare").hidden);
+    await inPlace();
     const pull = async (dy) => {
       const box = await page.locator("#compare-title").boundingBox();
       await page.mouse.move(box.x + 10, box.y + 10);
@@ -719,13 +727,24 @@ test("where-to-live: dragging the sheet's top down dismisses it, a small pull sp
         await page.waitForTimeout(30);
       }
       await page.mouse.up();
-      await page.waitForTimeout(900);
     };
     await pull(30);
-    assert.equal(await page.$eval("#compare", (el) => el.hidden), false);
-    assert.ok(Math.abs(await page.$eval("#compare", (el) => innerHeight - el.getBoundingClientRect().bottom)) < 2, "back in place");
+    await inPlace();
+    assert.equal(await page.$eval("#compare-bar", (el) => el.inert), true, "the bar under the sheet is out of the Tab order");
     await pull(400);
-    assert.equal(await page.$eval("#compare", (el) => el.hidden), true);
+    await away();
+    assert.equal(await page.$eval("#compare-bar", (el) => el.inert), false);
+    // A grab while it was leaving must not bring back a sheet the page thinks is closed.
+    await page.locator("#compare-go").click();
+    await inPlace();
+    await page.locator("#compare-close").click();
+    const box = await page.locator("#compare-grip").boundingBox();
+    if (box) {
+      await page.mouse.move(box.x + 60, box.y + 6);
+      await page.mouse.down();
+      await page.mouse.up();
+    }
+    await away();
   } finally {
     await context.close();
   }
