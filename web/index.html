@@ -36,7 +36,8 @@
   }
 
   * { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; }
+  /* The sticky bar is 68 px: anchors and keyboard focus (Shift+Tab upward) stop below it. */
+  html { -webkit-text-size-adjust: 100%; scroll-padding-top: 84px; }
   body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.6 var(--body); }
   a { color: var(--teal-text); text-underline-offset: 3px; }
   a:focus-visible, .sticker:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; border-radius: 6px; }
@@ -59,7 +60,6 @@
               box-shadow: 3px 3px 0 var(--shadow); font-weight: 700; font-size: 15px; text-decoration: none; transition: transform 0.1s, box-shadow 0.1s; }
   .nav-play:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--shadow); }
   @media (prefers-reduced-transparency: reduce) { .nav { background: var(--paper); -webkit-backdrop-filter: none; backdrop-filter: none; } }
-  h2[id], section[id] { scroll-margin-top: 84px; }
 
   /* ---------------- hero */
   .hero { padding: 24px 0 56px; display: grid; gap: 40px; align-items: center; }
@@ -418,7 +418,6 @@
   .private ul { margin: 0; padding-left: 20px; }
   .private li + li { margin-top: 6px; }
   .private .more { margin: 14px 0 0; font-weight: 700; }
-  .faq h3[id] { scroll-margin-top: 84px; } /* clear of the sticky bar, like h2[id] */
 
   /* Footer: one line of credits and one line of links. Full sources and the halal note are in the Terms. */
   /* The credit line and the links flow as one paragraph: about 3 lines on a 360 px phone. */

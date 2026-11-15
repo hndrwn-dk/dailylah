@@ -475,6 +475,22 @@ test("home: \"How we handle your data\" lands with its heading below the sticky 
       heading: document.querySelector("#privacy").getBoundingClientRect().top,
     }));
     assert.ok(heading >= bar, `the heading (top ${heading}) is under the bar (bottom ${bar})`);
+    // Shift+Tab from the last question up the page: what gets focus is never under the bar.
+    await page.locator(".faq summary").last().focus();
+    for (let i = 0; i < 12; i++) {
+      await page.keyboard.press("Shift+Tab");
+      const at = await page.evaluate(() => {
+        const el = document.activeElement;
+        return {
+          what: `${el.tagName} "${el.textContent.trim().slice(0, 30)}"`,
+          inBar: Boolean(el.closest(".nav")),
+          top: el.getBoundingClientRect().top,
+          bar: document.querySelector(".nav").getBoundingClientRect().bottom,
+        };
+      });
+      if (at.inBar) break;
+      assert.ok(at.top >= at.bar, `${at.what} has focus at ${at.top}, under the bar (bottom ${at.bar})`);
+    }
   } finally {
     await context.close();
   }
