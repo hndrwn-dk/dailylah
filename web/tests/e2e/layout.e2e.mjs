@@ -582,6 +582,11 @@ test("home, hero: with JS the questions are chips under a line that says what a 
     const { context, page } = await home(width, ".ask-hint");
     try {
       assert.deepEqual(await look(page), { hint: "Ask it something. The phone answers.", chip: true, questions: 7, notch: true, sideways: false });
+      // Where they sit: the line right above the chips; on a phone the stop card above both and the button below.
+      const top = (selector) => page.$eval(selector, (el) => el.getBoundingClientRect().top + scrollY);
+      const [stop, hint, chip, cta] = await Promise.all([".stop", ".ask-hint", ".asks .q", ".cta"].map(top));
+      assert.ok(hint < chip && chip < cta, `hint ${hint}, first chip ${chip}, button ${cta}`);
+      if (width < 880) assert.ok(stop < hint, `stop card ${stop} above the hint ${hint}`);
       // The shown question is the dark chip; tapping another moves it.
       const dark = () => page.$$eval(".asks .q", (els) => els.filter((el) => getComputedStyle(el).backgroundColor === getComputedStyle(document.body).color).map((el) => el.textContent));
       await page.locator(".q", { hasText: "Haze bad or not?" }).click();
