@@ -1,6 +1,6 @@
 // Motion helpers for the landing page: a spring that can be grabbed and re-aimed at any moment,
 // the velocity of a drag, where a flick would come to rest, and soft resistance past an edge.
-// No DOM here except requestAnimationFrame, so web/tests can run the maths in Node.
+// Nothing here touches the page when the file is loaded, so web/tests can run the maths in Node.
 
 /** True when the reader asked for less motion: springs then jump to their target. */
 export const calm = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -74,6 +74,24 @@ export class Spring {
     this.v = 0;
     this.target = this.x;
   }
+}
+
+/**
+ * Run `action` when a control is activated. A mouse answers on the press, not the release; a
+ * finger, a keyboard on a real button and a screen reader all arrive as a click, so a touch that
+ * turns into a page scroll activates nothing. The click after a press already handled is skipped.
+ */
+export function onPress(el, action) {
+  let handled = false;
+  el.addEventListener("pointerdown", (e) => {
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
+    handled = true;
+    action();
+  });
+  el.addEventListener("click", () => {
+    if (handled) handled = false;
+    else action();
+  });
 }
 
 /** Speed of a drag from its last 100 ms of samples, in units per second. */
