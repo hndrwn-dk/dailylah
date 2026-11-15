@@ -137,8 +137,15 @@ void main() {
     );
     expect(await DailylahNotify.show(long.toMap(), channelName: s.channelName, channelDescription: s.channelDesc),
         isTrue);
-    final active = await android.getActiveNotifications();
-    expect(active.map((n) => n.id), containsAll([for (final n in notes) n.id, 99]));
+    // Android posts a notification a moment after notify() returns, so the last one may not
+    // be listed yet: ask again for a few seconds before judging.
+    final want = {for (final n in notes) n.id, 99};
+    var active = await android.getActiveNotifications();
+    for (var i = 0; i < 20 && !active.map((n) => n.id).toSet().containsAll(want); i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      active = await android.getActiveNotifications();
+    }
+    expect(active.map((n) => n.id), containsAll(want));
     expect(active.map((n) => n.title ?? ''), contains('Example: Rain before you leave.'));
     await notifications.cancelAll();
   });
