@@ -5,6 +5,7 @@ library;
 
 import 'dart:io';
 
+import 'package:dailylah_notify/dailylah_notify.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:home_widget/home_widget.dart';
@@ -49,6 +50,21 @@ Future<void> notifyNow(int id, String title, String body) => notifications.show(
       body: body,
       notificationDetails: NotificationDetails(android: _channel(const S())),
     );
+
+/// Shows an alert with its pills and picture (the dailylah_notify layout). When that cannot
+/// be posted (another platform, a phone that refuses it) the same title and body go out as
+/// a plain notification, so the alert is never lost.
+Future<void> showNote(RichNote n, {S s = const S()}) async {
+  if (await DailylahNotify.show(n.toMap(), channelName: s.channelName, channelDescription: s.channelDesc)) return;
+  await notifications.show(
+    id: n.id,
+    title: n.title,
+    body: n.body,
+    notificationDetails: NotificationDetails(
+      android: _channel(s, styleInformation: BigTextStyleInformation(n.body)),
+    ),
+  );
+}
 
 Future<void> requestNotificationPermission() async {
   await notifications
@@ -135,11 +151,17 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     trainBody = train;
     lineList = lineStatuses(train, watchedLines(fav));
     final bad = lineList!.where((x) => x.disrupted).toList();
-    final lines = bad.map((x) => x.line).join(', ');
     if (!fav.mrtAlerts || bad.isEmpty || quiet) return;
     final id = 'mrt:$day:${bad.map((x) => '${x.line}${x.detail}').join('|').hashCode}';
     if (await log.alreadySent(id)) return;
-    await notify(1, s.mrtAlert(lines), bad.first.detail?.isNotEmpty == true ? bad.first.detail! : s.checkAlternatives);
+    // Plan B: a direct bus, when the disrupted line is on today's trip. Bundles only.
+    String? planB;
+    try {
+      planB = await _planBBus(repo, fav, kind, now, off, train);
+    } on Object catch (e) {
+      debugPrint('plan B bus not found: $e');
+    }
+    await showNote(mrtNote(s, bad, planBBus: planB), s: s);
     await log.markSent(id);
   });
 
@@ -167,7 +189,7 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
       if (f == null || !f.isRainy) continue;
       final id = '$day:rain:${kind.name}';
       if (await log.alreadySent(id)) break;
-      await notify(2, s.bringUmbrella, '${s.placeLabel(p.kind.name)} (${f.area}): ${f.forecast}');
+      await showNote(rainNote(s, placeKind: p.kind.name, f: f), s: s);
       await log.markSent(id);
       break;
     }
@@ -223,7 +245,12 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
       // The widget shows the first bus worth leaving for (stops are nearest first).
       bus ??= lb;
       if (!remind || lb.leaveIn > 10) continue;
-      await notify(9, s.leaveTitle, s.leaveIn(lb.service, lb.leaveIn, lb.walk));
+      // "Usually 38 min": the learned door-to-door time of this trip, when there is one.
+      int? usual;
+      if (fav.learnHabits) {
+        usual = tripStats((await HabitsStore().load()).trips, tripRouteKey(origin.kind.name, to.kind.name)).usual;
+      }
+      await showNote(leaveNote(s, lb, usualMinutes: usual), s: s);
       await log.markSent('leave:$day');
       return;
     }
@@ -245,6 +272,7 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     final hawkersRaw = await repo.load('hawkers');
     final dengueRaw = await repo.load('dengue');
     final aroundRaw = await repo.load('around');
+    final habits = fav.learnHabits ? await HabitsStore().load() : null;
     final lines = weeklyDigest(
       s: s,
       fav: fav,
@@ -258,18 +286,10 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
       holidays: Holiday.fromBundle(await repo.load('holidays')),
     );
     if (lines.isEmpty) return;
-    await notifications.show(
-      id: 12,
-      title: s.digestTitle,
-      body: lines.join('\n'),
-      notificationDetails: NotificationDetails(
-        android: AndroidNotificationDetails(
-          'dailylah_alerts',
-          s.channelName,
-          channelDescription: s.channelDesc,
-          styleInformation: BigTextStyleInformation(lines.join('\n')),
-        ),
-      ),
+    final week = habits == null ? null : weekHabits(habits, now);
+    await showNote(
+      digestNote(s, lines, weekCents: week?.cents, tripsPerDay: week?.tripsPerDay ?? const []),
+      s: s,
     );
     await log.markSent('digest:$day');
   });
@@ -296,7 +316,7 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
         final lb = leaveBy(groupEtas(parseBusArrival(await api.busArrival(st.code), now)), services,
             walkMinutesTo(distanceMeters(home.lat, home.lng, st.lat, st.lng)));
         if (lb == null || lb.leaveIn > 10) continue;
-        await notify(13 + i, s.leaveTitle, s.leaveForPlace(to.name ?? '', s.leaveIn(lb.service, lb.leaveIn, lb.walk)));
+        await showNote(leaveNote(s, lb, id: 13 + i, placeName: to.name ?? ''), s: s);
         await log.markSent(id);
         break;
       }
@@ -315,12 +335,10 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
       final id = 'hawker:$day:${h.id}';
       if (await log.alreadySent(id)) continue;
       final alt = openAlternatives(all, h, tomorrow, limit: 1);
-      await notify(
-        3,
-        s.hawkerTomorrowTitle,
-        alt.isEmpty
-            ? s.hawkerClosedTomorrow(h.name)
-            : '${s.hawkerClosedTomorrow(h.name)}. ${s.tryInstead(alt.first.$1.name, s.metres(alt.first.$2))}',
+      await showNote(
+        hawkerNote(s, h.name,
+            altName: alt.isEmpty ? null : alt.first.$1.name, altMetres: alt.isEmpty ? null : alt.first.$2),
+        s: s,
       );
       await log.markSent(id);
     }
@@ -356,7 +374,14 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     wbgtBody = await api.weather('wbgt');
     final heat = heatStressNear(wbgtBody!, p.lat, p.lng);
     if (isHighHeat(heat) && !await log.alreadySent('heat:$day')) {
-      await notify(5, s.heatTitle, s.heatAt(place, heat!.toLowerCase()));
+      // UV for the second pill: one more public reading, only now that the alert shows.
+      int? uv;
+      try {
+        uv = uvIndex(await api.weather('uv'));
+      } on Object catch (e) {
+        debugPrint('uv not loaded: $e');
+      }
+      await showNote(heatNote(s, place: place, level: heat!, uv: uv), s: s);
       await log.markSent('heat:$day');
     }
     psiBody = await api.weather('psi');
@@ -365,7 +390,7 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     if (air != null && air.level.index >= AirLevel.unhealthy.index) {
       final id = 'haze:$day:${air.level.name}';
       if (!await log.alreadySent(id)) {
-        await notify(8, s.hazeTitle, s.airAdviceShort(air.level));
+        await showNote(hazeNote(s, air), s: s);
         await log.markSent(id);
       }
     }
@@ -428,6 +453,28 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
       off: off,
     ));
   });
+}
+
+/// The first direct bus of today's trip when a disrupted line is on its MRT route
+/// (`planBBus`), from the bundles; null when there is no trip today.
+Future<String?> _planBBus(BundleRepository repo, Favorites fav, CardKind kind, DateTime now, DaysOff off,
+    Map<String, dynamic> trainAlerts) async {
+  final from = fav.places[originFor(kind, fav, now, off)];
+  final dest = destinationFor(kind, fav, now, off);
+  final to = dest == null ? null : fav.places[dest];
+  if (from == null || to == null) return null;
+  final stationsRaw = await repo.load('mrt_stations');
+  final routesRaw = await repo.load('bus_routes');
+  final stopsRaw = await repo.load('bus_stops');
+  if (stationsRaw is! List || routesRaw is! Map<String, dynamic> || stopsRaw is! List) return null;
+  final plan = mrtPlan([for (final r in stationsRaw) MrtStation.fromBundle(r as Map<String, dynamic>)], from, to);
+  final routes = BusRoutes.fromBundle(routesRaw);
+  final destStops = destinationStops(to, [for (final r in stopsRaw) BusStop.fromBundle(r as Map<String, dynamic>)]);
+  return planBBus(
+    plan: plan,
+    alerts: trainAlerts,
+    directServices: [for (final st in usableStops(from)) ...tripRides(routes, st, to, destStops).keys],
+  );
 }
 
 Map<String, String>? _lastWidget;

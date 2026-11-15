@@ -2687,6 +2687,22 @@ void main() {
       expect(((mrt['pills'] as List).first as Map)['lineColor'], 0x009645);
     });
 
+    test('weekHabits: the last seven days of trips, oldest first, and what the week cost', () {
+      final sunday = DateTime(2026, 10, 25, 19);
+      TripLog trip(DateTime at, {int? cents}) => TripLog(route: 'home>work', start: at, minutes: 30, costCents: cents);
+      final h = Habits(trips: [
+        trip(DateTime(2026, 10, 19, 8), cents: 200), // Monday
+        trip(DateTime(2026, 10, 19, 18), cents: 210),
+        trip(DateTime(2026, 10, 23, 8), cents: 150), // Friday
+        trip(DateTime(2026, 10, 18, 8), cents: 999), // the Sunday before: not this week
+      ]);
+      final w = weekHabits(h, sunday);
+      expect(w.tripsPerDay, [2, 0, 0, 0, 1, 0, 0]);
+      expect(w.cents, 560);
+      expect(weekHabits(const Habits(), sunday).tripsPerDay, [0, 0, 0, 0, 0, 0, 0]);
+      expect(weekHabits(const Habits(), sunday).cents, 0);
+    });
+
     test('every MRT line has its colour in pure Dart', () {
       expect(mrtLineColors.keys, containsAll(['NSL', 'EWL', 'CCL', 'DTL', 'NEL', 'TEL', 'BPL', 'SLRT', 'PLRT']));
     });

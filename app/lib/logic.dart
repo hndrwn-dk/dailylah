@@ -3865,6 +3865,18 @@ RichNote digestNote(S s, List<String> lines, {int? weekCents, List<int> tripsPer
   );
 }
 
+/// For the digest: trips on each of the last seven days ending [now], oldest first, and what
+/// those days cost (entered costs, else estimates, as History adds them up).
+({int cents, List<int> tripsPerDay}) weekHabits(Habits h, DateTime now) {
+  final first = dateOnly(now).subtract(const Duration(days: 6));
+  final days = List<int>.filled(7, 0);
+  for (final t in h.trips) {
+    final i = dateOnly(t.start).difference(first).inHours ~/ 24;
+    if (i >= 0 && i < 7) days[i]++;
+  }
+  return (cents: historySummary(historyEntries(h, since: first)).costCents, tripsPerDay: days);
+}
+
 /// The eight alerts with the landing page's values, for More > Alerts > Show me an example.
 List<RichNote> sampleNotes(S s) => [
       rainNote(s, placeKind: 'work', f: const AreaForecast(area: 'Bishan', forecast: 'Showers', validText: '5 PM to 7 PM')),
