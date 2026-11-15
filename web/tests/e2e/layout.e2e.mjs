@@ -341,6 +341,32 @@ test("home, a day with motion on: a click on the line lands on the clicked time"
       assert.equal(await now(), i, `a click on ${times[i]}`);
       assert.equal(await page.locator(".stops button.on").textContent(), times[i]);
     }
+    // A real hand moves a pixel or two between press and release: still the clicked time.
+    await page.mouse.move(box.x + 6 * gap, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(16);
+    await page.mouse.move(box.x + 6 * gap + 2, box.y + box.height / 2);
+    await page.mouse.up();
+    await page.waitForTimeout(900);
+    assert.equal(await now(), 6, "a click that moved 2 px");
+    // Drag the clock to a time, hold it there, let go: it stays, it is not carried on.
+    const thumb = await page.locator(".thumb").boundingBox();
+    await page.mouse.move(thumb.x + thumb.width / 2, thumb.y + thumb.height / 2);
+    await page.mouse.down();
+    for (let step = 1; step <= 6; step++) {
+      await page.waitForTimeout(16);
+      await page.mouse.move(thumb.x + thumb.width / 2 - (step * 4 * gap) / 6, thumb.y + thumb.height / 2);
+    }
+    await page.waitForTimeout(300);
+    await page.mouse.up();
+    await page.waitForTimeout(900);
+    assert.equal(await now(), 2, "dragged four times back, held, let go");
+    // Keys step at the same pace whatever ran before: two quick presses are two times.
+    await page.locator(".thumb").press("ArrowRight");
+    await page.waitForTimeout(250);
+    await page.locator(".thumb").press("ArrowRight");
+    await page.waitForTimeout(900);
+    assert.equal(await now(), 4);
   } finally {
     await context.close();
   }
@@ -416,6 +442,39 @@ test("home with motion on: the questions take turns only while the hero is on sc
     assert.equal(before[0], "Arr");
     await page.waitForFunction((was) => document.querySelectorAll(".board .row .eta")[1].textContent !== was, before[1], { timeout: 30000 });
     assert.equal((await rows())[0], "Arr");
+  } finally {
+    await context.close();
+  }
+});
+
+test("home with motion on: focus on the tab bar or the clock stops the playing", async () => {
+  const { context, page } = await home(1280, ".device", { reducedMotion: "no-preference", viewport: { width: 1280, height: 6000 } });
+  try {
+    await page.waitForSelector(".day-stage");
+    assert.equal(await page.textContent(".day-play"), "Pause the day");
+    await page.locator(".tabbar [role=tab][aria-selected=true]").focus();
+    await page.locator(".thumb").focus();
+    assert.equal(await page.textContent(".day-play"), "Play the day");
+    const first = await moving(page);
+    await page.waitForTimeout(5200); // longer than a turn of the tabs (4.5 s) and of the day (3.6 s)
+    const later = await moving(page);
+    assert.equal(later.tab, "Today");
+    assert.equal(later.time, first.time);
+  } finally {
+    await context.close();
+  }
+});
+
+test("home: \"How we handle your data\" lands with its heading below the sticky bar", async () => {
+  const { context, page } = await home(1280, "a[href='#privacy']");
+  try {
+    await page.locator("a[href='#privacy']").click();
+    await page.waitForTimeout(300);
+    const { bar, heading } = await page.evaluate(() => ({
+      bar: document.querySelector(".nav").getBoundingClientRect().bottom,
+      heading: document.querySelector("#privacy").getBoundingClientRect().top,
+    }));
+    assert.ok(heading >= bar, `the heading (top ${heading}) is under the bar (bottom ${bar})`);
   } finally {
     await context.close();
   }

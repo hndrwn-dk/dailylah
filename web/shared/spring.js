@@ -98,7 +98,10 @@ export function onPress(el, action) {
   });
 }
 
-/** Speed of a drag from its last 100 ms of samples, in units per second. */
+/**
+ * Speed of a drag from its last 100 ms of samples, in units per second. Give get() the time of
+ * the release: a hand that held still for 100 ms before letting go has no speed left.
+ */
 export class Velocity {
   constructor() {
     this.samples = [];
@@ -109,10 +112,11 @@ export class Velocity {
     while (this.samples.length > 2 && time - this.samples[0][1] > 100) this.samples.shift();
   }
 
-  get() {
+  get(now) {
     if (this.samples.length < 2) return 0;
     const [x0, t0] = this.samples[0];
     const [x1, t1] = this.samples[this.samples.length - 1];
+    if (now !== undefined && now - t1 > 100) return 0;
     return t1 > t0 ? ((x1 - x0) / (t1 - t0)) * 1000 : 0;
   }
 }

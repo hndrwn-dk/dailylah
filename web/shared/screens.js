@@ -68,6 +68,8 @@ if (list) {
     bar.append(b);
     return b;
   });
+  // Focus in the tab bar (keyboard, screen reader): the turns stop, so the focused tab stays the shown one.
+  bar.addEventListener("focusin", () => stop());
   list.before(stage);
   pager.append(list);
   device.append(el("span", "notch"), pager, bar);
@@ -168,7 +170,7 @@ if (list) {
     go(target, velocity);
   }
   pager.addEventListener("pointerup", (e) => {
-    if (drag && e.pointerId === drag.id) release(drag.axis === "x" ? drag.speed.get() : 0);
+    if (drag && e.pointerId === drag.id) release(drag.axis === "x" ? drag.speed.get(e.timeStamp) : 0);
   });
   pager.addEventListener("pointercancel", () => release(0));
 

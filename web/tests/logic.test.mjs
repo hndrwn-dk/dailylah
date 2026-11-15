@@ -483,6 +483,12 @@ test("spring helpers: a flick's resting point, the snap nearest to it, drag spee
   assert.ok(Math.abs(speed.get() - 500) < 1e-6);
   assert.ok(speed.samples.length <= 7, "older samples are dropped");
   assert.equal(new Velocity().get(), 0);
+  // Drag, hold still, let go: no speed is left at the release.
+  const held = new Velocity();
+  held.add(0, 0);
+  held.add(30, 50);
+  assert.equal(held.get(100), 600, "let go right away");
+  assert.equal(held.get(400), 0, "held still for 350 ms first");
   // Past an edge the content follows less and less, and never further than the dimension allows.
   assert.equal(rubber(0, 300), 0);
   assert.ok(rubber(100, 300) < 100 && rubber(200, 300) - rubber(100, 300) < rubber(100, 300));

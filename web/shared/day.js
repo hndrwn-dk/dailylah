@@ -10,6 +10,7 @@
 import { Spring, Velocity, calm, clamp, rubber, settle } from "./spring.js";
 
 const DWELL = 3600; // ms a time stays while the day plays
+const STEP = { response: 0.4, damping: 1 }; // a label or a key: always this, whatever ran before
 // Hue and saturation of the card behind each time: dawn, haze, clear morning ..., noon, heat, Sunday.
 const SKY = [[35, 75], [45, 28], [195, 55], [205, 40], [190, 60], [48, 85], [22, 85], [168, 45]];
 const day = document.querySelector("[data-day]");
@@ -52,7 +53,7 @@ if (day) {
     b.type = "button";
     b.addEventListener("click", () => {
       stopPlay();
-      clock.to(i * gap());
+      clock.to(i * gap(), STEP);
     });
     labels.append(b);
     return b;
@@ -147,7 +148,8 @@ if (day) {
     scrub.setPointerCapture(e.pointerId);
     scrub.classList.add("dragging");
     if (!onThumb) clock.to(clamp(e.clientX - left, 0, length), { response: 0.3, damping: 1 });
-    grab.speed.add(clock.x, e.timeStamp);
+    // The speed is measured from where the press is: on the line the clock has not arrived yet.
+    grab.speed.add(onThumb ? clock.x : clamp(e.clientX - left, 0, length), e.timeStamp);
   });
   scrub.addEventListener("pointermove", (e) => {
     if (!grab || e.pointerId !== grab.id) return;
@@ -161,7 +163,7 @@ if (day) {
   const letGo = (e) => {
     if (!grab || (e && e.pointerId !== grab.id)) return;
     const { moved } = grab;
-    const velocity = moved ? grab.speed.get() : 0;
+    const velocity = moved ? grab.speed.get(e?.timeStamp) : 0;
     grab = null;
     scrub.classList.remove("dragging");
     const target = settle(moved ? clock.x : clock.target, velocity, stops.map((_, i) => i * gap()), 0.995);
@@ -176,7 +178,7 @@ if (day) {
     if (to === null) return;
     e.preventDefault();
     stopPlay();
-    clock.to(to * gap());
+    clock.to(to * gap(), STEP);
   });
 
   // The day plays by itself while the card is on screen, until someone touches it.
@@ -208,6 +210,10 @@ if (day) {
     tick();
   });
   label();
+  // A keyboard or screen reader on the clock: the day stops, so the value it reads holds still.
+  thumb.addEventListener("focus", () => {
+    if (playing) stopPlay();
+  });
 
   new ResizeObserver(layout).observe(scrub);
   new IntersectionObserver(([e]) => {
