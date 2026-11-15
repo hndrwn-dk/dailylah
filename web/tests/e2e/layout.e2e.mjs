@@ -730,21 +730,36 @@ test("where-to-live: dragging the sheet's top down dismisses it, a small pull sp
     };
     await pull(30);
     await inPlace();
-    assert.equal(await page.$eval("#compare-bar", (el) => el.inert), true, "the bar under the sheet is out of the Tab order");
+    const bar = () => page.$eval("#compare-bar", (el) => [el.inert, getComputedStyle(el).visibility]);
+    assert.deepEqual(await bar(), [true, "hidden"], "the bar steps aside while the sheet is up");
     await pull(400);
     await away();
-    assert.equal(await page.$eval("#compare-bar", (el) => el.inert), false);
-    // A grab while it was leaving must not bring back a sheet the page thinks is closed.
+    assert.deepEqual(await bar(), [false, "visible"]);
+    // A grab in the very moment it starts to leave must not bring back a sheet the page thinks is
+    // closed. In one step in the page, so the press lands while the sheet is still there.
     await page.locator("#compare-go").click();
     await inPlace();
-    await page.locator("#compare-close").click();
-    const box = await page.locator("#compare-grip").boundingBox();
-    if (box) {
-      await page.mouse.move(box.x + 60, box.y + 6);
-      await page.mouse.down();
-      await page.mouse.up();
-    }
+    await page.evaluate(() => {
+      const grip = document.getElementById("compare-grip");
+      const y = grip.getBoundingClientRect().top + 6;
+      document.getElementById("compare-close").click();
+      const press = { bubbles: true, button: 0, pointerId: 1, pointerType: "mouse", clientX: 80, clientY: y };
+      grip.dispatchEvent(new PointerEvent("pointerdown", { ...press, buttons: 1 }));
+      grip.dispatchEvent(new PointerEvent("pointerup", press));
+    });
     await away();
+    // Escape while the sheet is being dragged: the drag ends and the sheet goes away.
+    await page.locator("#compare-go").click();
+    await inPlace();
+    const box = await page.locator("#compare-title").boundingBox();
+    await page.mouse.move(box.x + 10, box.y + 10);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 10, box.y + 40, { steps: 3 });
+    await page.keyboard.press("Escape");
+    await page.mouse.move(box.x + 10, box.y + 60, { steps: 3 });
+    await page.mouse.up();
+    await away();
+    assert.deepEqual(await bar(), [false, "visible"]);
   } finally {
     await context.close();
   }

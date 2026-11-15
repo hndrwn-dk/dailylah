@@ -209,8 +209,10 @@ function renderCompareBar(data, view, actions) {
   const ids = view.state.compare;
   const bar = $("compare-bar");
   bar.hidden = ids.length === 0;
-  // Under the open sheet the bar cannot be seen: keep the keyboard out of it until the sheet is away.
+  // While the sheet is up the bar steps aside (the sheet has its own × per town and its own way
+  // back): not shown and out of the Tab order, so nothing that can be seen is dead.
   bar.inert = view.comparing;
+  bar.classList.toggle("aside", view.comparing);
   document.body.classList.toggle("has-bar", ids.length > 0);
   const names = ids.map((id) => data.towns.find((t) => t.id === id)?.name ?? id);
   $("compare-chips").replaceChildren(
@@ -457,6 +459,13 @@ function makeSheet(onDismiss) {
     set(want, velocity = 0) {
       if (want === open) return;
       open = want;
+      // A drag still going on (Escape, or the button under another finger) ends here, so it
+      // cannot stop the sheet half-way or bring it back.
+      if (drag) {
+        if (grip.hasPointerCapture?.(drag.id)) grip.releasePointerCapture(drag.id);
+        drag = null;
+        grip.classList.remove("dragging");
+      }
       if (want) {
         leaving = false;
         if (panel.hidden) {
@@ -797,7 +806,10 @@ async function main() {
     syncUrl();
   });
   // The map sticks under the choices card on a wide screen: tell the CSS how tall the card is.
+  // The map's own height follows from that, and Leaflet only measures on a window resize: tell it
+  // whenever its box changes, so it centres and loads tiles for the size it really has.
   if (typeof ResizeObserver === "function") {
+    if (m) new ResizeObserver(() => m.map.invalidateSize()).observe($("map"));
     new ResizeObserver(() => {
       document.documentElement.style.setProperty("--choices", `${Math.ceil($("choices").getBoundingClientRect().height)}px`);
     }).observe($("choices"));
