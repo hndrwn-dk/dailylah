@@ -42,8 +42,12 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   (`web/where-to-live/`) and its generated town pages
   (`web/where-to-live-towns/`, never hand-edited) with their share images (`web/og/where-to-live/`,
   made by `scripts/build_og_images.py`), the Play button as plain HTML on every page (no script; `web/tests` checks all pages carry the same link), the landing
-  page motion (`web/shared/day.js` timeline, `web/shared/screens.js` tab deck; the hero scenes are CSS
-  only; each works without JS and respects reduced motion), vendored Leaflet (`web/vendor/`), static data bundles in `web/data/`, tests in `web/tests/`.
+  page motion in `web/shared/` (`spring.js`: the spring, flick and soft-edge maths every script shares;
+  `hero.js` tappable questions and the counting bus board; `screens.js` the four screenshots as one phone
+  to swipe; `day.js` the clock to drag through a day; `towns.js` the town teaser, fed by the published
+  `where-to-live.json`; `vault.js` the privacy drawing). The HTML holds all the content: without JS the
+  page shows cards and lists, every script only builds on them, never writes HTML from strings, and
+  respects reduced motion (`web/tests` checks each), vendored Leaflet (`web/vendor/`), static data bundles in `web/data/`, tests in `web/tests/`.
 - `contracts/v1/` — one example per `/v1/*` endpoint, checked by the backend and app tests
   (docs/QA.md "Contract tests").
 - `docs/` — public docs: QA and release process (`QA.md`), setup (`DEPLOY.md`), code index

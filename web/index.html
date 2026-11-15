@@ -36,7 +36,8 @@
   }
 
   * { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; }
+  /* The sticky bar is 68 px: anchors and keyboard focus (Shift+Tab upward) stop below it. */
+  html { -webkit-text-size-adjust: 100%; scroll-padding-top: 84px; }
   body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.6 var(--body); }
   a { color: var(--teal-text); text-underline-offset: 3px; }
   a:focus-visible, .sticker:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; border-radius: 6px; }
@@ -45,10 +46,32 @@
   /* Sticker: ink outline and a hard offset shadow, like the app's Panel. */
   .sticker { background: var(--card); border: 2.5px solid var(--edge); border-radius: 16px; box-shadow: 4px 5px 0 var(--shadow); }
 
+  /* ---------------- top bar: stays while you scroll, the page shows through it softly */
+  .nav { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--paper) 78%, transparent);
+         -webkit-backdrop-filter: blur(16px) saturate(170%); backdrop-filter: blur(16px) saturate(170%); }
+  .nav .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 68px; }
+  .nav .brand { display: block; border-radius: 8px; }
+  .nav .brand img { display: block; height: 50px; width: auto; }
+  .nav nav { display: none; gap: 24px; font-weight: 600; font-size: 15px; }
+  @media (min-width: 760px) { .nav nav { display: flex; } }
+  .nav nav a { color: var(--ink); text-decoration: none; opacity: 0.78; }
+  .nav nav a:hover { opacity: 1; }
+  .nav-play { display: inline-block; padding: 8px 14px; background: var(--amber); color: #0F1618; border: 2.5px solid var(--edge); border-radius: 12px;
+              box-shadow: 3px 3px 0 var(--shadow); font-weight: 700; font-size: 15px; text-decoration: none; transition: transform 0.1s, box-shadow 0.1s; }
+  .nav-play:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--shadow); }
+  @media (prefers-reduced-transparency: reduce) { .nav { background: var(--paper); -webkit-backdrop-filter: none; backdrop-filter: none; } }
+
   /* ---------------- hero */
-  .hero { padding: 40px 0 56px; display: grid; gap: 40px; align-items: center; }
-  @media (min-width: 880px) { .hero { grid-template-columns: 1.05fr 1fr; padding: 72px 0 88px; } }
-  .logo { width: 168px; height: auto; display: block; margin-bottom: 28px; }
+  .hero { padding: 24px 0 56px; display: grid; gap: 40px; align-items: center; }
+  @media (min-width: 880px) { .hero { grid-template-columns: 1.05fr 1fr; padding: 48px 0 88px; } }
+  /* On a phone the stop card comes right under the headline, so an answer is in view when a
+     question below it is tapped. */
+  @media (max-width: 879px) {
+    .hero { gap: 0; }
+    .hero-text { display: contents; }
+    .hero .headline { order: 1; } .hero .stop { order: 2; margin-bottom: 28px; } .hero .asks { order: 3; }
+    .hero .cta { order: 4; } .hero .fine { order: 5; }
+  }
   h1 { font: 700 clamp(52px, 9vw, 92px)/0.92 var(--display); letter-spacing: -0.01em; margin: 0 0 22px; max-width: 9ch; }
   .asks { list-style: none; padding: 0; margin: 0 0 30px; color: var(--mist); font-size: 19px; line-height: 1.5; }
   .play { display: inline-flex; align-items: center; gap: 12px; padding: 12px 18px; background: var(--amber); color: #0F1618;
@@ -80,6 +103,11 @@
     @keyframes arr { from { opacity: 1; } to { opacity: 0.55; } }
   }
   .load { font: 500 13px/1.3 var(--body); color: var(--led-dim); grid-column: 2 / 4; margin-top: -4px; }
+  /* With /shared/hero.js: a short answer to the question being shown, and bus 36's row marked for "Bus coming?". */
+  .answer { margin: 0 0 14px; padding: 12px 14px; min-height: 5.2em; background: var(--paper); border: 2.5px solid var(--edge); border-radius: 12px; }
+  .answer b { display: block; font: 700 26px/1.05 var(--display); }
+  .answer span { color: var(--mist); font-size: 15px; line-height: 1.4; }
+  .row.hl { margin: 0 -10px; padding-left: 10px; padding-right: 10px; border-radius: 8px; background: rgba(255, 182, 39, 0.14); }
 
   /* Beside "Know": one small scene per question in the tagline, in turn (umbrella, hawker closed,
      haze, makan, bus 36 arriving, MRT disrupted, alamak), 3 s each, while that question is marked in the
@@ -131,6 +159,30 @@
     @keyframes mark { 0% { background-size: 0% 0.3em; color: inherit; } 2% { background-size: 100% 0.3em; color: var(--ink); }
                       12.8% { background-size: 100% 0.3em; color: var(--ink); } 14.28%, 100% { background-size: 0% 0.3em; color: inherit; } }
   }
+  /* With /shared/hero.js (it adds .live) the clock above is off: the script shows one scene and marks
+     one question at a time, and a tap on a question picks it. While the questions play in turn the
+     marker fills like a progress bar; hovering or focusing the list holds it. */
+  .hero.live .scene, .hero.live .scene.bus { opacity: 0; animation: none; }
+  .hero.live .scene.show { opacity: 1; }
+  .hero.live .scene:not(.show) * { animation: none; }
+  .hero.live .q { cursor: pointer; border-radius: 4px; animation: none; background: linear-gradient(var(--amber), var(--amber)) no-repeat 0 92% / 0% 0.3em; }
+  .hero.live .q:hover, .hero.live .q.on, .hero.live .q.run { color: var(--ink); }
+  .hero.live .q.on { background-size: 100% 0.3em; }
+  .hero.live .q:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
+  @media (prefers-reduced-motion: no-preference) {
+    .hero.live .scene { transform: translateY(5px) scale(0.9); transition: opacity 0.25s, transform 0.35s cubic-bezier(.2,.9,.25,1); }
+    .hero.live .scene.show { transform: none; }
+    .hero.live .scenes .arrive { animation: arrive1 0.9s cubic-bezier(.15,.75,.3,1) backwards; }
+    @keyframes arrive1 { 0% { transform: translateX(150px); } 80% { transform: translateX(-3px) rotate(-1.5deg); } 100% { transform: none; } }
+    .hero.live .scenes .open { animation: open1 0.5s ease-out 0.2s backwards; }
+    @keyframes open1 { from { transform: scaleY(0.1); } }
+    .hero.live .q { transition: background-size 0.2s, color 0.2s; }
+    .hero.live .q.run { transition: none; animation: fillq var(--dwell, 3400ms) linear forwards; }
+    @keyframes fillq { from { background-size: 0% 0.3em; } to { background-size: 100% 0.3em; } }
+    .hero.live .asks:hover .q.run, .hero.live .asks:focus-within .q.run { animation-play-state: paused; }
+    .answer.in { animation: answer 0.42s cubic-bezier(.2,.9,.25,1); }
+    @keyframes answer { from { opacity: 0; transform: translateX(calc(var(--from, 1) * 18px)) scale(0.97); } }
+  }
 
   h2 { font: 700 clamp(36px, 5vw, 52px)/1 var(--display); margin: 0 0 10px; }
   .lead { color: var(--mist); max-width: 60ch; margin: 0 0 32px; }
@@ -165,35 +217,45 @@
       .screens li:active img { transform: translate(1px, 2px); box-shadow: 3px 3px 0 var(--shadow); }
     }
   }
-  /* On a phone (under 760 px) /shared/screens.js turns the row into a deck: one screen at a time,
-     the next one peeking behind, playing in turn with tabs and a progress bar; tap a tab or swipe.
-     Without JS it stays the sideways row above. */
-  .shot-tabs, .shot-cap { display: none; }
-  @media (max-width: 759px) {
-    .screens.deck { display: block; position: relative; width: min(66vw, 250px); aspect-ratio: 540 / 960; margin: 22px auto 0;
-                    padding: 0; overflow: visible; touch-action: pan-y; }
-    .screens.deck figcaption { display: none; }
-    .screens.deck li { position: absolute; inset: 0; opacity: 0; transform: translateY(16px) scale(0.94); pointer-events: none; z-index: 0; }
-    .screens.deck li.next { opacity: 1; transform: translate(14px, 10px) rotate(4deg) scale(0.95); z-index: 1; }
-    .screens.deck li.next img { filter: brightness(0.93); }
-    .screens.deck li.cur { opacity: 1; transform: none; pointer-events: auto; z-index: 2; }
-    .screens.deck li.gone { opacity: 0; transform: translate(-40px, -6px) rotate(-6deg) scale(0.96); z-index: 3; }
-    .shot-tabs { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 26px 0 0; }
-    .shot-tabs button { position: relative; overflow: hidden; font: 700 14px/1 var(--body); color: var(--ink); padding: 10px 10px;
-                        min-height: 44px; background: var(--card); border: 2px solid var(--edge); border-radius: 12px; cursor: pointer; }
-    .shot-tabs button[aria-pressed="true"] { background: var(--mint); }
-    .shot-tabs button:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
-    .shot-tabs i { position: absolute; left: 0; bottom: 0; height: 4px; width: 0; background: var(--teal); }
-    .shot-cap { display: block; text-align: center; color: var(--mist); font-size: 15px; line-height: 1.5; margin: 12px auto 0; max-width: 40ch; min-height: 4.5em; }
-  }
-  @media (max-width: 759px) and (prefers-reduced-motion: no-preference) {
-    .screens.deck li { transition: opacity 0.45s, transform 0.5s cubic-bezier(.2,.8,.2,1); }
-    .shot-tabs .run i { animation: fillbar var(--dwell) linear forwards; }
-    @keyframes fillbar { to { width: 100%; } }
-  }
-  /* ---------------- a day with DailyLah: drawn as an MRT line. Each time is a station; the line fills
-     and a train rides down it as you scroll (/shared/day.js). Every card carries a small picture of
-     what the app shows at that moment. Without JS or with reduced motion everything is simply shown. */
+  /* With /shared/screens.js the cards above become one phone that you swipe, at every width: the
+     list is the strip that slides inside the phone (.track), the tab bar under it has a marker that
+     slides along, and the tab's name and caption sit beside it. Without JS the cards stay. */
+  .tabs-stage { display: grid; gap: 26px; align-items: center; margin-top: 24px; }
+  @media (min-width: 760px) { .tabs-stage { grid-template-columns: 1fr auto; gap: 56px; } }
+  .tab-copy { min-width: 0; }
+  @media (max-width: 759px) { .tab-copy { order: 2; min-height: 15em; } }
+  .kicker { margin: 0; font: 700 13px/1 var(--body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--teal-text); }
+  .tab-title { font: 700 clamp(56px, 9vw, 88px)/0.95 var(--display); margin: 8px 0 12px; }
+  .tab-text { margin: 0; color: var(--mist); max-width: 36ch; font-size: 18px; }
+  .dots { display: flex; gap: 8px; margin-top: 22px; }
+  .dots span { position: relative; width: 34px; height: 5px; border-radius: 3px; overflow: hidden; background: color-mix(in srgb, var(--ink) 18%, transparent); }
+  .dots i { position: absolute; inset: 0; background: var(--teal); transform-origin: left; transform: scaleX(0); }
+  .hint { margin: 14px 0 0; color: var(--mist); font-size: 14px; }
+  .device { width: min(300px, 78vw); justify-self: center; padding: 12px; background: var(--card); border: 2.5px solid var(--edge);
+            border-radius: 36px; box-shadow: 6px 7px 0 var(--shadow); }
+  .notch { display: block; width: 76px; height: 18px; border-radius: 10px; background: var(--edge); margin: 0 auto 10px; }
+  .pager { overflow: hidden; aspect-ratio: 540 / 960; border: 2px solid var(--edge); border-radius: 20px; background: var(--paper);
+           touch-action: pan-y; cursor: grab; -webkit-user-select: none; user-select: none; }
+  .pager.dragging { cursor: grabbing; }
+  .screens.track { display: flex; justify-content: flex-start; gap: 0; height: 100%; margin: 0; padding: 0; overflow: visible; scroll-snap-type: none; will-change: transform; }
+  .screens.track li { flex: 0 0 100%; min-width: 0; }
+  .screens.track figure { height: 100%; }
+  .screens.track figcaption { display: none; }
+  .screens.track img, .screens.track li:hover img, .screens.track li:active img {
+    width: 100%; height: 100%; object-fit: cover; border: 0; border-radius: 0; box-shadow: none; transform: none; }
+  .tabbar { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 10px; padding: 4px;
+            border: 2px solid var(--edge); border-radius: 14px; background: var(--paper); }
+  .tabbar .ind { position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc((100% - 8px) / 4); border-radius: 10px;
+                 background: var(--amber); border: 2px solid var(--edge); }
+  .tabbar button { position: relative; z-index: 1; min-height: 40px; padding: 0; border: 0; border-radius: 10px; background: none;
+                   color: var(--ink); font: 700 13px/1 var(--body); cursor: pointer; }
+  .tabbar button[aria-selected="true"] { color: #0F1618; }
+  .tabbar button:active { transform: scale(0.94); }
+  .tabbar button:focus-visible, .seg button:focus-visible, .stops button:focus-visible, .day-play:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+
+  /* ---------------- a day with DailyLah. Without JS: the list below, drawn as an MRT line with a
+     station per time and a small picture of what the app shows then. With /shared/day.js the same
+     list becomes a clock you drag (further down). */
   .day { margin-bottom: 56px; }
   .mrtline { --p: 0; position: relative; margin: 20px 0 0; padding-left: 46px; }
   .timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; }
@@ -236,44 +298,105 @@
   .therm { width: 12px; height: 34px; border: 2px solid var(--edge); border-radius: 6px; background: var(--card); position: relative; overflow: hidden; }
   .therm::after { content: ""; position: absolute; inset: auto 0 0; height: 85%; background: var(--stop); }
 
-  /* motion: only when day.js is running (it adds .moving) and the reader has not asked for less */
+  /* With /shared/day.js: a card whose colour follows the time (--day-h, --day-s, set by the script),
+     a clock to drag along a line of times, and a phone's lock screen with the notification for that
+     time. The small pictures of the cards above are reused inside the notification. */
+  .day-stage { --day-h: 35; --day-s: 75%; --day-l: 86%; --day-m: 1; margin-top: 20px; padding: 22px 18px; display: grid; gap: 30px; align-items: center;
+               background: hsl(var(--day-h) calc(var(--day-s) * var(--day-m)) var(--day-l)); }
+  @media (prefers-color-scheme: dark) { .day-stage { --day-l: 17%; --day-m: 0.7; } }
+  @media (min-width: 880px) { .day-stage { grid-template-columns: 1fr 300px; gap: 48px; padding: 36px; } }
+  .day-copy { min-width: 0; }
+  .day-copy .lead { color: var(--ink); opacity: 0.8; margin-bottom: 26px; }
+  .scrub { position: relative; height: 52px; margin: 0 20px; touch-action: none; cursor: pointer; -webkit-user-select: none; user-select: none; }
+  .scrub .line, .scrub .fill { position: absolute; left: 0; right: 0; top: 24px; height: 4px; border-radius: 2px; background: var(--ink); }
+  .scrub .line { opacity: 0.2; }
+  .scrub .fill { transform-origin: left; transform: scaleX(0); }
+  .scrub .tick { position: absolute; top: 19px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; border: 2.5px solid var(--edge); background: var(--card); }
+  .thumb { position: absolute; top: 6px; left: 0; width: 40px; height: 40px; margin-left: -20px; border-radius: 50%; background: var(--amber);
+           border: 2.5px solid var(--edge); box-shadow: 3px 3px 0 var(--shadow); cursor: grab; touch-action: none; }
+  .thumb::before { content: ""; position: absolute; inset: 8px; border-radius: 50%; border: 2.5px solid #0F1618; }
+  .thumb::after { content: ""; position: absolute; left: 50%; top: 50%; width: 2.5px; height: 7px; margin: -7px 0 0 -1.25px; border-radius: 2px; background: #0F1618; }
+  .thumb:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
+  .scrub.dragging .thumb { cursor: grabbing; }
+  .stops { position: relative; height: 32px; margin: 2px 20px 0; }
+  .stops button { position: absolute; top: 0; transform: translateX(-50%); padding: 8px 2px; border: 0; border-radius: 6px; background: none; color: var(--ink);
+                  font: 700 13px/1 var(--body); font-variant-numeric: tabular-nums; opacity: 0.62; cursor: pointer; }
+  .stops button.on { opacity: 1; }
+  @media (max-width: 520px) { .stops button { font-size: 11px; letter-spacing: -0.03em; padding: 8px 0; } }
+  .day-title { font: 700 clamp(36px, 6vw, 56px)/1 var(--display); margin: 20px 0 8px; }
+  .day-text { margin: 0; max-width: 44ch; min-height: 3.2em; }
+  .day-play { margin-top: 16px; padding: 9px 14px; border: 2px solid var(--edge); border-radius: 999px; background: transparent; color: var(--ink);
+              font: 700 14px/1 var(--body); cursor: pointer; }
+  .day-play:active { transform: scale(0.96); }
+  .lock { width: min(300px, 100%); min-height: 440px; justify-self: center; display: flex; flex-direction: column; padding: 12px; background: var(--board);
+          color: #E6F2F4; border: 2.5px solid var(--edge); border-radius: 36px; box-shadow: 6px 7px 0 var(--shadow); }
+  .lock .notch { background: #000; margin-bottom: 0; }
+  .lock .clock { text-align: center; margin: 22px 0 20px; }
+  .lock .clock small { display: block; font-size: 14px; font-weight: 600; opacity: 0.75; }
+  .lock .clock b { font: 700 72px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .notif { padding: 12px 14px; border-radius: 18px; background: rgba(244, 251, 254, 0.13); border: 1px solid rgba(255, 255, 255, 0.14); font-size: 14px; line-height: 1.4; }
+  .notif .app { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.85; }
+  .notif .app i { padding: 4px; border-radius: 5px; background: var(--amber); color: #0F1618; font: 700 10px/1 var(--display); }
+  .notif .app span { margin-left: auto; font-weight: 500; letter-spacing: 0; text-transform: none; }
+  .notif .n-title { display: block; margin: 8px 0 2px; font-size: 16px; }
+  .notif p { margin: 0; opacity: 0.88; }
+  .n-mini { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; font: 600 14px/1.2 var(--body); color: #E6F2F4; }
+  .n-mini .pill.amber { color: #0F1618; }
+  .lock .home-ind { width: 104px; height: 5px; margin: auto auto 0; border-radius: 3px; background: rgba(255, 255, 255, 0.5); }
   @media (prefers-reduced-motion: no-preference) {
-    .moving li .dcard { opacity: 0; transform: translateY(18px); transition: opacity 0.5s, transform 0.5s cubic-bezier(.2,.8,.2,1); }
-    .moving li.on .dcard { opacity: 1; transform: none; }
-    .moving .train { transition: top 0.12s linear; }
-    .moving li.on .drop { animation: fall 0.9s linear infinite; }
-    .moving li.on .drop:nth-child(2) { animation-delay: 0.3s; }
-    .moving li.on .drop:nth-child(3) { animation-delay: 0.6s; }
-    @keyframes fall { from { transform: translateY(-6px); opacity: 0; } 30% { opacity: 1; } to { transform: translateY(8px); opacity: 0; } }
-    .moving li .psi i { left: 10%; transition: left 1.2s cubic-bezier(.3,1.4,.5,1) 0.3s; }
-    .moving li.on .psi i { left: 80%; }
-    .moving li.on .tap { animation: tap 2.4s ease-in-out 0.4s infinite; }
-    @keyframes tap { 0%, 70%, 100% { transform: none; box-shadow: 3px 3px 0 var(--shadow); } 78% { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--shadow); } }
-    .moving li.on .alert { animation: pulse 1.2s ease-in-out infinite; }
+    .notif.in { animation: notif 0.38s cubic-bezier(.2,.9,.25,1); }
+    @keyframes notif { from { opacity: 0; transform: translateY(calc(var(--dir, 1) * -14px)) scale(0.96); filter: blur(6px); } }
+    .notif .drop { animation: fall 0.9s linear infinite; }
+    .notif .drop:nth-child(2) { animation-delay: 0.3s; }
+    .notif .drop:nth-child(3) { animation-delay: 0.6s; }
+    .notif .tap { animation: tap 2.4s ease-in-out 0.4s infinite; }
+    @keyframes tap { 0%, 70%, 100% { transform: none; } 78% { transform: translate(2px, 2px); } }
+    .notif .alert { animation: pulse 1.2s ease-in-out infinite; }
     @keyframes pulse { 50% { opacity: 0.55; } }
-    .moving li.on .buzz { animation: buzz 1.6s ease-in-out 0.4s infinite; }
+    .notif .buzz { animation: buzz 1.6s ease-in-out 0.4s infinite; }
     @keyframes buzz { 0%, 40%, 100% { transform: none; } 5%, 15%, 25% { transform: rotate(-12deg); } 10%, 20%, 30% { transform: rotate(12deg); } }
-    .moving li .stamp { transform: scale(1.6) rotate(-10deg); opacity: 0; transition: transform 0.35s cubic-bezier(.3,1.6,.5,1) 0.5s, opacity 0.2s 0.5s; }
-    .moving li.on .stamp { transform: rotate(-4deg); opacity: 1; }
-    .moving li .therm::after { height: 10%; transition: height 1.4s ease-out 0.3s; }
-    .moving li.on .therm::after { height: 85%; }
-    .moving li .bars span { transform: scaleY(0.1); transform-origin: bottom; transition: transform 0.6s cubic-bezier(.2,.8,.2,1); }
-    .moving li.on .bars span { transform: none; }
-    .moving li.on .bars span:nth-child(2) { transition-delay: 0.08s; } .moving li.on .bars span:nth-child(3) { transition-delay: 0.16s; }
-    .moving li.on .bars span:nth-child(4) { transition-delay: 0.24s; } .moving li.on .bars span:nth-child(5) { transition-delay: 0.32s; }
-    .moving li.on .bars span:nth-child(6) { transition-delay: 0.40s; } .moving li.on .bars span:nth-child(7) { transition-delay: 0.48s; }
   }
-  /* ---------------- questions */
+  /* ---------------- questions: each opens with a plus that turns, and (where the browser can) eases open */
   .faq { margin: -40px 0 56px; max-width: 760px; }
   .faq details { border-top: 2px solid var(--edge); padding: 10px 0; }
   .faq h3 { font: 700 24px/1.1 var(--display); margin: 26px 0 8px; color: var(--teal-text); }
   .faq details:last-of-type, .faq details:has(+ h3) { border-bottom: 2px solid var(--edge); }
-  .faq summary { font-weight: 700; cursor: pointer; }
+  .faq summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; list-style: none; font-weight: 700; cursor: pointer; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: "+"; flex: none; display: grid; place-items: center; width: 28px; height: 28px; border: 2px solid var(--edge);
+                        border-radius: 50%; font-weight: 700; line-height: 1; }
+  .faq details[open] summary::after { transform: rotate(45deg); background: var(--amber); color: #0F1618; }
   .faq summary:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
   .faq p { margin: 6px 0 0; color: var(--mist); }
+  @media (prefers-reduced-motion: no-preference) {
+    .faq summary::after { transition: transform 0.3s cubic-bezier(.2,.9,.3,1), background-color 0.2s; }
+    .faq { interpolate-size: allow-keywords; }
+    .faq details::details-content { block-size: 0; overflow: hidden; transition: block-size 0.35s cubic-bezier(.2,.9,.3,1), content-visibility 0.35s allow-discrete; }
+    .faq details[open]::details-content { block-size: auto; }
+  }
   /* ---------------- where to live */
   .tool { padding: 24px; margin-bottom: 40px; display: grid; gap: 12px; justify-items: start; background: var(--sky); }
   .tool p { margin: 0; max-width: 60ch; }
+  /* With /shared/towns.js: six towns ranked by travel time from the published data; the rows slide
+     when another office is picked. */
+  .town-demo { width: 100%; min-width: 0; margin-top: 8px; }
+  @media (min-width: 760px) {
+    .tool.has-demo { grid-template-columns: 1fr 1.15fr; column-gap: 40px; align-items: center; padding: 32px; }
+    .tool.has-demo > * { grid-column: 1; }
+    .tool.has-demo > .town-demo { grid-column: 2; grid-row: 1 / span 3; margin-top: 0; }
+  }
+  .seg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; border: 2px solid var(--edge); border-radius: 12px; background: var(--card); }
+  .seg button { min-height: 36px; padding: 0 12px; border: 0; border-radius: 9px; background: none; color: var(--ink); font: 700 14px/1 var(--body); cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+  .seg button:active { transform: scale(0.95); }
+  .tool .demo-note { margin: 10px 0 8px; font-size: 13px; opacity: 0.75; }
+  .town-rows { position: relative; list-style: none; margin: 0; padding: 0; }
+  .town-rows li { position: absolute; left: 0; right: 0; top: 0; height: 40px; display: grid; grid-template-columns: 6.6em 1fr 4.2em; gap: 10px; align-items: center; font-size: 15px; }
+  .town-rows b { white-space: nowrap; }
+  .tb { height: 24px; overflow: hidden; border: 2px solid var(--edge); border-radius: 8px; background: var(--card); }
+  .tb i { display: block; height: 100%; background: var(--teal); transform-origin: left; transform: scaleX(0); }
+  .town-rows li.best .tb i { background: var(--amber); }
+  .tm { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .go-tool { display: inline-block; font-weight: 700; padding: 10px 16px; border: 2.5px solid var(--edge); border-radius: 12px; background: #0A7068;
              color: #fff; text-decoration: none; box-shadow: 3px 4px 0 var(--shadow); }
   .go-tool:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
@@ -288,10 +411,13 @@
   .private { padding: 28px 24px; margin-bottom: 72px; background: var(--mint); display: grid; gap: 18px; }
   @media (min-width: 760px) { .private { grid-template-columns: 1fr 1.4fr; padding: 36px; } }
   .private h2 { margin: 0; }
+  /* With /shared/vault.js: a small drawing under the words (places circling inside a phone, the cloud crossed out). */
+  .vault { display: block; width: 100%; height: 230px; margin-top: 4px; border: 2.5px solid var(--edge); border-radius: 14px; background: var(--card); }
+  .vault[hidden] { display: none; } /* no script, or a browser that cannot draw it: no empty box */
+  @media (min-width: 760px) { .vault { grid-column: 1 / -1; height: 260px; } }
   .private ul { margin: 0; padding-left: 20px; }
   .private li + li { margin-top: 6px; }
   .private .more { margin: 14px 0 0; font-weight: 700; }
-  .faq h3[id] { scroll-margin-top: 16px; }
 
   /* Footer: one line of credits and one line of links. Full sources and the halal note are in the Terms. */
   /* The credit line and the links flow as one paragraph: about 3 lines on a 360 px phone. */
@@ -300,14 +426,29 @@
   footer nav { display: inline; font-weight: 600; white-space: nowrap; }
   footer nav a + a::before { content: "·"; color: var(--mist); padding: 0 7px; display: inline-block; }
 </style>
-<script type="module" src="/shared/day.js"></script>
+<script type="module" src="/shared/hero.js"></script>
 <script type="module" src="/shared/screens.js"></script>
+<script type="module" src="/shared/day.js"></script>
+<script type="module" src="/shared/towns.js"></script>
+<script type="module" src="/shared/vault.js"></script>
 </head>
 <body>
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/"><img src="/brand/wordmark.png" width="383" height="266" alt="DailyLah"></a>
+    <nav aria-label="On this page">
+      <a href="#tabs-title">The app</a>
+      <a href="#day-title">A day</a>
+      <a href="/where-to-live">Where to live</a>
+      <a href="#places">Privacy</a>
+      <a href="#faq-title">Questions</a>
+    </nav>
+    <a class="nav-play" href="https://play.google.com/store/apps/details?id=com.tursinalabs.dailylah" rel="noopener">Get it free</a>
+  </div>
+</header>
 <main class="wrap">
-  <section class="hero">
-    <div>
-      <img class="logo" src="/brand/wordmark.png" width="383" height="266" alt="DailyLah">
+  <section class="hero" data-hero>
+    <div class="hero-text">
       <div class="headline">
         <h1>Know before you go lah.</h1>
         <svg class="scenes" viewBox="0 0 130 60" aria-hidden="true" focusable="false">
@@ -364,9 +505,9 @@
         </svg>
       </div>
       <ul class="asks">
-        <li><span class="q" style="--i:0">Need umbrella meh?</span> <span class="q" style="--i:1">Hawker closed ah?</span></li>
-        <li><span class="q" style="--i:2">Haze bad or not?</span> <span class="q" style="--i:3">Makan where?</span></li>
-        <li><span class="q" style="--i:4">Bus coming?</span> <span class="q" style="--i:5">MRT disrupted?</span> <span class="q" style="--i:6">Alamak...</span></li>
+        <li><span class="q" style="--i:0" data-answer="Rain from 6 pm|Near your office. Bring an umbrella.">Need umbrella meh?</span> <span class="q" style="--i:1" data-answer="Closed tomorrow|Your favourite hawker centre. You hear the day before.">Hawker closed ah?</span></li>
+        <li><span class="q" style="--i:2" data-answer="PSI 128, unhealthy|Today says so, with when to wear an N95 mask.">Haze bad or not?</span> <span class="q" style="--i:3" data-answer="Open today, 400 m|Nearby shows what is open around you.">Makan where?</span></li>
+        <li><span class="q" style="--i:4" data-answer="36 arriving|Seats available. Your stop is 2 minutes' walk." data-row="0">Bus coming?</span> <span class="q" style="--i:5" data-answer="EWL disrupted|Buses first: 858 from your stop.">MRT disrupted?</span> <span class="q" style="--i:6" data-answer="Alamak!|All of it in one free app, before you go.">Alamak...</span></li>
       </ul>
       <!-- Plain HTML, no script: the same link on every page (web/tests checks they match). -->
       <div class="cta">
@@ -376,6 +517,7 @@
     </div>
 
     <figure class="stop sticker" aria-label="Example of live bus arrivals in DailyLah">
+      <p class="answer" data-answer-card hidden><b></b><span></span></p>
       <div class="stop-head">
         <span class="pole" aria-hidden="true">
           <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#fff" d="M4 16c0 .9.4 1.7 1 2.2V20a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h8v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1.8c.6-.5 1-1.3 1-2.2V6c0-3.5-3.6-4-8-4S4 2.5 4 6v10zm3.5 1a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm9 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM18 11H6V6h12v5z"/></svg>
@@ -449,9 +591,10 @@
     <h2>Where to live?</h2>
     <p>Compare HDB towns by MRT and bus time to your office and by HDB median rent or resale price, on one map.</p>
     <p class="actions"><a class="go-tool" href="/where-to-live">Compare towns</a> <a class="towns" href="/where-to-live/towns">Browse all towns</a></p>
+    <div class="town-demo" data-towns hidden></div>
   </section>
 
-  <section class="private sticker">
+  <section class="private sticker" id="places">
     <h2>Your places stay on your phone</h2>
     <div>
       <ul>
@@ -461,6 +604,7 @@
       </ul>
       <p class="more"><a href="#privacy">How we handle your data</a></p>
     </div>
+    <canvas class="vault" data-vault aria-hidden="true" hidden></canvas>
   </section>
 
   <section class="faq" aria-labelledby="faq-title">
