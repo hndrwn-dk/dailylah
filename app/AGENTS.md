@@ -183,7 +183,8 @@ feature, screen, provider or rule moves, appears or goes away.
   isolate has no `MainActivity` channels) and shows the plain notification with the same title and body when
   the plugin answers false, so an alert is never lost. The plugin (`NotePoster.kt`, `NoteArt.kt`,
   `res/layout/dl_note.xml`, kept by hand like the widget) posts on the same channel `dailylah_alerts` and IDs
-  with `DecoratedCustomViewStyle`: real text only (pills are `TextView`s, pictures are decorative bitmaps),
+  with `DecoratedCustomViewStyle`: real text only (pills are `TextView`s, pictures are decorative bitmaps; the title is bold; the PSI bar is
+  green to 50, amber to 100 and red above, so the marker agrees with the pill),
   only `LinearLayout`/`TextView`/`ImageView`, pills filled row by row by a character budget that shrinks with
   larger text, colours as resources (values-night). The other alerts (dengue, lightning, parking, resale,
   holiday, MRT ride) stay plain; giving one a layout is a new `...Note` builder. More > Alerts > "Show me an

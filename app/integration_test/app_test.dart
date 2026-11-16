@@ -126,7 +126,7 @@ void main() {
       expect(await DailylahNotify.show(n.toMap(), channelName: s.channelName, channelDescription: s.channelDesc),
           isTrue, reason: 'note ${n.id} (${n.title}) was not posted with the custom layout');
     }
-    // A body far longer than the layout: still posted (the layout cuts it at 5 lines).
+    // A body far longer than the layout: still posted (the layout cuts it to the lines that fit above the pills).
     final long = RichNote(
       id: 99,
       title: s.digestTitle,
