@@ -970,7 +970,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "On foldables and tablets DailyLah now shows two columns, so more fits on screen at once.",
+        "Alerts have a new look: rain, haze, heat, your bus and MRT disruptions now show the key facts as coloured tags. See them under More > Alerts > Show me an example.",
       ];
 
   // about
@@ -1267,6 +1267,49 @@ class S {
       };
   String get wtlBest => 'Best';
   String get wtlNoData => 'The town data has not loaded yet. Check your connection and try again.';
+
+  // alert notifications (pills and wording of the custom layout)
+  String placeNear(String kind) => switch (kind) {
+        'home' => 'home',
+        'work' => 'your office',
+        'school' => 'school',
+        _ => 'you',
+      };
+  String get rainNoteTitle => 'Rain before you leave.';
+  String rainNoteBody(String near, String area, String forecast) =>
+      'Rain near $near ($area): $forecast. Bring an umbrella.';
+  String rainPill(String place) => '☂ Rain near $place';
+  String forecastPill(String window) => 'Forecast $window';
+  String hazeNoteTitle(String level) => 'Haze: $level';
+  String psiPill(int psi, String level) => 'PSI $psi $level';
+  String pm25Pill(int pm25, String level) => 'PM2.5 $pm25 $level';
+  String leaveInPill(int minutes) => 'Leave in $minutes min';
+  String get leaveNowPill => 'Leave now';
+  String usuallyPill(int minutes) => 'Usually $minutes min';
+  String get disruptedPill => 'Disrupted';
+  String get wakeNextPill => 'Your stop is next';
+  String get wakePassedPill => 'May have passed';
+  String get closedTomorrowPill => 'Closed tomorrow';
+  String openPill(String name, String dist) => 'Open: $name, $dist';
+  String get heatNoteTitle => 'Heat stress high.';
+  String heatNoteBody(String place) => 'Near $place. Bring water and take the sheltered way.';
+  String heatPill(String level) => 'Heat stress $level';
+  String uvPill(int uv) => 'UV $uv';
+  String weekCostPill(String money) => '≈ $money this week';
+  String get alertExample => 'Show me an example';
+  String get alertExampleSub => 'Posts sample alerts so you can see how they look';
+  String exampleTitle(String title) => 'Example: $title';
+  String get alertExampleOff => 'Allow notifications to see the examples';
+  // sample values for "Show me an example"
+  String get sampleMrtDetail => 'No train service between Bugis and Lavender. Free bridging buses are running.';
+  String get sampleStop => 'Opp Blk 123';
+  String get sampleHawker => 'Maxwell Food Centre';
+  String get sampleHawkerAlt => 'Amoy Street Food Centre';
+  List<String> get sampleDigest => const [
+        'Maxwell Food Centre is closed Mon to Wed for cleaning',
+        'Lift upgrading starts at your block',
+        'Public holiday on Friday',
+      ];
 }
 
 /// Joins the last two words with a no-break space, so a line never ends with one word alone

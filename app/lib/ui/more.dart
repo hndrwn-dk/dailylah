@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../background.dart' show showExampleAlerts;
 import '../l10n.dart';
 import '../logic.dart';
 import '../models.dart';
@@ -85,6 +86,18 @@ class MorePage extends ConsumerWidget {
                       toggle(s.alertDengue, fav.dengueAlerts, (f, v) => f.copyWith(dengueAlerts: v)),
                       toggle(s.alertHeat, fav.heatAlerts, (f, v) => f.copyWith(heatAlerts: v)),
                       toggle(s.alertHomes, fav.homesAlerts, (f, v) => f.copyWith(homesAlerts: v)),
+                      ListTile(
+                        leading: const Icon(Icons.notifications_active_outlined),
+                        title: Text(s.alertExample, style: t.bodyMedium),
+                        subtitle: Text(s.alertExampleSub),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          if (!await showExampleAlerts(s)) {
+                            messenger.showSnackBar(SnackBar(content: Text(s.alertExampleOff)));
+                          }
+                        },
+                      ),
                     ],
                   ),
                 ),

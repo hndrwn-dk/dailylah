@@ -3712,3 +3712,192 @@ List<String> compareCandidates({
   }
   return out;
 }
+
+// ---------------------------------------------------------------- alert notifications
+// What each alert shows: wording, pills and the small picture. The rules for when an alert
+// fires are in background.dart and above; a pill whose value is not known is left out.
+
+/// Official MRT/LRT line colours, 0xRRGGBB (DL.lineColors in ui/theme.dart reads this).
+const mrtLineColors = <String, int>{
+  'NSL': 0xD42E12,
+  'EWL': 0x009645,
+  'CCL': 0xFA9E0D,
+  'DTL': 0x005EC4,
+  'NEL': 0x9900AA,
+  'TEL': 0x9D5B25,
+  'BPL': 0x748477,
+  'SLRT': 0x748477,
+  'PLRT': 0x748477,
+};
+
+const _todayLink = 'dailylah://today';
+
+/// Rain near [placeKind] ('home', 'work', 'school') before the usual departure.
+RichNote rainNote(S s, {required String placeKind, required AreaForecast f}) {
+  final valid = f.validText?.trim() ?? '';
+  return RichNote(
+    id: 2,
+    title: s.rainNoteTitle,
+    body: s.rainNoteBody(s.placeNear(placeKind), f.area, f.forecast),
+    pills: [
+      NotePill(s.rainPill(s.placeLabel(placeKind)), PillTone.amber),
+      if (valid.isNotEmpty) NotePill(s.forecastPill(valid), PillTone.sky),
+    ],
+    art: NoteArt.rain,
+    link: _todayLink,
+  );
+}
+
+/// Unhealthy air or worse. The pill names the reading that set the level.
+RichNote hazeNote(S s, AirQuality air) {
+  final psi = air.psi24;
+  final pm = air.pm25;
+  final byPm = pm != null && (psi == null || pm25Level(pm).index > psiLevel(psi).index);
+  final level = s.airLevel(air.level);
+  return RichNote(
+    id: 8,
+    title: s.hazeNoteTitle(level.toLowerCase()),
+    body: s.airAdviceShort(air.level),
+    pills: [
+      if (byPm) NotePill(s.pm25Pill(pm, level), PillTone.red) else if (psi != null) NotePill(s.psiPill(psi, level), PillTone.red),
+    ],
+    art: psi == null ? NoteArt.none : NoteArt.psi,
+    artValue: psi == null ? null : math.min(psi / 300, 1.0),
+    link: _todayLink,
+  );
+}
+
+/// The bus to leave for. [placeName] for a custom place with its own time (ids 13 and up).
+RichNote leaveNote(S s, LeaveBy lb, {int id = 9, String? placeName, int? usualMinutes}) {
+  final line = s.leaveIn(lb.service, lb.leaveIn, lb.walk);
+  return RichNote(
+    id: id,
+    title: s.leaveTitle,
+    body: placeName == null ? line : s.leaveForPlace(placeName, line),
+    pills: [
+      NotePill(lb.service, PillTone.board),
+      NotePill(lb.leaveIn == 0 ? s.leaveNowPill : s.leaveInPill(lb.leaveIn), PillTone.teal),
+      if (usualMinutes != null) NotePill(s.usuallyPill(usualMinutes), PillTone.sky),
+    ],
+    link: _todayLink,
+  );
+}
+
+/// Disrupted lines ([bad], not empty). With a [planB] (from [planBBus]) the line pill and the
+/// text are those of the trip's line the bus goes around; otherwise the first disrupted line.
+RichNote mrtNote(S s, List<LineStatus> bad, {({String line, String bus})? planB}) {
+  final shown = planB == null ? bad.first : bad.firstWhere((x) => x.line == planB.line, orElse: () => bad.first);
+  return RichNote(
+    id: 1,
+    title: s.mrtAlert([for (final x in bad) x.line].join(', ')),
+    body: shown.detail?.isNotEmpty == true ? shown.detail! : s.checkAlternatives,
+    pills: [
+      NotePill(shown.line, PillTone.line, lineColor: mrtLineColors[shown.line]),
+      NotePill(s.disruptedPill, PillTone.red),
+      if (planB != null) NotePill(planB.bus, PillTone.board),
+    ],
+    link: _todayLink,
+  );
+}
+
+/// The first direct bus of today's trip, with the line it goes around: a line on the trip's
+/// MRT [plan] that is disrupted and is one of [disruptedLines] (the lines the alert is about,
+/// so the pill never names a line the user does not watch). Null when there is none.
+({String line, String bus})? planBBus({
+  required MrtPlan? plan,
+  required Map<String, dynamic>? alerts,
+  required Iterable<String> directServices,
+  required Iterable<String> disruptedLines,
+}) {
+  if (directServices.isEmpty) return null;
+  final about = disruptedLines.toSet();
+  for (final line in planDisruption(plan, alerts).lines) {
+    if (about.contains(line)) return (line: line, bus: directServices.first);
+  }
+  return null;
+}
+
+/// Wake me at my stop: the stop is next, or may have been passed.
+RichNote wakeNote(S s, WakeEvent ev, String stop) {
+  final passed = ev == WakeEvent.passed;
+  return RichNote(
+    id: 10,
+    title: s.wakeTitle,
+    body: passed ? s.wakePassed(stop) : s.wakeNowAt(stop),
+    pills: [passed ? NotePill(s.wakePassedPill, PillTone.red) : NotePill(s.wakeNextPill, PillTone.amber)],
+    art: NoteArt.phone,
+  );
+}
+
+/// A favourite hawker centre is closed tomorrow; [altName] is one that is open.
+RichNote hawkerNote(S s, String name, {String? altName, double? altMetres}) {
+  final dist = altMetres == null ? null : s.metres(altMetres);
+  final closed = s.hawkerClosedTomorrow(name);
+  return RichNote(
+    id: 3,
+    title: s.hawkerTomorrowTitle,
+    body: altName == null || dist == null ? closed : '$closed. ${s.tryInstead(altName, dist)}',
+    pills: [
+      NotePill(s.closedTomorrowPill, PillTone.red),
+      if (altName != null && dist != null) NotePill(s.openPill(altName, dist), PillTone.mint),
+    ],
+    link: 'dailylah://nearby',
+  );
+}
+
+/// High heat stress near [place] ("School"); [level] as NEA names it, [uv] the UV index.
+RichNote heatNote(S s, {required String place, required String level, int? uv}) => RichNote(
+      id: 5,
+      title: s.heatNoteTitle,
+      body: s.heatNoteBody(place),
+      pills: [
+        NotePill(s.heatPill(s.heatLevel(level)), PillTone.red),
+        if (uv != null && uv > 0) NotePill(s.uvPill(uv), PillTone.amber),
+      ],
+      art: NoteArt.heat,
+      artValue: 1,
+      link: _todayLink,
+    );
+
+/// The Sunday digest. [tripsPerDay] are the last seven days, oldest first.
+RichNote digestNote(S s, List<String> lines, {int? weekCents, List<int> tripsPerDay = const []}) {
+  final most = tripsPerDay.fold(0, math.max);
+  return RichNote(
+    id: 12,
+    title: s.digestTitle,
+    body: lines.join('\n'),
+    pills: [if (weekCents != null && weekCents > 0) NotePill(s.weekCostPill(s.money(weekCents)), PillTone.sky)],
+    art: most > 0 ? NoteArt.week : NoteArt.none,
+    bars: most > 0 ? [for (final n in tripsPerDay) n / most] : const [],
+    link: _todayLink,
+  );
+}
+
+/// For the digest: trips on each of the last seven days ending [now], oldest first, and what
+/// those days cost (entered costs, else estimates, as History adds them up).
+({int cents, List<int> tripsPerDay}) weekHabits(Habits h, DateTime now) {
+  final first = dateOnly(now).subtract(const Duration(days: 6));
+  final days = List<int>.filled(7, 0);
+  for (final t in h.trips) {
+    final i = dateOnly(t.start).difference(first).inHours ~/ 24;
+    if (i >= 0 && i < 7) days[i]++;
+  }
+  return (cents: historySummary(historyEntries(h, since: first)).costCents, tripsPerDay: days);
+}
+
+/// The eight alerts with the landing page's values, for More > Alerts > Show me an example.
+/// Each title starts with "Example:" so a sample never reads like a real warning, and each has
+/// its own id (the alert's + 100), so it never replaces a real alert still in the shade.
+List<RichNote> sampleNotes(S s) => [
+      for (final n in [
+      rainNote(s, placeKind: 'work', f: const AreaForecast(area: 'Bishan', forecast: 'Showers', validText: '5 PM to 7 PM')),
+      hazeNote(s, const AirQuality(region: 'central', psi24: 128, level: AirLevel.unhealthy)),
+      leaveNote(s, const LeaveBy('36', 6, 2), usualMinutes: 38),
+      mrtNote(s, [LineStatus(line: 'EWL', disrupted: true, detail: s.sampleMrtDetail)], planB: (line: 'EWL', bus: '858')),
+      wakeNote(s, WakeEvent.wake, s.sampleStop),
+      hawkerNote(s, s.sampleHawker, altName: s.sampleHawkerAlt, altMetres: 400),
+      heatNote(s, place: s.placeLabel('school'), level: 'High', uv: 11),
+      digestNote(s, s.sampleDigest, weekCents: 2460, tripsPerDay: const [3, 4, 3, 5, 4, 1, 1]),
+      ])
+        n.asSample(s.exampleTitle(n.title)),
+    ];

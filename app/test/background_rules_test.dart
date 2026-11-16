@@ -16,9 +16,87 @@ import 'support/harness.dart';
 
 const _notifChannel = MethodChannel('dexterous.com/flutter/local_notifications');
 const _widgetChannel = MethodChannel('home_widget');
+const _richChannel = MethodChannel('dailylah/notify');
 
-/// Notifications "shown" during a test, as the plugin's method-channel arguments.
+/// Notifications "shown" during a test: the plain ones as the plugin's method-channel
+/// arguments, and the ones with the custom layout as their note (id, title, body, pills).
 final shown = <Map<Object?, Object?>>[];
+
+/// Only the plain ones (flutter_local_notifications).
+final plain = <Map<Object?, Object?>>[];
+
+/// Notes sent to the custom layout (dailylah_notify), posted or not.
+final rich = <Map<Object?, Object?>>[];
+
+/// What Android answers to a note: true = posted with the custom layout.
+var richOk = true;
+
+List<String> pillsOf(Map<Object?, Object?> note) =>
+    [for (final p in note['pills'] as List) '${(p as Map)['text']}'];
+
+/// NSL and EWL both disrupted, NSL listed first.
+class TwoLinesApi extends FakeApi {
+  @override
+  Future<Map<String, dynamic>> trainAlerts() async => {
+        'data': {
+          'value': {
+            'Status': 2,
+            'AffectedSegments': [
+              {'Line': 'NSL', 'Direction': 'Both', 'Stations': 'NS1,NS2'},
+              {'Line': 'EWL', 'Direction': 'Both', 'Stations': 'EW1,EW2,EW3'},
+            ],
+            'Message': [],
+          },
+        },
+      };
+}
+
+/// Heat stress High at the station next to the household's home, UV index 8 (or no reading).
+class HotApi extends FakeApi {
+  HotApi({this.uvFails = false});
+  final bool uvFails;
+
+  @override
+  Future<Map<String, dynamic>> weather(String kind) async {
+    if (kind == 'wbgt') {
+      return {
+        'data': {
+          'data': {
+            'records': [
+              {
+                'item': {
+                  'readings': [
+                    {
+                      'station': {'location': {'latitude': 1.3516, 'longitude': 103.945}},
+                      'heatStress': 'High',
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      };
+    }
+    if (kind == 'uv') {
+      if (uvFails) throw StateError('uv down (test)');
+      return {
+        'data': {
+          'data': {
+            'records': [
+              {
+                'index': [
+                  {'hour': '2026-10-20T07:00:00+08:00', 'value': 8},
+                ],
+              },
+            ],
+          },
+        },
+      };
+    }
+    return super.weather(kind);
+  }
+}
 
 /// Home screen widget data saved during a test (HomeWidget.saveWidgetData).
 final widgetSaved = <String, Object?>{};
@@ -32,6 +110,9 @@ Future<void> _withFavorites(Favorites fav, {List<String> sent = const []}) async
 
 Iterable<String> get titles => shown.map((m) => '${m['title']}');
 
+/// Rain alerts are titled "Rain before you leave." (S.rainNoteTitle).
+Iterable<String> get rainTitles => titles.where((t) => t.startsWith('Rain before'));
+
 /// MRT alerts are titled "Disruption on `<lines>`" (S.mrtAlert).
 Iterable<String> get mrtTitles => titles.where((t) => t.startsWith('Disruption'));
 
@@ -40,14 +121,27 @@ void main() {
 
   setUp(() {
     shown.clear();
+    plain.clear();
+    rich.clear();
+    richOk = true;
     widgetSaved.clear();
     resetWidgetCache();
     AndroidFlutterLocalNotificationsPlugin.registerWith();
     final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(_notifChannel, (call) async {
-      if (call.method == 'show') shown.add((call.arguments as Map).cast<Object?, Object?>());
+      if (call.method == 'show') {
+        final args = (call.arguments as Map).cast<Object?, Object?>();
+        shown.add(args);
+        plain.add(args);
+      }
       if (call.method == 'initialize') return true;
       return null;
+    });
+    messenger.setMockMethodCallHandler(_richChannel, (call) async {
+      final note = ((call.arguments as Map)['note'] as Map).cast<Object?, Object?>();
+      rich.add(note);
+      if (richOk) shown.add(note);
+      return richOk;
     });
     messenger.setMockMethodCallHandler(_widgetChannel, (call) async {
       if (call.method == 'saveWidgetData') {
@@ -123,27 +217,101 @@ void main() {
     test('alerts before the usual departure when rain is forecast at home', () async {
       await _withFavorites(householdFavorites);
       await runChecks(FakeApi(), rainyBeforeWork, bundles: FileBundles());
-      expect(titles.where((t) => t.toLowerCase().contains('umbrella')), hasLength(1));
+      expect(rainTitles, hasLength(1));
     });
 
     test('only once per window', () async {
       await _withFavorites(householdFavorites);
       await runChecks(FakeApi(), rainyBeforeWork, bundles: FileBundles());
       await runChecks(FakeApi(), rainyBeforeWork.add(const Duration(minutes: 15)), bundles: FileBundles());
-      expect(titles.where((t) => t.toLowerCase().contains('umbrella')), hasLength(1));
+      expect(rainTitles, hasLength(1));
     });
 
     test('stays silent when the rain toggle is off', () async {
       await _withFavorites(householdFavorites.copyWith(rainAlerts: false));
       await runChecks(FakeApi(), rainyBeforeWork, bundles: FileBundles());
-      expect(titles.where((t) => t.toLowerCase().contains('umbrella')), isEmpty);
+      expect(rainTitles, isEmpty);
     });
 
     test('no more than 3 a day', () async {
       const day = '2026-10-20';
       await _withFavorites(householdFavorites, sent: ['$day:a', '$day:b', '$day:c']);
       await runChecks(FakeApi(), rainyBeforeWork, bundles: FileBundles());
-      expect(titles.where((t) => t.toLowerCase().contains('umbrella')), isEmpty);
+      expect(rainTitles, isEmpty);
+    });
+  });
+
+  group('alerts with pills (custom layout)', () {
+    test('the rain alert goes out as a rich note with the umbrella pill, not as plain text', () async {
+      await _withFavorites(householdFavorites);
+      await runChecks(FakeApi(), rainyBeforeWork, bundles: FileBundles());
+      final note = rich.singleWhere((n) => n['id'] == 2);
+      expect(note['title'], 'Rain before you leave.');
+      expect(note['body'], 'Rain near home (Tampines): Thundery Showers. Bring an umbrella.');
+      expect(pillsOf(note), ['☂ Rain near Home', 'Forecast 7 to 9 AM']);
+      expect(note['link'], 'dailylah://today');
+      expect(plain.where((n) => n['id'] == 2), isEmpty);
+    });
+
+    test('when the layout cannot be posted the plain rain alert shows, once', () async {
+      richOk = false;
+      await _withFavorites(householdFavorites);
+      await runChecks(FakeApi(), rainyBeforeWork, bundles: FileBundles());
+      await runChecks(FakeApi(), rainyBeforeWork.add(const Duration(minutes: 15)), bundles: FileBundles());
+      final rain = plain.where((n) => n['id'] == 2).toList();
+      expect(rain, hasLength(1));
+      expect(rain.single['title'], 'Rain before you leave.');
+      expect(rain.single['body'], 'Rain near home (Tampines): Thundery Showers. Bring an umbrella.');
+    });
+
+    test('rich notes still fire once per event', () async {
+      await _withFavorites(householdFavorites);
+      await runChecks(FakeApi(disruptedLine: 'EWL'), rainyBeforeWork, bundles: FileBundles());
+      await runChecks(FakeApi(disruptedLine: 'EWL'), rainyBeforeWork.add(const Duration(minutes: 15)),
+          bundles: FileBundles());
+      expect(rich.where((n) => n['id'] == 2), hasLength(1));
+      expect(rich.where((n) => n['id'] == 1), hasLength(1));
+    });
+
+    test('MRT: a disruption on the way to work shows the line, Disrupted and a direct bus', () async {
+      await _withFavorites(householdFavorites);
+      await runChecks(FakeApi(disruptedLine: 'EWL'), rainyBeforeWork, bundles: FileBundles());
+      final note = rich.singleWhere((n) => n['id'] == 1);
+      expect(note['title'], 'Disruption on EWL');
+      final pills = (note['pills'] as List).cast<Map>();
+      expect(pills.take(2).map((p) => p['text']), ['EWL', 'Disrupted']);
+      expect(pills.first['lineColor'], 0x009645);
+      expect(pills, hasLength(3), reason: 'the household has a direct bus from home to work');
+      expect(pills.last['tone'], 'board');
+    });
+
+    test('MRT: with two lines disrupted, the pill shows the line of the trip the bus goes around', () async {
+      // NSL and EWL are watched; the trip home > work rides EWL. LTA lists NSL first.
+      await _withFavorites(householdFavorites.copyWith(lines: {'NSL', 'EWL'}));
+      await runChecks(TwoLinesApi(), rainyBeforeWork, bundles: FileBundles());
+      final note = rich.singleWhere((n) => n['id'] == 1);
+      expect(pillsOf(note).take(2), ['EWL', 'Disrupted']);
+      expect(pillsOf(note), hasLength(3));
+    });
+
+    test('MRT: a disruption on a line that is not on the trip has no bus pill', () async {
+      await _withFavorites(householdFavorites.copyWith(lines: {}));
+      await runChecks(FakeApi(disruptedLine: 'NEL'), rainyBeforeWork, bundles: FileBundles());
+      expect(pillsOf(rich.singleWhere((n) => n['id'] == 1)), ['NEL', 'Disrupted']);
+    });
+
+    test('heat: the note has the UV pill when there is a reading', () async {
+      await _withFavorites(householdFavorites);
+      await runChecks(HotApi(), rainyBeforeWork, bundles: FileBundles());
+      final note = rich.singleWhere((n) => n['id'] == 5);
+      expect(note['title'], 'Heat stress high.');
+      expect(pillsOf(note), ['Heat stress High', 'UV 8']);
+    });
+
+    test('heat: no UV pill when the UV reading fails, and the alert still shows', () async {
+      await _withFavorites(householdFavorites);
+      await runChecks(HotApi(uvFails: true), rainyBeforeWork, bundles: FileBundles());
+      expect(pillsOf(rich.singleWhere((n) => n['id'] == 5)), ['Heat stress High']);
     });
   });
 

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="dl_note_edge">#FF5E7880</color>
+    <color name="dl_note_mark">#FFE8F3F6</color>
+    <color name="dl_note_card">#FF152024</color>
+</resources>

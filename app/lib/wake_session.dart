@@ -119,11 +119,7 @@ class WakeNotifier extends Notifier<WakeState?> {
     _cancel();
     final s = ref.read(stringsProvider);
     await HapticFeedback.heavyImpact();
-    await notifyNow(
-      10,
-      s.wakeTitle,
-      ev == WakeEvent.wake ? s.wakeNowAt(st.alight.name) : s.wakePassed(st.alight.name),
-    );
+    await showNote(wakeNote(s, ev, st.alight.name), s: s);
   }
 
   /// Ends the ride (button on the page or the banner).

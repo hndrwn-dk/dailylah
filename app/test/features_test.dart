@@ -29,9 +29,11 @@ import 'package:dailylah/ui/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart' show GeolocatorPlatform, LocationPermission;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/harness.dart';
 
@@ -492,6 +494,61 @@ void main() {
     expect(find.text('1 of 2 free'), findsOneWidget);
     expect(find.text('Operator: SP MOBILITY'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  group('More > Alerts > Show me an example', () {
+    const notifChannel = MethodChannel('dexterous.com/flutter/local_notifications');
+    const richChannel = MethodChannel('dailylah/notify');
+    final rich = <Map<Object?, Object?>>[];
+    var allowed = true;
+
+    Future<void> openMore(WidgetTester tester) async {
+      rich.clear();
+      AndroidFlutterLocalNotificationsPlugin.registerWith();
+      final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(notifChannel, (call) async => switch (call.method) {
+            'initialize' => true,
+            'areNotificationsEnabled' || 'requestNotificationsPermission' => allowed,
+            _ => null,
+          });
+      messenger.setMockMethodCallHandler(richChannel, (call) async {
+        rich.add((((call.arguments as Map)['note']) as Map).cast<Object?, Object?>());
+        return true;
+      });
+      addTearDown(() {
+        messenger.setMockMethodCallHandler(notifChannel, null);
+        messenger.setMockMethodCallHandler(richChannel, null);
+      });
+      await applyCondition(tester, _normal);
+      await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+      await settle(tester);
+      containerOf(tester).read(shellTabProvider.notifier).state = _tabs['More']!;
+      await settle(tester);
+      final row = find.widgetWithText(ListTile, 'Show me an example');
+      await tester.ensureVisible(row);
+      await tester.pump();
+      await tester.tap(row);
+      await settle(tester);
+    }
+
+    testWidgets('posts the eight sample alerts and leaves the alert log alone', (tester) async {
+      allowed = true;
+      await openMore(tester);
+      expect(rich.map((n) => n['id']).toSet(), {102, 108, 109, 101, 110, 103, 105, 112});
+      expect(rich.every((n) => (n['pills'] as List).isNotEmpty), isTrue);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getStringList('alerts.sent'), isNull, reason: 'a sample must not stop the real alert');
+      expect(find.text('Allow notifications to see the examples'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('with notifications not allowed it posts nothing and says why', (tester) async {
+      allowed = false;
+      await openMore(tester);
+      expect(rich, isEmpty);
+      expect(find.text('Allow notifications to see the examples'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   testWidgets('Turning on "My car is electric" in More picks a plug', (tester) async {

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Alert notification colours, from DL in lib/ui/theme.dart and the landing page. -->
+<resources>
+    <!-- Outline of pills and pictures: ink on a light shade, lighter on a dark one. -->
+    <color name="dl_note_edge">#FF0F1618</color>
+    <color name="dl_note_mark">#FF0F1618</color>
+    <color name="dl_note_card">#FFF4FBFE</color>
+    <!-- Sticker surfaces keep ink text in light and dark mode, like the app. -->
+    <color name="dl_note_ink">#FF0F1618</color>
+    <color name="dl_note_amber">#FFEDAD2B</color>
+    <color name="dl_note_red">#FFDC4A37</color>
+    <color name="dl_note_teal">#FF0A7068</color>
+    <color name="dl_note_teal_fill">#FF0E9488</color>
+    <color name="dl_note_mint">#FFCFEDEA</color>
+    <color name="dl_note_sky">#FFBFE4F1</color>
+    <color name="dl_note_board">#FF101719</color>
+    <color name="dl_note_led">#FFFFB627</color>
+    <color name="dl_note_good">#FF2FA36B</color>
+    <color name="dl_note_white">#FFFFFFFF</color>
+    <!-- Official MRT/LRT line colours (mrtLineColors in lib/logic.dart). -->
+    <color name="dl_note_nsl">#FFD42E12</color>
+    <color name="dl_note_ewl">#FF009645</color>
+    <color name="dl_note_ccl">#FFFA9E0D</color>
+    <color name="dl_note_dtl">#FF005EC4</color>
+    <color name="dl_note_nel">#FF9900AA</color>
+    <color name="dl_note_tel">#FF9D5B25</color>
+    <color name="dl_note_lrt">#FF748477</color>
+</resources>

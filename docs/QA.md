@@ -136,7 +136,7 @@ pull request, by the names GitHub shows:
   skipped. A job skipped by its `if:` counts as passed; a workflow that never started does not.
 - Pushes keep their `paths:` filters, and a release (push to main or a manual run) always runs
   every job, so nothing changes for the release gate.
-- Not required: `CodeQL (java-kotlin)` (a matrix entry that exists only when `app/android/`
+- Not required: `CodeQL (java-kotlin)` (a matrix entry that exists only when `app/android/` or `app/packages/`
   changes), the code scanning checks `CodeQL`, `osv-scanner` and `zizmor` (SARIF uploads, already
   covered by their jobs), `web-check` (only when its script changes), and the main-only jobs
   `sign the App Bundle`, `upload to Google Play (…)`, `tag the release` and
@@ -152,7 +152,7 @@ None of these block the Google Play upload; a red `security` run is fixed before
 | Tool | Scans | Fails the run on | Baseline |
 | --- | --- | --- | --- |
 | CodeQL `actions`, `python` | workflows, `backend/`, `scripts/` | results show in Security > Code scanning (PR check) | dismiss in the Security tab with a reason |
-| CodeQL `java-kotlin` | `app/android` (MainActivity, home screen widget), built with `flutter build apk --debug` | same | same |
+| CodeQL `java-kotlin` | `app/android` (MainActivity, home screen widget) and `app/packages` (the alert notification plugin), built with `flutter build apk --debug` | same | same |
 | osv-scanner v2.7.0 | `app/pubspec.lock`, `backend/requirements*.txt`, `.github/tools/requirements.txt`, `web/tests/e2e/package-lock.json` | High/Critical (CVSS ≥ 7.0); Medium/Low are warnings | `osv-scanner.toml` |
 | zizmor | `.github/workflows/` | High; Medium is a warning | `.github/zizmor.yml` |
 | ruff `S` (bandit) | `backend/` | any finding | inline `# noqa: Sxxx` with the reason; tests may assert and use fake tokens |
@@ -161,7 +161,7 @@ None of these block the Google Play upload; a red `security` run is fixed before
 
 - **Dart is not supported by CodeQL.** The app's Dart code is covered by `dart analyze`
   (infos are fatal) in the `app` workflow and by the AI review.
-- The java-kotlin build takes about 10 minutes, so on PRs it only runs when `app/android/`
+- The java-kotlin build takes about 10 minutes, so on PRs it only runs when `app/android/` or `app/packages/`
   or `security.yml` changes; the Monday run and manual runs always include it.
 - A baseline takes **Low findings only**, each with a reason (and for osv a date to look
   again). Anything higher is fixed or the dependency is replaced.
@@ -559,6 +559,7 @@ release changed, on the closed-testing or production build; none of them blocks 
 - [ ] Wake me on a locked screen on a real bus ride.
 - [ ] Need a toilet? (once `toilets.json` is published): start Wake me on a real bus two or more stops before your stop, tap Need a toilet?; the sheet lists the stops ahead with a toilet ("Get off at … (in about N min)"), soonest first, and Walking directions opens Google Maps at the toilet. On the train, the sheet lists the next stations ("Stations usually have a toilet" where the data has none). Nearby > Toilets shows the three best toilets near the place.
 - [ ] Look at Today and Home once on a small real phone at the largest font size.
+- [ ] Alert layouts: More > Alerts > Show me an example posts the eight alerts with sample values. Pull down the shade and expand them: each shows its title, text, pills and small picture, in light and dark, and a tap opens the app (the hawker one on Nearby).
 - [ ] Public holiday: set the phone's date to a public holiday on a workday (e.g. Fri 25 Dec 2026) before the usual leave time. Today shows the holiday banner and no trip; the background check sends one "Happy Christmas Day · no commute today" notification and no "Time to go".
 - [ ] Plan a trip, To: "Lau Pa Sat" finds it at 18 Raffles Quay with the Geoapify line under the results; "560201" finds Blk 201 Ang Mo Kio (OneMap, no Geoapify line); "Jewel Changi" finds Jewel. ("Putra Minang" is not in OpenStreetMap and finds nothing: share it from Google Maps.)
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../logic.dart' show mrtLineColors;
 import 'app_frame.dart';
 
 /// DailyLah design tokens.
@@ -81,17 +82,10 @@ class DL {
   static List<BoxShadow> hard(BuildContext context, {double d = 4}) =>
       [BoxShadow(color: edge(context), offset: Offset(d, d))];
 
-  /// Official MRT/LRT line colours.
-  static const lineColors = <String, Color>{
-    'NSL': Color(0xFFD42E12),
-    'EWL': Color(0xFF009645),
-    'CCL': Color(0xFFFA9E0D),
-    'DTL': Color(0xFF005EC4),
-    'NEL': Color(0xFF9900AA),
-    'TEL': Color(0xFF9D5B25),
-    'BPL': Color(0xFF748477),
-    'SLRT': Color(0xFF748477),
-    'PLRT': Color(0xFF748477),
+  /// Official MRT/LRT line colours (the values are `mrtLineColors` in logic.dart, pure Dart so
+  /// the background isolate can use them).
+  static final lineColors = <String, Color>{
+    for (final e in mrtLineColors.entries) e.key: Color(0xFF000000 | e.value),
   };
 
   static Color lineColor(String code) => lineColors[code] ?? mist;
