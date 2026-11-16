@@ -64,12 +64,12 @@
   /* ---------------- hero */
   .hero { padding: 24px 0 56px; display: grid; gap: 40px; align-items: center; }
   @media (min-width: 880px) { .hero { grid-template-columns: 1.05fr 1fr; padding: 48px 0 88px; } }
-  /* On a phone the stop card comes right under the headline, so an answer is in view when a
-     question below it is tapped. */
+  /* On a phone the order is the one read on a wide screen: headline, the questions, then the stop
+     card that answers them, with the Play button under it. */
   @media (max-width: 879px) {
     .hero { gap: 0; }
     .hero-text { display: contents; }
-    .hero .headline { order: 1; } .hero .stop { order: 2; margin-bottom: 28px; } .hero .ask-hint { order: 3; } .hero .asks { order: 4; }
+    .hero .headline { order: 1; } .hero .ask-hint { order: 2; } .hero .asks { order: 3; } .hero .stop { order: 4; margin-bottom: 28px; }
     .hero .cta { order: 5; } .hero .fine { order: 6; }
   }
   h1 { font: 700 clamp(52px, 9vw, 92px)/0.92 var(--display); letter-spacing: -0.01em; margin: 0 0 22px; max-width: 9ch; }
