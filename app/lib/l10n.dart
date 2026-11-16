@@ -970,7 +970,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Alerts have a new look: rain, haze, heat, your bus and MRT disruptions now show the key facts as coloured tags. See them under More > Alerts > Show me an example.",
+        "Alerts: titles are bold, and the haze bar's colours now match the PSI level.",
       ];
 
   // about

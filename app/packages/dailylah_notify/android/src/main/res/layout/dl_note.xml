@@ -14,7 +14,8 @@
         android:layout_height="wrap_content"
         android:ellipsize="end"
         android:maxLines="2"
-        android:textAppearance="@android:style/TextAppearance.Material.Notification.Title" />
+        android:textAppearance="@android:style/TextAppearance.Material.Notification.Title"
+        android:textStyle="bold" />
 
     <TextView
         android:id="@+id/dl_note_body"

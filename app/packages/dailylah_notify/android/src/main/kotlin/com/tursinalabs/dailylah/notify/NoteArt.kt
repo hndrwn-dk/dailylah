@@ -45,7 +45,11 @@ internal object NoteArt {
         this.color = color
     }
 
-    /** A green, amber and red bar with a marker at [at] (PSI 0 to 300). */
+    /**
+     * The PSI bar, 0 to 300, with a marker at [at]: green to 50 (good), amber to 100
+     * (moderate), red above (unhealthy and worse), so the marker's colour agrees with the
+     * pill beside it.
+     */
     private fun psi(ctx: Context, d: Float, at: Float): Bitmap {
         val w = 96 * d
         val h = 22 * d
@@ -56,10 +60,11 @@ internal object NoteArt {
         val clip = Path().apply { addRoundRect(bar, r, r, Path.Direction.CW) }
         c.save()
         c.clipPath(clip)
-        val third = bar.width() / 3
-        c.drawRect(bar.left, bar.top, bar.left + third, bar.bottom, fill(ctx.getColor(R.color.dl_note_good)))
-        c.drawRect(bar.left + third, bar.top, bar.left + 2 * third, bar.bottom, fill(ctx.getColor(R.color.dl_note_amber)))
-        c.drawRect(bar.left + 2 * third, bar.top, bar.right, bar.bottom, fill(ctx.getColor(R.color.dl_note_red)))
+        val good = bar.left + bar.width() * 50f / 300f
+        val moderate = bar.left + bar.width() * 100f / 300f
+        c.drawRect(bar.left, bar.top, good, bar.bottom, fill(ctx.getColor(R.color.dl_note_good)))
+        c.drawRect(good, bar.top, moderate, bar.bottom, fill(ctx.getColor(R.color.dl_note_amber)))
+        c.drawRect(moderate, bar.top, bar.right, bar.bottom, fill(ctx.getColor(R.color.dl_note_red)))
         c.restore()
         c.drawRoundRect(bar, r, r, stroke(ctx.getColor(R.color.dl_note_edge), edge))
         val x = (bar.left + bar.width() * at).coerceIn(3 * d, w - 3 * d)
