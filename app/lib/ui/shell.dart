@@ -41,7 +41,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   CardKind? _cardWhenAway;
 
   /// Taps on the home screen widget's Today / Nearby / Home buttons.
-  StreamSubscription<int>? _widgetTaps;
+  StreamSubscription<(int, String?)>? _widgetTaps;
 
   /// Places shared to DailyLah from Google Maps (Share > DailyLah).
   StreamSubscription<SharedPlace>? _shares;
@@ -64,10 +64,12 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     nav.push(MaterialPageRoute<void>(builder: (_) => TripPlannerPage(shared: place)));
   }
 
-  void _openFromWidget(int tab) {
+  /// A tap on the home screen widget or on an alert: the tab, and for Nearby the section asked for.
+  void _openFromWidget((int, String?) target) {
     if (!mounted) return;
     Navigator.of(context).popUntil((r) => r.isFirst);
-    ref.read(shellTabProvider.notifier).state = tab;
+    if (target.$2 case final section?) ref.read(nearbySectionProvider.notifier).state = section;
+    ref.read(shellTabProvider.notifier).state = target.$1;
   }
 
   @override

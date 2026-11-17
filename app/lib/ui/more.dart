@@ -86,6 +86,22 @@ class MorePage extends ConsumerWidget {
                       toggle(s.alertDengue, fav.dengueAlerts, (f, v) => f.copyWith(dengueAlerts: v)),
                       toggle(s.alertHeat, fav.heatAlerts, (f, v) => f.copyWith(heatAlerts: v)),
                       toggle(s.alertHomes, fav.homesAlerts, (f, v) => f.copyWith(homesAlerts: v)),
+                      toggle(s.alertLunch, fav.lunchAlerts, (f, v) => f.copyWith(lunchAlerts: v), sub: s.alertLunchSub),
+                      if (fav.lunchAlerts)
+                        ListTile(
+                          leading: const Icon(Icons.schedule),
+                          title: Text(s.lunchTimeAt(fav.lunchAt.format()), style: t.bodyMedium),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () async {
+                            final picked = await showTimePicker(
+                              context: context,
+                              helpText: s.lunchTimeHelp,
+                              initialTime: TimeOfDay(hour: fav.lunchAt.hour, minute: fav.lunchAt.minute),
+                            );
+                            if (picked == null) return;
+                            notifier.update((f) => f.copyWith(lunchAt: TimeOfDayHM(picked.hour, picked.minute)));
+                          },
+                        ),
                       ListTile(
                         leading: const Icon(Icons.notifications_active_outlined),
                         title: Text(s.alertExample, style: t.bodyMedium),

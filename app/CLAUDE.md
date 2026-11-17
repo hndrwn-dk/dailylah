@@ -196,8 +196,18 @@ feature, screen, provider or rule moves, appears or goes away.
   (never a stray one). The ID and channel (`locationServiceNoteId`, `locationServiceChannel`) are private
   constants of geolocator_android: a test fails when its version in `pubspec.lock` differs from
   `locationServicePluginVersion`, so a geolocator upgrade re-reads them in `GeolocatorLocationService.java`.
+  Lunch (`lunchNote`, ID 23; `Favorites.lunchAlerts`, off until switched on in More > Alerts, with its time
+  `Favorites.lunchAt`, 12:00 by default): on a work or school day (`lunchPlace`: `commutePlace`, so never on a
+  public or school holiday) the background pass sends one note in the 45 min from the time set (`inLunchWindow`,
+  once a day `lunch:<day>`) with an open hawker centre within `lunchMaxMetres` of that place, a starred one first
+  (`lunchPick`, `LunchPick`), and "Rain expected" when the forecast there says so. It goes by the calendar, never
+  by where the phone is (no position in the background), names the place ("Near Work: ...") and opens Nearby on
+  Eat (`dailylah://nearby/eat`, `nearbySectionForUri`; `widgetTabTaps` now yields the tab and the section). On
+  Today, from 30 min before to 2 h after that time (`lunchCardDue`): at the office the same pick sits inside
+  `AtPlaceCard` with "Where to eat"; elsewhere (not at home) `LunchCard` opens Nearby > Eat (`openNearbyEat`).
+  Halal places are not suggested in the note (no room for `S.halalDisclaimer`); Nearby > Eat lists them.
   A new alert is a new `...Note` builder; no two alerts share an ID (a test checks the samples). More > Alerts > "Show me an
-  example" (`showExampleAlerts`, `sampleNotes`) posts every alert (15) with sample values, titled "Example: ..." and
+  example" (`showExampleAlerts`, `sampleNotes`) posts every alert (16) with sample values, titled "Example: ..." and
   under their own IDs (the alert's + 100), so a sample never replaces a real alert, and never touches
   `AlertLog`. The MRT note's line pill is the trip's line the plan B bus goes around (`planBBus`), not just the
   first disrupted one. The body gives way to the pills: 9 lines with none (a long digest), two fewer per row. Tests: "rich notes" in `test/logic_test.dart`, "alerts with pills" in

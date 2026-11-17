@@ -1877,6 +1877,12 @@ void main() {
       expect(tabForWidgetUri(Uri.parse('dailylah://more')), isNull);
       expect(tabForWidgetUri(Uri.parse('https://dailylah.sg')), isNull);
       expect(tabForWidgetUri(null), isNull);
+      // The lunch suggestion opens Nearby on Eat.
+      expect(tabForWidgetUri(Uri.parse('dailylah://nearby/eat')), 1);
+      expect(nearbySectionForUri(Uri.parse('dailylah://nearby/eat')), 'eat');
+      expect(nearbySectionForUri(Uri.parse('dailylah://nearby')), isNull);
+      expect(nearbySectionForUri(Uri.parse('dailylah://today/eat')), isNull);
+      expect(nearbySectionForUri(null), isNull);
     });
   });
 
@@ -2837,7 +2843,7 @@ void main() {
     test('sampleNotes has every alert under its own id', () {
       final notes = sampleNotes(s);
       // Their own ids (the alert's id + 100), so a sample never replaces a real alert in the shade.
-      expect([for (final n in notes) n.id], [102, 108, 109, 101, 110, 103, 105, 112, 106, 104, 111, 107, 120, 121, 122]);
+      expect([for (final n in notes) n.id], [102, 108, 109, 101, 110, 103, 105, 112, 106, 104, 111, 107, 120, 121, 122, 123]);
       expect(notes.every((n) => n.pills.isNotEmpty && n.pills.length <= 3), isTrue);
       // A sample must not read like a real disruption or haze warning.
       expect(notes.every((n) => n.title.startsWith('Example: ')), isTrue);
@@ -2930,6 +2936,72 @@ void main() {
       expect(s.atPlaceTitle('school'), 'Have a good day at school');
       expect(s.atPlaceTitle('home'), "You're home. Take a rest.");
       expect(s.atPlaceSub('work', '18.00'), contains('You usually leave at 18.00'));
+    });
+  });
+
+  group('lunch suggestion', () {
+    const s = S();
+    Hawker h(String id, double lat, {List<Closure> closed = const []}) =>
+        Hawker(id: id, name: 'Hawker $id', address: '', lat: lat, lng: 103.8514, closures: closed);
+    final tue = DateTime(2026, 10, 20);
+    // 110 m, 330 m and 2.2 km north of the office.
+    final near = h('near', 1.2851);
+    final far = h('far', 1.2871);
+    final tooFar = h('toofar', 1.3041);
+    const work = Place(
+        kind: PlaceKind.work, addrLat: 1.2841, addrLng: 103.8514, go: TimeOfDayHM(8, 0), back: TimeOfDayHM(18, 0));
+    const fav = Favorites(
+      places: {PlaceKind.home: Place(kind: PlaceKind.home, addrLat: 1.3516, addrLng: 103.9450), PlaceKind.work: work},
+      lunchAlerts: true,
+    );
+
+    test('the nearest open hawker centre, a starred one first, none beyond 1 km', () {
+      expect(lunchPick([far, near, tooFar], const {}, 1.2841, 103.8514, tue)!.hawker.id, 'near');
+      final starred = lunchPick([far, near], const {'far'}, 1.2841, 103.8514, tue)!;
+      expect(starred.hawker.id, 'far');
+      expect(starred.starred, isTrue);
+      expect(starred.metres, closeTo(330, 15));
+      // Closed today: the next one.
+      final shut = h('near', 1.2851, closed: [Closure(tue, tue, 'Cleaning')]);
+      expect(lunchPick([shut, far], const {'near'}, 1.2841, 103.8514, tue)!.hawker.id, 'far');
+      expect(lunchPick([tooFar], const {}, 1.2841, 103.8514, tue), isNull);
+    });
+
+    test('only when switched on, on a work or school day, around the time set', () {
+      expect(lunchPlace(fav, DateTime(2026, 10, 20, 12))!.kind, PlaceKind.work);
+      expect(lunchPlace(fav, DateTime(2026, 10, 24, 12)), isNull, reason: 'Saturday');
+      expect(lunchPlace(fav.copyWith(lunchAlerts: false), DateTime(2026, 10, 20, 12)), isNull);
+      expect(const Favorites().lunchAlerts, isFalse);
+      const at = TimeOfDayHM(12, 0);
+      expect(inLunchWindow(DateTime(2026, 10, 20, 11, 59), at), isFalse);
+      expect(inLunchWindow(DateTime(2026, 10, 20, 12), at), isTrue);
+      expect(inLunchWindow(DateTime(2026, 10, 20, 12, 44), at), isTrue);
+      expect(inLunchWindow(DateTime(2026, 10, 20, 12, 45), at), isFalse);
+      expect(lunchCardDue(DateTime(2026, 10, 20, 11, 30), at), isTrue);
+      expect(lunchCardDue(DateTime(2026, 10, 20, 11, 29), at), isFalse);
+      expect(lunchCardDue(DateTime(2026, 10, 20, 14), at), isFalse);
+    });
+
+    test('the setting survives saving and loading', () {
+      final back = Favorites.fromJson(fav.copyWith(lunchAt: const TimeOfDayHM(12, 30)).toJson());
+      expect(back.lunchAlerts, isTrue);
+      expect(back.lunchAt.minutes, 12 * 60 + 30);
+      // Saved before this setting existed: off, at 12:00.
+      final old = Favorites.fromJson(fav.toJson()..remove('lunchAlerts')..remove('lunchAt'));
+      expect(old.lunchAlerts, isFalse);
+      expect(old.lunchAt.minutes, 12 * 60);
+    });
+
+    test('the note names the place, never says where the user is, and opens Nearby on Eat', () {
+      final n = lunchNote(s, place: 'Work', pick: LunchPick(near, 110, starred: true), rainy: true);
+      expect(n.id, 23);
+      expect(n.title, 'Lunch time');
+      expect(n.body, 'Near Work: Hawker near, 110 m, open today. Tap to see what is near you now.');
+      expect([for (final p in n.pills) p.text], ['Hawker near, 110 m', 'Your favourite', 'Rain expected']);
+      expect(n.link, 'dailylah://nearby/eat');
+      final none = lunchNote(s, place: 'Work');
+      expect(none.body, 'Tap to see where to eat near you now.');
+      expect(none.pills, isEmpty);
     });
   });
 }

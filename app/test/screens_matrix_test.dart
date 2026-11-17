@@ -6,6 +6,7 @@
 // "render it, scroll through it, expect no exception".
 import 'package:dailylah/data.dart';
 import 'package:dailylah/l10n.dart';
+import 'package:dailylah/logic.dart';
 import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
@@ -88,6 +89,19 @@ final Map<String, Widget Function()> _pages = {
   "Where's my bus": () => const Scaffold(body: WhereBusSheet(stop: tampinesInt, service: '10')),
   'Today: at the office (greeting instead of the trip)': () => const Scaffold(
         body: SingleChildScrollView(child: AtPlaceCard(kind: PlaceKind.work, leaveAt: TimeOfDayHM(18, 0))),
+      ),
+  'Today: at the office at lunch time': () => const Scaffold(
+        body: SingleChildScrollView(
+          child: Column(children: [
+            AtPlaceCard(
+              kind: PlaceKind.work,
+              leaveAt: TimeOfDayHM(18, 0),
+              lunch: LunchPick(
+                  Hawker(id: 'x', name: 'Tampines Round Market & Food Centre', address: '', lat: 1.35, lng: 103.94), 250),
+            ),
+            LunchCard(),
+          ]),
+        ),
       ),
   'Change line': () => Scaffold(
         body: MrtLineSheet(
