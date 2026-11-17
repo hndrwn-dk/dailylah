@@ -2878,4 +2878,58 @@ void main() {
       expect(mrtLineColors.keys, containsAll(['NSL', 'EWL', 'CCL', 'DTL', 'NEL', 'TEL', 'BPL', 'SLRT', 'PLRT']));
     });
   });
+
+  group("already there: Today greets instead of showing the trip", () {
+    const fav = Favorites(places: {
+      PlaceKind.home: Place(kind: PlaceKind.home, addrLat: 1.3516, addrLng: 103.9450),
+      PlaceKind.work: Place(
+          kind: PlaceKind.work, addrLat: 1.2841, addrLng: 103.8514, go: TimeOfDayHM(8, 0), back: TimeOfDayHM(18, 0)),
+    });
+    DateTime tue(int h, [int m = 0]) => DateTime(2026, 10, 20, h, m);
+
+    test('the saved place the phone is at: within 150 m of its address, the nearest', () {
+      expect(savedPlaceAt(fav, 1.3516, 103.9450), PlaceKind.home);
+      expect(savedPlaceAt(fav, 1.2850, 103.8514), PlaceKind.work); // 100 m north of the office
+      expect(savedPlaceAt(fav, 1.2860, 103.8514), isNull); // 210 m
+      // A place saved with bus stops only has no address to be at.
+      const stopsOnly = Favorites(places: {
+        PlaceKind.home: Place(kind: PlaceKind.home, stops: [BusStop(code: 'A', name: 'A', road: '', lat: 1.3, lng: 103.8)]),
+      });
+      expect(savedPlaceAt(stopsOnly, 1.3, 103.8), isNull);
+    });
+
+    test('arrived at work, still at work, about to leave, back home', () {
+      // Morning card: at the office is arrived; at home the trip to work shows.
+      expect(restingAt(CardKind.morning, fav, tue(9), PlaceKind.work), PlaceKind.work);
+      expect(restingAt(CardKind.morning, fav, tue(7), PlaceKind.home), isNull);
+      // Evening card (from 13:00): still working until an hour before the usual 18:00.
+      expect(restingAt(CardKind.evening, fav, tue(15), PlaceKind.work), PlaceKind.work);
+      expect(restingAt(CardKind.evening, fav, tue(16, 59), PlaceKind.work), PlaceKind.work);
+      expect(restingAt(CardKind.evening, fav, tue(17), PlaceKind.work), isNull);
+      expect(restingAt(CardKind.evening, fav, tue(19), PlaceKind.work), isNull);
+      // Back home in the evening.
+      expect(restingAt(CardKind.evening, fav, tue(19), PlaceKind.home), PlaceKind.home);
+      // Elsewhere, or a day without a commute (Saturday): the usual card.
+      expect(restingAt(CardKind.evening, fav, tue(19), null), isNull);
+      expect(restingAt(CardKind.evening, fav, DateTime(2026, 10, 24, 19), PlaceKind.home), isNull);
+    });
+
+    test('a trip ended by being there is logged only when its time can be trusted', () {
+      final start = tue(18);
+      expect(arrivalLogMinutes(start, tue(18, 40), 38), 40);
+      expect(arrivalLogMinutes(start, tue(18, 53), 38), 53);
+      // Opened the app long after getting home, or no usual time yet: dropped, not logged.
+      expect(arrivalLogMinutes(start, tue(19, 30), 38), isNull);
+      expect(arrivalLogMinutes(start, tue(18, 40), null), isNull);
+      expect(arrivalLogMinutes(start, tue(18, 2), 38), isNull);
+    });
+
+    test('the greeting', () {
+      const s = S();
+      expect(s.atPlaceTitle('work'), 'Have a good day at work');
+      expect(s.atPlaceTitle('school'), 'Have a good day at school');
+      expect(s.atPlaceTitle('home'), "You're home. Take a rest.");
+      expect(s.atPlaceSub('work', '18.00'), contains('You usually leave at 18.00'));
+    });
+  });
 }

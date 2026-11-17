@@ -86,6 +86,9 @@ final Map<String, Widget Function()> _pages = {
   'Family share': () => const FamilySharePage(),
   'About': () => const AboutDailyLahPage(),
   "Where's my bus": () => const Scaffold(body: WhereBusSheet(stop: tampinesInt, service: '10')),
+  'Today: at the office (greeting instead of the trip)': () => const Scaffold(
+        body: SingleChildScrollView(child: AtPlaceCard(kind: PlaceKind.work, leaveAt: TimeOfDayHM(18, 0))),
+      ),
   'Change line': () => Scaffold(
         body: MrtLineSheet(
           from: householdFavorites.places[PlaceKind.home]!,

@@ -513,6 +513,16 @@ class S {
   String get youAreHere => "You're here";
   String get alreadyThere => "You're already there";
   String arrivedAt(String place) => 'You are at $place.';
+  /// Today, when the phone is at the trip's destination or still at work or school.
+  String atPlaceTitle(String kind) => switch (kind) {
+        'work' => 'Have a good day at work',
+        'school' => 'Have a good day at school',
+        _ => "You're home. Take a rest.",
+      };
+  String atPlaceSub(String kind, String leaveAt) => kind == 'home'
+      ? 'Your trip is hidden while you are here.'
+      : 'You usually leave at $leaveAt. Your trip home shows up an hour before.';
+  String get showTripAnyway => 'Show my trip anyway';
   String get wakeStop => 'Stop';
   String get wakeDone => 'Done';
 
@@ -974,7 +984,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Where's my bus? now opens on the bus you tapped, not always the next one. A bus on a long stretch without stops (such as an expressway) is now shown on the route, with how far it is from your stop.",
+        "Already at the office or back home? Today now greets you instead of showing bus times and I'm leaving, and a trip you forgot to end with Arrived ends by itself. Your trip home comes back an hour before you usually leave, or tap Show my trip anyway. Needs location allowed; where you are is checked on your phone only.",
       ];
 
   // about

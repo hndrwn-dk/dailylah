@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../background.dart';
 import '../logic.dart';
+import '../models.dart';
 import '../providers.dart';
 import '../share_intake.dart';
 import 'history.dart';
@@ -48,6 +50,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _locate());
     _widgetTaps = widgetTabTaps().listen(_openFromWidget);
     _shares = sharedPlaces().listen(_openShared);
   }
@@ -78,6 +81,28 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     super.dispose();
   }
 
+  /// Is the phone at the saved Home, Work or School? Today then greets instead of showing the
+  /// trip, and a trip being timed to that place ends. Only when location is already allowed
+  /// (never asks); the position is compared on the phone and not kept.
+  Future<void> _locate() async {
+    PlaceKind? at;
+    try {
+      final perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.always || perm == LocationPermission.whileInUse) {
+        final pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, timeLimit: Duration(seconds: 15)),
+        );
+        if (!mounted) return;
+        at = savedPlaceAt(ref.read(favoritesProvider), pos.latitude, pos.longitude);
+      }
+    } on Object {
+      // No location (denied, switched off, no fix in time): Today shows the trip as usual.
+    }
+    if (!mounted) return;
+    ref.read(phoneAtProvider.notifier).state = at;
+    if (at != null) await ref.read(habitsProvider.notifier).arrivedAt(at, DateTime.now());
+  }
+
   /// Back in the foreground after a while: refresh live readings, and look for new data bundles.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -87,6 +112,12 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
       return;
     }
     if (state != AppLifecycleState.resumed) return;
+    // Where the phone was before it went away says nothing about now.
+    if (_awaySince case final since? when DateTime.now().difference(since) >= liveRefreshAfter) {
+      ref.read(phoneAtProvider.notifier).state = null;
+    }
+    ref.read(showTripAnywayProvider.notifier).state = false;
+    _locate();
     if (_awaySince case final since?) {
       final card = cardFor(DateTime.now(), ref.read(favoritesProvider));
       if (todayBackToTop(awaySince: since, now: DateTime.now(), cardBefore: _cardWhenAway ?? card, cardNow: card)) {
