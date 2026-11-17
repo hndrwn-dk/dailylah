@@ -1309,7 +1309,6 @@ class S {
   String get stayIndoorsPill => 'Stay indoors';
   String newSalesPill(int n) => n == 1 ? '1 new sale' : '$n new sales';
   String get holidayPill => 'Public holiday';
-  String get noCommutePill => 'No commute today';
   // sample values for "Show me an example"
   String get sampleDengue => 'Tampines St 11';
   String get sampleBlock => 'Blk 156 Tampines St 12';

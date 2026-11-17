@@ -2723,13 +2723,14 @@ void main() {
       expect(texts(homesNote(s, block: 'X', count: 1)).first, '1 new sale');
     });
 
-    test('public holiday: the holiday note with a no-commute pill', () {
+    test('public holiday: the holiday note with one pill, so its events keep their lines', () {
       final n = holidayRichNote(s, 'Happy Deepavali', 'No commute today. Sunny near home.');
       expect(n.id, 20);
       expect(n.title, 'Happy Deepavali');
       expect(n.body, 'No commute today. Sunny near home.');
-      expect(texts(n), ['Public holiday', 'No commute today']);
-      expect(tones(n), [PillTone.mint, PillTone.sky]);
+      // One pill: a second one needs a second row, which costs the events in the body two lines.
+      expect(texts(n), ['Public holiday']);
+      expect(tones(n), [PillTone.mint]);
       expect(n.link, 'dailylah://today');
     });
 

@@ -67,7 +67,7 @@ Future<bool> showOngoingNote(RichNote n) => DailylahNotify.showOngoing(
       serviceChannelId: locationServiceChannel,
     );
 
-/// More > Alerts > Show me an example: posts the eight alerts with sample values, each under
+/// More > Alerts > Show me an example: posts every alert with sample values, each under
 /// its own id (the alert's + 100). Asks for the notification permission first; false (and nothing
 /// posted) when it is refused. Never touches `AlertLog`, so the real alerts still fire.
 Future<bool> showExampleAlerts(S s) async {

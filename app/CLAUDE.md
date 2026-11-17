@@ -171,7 +171,7 @@ feature, screen, provider or rule moves, appears or goes away.
 - Alerts run on-device: WorkManager every 15 min (`lib/background.dart`) calls the API and
   reads the cached bundles, then shows local notifications. Keep the alert rules (quiet
   hours, one per event, max 3 rain alerts a day) in `logic.dart` / `AlertLog`.
-  Eight alerts show with pills and a small picture, like the landing page's "A day with DailyLah": rain (ID 2),
+  Every alert shows with pills and a small picture. The first eight are the landing page's "A day with DailyLah": rain (ID 2),
   haze (8), leave by (9, 13+i for custom places), MRT disruption (1), Wake me at my stop (10), hawker closed
   tomorrow (3), heat stress (5) and the Sunday digest (12). What each shows is a `RichNote` (models.dart: title,
   body, up to 3 `NotePill`s with a `PillTone`, a `NoteArt`, the tab a tap opens) built in logic.dart by
@@ -197,7 +197,7 @@ feature, screen, provider or rule moves, appears or goes away.
   constants of geolocator_android: a test fails when its version in `pubspec.lock` differs from
   `locationServicePluginVersion`, so a geolocator upgrade re-reads them in `GeolocatorLocationService.java`.
   A new alert is a new `...Note` builder; no two alerts share an ID (a test checks the samples). More > Alerts > "Show me an
-  example" (`showExampleAlerts`, `sampleNotes`) posts the eight with sample values, titled "Example: ..." and
+  example" (`showExampleAlerts`, `sampleNotes`) posts every alert (15) with sample values, titled "Example: ..." and
   under their own IDs (the alert's + 100), so a sample never replaces a real alert, and never touches
   `AlertLog`. The MRT note's line pill is the trip's line the plan B bus goes around (`planBBus`), not just the
   first disrupted one. The body gives way to the pills: 9 lines with none (a long digest), two fewer per row. Tests: "rich notes" in `test/logic_test.dart`, "alerts with pills" in

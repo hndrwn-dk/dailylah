@@ -3925,10 +3925,8 @@ RichNote holidayRichNote(S s, String title, String body) => RichNote(
       id: 20,
       title: title,
       body: body,
-      pills: [
-        NotePill(s.holidayPill, PillTone.mint),
-        NotePill(s.noCommutePill, PillTone.sky),
-      ],
+      // One pill only: a second would need a second row and cost the events two lines.
+      pills: [NotePill(s.holidayPill, PillTone.mint)],
       link: _todayLink,
     );
 
