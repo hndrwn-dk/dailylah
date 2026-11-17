@@ -325,7 +325,7 @@ class _StopBoardState extends ConsumerState<_StopBoard> {
                             load: e.load,
                             info: [s.loadLabel(e.load), s.busExtras(e)].where((x) => x.isNotEmpty).join(' · '),
                             note: [if (goesTo[e.service] case final to?) s.toPlaces(to)].join(),
-                            onTap: () => showWhereBus(context, stop: stop, service: e.service),
+                            onTap: () => showWhereBus(context, stop: stop, service: e.service, minutes: e.minutes),
                           ),
                       ],
                     ),

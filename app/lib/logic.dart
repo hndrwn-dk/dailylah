@@ -1178,19 +1178,38 @@ BusWhere? busWhere(BusEta e, String stopCode, BusRoutes routes, Map<String, BusS
 /// The stops a coming bus still has to pass to reach the rider's stop, for "Where's my bus?".
 /// [stops] ends with the rider's stop; [busAt] is the index of the stop the bus is at (found as in
 /// [busWhere], one stop already passed is kept above it), null when the position is unknown:
-/// then the last 5 stops before the rider's stop are shown without a bus.
+/// then the last 5 stops before the rider's stop are shown without a bus. With [between] the bus
+/// is at no stop (a long stretch, such as an expressway): it has left `stops[busAt]` and is on
+/// its way to the next one, [metres] in a straight line from the rider's stop.
 class BusStrip {
-  const BusStrip(this.stops, {this.busAt});
+  const BusStrip(this.stops, {this.busAt, this.between = false, this.metres = 0});
   final List<BusStop> stops;
   final int? busAt;
+  final bool between;
+  final double metres;
+}
+
+/// The arrival to show first in "Where's my bus?" when the rider tapped the one due in [minutes]:
+/// its place among [buses] (one service's arrivals at the stop), the nearest time when the
+/// arrivals were refreshed since. 0 when [minutes] is null.
+int busPick(List<BusEta> buses, int? minutes) {
+  if (minutes == null) return 0;
+  var best = 0;
+  for (var i = 1; i < buses.length; i++) {
+    if ((buses[i].minutes - minutes).abs() < (buses[best].minutes - minutes).abs()) best = i;
+  }
+  return best;
 }
 
 BusStrip? busStrip(BusEta e, String stopCode, BusRoutes routes, Map<String, BusStop> stops) {
   final prefix = '${e.service}|';
   final lat = e.lat, lng = e.lng;
-  List<(String, double)>? best, any;
-  var bestI = 0, bestJ = 0, anyI = 0;
+  List<(String, double)>? best, any, seg;
+  var bestI = 0, bestJ = 0, anyI = 0, segI = 0, segJ = 0;
   var bestD = 400.0;
+  // Between two stops: the pair the bus is most nearly in line with. On the road from a to b the
+  // two straight distances never add up to more than the road itself (400 m of GPS slack).
+  var segExtra = double.infinity;
   for (final entry in routes.routes.entries) {
     if (!entry.key.startsWith(prefix)) continue;
     final list = entry.value;
@@ -1211,6 +1230,16 @@ BusStrip? busStrip(BusEta e, String stopCode, BusRoutes routes, Map<String, BusS
           bestI = i;
           bestJ = j;
         }
+        final next = j < i ? stops[list[j + 1].$1] : null;
+        if (next == null) continue;
+        final via = d + distanceMeters(lat, lng, next.lat, next.lng);
+        final extra = via - distanceMeters(st.lat, st.lng, next.lat, next.lng);
+        if (via <= (list[j + 1].$2 - list[j].$2) * 1000 + 400 && extra < segExtra) {
+          segExtra = extra;
+          seg = list;
+          segI = i;
+          segJ = j;
+        }
       }
     }
   }
@@ -1223,6 +1252,11 @@ BusStrip? busStrip(BusEta e, String stopCode, BusRoutes routes, Map<String, BusS
     final strip = take(best, from, bestI);
     final at = strip.indexWhere((s) => s.code == best![bestJ].$1);
     return BusStrip(strip, busAt: at < 0 ? null : at);
+  }
+  if (seg != null) {
+    final mine = stops[stopCode]!;
+    return BusStrip(take(seg, segJ, segI),
+        busAt: 0, between: true, metres: distanceMeters(lat!, lng!, mine.lat, mine.lng));
   }
   if (any != null) return BusStrip(take(any, math.max(0, anyI - 5), anyI));
   return null;

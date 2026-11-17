@@ -457,7 +457,7 @@ class BusStopCard extends ConsumerWidget {
                           next: next,
                           pulse: i == 0 && e.minutes == 0,
                           live: s.busLive(e, busWhere(e, stop.code, routes, byCode)),
-                          onTap: () => showWhereBus(context, stop: stop, service: e.service),
+                          onTap: () => showWhereBus(context, stop: stop, service: e.service, minutes: e.minutes),
                         ),
                     ]),
             ),

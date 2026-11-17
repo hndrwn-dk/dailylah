@@ -222,7 +222,10 @@ feature, screen, provider or rule moves, appears or goes away.
   `Monitored` is 0. No map SDK. Tapping an arrival (`BusBoard` rows, `BusRow`) opens "Where's my bus?"
   (`ui/bus_sheet.dart`, `showWhereBus`): the stops left to the rider's stop with the bus on them
   (`busStrip`), Next/Then bus, load as `LoadBars` (Seats free / Standing / Packed) and "Open in Maps"
-  (a Google Maps link with the bus position, no SDK).
+  (a Google Maps link with the bus position, no SDK). The sheet opens on the arrival that was tapped
+  (`busPick`, by its minutes). A bus at no stop on a long stretch (an expressway) is drawn between the two
+  stops it is in line with (`BusStrip.between`: the straight distances to both add up to no more than the
+  road between them plus 400 m), as a row "On the way · 1.5 km from your stop" (`S.busOnTheWay`).
   From "Here" within `arrivedMetres` of the destination the trip shows "You're here".
   MRT: the MRT card shows the line status and "I'm on the train" (`mrtRide`/`mrtLeg`: every station from
   board to alight, change station included). The ride (`lib/mrt_ride.dart`, `rideProvider`, like the wake
