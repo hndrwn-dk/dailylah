@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 
 import 'background.dart';
 import 'logic.dart';
+import 'models.dart';
 import 'providers.dart';
 
 /// One "I'm on the train" ride. Lives in a provider (like [WakeNotifier]) so it keeps going
@@ -133,7 +134,7 @@ class RideNotifier extends Notifier<RideState?> {
     if (cur == null || !cur.alertOn || cur.alerted || !rideAlertDue(cur.ride, cur.indexAt(now))) return;
     state = cur.copyWith(alerted: true);
     final s = ref.read(stringsProvider);
-    await _notify(11, s.rideTitle, s.rideNextStop(cur.ride.alight.name), buzz: true);
+    await _notify(rideNextNote(s, cur.ride.alight.name));
   }
 
   Future<void> _check() async {
@@ -148,17 +149,17 @@ class RideNotifier extends Notifier<RideState?> {
       if (bad.isNotEmpty && !next.toldDisrupted) {
         state = next.copyWith(toldDisrupted: true);
         final s = ref.read(stringsProvider);
-        await _notify(12, s.rideTitle, s.rideDisrupted(s.lineName(bad.first.line)), buzz: true);
+        await _notify(rideDisruptedNote(s, bad.first.line));
       }
     } on Object {
       // Offline underground: try again at the next check.
     }
   }
 
-  Future<void> _notify(int id, String title, String body, {bool buzz = false}) async {
+  Future<void> _notify(RichNote note) async {
     try {
-      if (buzz) await HapticFeedback.heavyImpact();
-      await notifyNow(id, title, body);
+      await HapticFeedback.heavyImpact();
+      await showNote(note, s: ref.read(stringsProvider));
     } on Object {
       // No notification plugin (tests) or notifications off: the banner still shows it.
     }

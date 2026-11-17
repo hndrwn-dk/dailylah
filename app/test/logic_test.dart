@@ -2684,10 +2684,84 @@ void main() {
       expect(digestNote(s, ['x']).pills, isEmpty);
     });
 
-    test('sampleNotes has the eight alerts under their own ids', () {
+    test('parking time: time is up, and where the car is', () {
+      final n = parkNote(s, 'Blk 156 Tampines St 12');
+      expect(n.id, 11);
+      expect(n.title, s.parkTitle);
+      expect(n.body, s.parkReminder('Blk 156 Tampines St 12'));
+      expect(texts(n), ['Time is up', 'Blk 156 Tampines St 12']);
+      expect(tones(n), [PillTone.amber, PillTone.sky]);
+    });
+
+    test('dengue: the number of cases in red and the place it is near, opens Home', () {
+      final n = dengueNote(s, locality: 'Tampines St 11', cases: 12, placeKind: 'school');
+      expect(n.id, 4);
+      expect(n.title, s.dengueTitle);
+      expect(n.body, 'Tampines St 11 · 12 cases');
+      expect(texts(n), ['12 cases', 'Near School']);
+      expect(tones(n), [PillTone.red, PillTone.sky]);
+      expect(n.link, 'dailylah://home');
+    });
+
+    test('lightning: its own title, stay indoors and where', () {
+      final n = lightningNote(s, place: 'School');
+      expect(n.id, 6);
+      expect(n.title, 'Lightning nearby.');
+      expect(n.body, 'Near School. Stay indoors.');
+      expect(texts(n), ['⚡ Lightning nearby', 'Stay indoors']);
+      expect(tones(n), [PillTone.red, PillTone.amber]);
+      expect(n.link, 'dailylah://today');
+    });
+
+    test('resale: how many new sales at which block, opens Home', () {
+      final n = homesNote(s, block: '156 TAMPINES ST 12', count: 2);
+      expect(n.id, 7);
+      expect(n.body, s.newSales('156 TAMPINES ST 12', 2));
+      expect(texts(n), ['2 new sales', '156 TAMPINES ST 12']);
+      expect(tones(n), [PillTone.mint, PillTone.sky]);
+      expect(n.link, 'dailylah://home');
+      expect(texts(homesNote(s, block: 'X', count: 1)).first, '1 new sale');
+    });
+
+    test('public holiday: the holiday note with a no-commute pill', () {
+      final n = holidayRichNote(s, 'Happy Deepavali', 'No commute today. Sunny near home.');
+      expect(n.id, 20);
+      expect(n.title, 'Happy Deepavali');
+      expect(n.body, 'No commute today. Sunny near home.');
+      expect(texts(n), ['Public holiday', 'No commute today']);
+      expect(tones(n), [PillTone.mint, PillTone.sky]);
+      expect(n.link, 'dailylah://today');
+    });
+
+    test('MRT ride: next stop like Wake me, under its own id', () {
+      final n = rideNextNote(s, 'Raffles Place');
+      expect(n.id, 21, reason: 'not 11, which is the parking reminder');
+      expect(n.title, s.rideTitle);
+      expect(n.body, s.rideNextStop('Raffles Place'));
+      expect(texts(n), ['Your stop is next']);
+      expect(n.art, NoteArt.phone);
+    });
+
+    test('MRT ride: a disruption shows the line in its colour, under its own id', () {
+      final n = rideDisruptedNote(s, 'EWL');
+      expect(n.id, 22, reason: 'not 12, which is the Sunday digest');
+      expect(n.body, s.rideDisrupted(s.lineName('EWL')));
+      expect(texts(n), ['EWL', 'Disrupted']);
+      expect(n.pills.first.lineColor, 0x009645);
+      expect(n.link, 'dailylah://today');
+    });
+
+    test('no two alerts share a notification id', () {
+      final ids = [for (final n in sampleNotes(s)) n.id - 100];
+      expect(ids.toSet().length, ids.length);
+      // Custom-place leave-by reminders take 13 to 17 (13 + i, five places at most).
+      expect(ids.where((i) => i >= 13 && i <= 17), isEmpty);
+    });
+
+    test('sampleNotes has every alert under its own id', () {
       final notes = sampleNotes(s);
       // Their own ids (the alert's id + 100), so a sample never replaces a real alert in the shade.
-      expect([for (final n in notes) n.id], [102, 108, 109, 101, 110, 103, 105, 112]);
+      expect([for (final n in notes) n.id], [102, 108, 109, 101, 110, 103, 105, 112, 106, 104, 111, 107, 120, 121, 122]);
       expect(notes.every((n) => n.pills.isNotEmpty && n.pills.length <= 3), isTrue);
       // A sample must not read like a real disruption or haze warning.
       expect(notes.every((n) => n.title.startsWith('Example: ')), isTrue);

@@ -3873,6 +3873,88 @@ RichNote digestNote(S s, List<String> lines, {int? weekCents, List<int> tripsPer
   );
 }
 
+/// The parking time set with "I parked here" is up.
+RichNote parkNote(S s, String placeName) => RichNote(
+      id: 11,
+      title: s.parkTitle,
+      body: s.parkReminder(placeName),
+      pills: [
+        NotePill(s.parkUpPill, PillTone.amber),
+        if (placeName.trim().isNotEmpty) NotePill(placeName, PillTone.sky),
+      ],
+    );
+
+/// A new dengue cluster within 1 km of [placeKind] ('home' or 'school').
+RichNote dengueNote(S s, {required String locality, required int cases, required String placeKind}) => RichNote(
+      id: 4,
+      title: s.dengueTitle,
+      body: '$locality · ${s.dengueCases(cases)}',
+      pills: [
+        NotePill(s.dengueCases(cases), PillTone.red),
+        NotePill(s.nearPill(s.placeLabel(placeKind)), PillTone.sky),
+      ],
+      link: 'dailylah://home',
+    );
+
+/// Lightning observed near [place] ("School").
+RichNote lightningNote(S s, {required String place}) => RichNote(
+      id: 6,
+      title: s.lightningNoteTitle,
+      body: s.lightningNoteBody(place),
+      pills: [
+        NotePill(s.lightningPill, PillTone.red),
+        NotePill(s.stayIndoorsPill, PillTone.amber),
+      ],
+      link: _todayLink,
+    );
+
+/// New resale transactions at a watched block.
+RichNote homesNote(S s, {required String block, required int count}) => RichNote(
+      id: 7,
+      title: s.homesTitle,
+      body: s.newSales(block, count),
+      pills: [
+        NotePill(s.newSalesPill(count), PillTone.mint),
+        NotePill(block, PillTone.sky),
+      ],
+      link: 'dailylah://home',
+    );
+
+/// The public holiday note that replaces "Time to go" ([title] and [body] from `holidayNote`).
+RichNote holidayRichNote(S s, String title, String body) => RichNote(
+      id: 20,
+      title: title,
+      body: body,
+      pills: [
+        NotePill(s.holidayPill, PillTone.mint),
+        NotePill(s.noCommutePill, PillTone.sky),
+      ],
+      link: _todayLink,
+    );
+
+/// "I'm on the train": one stop before [station]. Its own id (21), not the parking
+/// reminder's.
+RichNote rideNextNote(S s, String station) => RichNote(
+      id: 21,
+      title: s.rideTitle,
+      body: s.rideNextStop(station),
+      pills: [NotePill(s.wakeNextPill, PillTone.amber)],
+      art: NoteArt.phone,
+    );
+
+/// "I'm on the train": a disruption on [line] (its code, "EWL"). Its own id (22), not the
+/// Sunday digest's.
+RichNote rideDisruptedNote(S s, String line) => RichNote(
+      id: 22,
+      title: s.rideTitle,
+      body: s.rideDisrupted(s.lineName(line)),
+      pills: [
+        NotePill(line, PillTone.line, lineColor: mrtLineColors[line]),
+        NotePill(s.disruptedPill, PillTone.red),
+      ],
+      link: _todayLink,
+    );
+
 /// For the digest: trips on each of the last seven days ending [now], oldest first, and what
 /// those days cost (entered costs, else estimates, as History adds them up).
 ({int cents, List<int> tripsPerDay}) weekHabits(Habits h, DateTime now) {
@@ -3885,7 +3967,8 @@ RichNote digestNote(S s, List<String> lines, {int? weekCents, List<int> tripsPer
   return (cents: historySummary(historyEntries(h, since: first)).costCents, tripsPerDay: days);
 }
 
-/// The eight alerts with the landing page's values, for More > Alerts > Show me an example.
+/// Every alert with sample values (the first eight are the landing page's), for More > Alerts >
+/// Show me an example.
 /// Each title starts with "Example:" so a sample never reads like a real warning, and each has
 /// its own id (the alert's + 100), so it never replaces a real alert still in the shade.
 List<RichNote> sampleNotes(S s) => [
@@ -3898,6 +3981,13 @@ List<RichNote> sampleNotes(S s) => [
       hawkerNote(s, s.sampleHawker, altName: s.sampleHawkerAlt, altMetres: 400),
       heatNote(s, place: s.placeLabel('school'), level: 'High', uv: 11),
       digestNote(s, s.sampleDigest, weekCents: 2460, tripsPerDay: const [3, 4, 3, 5, 4, 1, 1]),
+        lightningNote(s, place: s.placeLabel('school')),
+        dengueNote(s, locality: s.sampleDengue, cases: 12, placeKind: 'home'),
+        parkNote(s, s.sampleBlock),
+        homesNote(s, block: s.sampleBlock, count: 2),
+        holidayRichNote(s, s.sampleHolidayTitle, s.sampleHolidayBody),
+        rideNextNote(s, s.sampleStation),
+        rideDisruptedNote(s, 'DTL'),
       ])
         n.asSample(s.exampleTitle(n.title)),
     ];

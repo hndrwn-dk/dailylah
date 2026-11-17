@@ -186,8 +186,11 @@ feature, screen, provider or rule moves, appears or goes away.
   with `DecoratedCustomViewStyle`: real text only (pills are `TextView`s, pictures are decorative bitmaps; the title is bold; the PSI bar is
   green to 50, amber to 100 and red above, so the marker agrees with the pill),
   only `LinearLayout`/`TextView`/`ImageView`, pills filled row by row by a character budget that shrinks with
-  larger text, colours as resources (values-night). The other alerts (dengue, lightning, parking, resale,
-  holiday, MRT ride) stay plain; giving one a layout is a new `...Note` builder. More > Alerts > "Show me an
+  larger text, colours as resources (values-night). The other alerts have the layout too: `parkNote` (ID 11), `dengueNote` (4), `lightningNote` (6),
+  `homesNote` (7), `holidayRichNote` (20) and, for "I'm on the train", `rideNextNote` (21) and `rideDisruptedNote`
+  (22; the ride used 11 and 12 before, which replaced the parking reminder and the digest). Only the ongoing
+  "Watching for your stop" / "Riding to" notification is plain: it belongs to geolocator's foreground service.
+  A new alert is a new `...Note` builder; no two alerts share an ID (a test checks the samples). More > Alerts > "Show me an
   example" (`showExampleAlerts`, `sampleNotes`) posts the eight with sample values, titled "Example: ..." and
   under their own IDs (the alert's + 100), so a sample never replaces a real alert, and never touches
   `AlertLog`. The MRT note's line pill is the trip's line the plan B bus goes around (`planBBus`), not just the

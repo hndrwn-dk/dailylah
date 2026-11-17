@@ -43,14 +43,6 @@ Future<void> initNotifications() async {
   await notifications.initialize(settings: settings);
 }
 
-/// Shows one notification right away (used by screens, e.g. "Wake me at my stop").
-Future<void> notifyNow(int id, String title, String body) => notifications.show(
-      id: id,
-      title: title,
-      body: body,
-      notificationDetails: NotificationDetails(android: _channel(const S())),
-    );
-
 /// Shows an alert with its pills and picture (the dailylah_notify layout). When that cannot
 /// be posted (another platform, a phone that refuses it) the same title and body go out as
 /// a plain notification, so the alert is never lost.
@@ -134,13 +126,6 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
   } on Object catch (e) {
     debugPrint('holidays not loaded: $e');
   }
-
-  Future<void> notify(int id, String title, String body) => notifications.show(
-        id: id,
-        title: title,
-        body: body,
-        notificationDetails: NotificationDetails(android: _channel(s)),
-      );
 
   // Each block runs on its own so one failing endpoint does not stop the rest.
   Future<void> guard(Future<void> Function() f) async {
@@ -227,14 +212,7 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
                   if (PublicEvent.fromBundle(r) case final e?) e,
           ]);
       if (note == null) return;
-      await notifications.show(
-        id: 20,
-        title: note.$1,
-        body: note.$2,
-        notificationDetails: NotificationDetails(
-          android: _channel(s, styleInformation: BigTextStyleInformation(note.$2)),
-        ),
-      );
+      await showNote(holidayRichNote(s, note.$1, note.$2), s: s);
       await log.markSent('holiday:$day');
       return;
     }
@@ -276,7 +254,7 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     if (p == null || !parkReminderDue(p, now)) return;
     final id = 'park:${p.at.toIso8601String()}';
     if (await log.alreadySent(id)) return;
-    await notify(11, s.parkTitle, s.parkReminder(p.name));
+    await showNote(parkNote(s, p.name), s: s);
     await log.markSent(id);
   });
 
@@ -371,7 +349,7 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
       for (final (c, _) in dengueNear(clusters, p.lat, p.lng, km: 1)) {
         final id = 'dengue:${c.locality.hashCode}';
         if (await log.alreadySent(id)) continue;
-        await notify(4, s.dengueTitle, '${c.locality} · ${s.dengueCases(c.cases)}');
+        await showNote(dengueNote(s, locality: c.locality, cases: c.cases, placeKind: kindToCheck.name), s: s);
         await log.markSent(id);
       }
     }
@@ -412,7 +390,7 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     if (lightningNear(lightningBody!, p.lat, p.lng)) {
       final id = 'lightning:$day:${now.hour}';
       if (!await log.alreadySent(id)) {
-        await notify(6, s.heatTitle, s.lightningNear);
+        await showNote(lightningNote(s, place: place), s: s);
         await log.markSent(id);
       }
     }
@@ -428,7 +406,9 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     final updated = {...fav.watchedBlocks};
     for (final e in fav.watchedBlocks.entries) {
       final n = resale.countFor(e.key);
-      if (n > e.value) await notify(7, s.homesTitle, s.newSales(e.key.replaceAll('|', ' '), n - e.value));
+      if (n > e.value) {
+        await showNote(homesNote(s, block: e.key.replaceAll('|', ' '), count: n - e.value), s: s);
+      }
       updated[e.key] = n;
     }
     fav = fav.copyWith(watchedBlocks: updated);
