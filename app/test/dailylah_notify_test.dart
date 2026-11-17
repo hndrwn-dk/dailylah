@@ -41,6 +41,26 @@ void main() {
     expect(await show(), isFalse);
   });
 
+  test('showOngoing sends the note with the service notification it replaces', () async {
+    MethodCall? got;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      got = call;
+      return true;
+    });
+    expect(await DailylahNotify.showOngoing(note, serviceNotificationId: 75415, serviceChannelId: 'geo'), isTrue);
+    expect(got!.method, 'showOngoing');
+    final args = (got!.arguments as Map).cast<String, Object?>();
+    expect(args['note'], note);
+    expect(args['serviceNotificationId'], 75415);
+    expect(args['serviceChannelId'], 'geo');
+  });
+
+  test('showOngoing is false when no plugin answers or it throws', () async {
+    expect(await DailylahNotify.showOngoing(note, serviceNotificationId: 1, serviceChannelId: 'geo'), isFalse);
+    messenger.setMockMethodCallHandler(channel, (call) async => throw PlatformException(code: 'boom'));
+    expect(await DailylahNotify.showOngoing(note, serviceNotificationId: 1, serviceChannelId: 'geo'), isFalse);
+  });
+
   test('false when the answer is not a bool', () async {
     messenger.setMockMethodCallHandler(channel, (call) async => 'yes');
     expect(await show(), isFalse);

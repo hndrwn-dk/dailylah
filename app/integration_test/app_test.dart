@@ -10,7 +10,7 @@ import 'dart:convert';
 
 import 'package:dailylah/background.dart';
 import 'package:dailylah/l10n.dart';
-import 'package:dailylah/logic.dart' show sampleNotes;
+import 'package:dailylah/logic.dart' show locationServiceNoteId, sampleNotes, wakeWatchNote;
 import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
@@ -148,6 +148,18 @@ void main() {
     expect(active.map((n) => n.id), containsAll(want));
     expect(active.map((n) => n.title ?? ''), contains('Example: Rain before you leave.'));
     await notifications.cancelAll();
+  });
+
+  testWidgets('the ongoing layout is only put on a notification that is showing', (tester) async {
+    const s = S();
+    final android = notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()!;
+    // No ride runs here, so the location service shows nothing: the plugin must refuse, and
+    // must not leave an ongoing notification of its own behind.
+    final note = wakeWatchNote(s, service: '36', stop: 'Suntec Twr Three', metresLeft: 850);
+    expect(await showOngoingNote(note), isFalse);
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    final active = await android.getActiveNotifications();
+    expect(active.map((n) => n.id), isNot(contains(locationServiceNoteId)));
   });
 
   testWidgets('home screen widget receives the card text', (tester) async {

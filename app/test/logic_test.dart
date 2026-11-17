@@ -2684,10 +2684,123 @@ void main() {
       expect(digestNote(s, ['x']).pills, isEmpty);
     });
 
-    test('sampleNotes has the eight alerts under their own ids', () {
+    test('parking time: time is up, and where the car is', () {
+      final n = parkNote(s, 'Blk 156 Tampines St 12');
+      expect(n.id, 11);
+      expect(n.title, s.parkTitle);
+      expect(n.body, s.parkReminder('Blk 156 Tampines St 12'));
+      expect(texts(n), ['Time is up', 'Blk 156 Tampines St 12']);
+      expect(tones(n), [PillTone.amber, PillTone.sky]);
+    });
+
+    test('dengue: the number of cases in red and the place it is near, opens Home', () {
+      final n = dengueNote(s, locality: 'Tampines St 11', cases: 12, placeKind: 'school');
+      expect(n.id, 4);
+      expect(n.title, s.dengueTitle);
+      expect(n.body, 'Tampines St 11 · 12 cases');
+      expect(texts(n), ['12 cases', 'Near School']);
+      expect(tones(n), [PillTone.red, PillTone.sky]);
+      expect(n.link, 'dailylah://home');
+    });
+
+    test('lightning: its own title, stay indoors and where', () {
+      final n = lightningNote(s, place: 'School');
+      expect(n.id, 6);
+      expect(n.title, 'Lightning nearby.');
+      expect(n.body, 'Near School. Stay indoors.');
+      expect(texts(n), ['⚡ Lightning nearby', 'Stay indoors']);
+      expect(tones(n), [PillTone.red, PillTone.amber]);
+      expect(n.link, 'dailylah://today');
+    });
+
+    test('resale: how many new sales at which block, opens Home', () {
+      final n = homesNote(s, block: '156 TAMPINES ST 12', count: 2);
+      expect(n.id, 7);
+      expect(n.body, s.newSales('156 TAMPINES ST 12', 2));
+      expect(texts(n), ['2 new sales', '156 TAMPINES ST 12']);
+      expect(tones(n), [PillTone.mint, PillTone.sky]);
+      expect(n.link, 'dailylah://home');
+      expect(texts(homesNote(s, block: 'X', count: 1)).first, '1 new sale');
+    });
+
+    test('public holiday: the holiday note with one pill, so its events keep their lines', () {
+      final n = holidayRichNote(s, 'Happy Deepavali', 'No commute today. Sunny near home.');
+      expect(n.id, 20);
+      expect(n.title, 'Happy Deepavali');
+      expect(n.body, 'No commute today. Sunny near home.');
+      // One pill: a second one needs a second row, which costs the events in the body two lines.
+      expect(texts(n), ['Public holiday']);
+      expect(tones(n), [PillTone.mint]);
+      expect(n.link, 'dailylah://today');
+    });
+
+    test('MRT ride: next stop like Wake me, under its own id', () {
+      final n = rideNextNote(s, 'Raffles Place');
+      expect(n.id, 21, reason: 'not 11, which is the parking reminder');
+      expect(n.title, s.rideTitle);
+      expect(n.body, s.rideNextStop('Raffles Place'));
+      expect(texts(n), ['Your stop is next']);
+      expect(n.art, NoteArt.phone);
+    });
+
+    test('MRT ride: a disruption shows the line in its colour, under its own id', () {
+      final n = rideDisruptedNote(s, 'EWL');
+      expect(n.id, 22, reason: 'not 12, which is the Sunday digest');
+      expect(n.body, s.rideDisrupted(s.lineName('EWL')));
+      expect(texts(n), ['EWL', 'Disrupted']);
+      expect(n.pills.first.lineColor, 0x009645);
+      expect(n.link, 'dailylah://today');
+    });
+
+    test('watching for the stop: the bus, how far, on the location service notification', () {
+      final n = wakeWatchNote(s, service: '36', stop: 'Suntec Twr Three', metresLeft: 872);
+      expect(n.id, locationServiceNoteId);
+      expect(n.title, s.wakeTitle);
+      expect(n.body, 'Watching for your stop: Suntec Twr Three');
+      expect(texts(n), ['36', '850 m to go']);
+      expect(tones(n), [PillTone.board, PillTone.amber]);
+      // Before the first fix there is no distance to show.
+      expect(texts(wakeWatchNote(s, service: '36', stop: 'X')), ['36']);
+      // Rounded, so the notification is not rewritten at every fix.
+      expect(texts(wakeWatchNote(s, service: '36', stop: 'X', metresLeft: 2140)).last, '2.1 km to go');
+      expect(texts(wakeWatchNote(s, service: '36', stop: 'X', metresLeft: 20)).last, '50 m to go');
+    });
+
+    test('riding to: the line and the stops to go, on the location service notification', () {
+      final n = rideWatchNote(s, station: 'Raffles Place', line: 'EWL', stopsLeft: 3);
+      expect(n.id, locationServiceNoteId);
+      expect(n.title, s.rideTitle);
+      expect(n.body, s.rideRunning('Raffles Place'));
+      expect(texts(n), ['EWL', '3 stops to go']);
+      expect(n.pills.first.lineColor, 0x009645);
+      expect(texts(rideWatchNote(s, station: 'X', line: 'EWL', stopsLeft: 1)).last, '1 stop to go');
+      expect(texts(rideWatchNote(s, station: 'X', line: null, stopsLeft: 0)), isEmpty);
+    });
+
+    test('the location plugin is the version whose notification id and channel we overwrite', () {
+      // wakeWatchNote and rideWatchNote replace the content of geolocator_android's foreground
+      // service notification, by its private id and channel (GeolocatorLocationService.java:
+      // ONGOING_NOTIFICATION_ID, CHANNEL_ID). When this fails after an upgrade, read those two
+      // constants in the new version, update locationServiceNoteId / locationServiceChannel if
+      // they changed, then locationServicePluginVersion.
+      final lock = File('pubspec.lock').readAsStringSync();
+      final m = RegExp(r'geolocator_android:\n(?:    .*\n)*?    version: "([^"]+)"').firstMatch(lock);
+      expect(m?.group(1), locationServicePluginVersion);
+      expect(locationServiceNoteId, 75415);
+      expect(locationServiceChannel, 'geolocator_channel_01');
+    });
+
+    test('no two alerts share a notification id', () {
+      final ids = [for (final n in sampleNotes(s)) n.id - 100];
+      expect(ids.toSet().length, ids.length);
+      // Custom-place leave-by reminders take 13 to 17 (13 + i, five places at most).
+      expect(ids.where((i) => i >= 13 && i <= 17), isEmpty);
+    });
+
+    test('sampleNotes has every alert under its own id', () {
       final notes = sampleNotes(s);
       // Their own ids (the alert's id + 100), so a sample never replaces a real alert in the shade.
-      expect([for (final n in notes) n.id], [102, 108, 109, 101, 110, 103, 105, 112]);
+      expect([for (final n in notes) n.id], [102, 108, 109, 101, 110, 103, 105, 112, 106, 104, 111, 107, 120, 121, 122]);
       expect(notes.every((n) => n.pills.isNotEmpty && n.pills.length <= 3), isTrue);
       // A sample must not read like a real disruption or haze warning.
       expect(notes.every((n) => n.title.startsWith('Example: ')), isTrue);

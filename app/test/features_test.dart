@@ -531,10 +531,11 @@ void main() {
       await settle(tester);
     }
 
-    testWidgets('posts the eight sample alerts and leaves the alert log alone', (tester) async {
+    testWidgets('posts every sample alert and leaves the alert log alone', (tester) async {
       allowed = true;
       await openMore(tester);
-      expect(rich.map((n) => n['id']).toSet(), {102, 108, 109, 101, 110, 103, 105, 112});
+      expect(rich.map((n) => n['id']).toSet(),
+          {102, 108, 109, 101, 110, 103, 105, 112, 106, 104, 111, 107, 120, 121, 122});
       expect(rich.every((n) => (n['pills'] as List).isNotEmpty), isTrue);
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getStringList('alerts.sent'), isNull, reason: 'a sample must not stop the real alert');
@@ -825,6 +826,24 @@ void main() {
     expect(find.text('Bedok'), findsOneWidget); // a station on the way
     expect(find.text('Running normally'), findsOneWidget); // line checked at the start
     expect(box.read(habitsProvider).tripStart, isNotNull); // timed for History
+
+    // While riding, the ongoing notification gets the line and the stops to go, and is only
+    // rewritten when that changes.
+    final ongoing = <Map<Object?, Object?>>[];
+    const richChannel = MethodChannel('dailylah/notify');
+    final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(richChannel, (call) async {
+      if (call.method == 'showOngoing') ongoing.add((call.arguments as Map).cast<Object?, Object?>());
+      return true;
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(richChannel, null));
+    await tester.runAsync(() => box.read(rideProvider.notifier).tickAt(ride.start.add(const Duration(seconds: 20))));
+    await tester.runAsync(() => box.read(rideProvider.notifier).tickAt(ride.start.add(const Duration(seconds: 40))));
+    expect(ongoing, hasLength(1), reason: 'same text twice: one write');
+    expect(ongoing.single['serviceNotificationId'], 75415);
+    final watch = (ongoing.single['note'] as Map).cast<Object?, Object?>();
+    expect(watch['body'], 'Riding to Raffles Place');
+    expect([for (final p in watch['pills'] as List) (p as Map)['text']], ['EWL', '${ride.ride.stops} stops to go']);
 
     // One stop before the end the alert goes out once.
     // Real async: the alert goes through platform channels (haptics, notifications).

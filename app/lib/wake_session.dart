@@ -58,6 +58,9 @@ class WakeState {
 
 class WakeNotifier extends Notifier<WakeState?> {
   StreamSubscription<Position>? _sub;
+
+  /// What the ongoing notification shows now, so it is only rewritten when that changes.
+  String? _watchShown;
   Timer? _limit;
 
   @override
@@ -71,6 +74,7 @@ class WakeNotifier extends Notifier<WakeState?> {
     _sub = null;
     _limit?.cancel();
     _limit = null;
+    _watchShown = null;
   }
 
   /// Starts watching for [alight] on bus [service]; replaces any ride already running.
@@ -115,9 +119,15 @@ class WakeNotifier extends Notifier<WakeState?> {
     final ev = wakeEvent(d, radius, st.closest);
     state = st.copyWith(
         lat: p.latitude, lng: p.longitude, left: d, closest: math.min(st.closest ?? d, d), event: ev);
-    if (ev == WakeEvent.none) return;
-    _cancel();
     final s = ref.read(stringsProvider);
+    if (ev == WakeEvent.none) {
+      // The ongoing notification: the bus and how far, rewritten only when the text changes.
+      final note = wakeWatchNote(s, service: st.service, stop: st.alight.name, metresLeft: d);
+      final shown = note.pills.map((p) => p.text).join('|');
+      if (shown != _watchShown && await showOngoingNote(note)) _watchShown = shown;
+      return;
+    }
+    _cancel();
     await HapticFeedback.heavyImpact();
     await showNote(wakeNote(s, ev, st.alight.name), s: s);
   }

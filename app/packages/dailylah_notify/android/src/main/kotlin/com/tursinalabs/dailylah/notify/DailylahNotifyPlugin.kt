@@ -10,7 +10,8 @@ import io.flutter.plugin.common.MethodChannel
  * Channel `dailylah/notify`. A real plugin (not a channel in MainActivity) because most
  * alerts are posted from the WorkManager isolate, whose engine only has registered plugins.
  * `show` answers true when the notification was posted and false otherwise: the Dart side
- * then shows the plain notification, so an alert is never lost to this layout.
+ * then shows the plain notification, so an alert is never lost to this layout. `showOngoing`
+ * puts the layout on a foreground service's ongoing notification (NotePoster.postOngoing).
  */
 class DailylahNotifyPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     private var channel: MethodChannel? = null
@@ -30,19 +31,28 @@ class DailylahNotifyPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
-        if (call.method != "show") {
+        if (call.method != "show" && call.method != "showOngoing") {
             result.notImplemented()
             return
         }
         val ctx = context
         val posted = try {
             val note = call.argument<Map<String, Any?>>("note")
-            ctx != null && note != null && NotePoster.post(
-                ctx,
-                note,
-                call.argument<String>("channelName") ?: "DailyLah alerts",
-                call.argument<String>("channelDescription") ?: "",
-            )
+            when {
+                ctx == null || note == null -> false
+                call.method == "show" -> NotePoster.post(
+                    ctx,
+                    note,
+                    call.argument<String>("channelName") ?: "DailyLah alerts",
+                    call.argument<String>("channelDescription") ?: "",
+                )
+                else -> NotePoster.postOngoing(
+                    ctx,
+                    note,
+                    call.argument<Number>("serviceNotificationId")?.toInt(),
+                    call.argument<String>("serviceChannelId"),
+                )
+            }
         } catch (e: Throwable) {
             // Also an Error (out of memory for a bitmap, a method a phone's Android lacks):
             // the plain notification is better than a crashed background check.
