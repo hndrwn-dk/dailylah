@@ -2751,6 +2751,44 @@ void main() {
       expect(n.link, 'dailylah://today');
     });
 
+    test('watching for the stop: the bus, how far, on the location service notification', () {
+      final n = wakeWatchNote(s, service: '36', stop: 'Suntec Twr Three', metresLeft: 872);
+      expect(n.id, locationServiceNoteId);
+      expect(n.title, s.wakeTitle);
+      expect(n.body, 'Watching for your stop: Suntec Twr Three');
+      expect(texts(n), ['36', '850 m to go']);
+      expect(tones(n), [PillTone.board, PillTone.amber]);
+      // Before the first fix there is no distance to show.
+      expect(texts(wakeWatchNote(s, service: '36', stop: 'X')), ['36']);
+      // Rounded, so the notification is not rewritten at every fix.
+      expect(texts(wakeWatchNote(s, service: '36', stop: 'X', metresLeft: 2140)).last, '2.1 km to go');
+      expect(texts(wakeWatchNote(s, service: '36', stop: 'X', metresLeft: 20)).last, '50 m to go');
+    });
+
+    test('riding to: the line and the stops to go, on the location service notification', () {
+      final n = rideWatchNote(s, station: 'Raffles Place', line: 'EWL', stopsLeft: 3);
+      expect(n.id, locationServiceNoteId);
+      expect(n.title, s.rideTitle);
+      expect(n.body, s.rideRunning('Raffles Place'));
+      expect(texts(n), ['EWL', '3 stops to go']);
+      expect(n.pills.first.lineColor, 0x009645);
+      expect(texts(rideWatchNote(s, station: 'X', line: 'EWL', stopsLeft: 1)).last, '1 stop to go');
+      expect(texts(rideWatchNote(s, station: 'X', line: null, stopsLeft: 0)), isEmpty);
+    });
+
+    test('the location plugin is the version whose notification id and channel we overwrite', () {
+      // wakeWatchNote and rideWatchNote replace the content of geolocator_android's foreground
+      // service notification, by its private id and channel (GeolocatorLocationService.java:
+      // ONGOING_NOTIFICATION_ID, CHANNEL_ID). When this fails after an upgrade, read those two
+      // constants in the new version, update locationServiceNoteId / locationServiceChannel if
+      // they changed, then locationServicePluginVersion.
+      final lock = File('pubspec.lock').readAsStringSync();
+      final m = RegExp(r'geolocator_android:\n(?:    .*\n)*?    version: "([^"]+)"').firstMatch(lock);
+      expect(m?.group(1), locationServicePluginVersion);
+      expect(locationServiceNoteId, 75415);
+      expect(locationServiceChannel, 'geolocator_channel_01');
+    });
+
     test('no two alerts share a notification id', () {
       final ids = [for (final n in sampleNotes(s)) n.id - 100];
       expect(ids.toSet().length, ids.length);

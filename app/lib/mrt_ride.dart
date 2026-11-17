@@ -74,6 +74,9 @@ class RideNotifier extends Notifier<RideState?> {
   Timer? _limit;
   DateTime? _lastCheck;
 
+  /// What the ongoing notification shows now.
+  String? _watchShown;
+
   @override
   RideState? build() {
     ref.onDispose(_cancel);
@@ -88,6 +91,7 @@ class RideNotifier extends Notifier<RideState?> {
     _limit?.cancel();
     _limit = null;
     _lastCheck = null;
+    _watchShown = null;
   }
 
   /// Starts a ride now; replaces one already running. Location, when allowed, keeps the app
@@ -130,11 +134,33 @@ class RideNotifier extends Notifier<RideState?> {
     final st = state;
     if (st == null) return;
     if (_lastCheck == null || now.difference(_lastCheck!) >= rideCheckEvery) await _check();
+    await _showWatching(now);
     final cur = state;
     if (cur == null || !cur.alertOn || cur.alerted || !rideAlertDue(cur.ride, cur.indexAt(now))) return;
     state = cur.copyWith(alerted: true);
     final s = ref.read(stringsProvider);
     await _notify(rideNextNote(s, cur.ride.alight.name));
+  }
+
+  /// The ongoing notification: the line being ridden and the stops to go, rewritten only when
+  /// that changes. Nothing happens while the location service shows none (no GPS permission).
+  Future<void> _showWatching(DateTime now) async {
+    final st = state;
+    if (st == null) return;
+    final i = st.indexAt(now);
+    final note = rideWatchNote(
+      ref.read(stringsProvider),
+      station: st.ride.alight.name,
+      line: rideLineAt(st.ride, i),
+      stopsLeft: st.ride.stops - i,
+    );
+    final shown = note.pills.map((p) => p.text).join('|');
+    if (shown == _watchShown) return;
+    try {
+      if (await showOngoingNote(note)) _watchShown = shown;
+    } on Object {
+      // No plugin (tests): the plain notification stays.
+    }
   }
 
   Future<void> _check() async {

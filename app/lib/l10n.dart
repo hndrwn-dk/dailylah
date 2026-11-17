@@ -970,7 +970,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Alerts: titles are bold, and the haze bar's colours now match the PSI level.",
+        "Every alert now has the new look, also parking time, dengue, lightning and the notification while Wake me at my stop or I'm on the train is watching your ride, which shows how far you still have to go.",
       ];
 
   // about
@@ -1300,6 +1300,7 @@ class S {
   String get alertExampleSub => 'Posts sample alerts so you can see how they look';
   String exampleTitle(String title) => 'Example: $title';
   String get alertExampleOff => 'Allow notifications to see the examples';
+  String stopsToGoPill(int n) => n == 1 ? '1 stop to go' : '$n stops to go';
   String get parkUpPill => 'Time is up';
   String nearPill(String place) => 'Near $place';
   String get lightningNoteTitle => 'Lightning nearby.';

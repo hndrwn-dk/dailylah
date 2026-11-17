@@ -188,8 +188,14 @@ feature, screen, provider or rule moves, appears or goes away.
   only `LinearLayout`/`TextView`/`ImageView`, pills filled row by row by a character budget that shrinks with
   larger text, colours as resources (values-night). The other alerts have the layout too: `parkNote` (ID 11), `dengueNote` (4), `lightningNote` (6),
   `homesNote` (7), `holidayRichNote` (20) and, for "I'm on the train", `rideNextNote` (21) and `rideDisruptedNote`
-  (22; the ride used 11 and 12 before, which replaced the parking reminder and the digest). Only the ongoing
-  "Watching for your stop" / "Riding to" notification is plain: it belongs to geolocator's foreground service.
+  (22; the ride used 11 and 12 before, which replaced the parking reminder and the digest). The ongoing
+  "Watching for your stop" / "Riding to" notification belongs to geolocator's foreground service, which takes
+  only a title and a text: the app replaces its content with the pill layout (`wakeWatchNote`: the bus and
+  metres to go; `rideWatchNote`: the line and stops to go) through `showOngoingNote` and the plugin's
+  `showOngoing`, which posts under that notification's own ID and channel and only while it is on screen
+  (never a stray one). The ID and channel (`locationServiceNoteId`, `locationServiceChannel`) are private
+  constants of geolocator_android: a test fails when its version in `pubspec.lock` differs from
+  `locationServicePluginVersion`, so a geolocator upgrade re-reads them in `GeolocatorLocationService.java`.
   A new alert is a new `...Note` builder; no two alerts share an ID (a test checks the samples). More > Alerts > "Show me an
   example" (`showExampleAlerts`, `sampleNotes`) posts the eight with sample values, titled "Example: ..." and
   under their own IDs (the alert's + 100), so a sample never replaces a real alert, and never touches

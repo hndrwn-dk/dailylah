@@ -38,8 +38,6 @@ internal object NotePoster {
         val manager = ctx.getSystemService(NotificationManager::class.java) ?: return false
         if (!manager.areNotificationsEnabled()) return false
         val id = (note["id"] as? Number)?.toInt() ?: return false
-        val title = note["title"] as? String ?: return false
-        val body = note["body"] as? String ?: ""
         if (manager.getNotificationChannel(CHANNEL) == null) {
             manager.createNotificationChannel(
                 NotificationChannel(CHANNEL, channelName, NotificationManager.IMPORTANCE_HIGH).apply {
@@ -47,6 +45,40 @@ internal object NotePoster {
                 },
             )
         }
+        val builder = builder(ctx, note, CHANNEL, id, headsUp = true) ?: return false
+        manager.notify(id, builder.build())
+        return true
+    }
+
+    /**
+     * Replaces the content of a foreground service's ongoing notification (the location
+     * plugin's, while Wake me at my stop or I'm on the train runs) with the pill layout, by
+     * posting under that notification's own id and channel. Only while it is on screen: a
+     * post before the service started, or after it stopped, would leave an ongoing
+     * notification nothing ever removes. The service removes it as before when it stops.
+     */
+    fun postOngoing(ctx: Context, note: Map<String, Any?>, serviceId: Int?, serviceChannel: String?): Boolean {
+        if (serviceId == null || serviceChannel == null) return false
+        val manager = ctx.getSystemService(NotificationManager::class.java) ?: return false
+        if (!manager.areNotificationsEnabled()) return false
+        if (manager.getNotificationChannel(serviceChannel) == null) return false
+        if (manager.activeNotifications.none { it.id == serviceId }) return false
+        val builder = builder(ctx, note, serviceChannel, serviceId, headsUp = false) ?: return false
+        builder.setOngoing(true).setOnlyAlertOnce(true).setAutoCancel(false)
+        manager.notify(serviceId, builder.build())
+        return true
+    }
+
+    /** The notification for [note] with the pill layout; null when the note has no title. */
+    private fun builder(
+        ctx: Context,
+        note: Map<String, Any?>,
+        channel: String,
+        id: Int,
+        headsUp: Boolean,
+    ): Notification.Builder? {
+        val title = note["title"] as? String ?: return null
+        val body = note["body"] as? String ?: ""
         val pills = (note["pills"] as? List<*>).orEmpty().mapNotNull { raw ->
             val m = raw as? Map<*, *> ?: return@mapNotNull null
             val text = (m["text"] as? String)?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
@@ -58,7 +90,6 @@ internal object NotePoster {
             (note["artValue"] as? Number)?.toDouble(),
             (note["bars"] as? List<*>).orEmpty().mapNotNull { (it as? Number)?.toDouble() },
         )
-
         val large = ctx.resources.configuration.fontScale >= 1.3f
 
         // The shade cuts a custom view from the bottom, where the pills are. So the text gives
@@ -66,7 +97,7 @@ internal object NotePoster {
         // A note with no pills keeps 9 lines (7 at large text), so a long digest is not cut
         // short; one row leaves 7, two 5, three 3, never under 2. The pop-up is short: title,
         // one line of text and the first row only.
-        fun views(headsUp: Boolean) = RemoteViews(ctx.packageName, R.layout.dl_note).apply {
+        fun views(popUp: Boolean) = RemoteViews(ctx.packageName, R.layout.dl_note).apply {
             setTextViewText(R.id.dl_note_title, title)
             setTextViewText(R.id.dl_note_body, body)
             setViewVisibility(R.id.dl_note_body, if (body.isEmpty()) View.GONE else View.VISIBLE)
@@ -75,7 +106,7 @@ internal object NotePoster {
                 setViewVisibility(R.id.dl_note_art, View.VISIBLE)
             }
             val used = fill(ctx, this, pills, art != null)
-            if (headsUp) {
+            if (popUp) {
                 setInt(R.id.dl_note_title, "setMaxLines", 1)
                 setInt(R.id.dl_note_body, "setMaxLines", 1)
                 setViewVisibility(R.id.dl_note_row_2, View.GONE)
@@ -86,18 +117,17 @@ internal object NotePoster {
             }
         }
 
-        val builder = Notification.Builder(ctx, CHANNEL)
+        val builder = Notification.Builder(ctx, channel)
             .setSmallIcon(ctx.applicationInfo.icon)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(Notification.DecoratedCustomViewStyle())
-            .setCustomBigContentView(views(headsUp = false))
-            .setCustomHeadsUpContentView(views(headsUp = true))
+            .setCustomBigContentView(views(popUp = false))
             .setAutoCancel(true)
             .setShowWhen(true)
+        if (headsUp) builder.setCustomHeadsUpContentView(views(popUp = true))
         launch(ctx, id, note["link"] as? String)?.let { builder.setContentIntent(it) }
-        manager.notify(id, builder.build())
-        return true
+        return builder
     }
 
     /**

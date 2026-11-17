@@ -58,6 +58,15 @@ Future<void> showNote(RichNote n, {S s = const S()}) async {
   );
 }
 
+/// Puts [n] (`wakeWatchNote`, `rideWatchNote`) on the location service's ongoing notification.
+/// False when that notification is not showing (no ride, or not yet), which is fine: the
+/// plugin's own plain one stays.
+Future<bool> showOngoingNote(RichNote n) => DailylahNotify.showOngoing(
+      n.toMap(),
+      serviceNotificationId: locationServiceNoteId,
+      serviceChannelId: locationServiceChannel,
+    );
+
 /// More > Alerts > Show me an example: posts the eight alerts with sample values, each under
 /// its own id (the alert's + 100). Asks for the notification permission first; false (and nothing
 /// posted) when it is refused. Never touches `AlertLog`, so the real alerts still fire.

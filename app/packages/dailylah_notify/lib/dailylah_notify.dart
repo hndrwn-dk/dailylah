@@ -29,4 +29,25 @@ class DailylahNotify {
       return false;
     }
   }
+
+  /// Replaces the content of a foreground service's ongoing notification (the location
+  /// plugin's "watching" one) with [note] in the pill layout, under that notification's own
+  /// id and channel. Only while that notification is on screen, so it can never leave one of
+  /// its own behind; false otherwise, on any error, or when no plugin answers.
+  static Future<bool> showOngoing(
+    Map<String, Object?> note, {
+    required int serviceNotificationId,
+    required String serviceChannelId,
+  }) async {
+    try {
+      final ok = await _channel.invokeMethod<Object?>('showOngoing', {
+        'note': note,
+        'serviceNotificationId': serviceNotificationId,
+        'serviceChannelId': serviceChannelId,
+      });
+      return ok == true;
+    } on Object {
+      return false;
+    }
+  }
 }

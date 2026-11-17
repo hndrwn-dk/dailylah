@@ -827,6 +827,24 @@ void main() {
     expect(find.text('Running normally'), findsOneWidget); // line checked at the start
     expect(box.read(habitsProvider).tripStart, isNotNull); // timed for History
 
+    // While riding, the ongoing notification gets the line and the stops to go, and is only
+    // rewritten when that changes.
+    final ongoing = <Map<Object?, Object?>>[];
+    const richChannel = MethodChannel('dailylah/notify');
+    final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(richChannel, (call) async {
+      if (call.method == 'showOngoing') ongoing.add((call.arguments as Map).cast<Object?, Object?>());
+      return true;
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(richChannel, null));
+    await tester.runAsync(() => box.read(rideProvider.notifier).tickAt(ride.start.add(const Duration(seconds: 20))));
+    await tester.runAsync(() => box.read(rideProvider.notifier).tickAt(ride.start.add(const Duration(seconds: 40))));
+    expect(ongoing, hasLength(1), reason: 'same text twice: one write');
+    expect(ongoing.single['serviceNotificationId'], 75415);
+    final watch = (ongoing.single['note'] as Map).cast<Object?, Object?>();
+    expect(watch['body'], 'Riding to Raffles Place');
+    expect([for (final p in watch['pills'] as List) (p as Map)['text']], ['EWL', '${ride.ride.stops} stops to go']);
+
     // One stop before the end the alert goes out once.
     // Real async: the alert goes through platform channels (haptics, notifications).
     await tester.runAsync(() => box

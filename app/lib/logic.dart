@@ -3955,6 +3955,43 @@ RichNote rideDisruptedNote(S s, String line) => RichNote(
       link: _todayLink,
     );
 
+// The ongoing notification while "Wake me at my stop" or "I'm on the train" watches the ride
+// is posted by geolocator_android's foreground service, which takes only a title and a text.
+// The app replaces its content with the pill layout by posting under the same id and channel
+// (dailylah_notify `showOngoing`, only while that notification is on screen). Both are
+// private constants of GeolocatorLocationService; test/logic_test.dart fails when the plugin
+// version changes, so they are re-read on every upgrade.
+const locationServiceNoteId = 75415;
+const locationServiceChannel = 'geolocator_channel_01';
+const locationServicePluginVersion = '5.2.1';
+
+/// Metres to go, rounded so the ongoing notification is not rewritten at every fix: to 50 m
+/// under 1 km (never under 50), to 0.1 km above.
+String _roundedLeft(S s, double metres) =>
+    s.metres(metres < 1000 ? math.max(50, (metres / 50).round() * 50).toDouble() : metres);
+
+/// Ongoing, while Wake me at my stop watches: the bus and how far the stop is.
+RichNote wakeWatchNote(S s, {required String service, required String stop, double? metresLeft}) => RichNote(
+      id: locationServiceNoteId,
+      title: s.wakeTitle,
+      body: '${s.wakeRunning}: $stop',
+      pills: [
+        if (service.trim().isNotEmpty) NotePill(service, PillTone.board),
+        if (metresLeft != null) NotePill(s.wakeLeft(_roundedLeft(s, metresLeft)), PillTone.amber),
+      ],
+    );
+
+/// Ongoing, while I'm on the train runs: the line being ridden and the stops to go.
+RichNote rideWatchNote(S s, {required String station, required String? line, required int stopsLeft}) => RichNote(
+      id: locationServiceNoteId,
+      title: s.rideTitle,
+      body: s.rideRunning(station),
+      pills: [
+        if (line != null) NotePill(line, PillTone.line, lineColor: mrtLineColors[line]),
+        if (stopsLeft > 0) NotePill(s.stopsToGoPill(stopsLeft), PillTone.sky),
+      ],
+    );
+
 /// For the digest: trips on each of the last seven days ending [now], oldest first, and what
 /// those days cost (entered costs, else estimates, as History adds them up).
 ({int cents, List<int> tripsPerDay}) weekHabits(Habits h, DateTime now) {
