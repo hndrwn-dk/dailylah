@@ -227,6 +227,16 @@ feature, screen, provider or rule moves, appears or goes away.
   stops it is in line with (`BusStrip.between`: the straight distances to both add up to no more than the
   road between them plus 400 m), as a row "On the way · 1.5 km from your stop" (`S.busOnTheWay`).
   From "Here" within `arrivedMetres` of the destination the trip shows "You're here".
+  Already there (Today): when the app opens or comes back to the front and location is already allowed
+  (it never asks), the shell reads the position once (`_locate` in `ui/shell.dart`) and keeps only which
+  saved Home, Work or School the phone is at (`savedPlaceAt`, within `arrivedMetres` of the address;
+  `phoneAtProvider`, memory only). Today then shows `AtPlaceCard` (`ui/today.dart`: "Have a good day at
+  work", "You're home. Take a rest.") instead of the commute `TripSection` and the MRT card (`restingAt`: at
+  the trip's destination, or still at work or school on the evening card until `leaveSoonMinutes` before the
+  usual time to leave); "Show my trip anyway" (`showTripAnywayProvider`) brings the trip back until the app
+  is next opened. A trip being timed to that place ends (`HabitsNotifier.arrivedAt`): logged only when its
+  time is at most 15 min over that trip's usual time (`arrivalLogMinutes`), dropped otherwise, since the
+  app may be opened long after arriving. Without location nothing changes.
   MRT: the MRT card shows the line status and "I'm on the train" (`mrtRide`/`mrtLeg`: every station from
   board to alight, change station included). The ride (`lib/mrt_ride.dart`, `rideProvider`, like the wake
   session) estimates the position from the time (`rideMinutesPerStop`, `rideTransferMinutes`,

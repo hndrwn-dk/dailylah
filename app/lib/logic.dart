@@ -310,6 +310,48 @@ PlaceKind? destinationFor(CardKind kind, Favorites fav, [DateTime? now, DaysOff 
   return kind == CardKind.morning ? p.kind : PlaceKind.home;
 }
 
+/// The saved Home, Work or School the phone is at: the nearest one within [arrivedMetres] of its
+/// address, null when none (a place saved with stops only has no address to compare).
+PlaceKind? savedPlaceAt(Favorites fav, double lat, double lng) {
+  PlaceKind? best;
+  var bestD = arrivedMetres;
+  for (final k in const [PlaceKind.home, PlaceKind.work, PlaceKind.school]) {
+    final p = fav.places[k];
+    if (p == null || !p.hasAddress) continue;
+    final d = distanceMeters(lat, lng, p.addrLat!, p.addrLng!);
+    if (d < bestD) {
+      bestD = d;
+      best = k;
+    }
+  }
+  return best;
+}
+
+/// At work or school, the trip home comes back this long before the usual time to leave.
+const leaveSoonMinutes = 60;
+
+/// The place Today greets instead of showing the commute trip, when the phone is [at] a saved
+/// place: the trip's destination (arrived at work, or back home), or still at work or school on
+/// the evening card more than [leaveSoonMinutes] before the usual time to leave. Null shows the trip.
+PlaceKind? restingAt(CardKind kind, Favorites fav, DateTime now, PlaceKind? at, [DaysOff off = const DaysOff()]) {
+  final place = commutePlace(fav, now, off);
+  if (at == null || place == null) return null;
+  if (at == destinationFor(kind, fav, now, off)) return at;
+  if (kind == CardKind.evening && at == place.kind) {
+    final back = place.back ?? fav.leaveWork;
+    if (now.hour * 60 + now.minute < back.minutes - leaveSoonMinutes) return at;
+  }
+  return null;
+}
+
+/// Minutes to log for a running trip that ends because the phone was found at its destination, or
+/// null to drop it: the app may have been opened long after arriving, so the time only counts when
+/// it is no more than 15 min over the [usual] time of that trip (unknown: never).
+int? arrivalLogMinutes(DateTime start, DateTime now, int? usual) {
+  final m = tripMinutes(start, now);
+  return m == null || usual == null || m > usual + 15 ? null : m;
+}
+
 bool isQuietHour(DateTime now) => now.hour >= 22 || now.hour < 6;
 
 /// True when now is within [leave - 60 min, leave].

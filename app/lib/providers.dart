@@ -193,6 +193,16 @@ class HabitsNotifier extends Notifier<Habits> {
   Future<void> startTrip(String route, DateTime now, {bool rainy = false, String? mode, double? km}) =>
       _set(state.copyWith(tripRoute: route, tripStart: now, tripRainy: rainy, tripMode: mode, tripKm: km));
 
+  /// The phone was found at the saved place [at]: a running trip that ends there is over. It is
+  /// logged when the time can be trusted ([arrivalLogMinutes]), dropped otherwise.
+  Future<void> arrivedAt(PlaceKind at, DateTime now) async {
+    final start = state.tripStart;
+    final route = state.tripRoute;
+    if (start == null || route == null || tripRouteEnds(route)?.$2 != at.name) return;
+    if (arrivalLogMinutes(start, now, tripStats(state.trips, route).usual) == null) return cancelTrip();
+    await finishTrip(now);
+  }
+
   /// Stops timing the running trip without logging it.
   Future<void> cancelTrip() => _set(state.copyWith(clearTrip: true));
 
@@ -439,6 +449,13 @@ final tripExtrasProvider = FutureProvider.autoDispose.family<TripExtras, ExtrasQ
 });
 
 final incidentsProvider = FutureProvider.autoDispose((ref) => ref.watch(apiProvider).trafficIncidents());
+
+/// The saved Home, Work or School the phone is at right now ([savedPlaceAt]), null when it is
+/// elsewhere or location is not allowed. Set by the shell when the app opens; memory only.
+final phoneAtProvider = StateProvider<PlaceKind?>((ref) => null);
+
+/// "Show my trip anyway" on Today's "you're there" card, until the app is next opened.
+final showTripAnywayProvider = StateProvider<bool>((ref) => false);
 
 /// Today's mode override per trip key (e.g. "work", "extra:0"); in memory only.
 final modeOverrideProvider = StateProvider<Map<String, TravelMode>>((ref) => const {});

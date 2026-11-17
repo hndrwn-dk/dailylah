@@ -501,6 +501,57 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets("Already home: Today greets instead of bus times, and a trip still being timed ends", (tester) async {
+    // Home is where the test phone is (Tampines Int); the office is at Raffles Place.
+    final fav = householdFavorites.copyWith(places: {
+      ...householdFavorites.places,
+      PlaceKind.home: Place(
+        kind: PlaceKind.home,
+        stops: const [tampinesInt],
+        address: '156 TAMPINES ST 12',
+        addrLat: tampinesInt.lat,
+        addrLng: tampinesInt.lng,
+      ),
+    });
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, fav, tuesdayEvening));
+    await settle(tester);
+
+    expect(find.text("You're home. Take a rest."), findsOneWidget);
+    expect(find.byType(TripSection), findsNothing);
+    expect(find.textContaining("I'm leaving"), findsNothing);
+
+    // Forgot Arrived: the trip home is still being timed when the app comes back to the front.
+    final box = containerOf(tester);
+    await box.read(habitsProvider.notifier).startTrip('work>home', DateTime.now().subtract(const Duration(minutes: 50)));
+    await settle(tester);
+    expect(box.read(habitsProvider).tripStart, isNotNull);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await settle(tester);
+    expect(box.read(habitsProvider).tripStart, isNull);
+    // No usual time for this trip yet, so the 50 minutes are not logged as one.
+    expect(box.read(habitsProvider).trips, isEmpty);
+
+    // Heading out again: the trip is one tap away.
+    await tester.tap(find.text('Show my trip anyway'));
+    await settle(tester);
+    expect(find.byType(TripSection), findsOneWidget);
+    expect(find.text("You're home. Take a rest."), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Without location, or away from home, Today shows the trip as before', (tester) async {
+    const denied = Condition('denied', location: LocationPermission.denied);
+    for (final c in [_normal, denied]) {
+      await applyCondition(tester, c);
+      await tester.pumpWidget(KeyedSubtree(key: UniqueKey(), child: appUnder(c, householdFavorites, tuesdayEvening)));
+      await settle(tester);
+      expect(find.byType(TripSection), findsOneWidget, reason: c.name);
+      expect(find.byType(AtPlaceCard), findsNothing, reason: c.name);
+    }
+  });
+
   testWidgets('EV drivers see chargers with their plug and live free spots in Nearby', (tester) async {
     await applyCondition(tester, _normal);
     // One Type 2 site 120 m from Tampines Int (where Nearby starts) and one CHAdeMO-only site.

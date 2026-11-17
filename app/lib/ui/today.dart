@@ -17,6 +17,62 @@ import 'trip.dart';
 import 'widgets.dart';
 
 /// Today: morning card before 14:00, evening card after.
+/// Today's card when the phone is at the office, the school or back home ([restingAt]): a
+/// greeting in place of the trip, with a way to see the trip anyway.
+class AtPlaceCard extends ConsumerWidget {
+  const AtPlaceCard({super.key, required this.kind, required this.leaveAt});
+  final PlaceKind kind;
+
+  /// The usual time to leave work or school.
+  final TimeOfDayHM leaveAt;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    return Panel(
+      color: DL.mint,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(switch (kind) {
+                  PlaceKind.home => Icons.weekend_outlined,
+                  PlaceKind.school => Icons.school_outlined,
+                  _ => Icons.work_outline,
+                }, color: DL.ink),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(s.atPlaceTitle(kind.name), style: t.titleMedium?.copyWith(color: DL.ink)),
+                      const SizedBox(height: 2),
+                      Text(s.atPlaceSub(kind.name, leaveAt.format()), style: t.bodyMedium?.copyWith(color: DL.ink)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: TextButton(
+                style: TextButton.styleFrom(foregroundColor: DL.ink, minimumSize: const Size(48, 48)),
+                onPressed: () => ref.read(showTripAnywayProvider.notifier).state = true,
+                child: Text(s.showTripAnyway),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class TodayPage extends ConsumerWidget {
   const TodayPage({super.key, this.controller});
 
@@ -39,6 +95,9 @@ class TodayPage extends ConsumerWidget {
     final commute = isCommuteDay(fav, now, off);
     final destKind = destinationFor(kind, fav, now, off);
     final dest = destKind == null ? null : fav.places[destKind];
+    // Already at the office or back home: a greeting instead of bus times and I'm leaving.
+    final resting =
+        ref.watch(showTripAnywayProvider) ? null : restingAt(kind, fav, now, ref.watch(phoneAtProvider), off);
     final alerts = ref.watch(todayAlertsProvider);
     final t = Theme.of(context).textTheme;
 
@@ -84,7 +143,9 @@ class TodayPage extends ConsumerWidget {
               icon: Icons.beach_access_outlined, tone: AlertTone.info, text: s.schoolHolidayToday(schoolHoliday.name)),
         ),
       if (origin != null) _WeatherTiles(origin: origin),
-      if (commute && origin != null && dest != null)
+      if (commute && origin != null && dest != null && resting != null)
+        AtPlaceCard(kind: resting, leaveAt: commuteTimes(fav, now).$2)
+      else if (commute && origin != null && dest != null)
         TripSection(
           commute: true,
           fromKey: origin.kind.name,
@@ -93,7 +154,7 @@ class TodayPage extends ConsumerWidget {
           modeKey: (kind == CardKind.morning ? dest : origin).kind.name,
           modePlace: kind == CardKind.morning ? dest : origin,
         ),
-      if (!commute || (tripMode ?? TravelMode.transit) == TravelMode.transit)
+      if (resting == null && (!commute || (tripMode ?? TravelMode.transit) == TravelMode.transit))
         _MrtCard(showCrowd: kind == CardKind.evening),
       if (!commute && fav.places[PlaceKind.home] != null) _WeekendCard(home: fav.places[PlaceKind.home]!),
       const PlanTripCard(),
