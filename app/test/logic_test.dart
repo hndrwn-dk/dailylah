@@ -1565,11 +1565,48 @@ void main() {
     expect(st2.busAt, isNull);
     // Other services and unknown stops give nothing.
     expect(busStrip(const BusEta(service: '470', minutes: 1, load: ''), 'M', routes, stops), isNull);
+    // Tapping the second arrival opens on it; refreshed times pick the nearest; no tap, the next bus.
+    const two = [BusEta(service: '47', minutes: 1, load: ''), BusEta(service: '47', minutes: 15, load: '')];
+    expect(busPick(two, 15), 1);
+    expect(busPick(two, 16), 1);
+    expect(busPick(two, 1), 0);
+    expect(busPick(two, null), 0);
+    expect(busPick(const [], 15), 0);
     const s = S();
     expect(s.loadLabel('SEA'), 'Seats free');
     expect(s.loadLabel('LSD'), 'Packed');
     expect(s.youTag(0), 'YOU · Arr');
     expect(s.stopsTag(1), '1 stop');
+  });
+
+  test("Where's my bus: a bus on a long stretch between two stops is drawn between them", () {
+    // Like bus 36 on the ECP: 5.2 km by road from the stop before to the rider's stop, no stop near.
+    const a = BusStop(code: 'A', name: 'Stop A', road: '', lat: 1.3000, lng: 103.9000);
+    const b = BusStop(code: 'B', name: 'Before the expressway', road: '', lat: 1.3020, lng: 103.9000);
+    const mine = BusStop(code: 'M', name: 'Mine', road: '', lat: 1.3400, lng: 103.9000);
+    final stops = {for (final x in [a, b, mine]) x.code: x};
+    const routes = BusRoutes({
+      '36|1': [('A', 0.0), ('B', 0.3), ('M', 5.5)],
+    });
+    // 1.5 km before the rider's stop, a little off the straight line (the road bends).
+    const onWay = BusEta(service: '36', minutes: 1, load: 'SEA', lat: 1.3266, lng: 103.9030);
+    final st = busStrip(onWay, 'M', routes, stops)!;
+    expect(st.stops.map((x) => x.code), ['B', 'M']);
+    expect(st.busAt, 0);
+    expect(st.between, isTrue);
+    expect(st.metres, closeTo(1530, 60));
+    expect(const S().busOnTheWay(st.metres), 'On the way · 1.5\u00A0km from your\u00A0stop');
+    expect(const S().busOnTheWay(420), 'On the way · 400\u00A0m from your\u00A0stop');
+    // Next to a stop it is drawn at that stop, as before.
+    const atB = BusEta(service: '36', minutes: 9, load: 'SEA', lat: 1.3021, lng: 103.9000);
+    final st2 = busStrip(atB, 'M', routes, stops)!;
+    expect(st2.between, isFalse);
+    expect(st2.stops[st2.busAt!].code, 'B');
+    // Far from the road between any two stops: no bus on the strip.
+    const lost = BusEta(service: '36', minutes: 9, load: 'SEA', lat: 1.3200, lng: 103.9600);
+    final st3 = busStrip(lost, 'M', routes, stops)!;
+    expect(st3.busAt, isNull);
+    expect(st3.between, isFalse);
   });
 
   test('EV chargers: plug matching, nearest sites with the plug, and live free counts', () {

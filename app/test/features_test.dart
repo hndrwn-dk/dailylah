@@ -147,6 +147,30 @@ class GpsApi extends FakeApi {
   }
 }
 
+/// Two buses of service 10, each with its own live position (times against the real clock, as parsed).
+class _TwoBusApi extends FakeApi {
+  _TwoBusApi(this.lat1, this.lng1, this.lat2, this.lng2);
+  final double lat1, lng1, lat2, lng2;
+
+  @override
+  Future<Map<String, dynamic>> busArrival(String stopCode) async {
+    Map<String, dynamic> bus(int min, double lat, double lng) => {
+          'EstimatedArrival': DateTime.now().add(Duration(minutes: min, seconds: 20)).toIso8601String(),
+          'Load': 'SEA',
+          'Latitude': '$lat',
+          'Longitude': '$lng',
+          'Monitored': 1,
+        };
+    return {
+      'data': {
+        'Services': [
+          {'ServiceNo': '10', 'NextBus': bus(4, lat1, lng1), 'NextBus2': bus(15, lat2, lng2)},
+        ],
+      },
+    };
+  }
+}
+
 /// Arrivals relative to the real clock (bus times are parsed against now): at Tampines Int, a
 /// 5 min walk from home, the first 10 (the direct bus to work) comes in 1 min, too soon.
 class _SoonApi extends FakeApi {
@@ -435,6 +459,46 @@ void main() {
     expect(find.textContaining('not shown on the route'), findsOneWidget);
     expect(find.text('Open in Maps'), findsNothing);
     expect(find.text('bus here'), findsNothing);
+  });
+
+  testWidgets("Where's my bus opens on the bus that was tapped, and shows a bus between two stops", (tester) async {
+    Map stopOf(String code) => (_bundle('bus_stops') as List).cast<Map>().firstWhere((s) => s['c'] == code);
+    double mid(String k) => ((stopOf('96281')[k] as num) + (stopOf('76061')[k] as num)) / 2;
+    // The next 10 is halfway along the 1.3 km without a stop before Blk 938; the one after is at a stop.
+    final api = _TwoBusApi(mid('la'), mid('lo'), (stopOf('96101')['la'] as num).toDouble(), (stopOf('96101')['lo'] as num).toDouble());
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(ProviderScope(retry: noRetry,
+      overrides: [
+        initialFavoritesProvider.overrideWithValue(householdFavorites),
+        apiProvider.overrideWithValue(api),
+        bundleRepoProvider.overrideWithValue(FileBundles()),
+        clockProvider.overrideWith((ref) => Stream.value(tuesdayMorning)),
+      ],
+      child: MaterialApp(
+        theme: buildTheme(Brightness.light),
+        home: const Scaffold(body: WhereBusSheet(stop: tampinesInt, service: '10', minutes: 15)),
+      ),
+    ));
+    await settle(tester);
+
+    // Tapped the bus due in 15 min: that one is shown, not the next.
+    ChoiceChip chip(String label) => tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, label));
+    expect(chip('Then · 15 min').selected, isTrue);
+    expect(chip('Next · 4 min').selected, isFalse);
+    expect(find.text('YOU · 15 min'), findsOneWidget);
+    expect(find.text('bus here'), findsOneWidget);
+    expect(find.textContaining('On the way'), findsNothing);
+
+    // The next bus is between two stops: drawn after the stop it left, with the distance to go.
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Next · 4 min'));
+    await settle(tester);
+    expect(find.text('YOU · 4 min'), findsOneWidget);
+    expect(find.textContaining('On the way · 1.'), findsOneWidget);
+    expect(find.text('bus here'), findsOneWidget);
+    expect(find.text('passed'), findsOneWidget);
+    expect(find.text(stopOf('96281')['n'] as String), findsOneWidget);
+    expect(find.text('Open in Maps'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('EV drivers see chargers with their plug and live free spots in Nearby', (tester) async {

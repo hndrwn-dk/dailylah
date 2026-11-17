@@ -833,9 +833,13 @@ class S {
   String thenBusChip(int min) => 'Then · $min min';
   String get passedTag => 'passed';
   String get busHereTag => 'bus here';
+  /// The bus between two stops in "Where's my bus?", e.g. "On the way · 1.5 km from your stop".
+  String busOnTheWay(double metres) =>
+      'On the way · ${metres >= 1000 ? '${(metres / 1000).toStringAsFixed(1)}\u00A0km' : '${(metres / 50).round() * 50}\u00A0m'} from your\u00A0stop';
   String stopsTag(int n) => n == 1 ? '1 stop' : '$n stops';
   String youTag(int min) => min == 0 ? 'YOU · Arr' : 'YOU · $min min';
   String get noBusPosition => 'Timetable estimate, no live GPS. The bus is not shown on the route.';
+  String get busOffRoute => 'This bus is not near its usual route right now. Open in Maps shows where it is.';
   String get busGone => 'This bus is no longer listed at your stop.';
   String busInfo(BusEta e) =>
       [loadLabel(e.load), if (e.wheelchair) wheelchairBus, deckLabel(e.deck)].where((x) => x.isNotEmpty).join(' · ');
@@ -970,7 +974,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Every alert now has the new look, also parking time, dengue, lightning and the notification while Wake me at my stop or I'm on the train is watching your ride, which shows how far you still have to go.",
+        "Where's my bus? now opens on the bus you tapped, not always the next one. A bus on a long stretch without stops (such as an expressway) is now shown on the route, with how far it is from your stop.",
       ];
 
   // about

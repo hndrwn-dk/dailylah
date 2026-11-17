@@ -9,29 +9,35 @@ import 'theme.dart';
 import 'widgets.dart';
 
 /// Opens "Where's my bus?" for [service] arriving at [stop]. [toName] is where the rider is
-/// heading (shown under the title), empty when unknown.
-Future<void> showWhereBus(BuildContext context, {required BusStop stop, required String service, String toName = ''}) =>
+/// heading (shown under the title), empty when unknown. [minutes] is the arrival that was tapped
+/// (the one due in that many minutes), so the sheet opens on that bus and not on the next one.
+Future<void> showWhereBus(BuildContext context,
+        {required BusStop stop, required String service, String toName = '', int? minutes}) =>
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => WhereBusSheet(stop: stop, service: service, toName: toName),
+      builder: (_) => WhereBusSheet(stop: stop, service: service, toName: toName, minutes: minutes),
     );
 
 /// The stops the bus still has to pass, with the bus drawn where LTA's GPS puts it. Refreshes
 /// with the stop's arrivals (every 30 s). No map: "Open in Maps" hands the position to Google Maps.
 class WhereBusSheet extends ConsumerStatefulWidget {
-  const WhereBusSheet({super.key, required this.stop, required this.service, this.toName = ''});
+  const WhereBusSheet({super.key, required this.stop, required this.service, this.toName = '', this.minutes});
   final BusStop stop;
   final String service;
   final String toName;
+
+  /// The arrival to open on ([busPick]); null opens on the next bus.
+  final int? minutes;
 
   @override
   ConsumerState<WhereBusSheet> createState() => _WhereBusSheetState();
 }
 
 class _WhereBusSheetState extends ConsumerState<WhereBusSheet> {
-  int _pick = 0;
+  /// Null until the arrivals are there: then the tapped bus, and after that what the rider picks.
+  int? _picked;
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +48,10 @@ class _WhereBusSheetState extends ConsumerState<WhereBusSheet> {
     final byCode = ref.watch(busStopsByCodeProvider);
     final etas = ref.watch(busArrivalProvider(widget.stop.code));
     final buses = [for (final e in etas.value ?? const <BusEta>[]) if (e.service == widget.service) e];
-    final bus = buses.isEmpty ? null : buses[_pick.clamp(0, buses.length - 1)];
+    final shown = buses.take(2).toList();
+    if (shown.isNotEmpty) _picked ??= busPick(shown, widget.minutes);
+    final pick = (_picked ?? 0).clamp(0, shown.isEmpty ? 0 : shown.length - 1);
+    final bus = shown.isEmpty ? null : shown[pick];
     final strip = bus == null ? null : busStrip(bus, widget.stop.code, routes, byCode);
 
     return ConstrainedBox(
@@ -75,11 +84,11 @@ class _WhereBusSheetState extends ConsumerState<WhereBusSheet> {
                 spacing: 8,
                 runSpacing: 6,
                 children: [
-                  for (final (i, b) in buses.take(2).indexed)
+                  for (final (i, b) in shown.indexed)
                     ChoiceChip(
                       label: Text(i == 0 ? s.nextBusChip(b.minutes) : s.thenBusChip(b.minutes)),
-                      selected: i == _pick.clamp(0, buses.length - 1),
-                      onSelected: (_) => setState(() => _pick = i),
+                      selected: i == pick,
+                      onSelected: (_) => setState(() => _picked = i),
                     ),
                 ],
               ),
@@ -89,22 +98,38 @@ class _WhereBusSheetState extends ConsumerState<WhereBusSheet> {
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: Text(s.noBusPosition, style: t.bodySmall),
                 ),
+              if (bus.monitored && bus.lat != null && strip != null && strip.busAt == null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Text(s.busOffRoute, style: t.bodySmall),
+                ),
               if (strip != null)
-                for (final (k, st) in strip.stops.indexed)
+                for (final (k, st) in strip.stops.indexed) ...[
                   _StripRow(
                     name: st.name,
                     first: k == 0,
                     last: k == strip.stops.length - 1,
-                    passed: strip.busAt != null && k < strip.busAt!,
-                    busHere: k == strip.busAt ? widget.service : null,
+                    passed: strip.busAt != null && (k < strip.busAt! || (strip.between && k == strip.busAt)),
+                    busHere: k == strip.busAt && !strip.between ? widget.service : null,
                     tag: k == strip.stops.length - 1
                         ? s.youTag(bus.minutes)
-                        : strip.busAt != null && k < strip.busAt!
+                        : strip.busAt != null && (k < strip.busAt! || (strip.between && k == strip.busAt))
                             ? s.passedTag
                             : k == strip.busAt
                                 ? s.busHereTag
                                 : s.stopsTag(strip.stops.length - 1 - k),
                   ),
+                  // Between two stops (an expressway stretch): the bus gets a row of its own.
+                  if (strip.between && k == strip.busAt)
+                    _StripRow(
+                      name: s.busOnTheWay(strip.metres),
+                      first: false,
+                      last: false,
+                      passed: false,
+                      busHere: widget.service,
+                      tag: s.busHereTag,
+                    ),
+                ],
               const SizedBox(height: 10),
               Text.rich(
                 TextSpan(children: [

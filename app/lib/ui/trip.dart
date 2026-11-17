@@ -933,7 +933,7 @@ class TripBusCard extends ConsumerWidget {
                                 next: next,
                                 pulse: i == 0 && e.minutes == 0,
                                 live: live(e),
-                                onTap: () => showWhereBus(context, stop: stop, service: e.service),
+                                onTap: () => showWhereBus(context, stop: stop, service: e.service, minutes: e.minutes),
                               ),
                           ]);
                   }
@@ -992,6 +992,7 @@ class TripBusCard extends ConsumerWidget {
                               onTap: () => showWhereBus(context,
                                   stop: stop,
                                   service: r.eta.service,
+                                  minutes: r.eta.minutes,
                                   toName: names[rides[r.eta.service]!.alightAt] ?? ''),
                             ),
                         ],
@@ -1095,7 +1096,7 @@ class TripBusCard extends ConsumerWidget {
                                   next: next,
                                   pulse: false,
                                   live: live(e),
-                                  onTap: () => showWhereBus(context, stop: stop, service: e.service),
+                                  onTap: () => showWhereBus(context, stop: stop, service: e.service, minutes: e.minutes),
                                 ),
                             ],
                           ),
