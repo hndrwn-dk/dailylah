@@ -23,6 +23,7 @@ internal object NoteArt {
             "week" -> if (bars.size == 7) week(ctx, d, bars) else null
             "rain" -> rain(ctx, d)
             "phone" -> phone(ctx, d)
+            "lunch" -> bowl(ctx, d)
             else -> null
         }
     }
@@ -147,6 +148,34 @@ internal object NoteArt {
         val mark = stroke(ctx.getColor(R.color.dl_note_mark), 1.5f * d)
         c.drawLine(3.5f * d, 10 * d, 3.5f * d, 20 * d, mark)
         c.drawLine(24.5f * d, 10 * d, 24.5f * d, 20 * d, mark)
+        return b
+    }
+
+    /** A bowl with steam. */
+    private fun bowl(ctx: Context, d: Float): Bitmap {
+        val w = 30 * d
+        val h = 29 * d
+        val (b, c) = bitmap(w, h)
+        val line = stroke(ctx.getColor(R.color.dl_note_edge), 2 * d)
+        val bowl = Path().apply {
+            moveTo(2 * d, 14 * d)
+            lineTo(28 * d, 14 * d)
+            cubicTo(28 * d, 23 * d, 22 * d, 28 * d, 15 * d, 28 * d)
+            cubicTo(8 * d, 28 * d, 2 * d, 23 * d, 2 * d, 14 * d)
+            close()
+        }
+        c.drawPath(bowl, fill(ctx.getColor(R.color.dl_note_amber)))
+        c.drawPath(bowl, line)
+        val steam = stroke(ctx.getColor(R.color.dl_note_mark), 1.5f * d)
+        for (x in listOf(11f, 19f)) {
+            c.drawPath(
+                Path().apply {
+                    moveTo(x * d, 10 * d)
+                    cubicTo((x + 3) * d, 8 * d, (x - 3) * d, 4 * d, x * d, 1.5f * d)
+                },
+                steam,
+            )
+        }
         return b
     }
 }

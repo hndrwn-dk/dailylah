@@ -867,7 +867,7 @@ class Habits {
 enum PillTone { amber, red, teal, mint, sky, board, line }
 
 /// The small picture beside the pills.
-enum NoteArt { none, rain, psi, heat, week, phone }
+enum NoteArt { none, rain, psi, heat, week, phone, lunch }
 
 class NotePill {
   const NotePill(this.text, this.tone, {this.lineColor});

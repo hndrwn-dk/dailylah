@@ -146,6 +146,12 @@ feature, screen, provider or rule moves, appears or goes away.
   disclaimer gets a short line on its screen and its full wording in `docs/legal/terms.md` section 3 (About
   links to the Terms of Service).
   Tests: `test/about_test.dart`, `test/source_notes_test.dart`.
+- More (`ui/more.dart`) is sticker tiles in a `TileGrid` (two columns; one above 130% text, `tileColumns`): a
+  `SettingTile` with a `value` is a switch (mint and raised when on, dashed and flat when off, "On"/"Off" in words,
+  `toggled` for TalkBack), without one it opens something (chevron). Your setup and The app are link tiles, Alerts
+  and Extras switch tiles; Alerts shows "8 of 9 on" beside its title (`alertsOn`, `alertKinds`). What needs a
+  second control stays a full-width `Panel` row under its grid: lunch (switch and time) and My plug. "Show me an
+  example" and "Delete my history" are text links under their grids.
 - Appearance: More > Appearance picks follow the phone / light / dark (`Favorites.theme`: '', 'light',
   'dark'; `themeModeFor` in theme.dart). Dark mode keeps sticker surfaces (mint, sky, amber) with ink text.
 - What's new: after an update, Today shows `WhatsNewCard` with `S.whatsNewNotes` until closed
@@ -206,6 +212,7 @@ feature, screen, provider or rule moves, appears or goes away.
   Today, from 30 min before to 2 h after that time (`lunchCardDue`): at the office the same pick sits inside
   `AtPlaceCard` with "Where to eat"; elsewhere (not at home) `LunchCard` opens Nearby > Eat (`openNearbyEat`).
   Halal places are not suggested in the note (no room for `S.halalDisclaimer`); Nearby > Eat lists them.
+  The note always has its picture (`NoteArt.lunch`, a bowl) and a pill: with no hawker centre to name, "Where to eat".
   A new alert is a new `...Note` builder; no two alerts share an ID (a test checks the samples). More > Alerts > "Show me an
   example" (`showExampleAlerts`, `sampleNotes`) posts every alert (16) with sample values, titled "Example: ..." and
   under their own IDs (the alert's + 100), so a sample never replaces a real alert, and never touches

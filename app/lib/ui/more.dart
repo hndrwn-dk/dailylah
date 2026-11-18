@@ -1,3 +1,5 @@
+import 'dart:math' show min;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,12 +30,14 @@ class MorePage extends ConsumerWidget {
     final notifier = ref.read(favoritesProvider.notifier);
     final t = Theme.of(context).textTheme;
 
-    Widget toggle(String title, bool value, Favorites Function(Favorites, bool) set, {String? sub}) =>
-        SwitchListTile(
-          title: Text(title, style: t.bodyMedium),
-          subtitle: sub == null ? null : Text(sub),
+    Widget toggle(IconData icon, String title, bool value, Favorites Function(Favorites, bool) set,
+            {String? sub}) =>
+        SettingTile(
+          icon: icon,
+          title: title,
+          subtitle: sub,
           value: value,
-          onChanged: (v) => notifier.update((f) => set(f, v)),
+          onTap: () => notifier.update((f) => set(f, !value)),
         );
 
     return Scaffold(
@@ -56,76 +60,115 @@ class MorePage extends ConsumerWidget {
             child: CardColumns(
               children: [
                 SectionTitle(s.yourSetup),
-                Panel(
-                  child: Column(
-                    children: [
-                      _NavTile(
-                        icon: Icons.tune,
-                        title: s.editSetup,
-                        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SetupPage())),
-                      ),
-                      _NavTile(
-                        icon: Icons.qr_code_2,
-                        title: s.familyShare,
-                        subtitle: s.familyShareSub,
-                        onTap: () =>
-                            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FamilySharePage())),
-                      ),
-                    ],
+                TileGrid(
+                  children: [
+                    SettingTile(
+                      icon: Icons.tune,
+                      title: s.editSetup,
+                      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SetupPage())),
+                    ),
+                    SettingTile(
+                      icon: Icons.qr_code_2,
+                      title: s.familyShare,
+                      subtitle: s.familyShareSub,
+                      onTap: () =>
+                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FamilySharePage())),
+                    ),
+                  ],
+                ),
+                SectionTitle(
+                  s.alertsTitle,
+                  trailing: Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: Text(s.alertsOn(alertsOn(fav), alertKinds), style: t.bodySmall),
                   ),
                 ),
-                SectionTitle(s.alertsTitle),
-                Panel(
-                  child: Column(
-                    children: [
-                      toggle(s.alertMrt, fav.mrtAlerts, (f, v) => f.copyWith(mrtAlerts: v)),
-                      toggle(s.alertRain, fav.rainAlerts, (f, v) => f.copyWith(rainAlerts: v), sub: s.alertRainSub),
-                      toggle(s.alertLeave, fav.leaveAlerts, (f, v) => f.copyWith(leaveAlerts: v), sub: s.alertLeaveSub),
-                      toggle(s.alertDigest, fav.digestAlerts, (f, v) => f.copyWith(digestAlerts: v), sub: s.alertDigestSub),
-                      toggle(s.alertHawker, fav.hawkerAlerts, (f, v) => f.copyWith(hawkerAlerts: v)),
-                      toggle(s.alertDengue, fav.dengueAlerts, (f, v) => f.copyWith(dengueAlerts: v)),
-                      toggle(s.alertHeat, fav.heatAlerts, (f, v) => f.copyWith(heatAlerts: v)),
-                      toggle(s.alertHomes, fav.homesAlerts, (f, v) => f.copyWith(homesAlerts: v)),
-                      toggle(s.alertLunch, fav.lunchAlerts, (f, v) => f.copyWith(lunchAlerts: v), sub: s.alertLunchSub),
-                      if (fav.lunchAlerts)
-                        ListTile(
-                          leading: const Icon(Icons.schedule),
-                          title: Text(s.lunchTimeAt(fav.lunchAt.format()), style: t.bodyMedium),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () async {
-                            final picked = await showTimePicker(
-                              context: context,
-                              helpText: s.lunchTimeHelp,
-                              initialTime: TimeOfDay(hour: fav.lunchAt.hour, minute: fav.lunchAt.minute),
-                            );
-                            if (picked == null) return;
-                            notifier.update((f) => f.copyWith(lunchAt: TimeOfDayHM(picked.hour, picked.minute)));
-                          },
-                        ),
-                      ListTile(
-                        leading: const Icon(Icons.notifications_active_outlined),
-                        title: Text(s.alertExample, style: t.bodyMedium),
-                        subtitle: Text(s.alertExampleSub),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () async {
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TileGrid(
+                      children: [
+                        toggle(Icons.directions_subway_outlined, s.alertMrt, fav.mrtAlerts,
+                            (f, v) => f.copyWith(mrtAlerts: v), sub: s.alertMrtSub),
+                        toggle(Icons.water_drop_outlined, s.alertRain, fav.rainAlerts,
+                            (f, v) => f.copyWith(rainAlerts: v), sub: s.alertRainSub),
+                        toggle(Icons.directions_bus_outlined, s.alertLeave, fav.leaveAlerts,
+                            (f, v) => f.copyWith(leaveAlerts: v), sub: s.alertLeaveSub),
+                        toggle(Icons.wb_sunny_outlined, s.alertHeat, fav.heatAlerts,
+                            (f, v) => f.copyWith(heatAlerts: v), sub: s.alertNearSub),
+                        toggle(Icons.bug_report_outlined, s.alertDengue, fav.dengueAlerts,
+                            (f, v) => f.copyWith(dengueAlerts: v), sub: s.alertNearSub),
+                        toggle(Icons.home_work_outlined, s.alertHomes, fav.homesAlerts,
+                            (f, v) => f.copyWith(homesAlerts: v), sub: s.alertHomesSub),
+                        toggle(Icons.restaurant_outlined, s.alertHawker, fav.hawkerAlerts,
+                            (f, v) => f.copyWith(hawkerAlerts: v), sub: s.alertHawkerSub),
+                        toggle(Icons.calendar_today_outlined, s.alertDigest, fav.digestAlerts,
+                            (f, v) => f.copyWith(digestAlerts: v), sub: s.alertDigestSub),
+                      ],
+                    ),
+                    // Lunch has a time to set, so it stays a full-width row with its switch.
+                    Panel(
+                      child: Column(
+                        children: [
+                          SwitchListTile(
+                            secondary: const Icon(Icons.ramen_dining_outlined),
+                            title: Text(s.alertLunch, style: t.bodyMedium),
+                            subtitle: Text(s.alertLunchSub),
+                            value: fav.lunchAlerts,
+                            onChanged: (v) => notifier.update((f) => f.copyWith(lunchAlerts: v)),
+                          ),
+                          if (fav.lunchAlerts)
+                            ListTile(
+                              leading: const Icon(Icons.schedule),
+                              title: Text(s.lunchTimeAt(fav.lunchAt.format()), style: t.bodyMedium),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: () async {
+                                final picked = await showTimePicker(
+                                  context: context,
+                                  helpText: s.lunchTimeHelp,
+                                  initialTime: TimeOfDay(hour: fav.lunchAt.hour, minute: fav.lunchAt.minute),
+                                );
+                                if (picked == null) return;
+                                notifier.update((f) => f.copyWith(lunchAt: TimeOfDayHM(picked.hour, picked.minute)));
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                    Center(
+                      child: TextButton.icon(
+                        style: _linkStyle(DL.goText(context)),
+                        icon: const Icon(Icons.notifications_active_outlined, size: 20),
+                        label: Text(s.alertExample),
+                        onPressed: () async {
                           final messenger = ScaffoldMessenger.of(context);
                           if (!await showExampleAlerts(s)) {
                             messenger.showSnackBar(SnackBar(content: Text(s.alertExampleOff)));
                           }
                         },
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
                 SectionTitle(s.extras),
-                Panel(
-                  child: Column(
-                    children: [
-                      toggle(s.showPrayer, fav.showPrayer, (f, v) => f.copyWith(showPrayer: v), sub: s.showPrayerSub),
-                      toggle(s.showHalal, fav.showHalal, (f, v) => f.copyWith(showHalal: v), sub: s.showHalalSub),
-                      toggle(s.evToggle, fav.drivesEv, (f, v) => f.copyWith(evPlug: v ? 'any' : ''), sub: s.evToggleSub),
-                      if (fav.drivesEv)
-                        ListTile(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TileGrid(
+                      children: [
+                        toggle(Icons.access_time, s.showPrayer, fav.showPrayer, (f, v) => f.copyWith(showPrayer: v),
+                            sub: s.showPrayerSub),
+                        toggle(Icons.restaurant_menu, s.showHalal, fav.showHalal, (f, v) => f.copyWith(showHalal: v),
+                            sub: s.showHalalSub),
+                        toggle(Icons.bolt_outlined, s.evToggle, fav.drivesEv,
+                            (f, v) => f.copyWith(evPlug: v ? 'any' : ''), sub: s.evToggleSub),
+                        toggle(Icons.insights, s.learnHabits, fav.learnHabits, (f, v) => f.copyWith(learnHabits: v),
+                            sub: s.learnHabitsSub),
+                      ],
+                    ),
+                    if (fav.drivesEv)
+                      Panel(
+                        child: ListTile(
                           leading: const Icon(Icons.power_outlined),
                           title: Text(s.evPlugTitle),
                           subtitle: Text(s.evPlugName(fav.evPlug)),
@@ -135,11 +178,13 @@ class MorePage extends ConsumerWidget {
                             if (plug != null) notifier.update((f) => f.copyWith(evPlug: plug));
                           },
                         ),
-                      toggle(s.learnHabits, fav.learnHabits, (f, v) => f.copyWith(learnHabits: v), sub: s.learnHabitsSub),
-                      ListTile(
-                        leading: const Icon(Icons.delete_outline),
-                        title: Text(s.deleteHistory, style: t.bodyMedium),
-                        onTap: () async {
+                      ),
+                    Center(
+                      child: TextButton.icon(
+                        style: _linkStyle(DL.stopText(context)),
+                        icon: const Icon(Icons.delete_outline, size: 20),
+                        label: Text(s.deleteHistory),
+                        onPressed: () async {
                           final messenger = ScaffoldMessenger.of(context);
                           final ok = await showDialog<bool>(
                             context: context,
@@ -160,30 +205,29 @@ class MorePage extends ConsumerWidget {
                           messenger.showSnackBar(SnackBar(content: Text(s.deleted)));
                         },
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                Panel(
-                  child: Column(
-                    children: [
-                      _NavTile(
-                        icon: Icons.contrast,
-                        title: s.appearance,
-                        subtitle: s.appearanceName(fav.theme),
-                        onTap: () async {
-                          final theme = await showAppearancePicker(context, s, fav.theme);
-                          if (theme != null) notifier.update((f) => f.copyWith(theme: theme));
-                        },
-                      ),
-                      _NavTile(
-                        icon: Icons.info_outline,
-                        title: s.about,
-                        subtitle: s.aboutSubWith(appVersion),
-                        onTap: () =>
-                            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AboutDailyLahPage())),
-                      ),
-                    ],
-                  ),
+                SectionTitle(s.theApp),
+                TileGrid(
+                  children: [
+                    SettingTile(
+                      icon: Icons.contrast,
+                      title: s.appearance,
+                      subtitle: s.appearanceName(fav.theme),
+                      onTap: () async {
+                        final theme = await showAppearancePicker(context, s, fav.theme);
+                        if (theme != null) notifier.update((f) => f.copyWith(theme: theme));
+                      },
+                    ),
+                    SettingTile(
+                      icon: Icons.info_outline,
+                      title: s.about,
+                      subtitle: s.aboutSubWith(appVersion),
+                      onTap: () =>
+                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AboutDailyLahPage())),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -194,29 +238,193 @@ class MorePage extends ConsumerWidget {
   }
 }
 
-class _NavTile extends StatelessWidget {
-  const _NavTile({required this.icon, required this.title, this.subtitle, required this.onTap});
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final VoidCallback onTap;
+/// A text link under a grid of tiles ("Show me an example", "Delete my history"): 48 dp tall.
+ButtonStyle _linkStyle(Color color) => TextButton.styleFrom(
+      foregroundColor: color,
+      minimumSize: const Size(kMinInteractiveDimension, kMinInteractiveDimension),
+    );
+
+/// Tiles side by side on More: two columns, one when the text is too large for two
+/// (`tileColumns`). Tiles in a row are the same height.
+class TileGrid extends StatelessWidget {
+  const TileGrid({super.key, required this.children});
+  final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    final c = Theme.of(context).colorScheme.primary;
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: Container(
-        padding: const EdgeInsets.all(9),
-        decoration: BoxDecoration(color: c.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
-        child: Icon(icon, size: 20, color: c),
+    final cols = tileColumns(MediaQuery.textScalerOf(context).scale(1));
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < children.length; i += cols)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var j = i; j < i + cols; j++) ...[
+                      if (j > i) const SizedBox(width: 12),
+                      Expanded(child: j < children.length ? children[j] : const SizedBox()),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
-      title: Text(title),
-      subtitle: subtitle == null ? null : Text(subtitle!),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: onTap,
     );
   }
+}
+
+/// Columns of a [TileGrid] at this text scale: above 130% a tile is too narrow for whole words.
+int tileColumns(double textScale) => textScale > 1.3 ? 1 : 2;
+
+/// One setting on More as a sticker tile. With [value] it is a switch: raised and mint when on,
+/// flat with a dashed outline when off, and "On" / "Off" in words so colour is not the only
+/// sign. Without [value] it opens something and shows a chevron.
+class SettingTile extends ConsumerWidget {
+  const SettingTile({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.value,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final bool? value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final isSwitch = value != null;
+    final off = value == false;
+    final r = BorderRadius.circular(DL.radius);
+    // Mint is a sticker surface: ink text in light and dark. An off tile sits on the page.
+    final Color? fg = !isSwitch ? null : (off ? DL.muted(context) : DL.ink);
+    final Color subColor = isSwitch && !off ? DL.ink : DL.muted(context);
+    final still = MediaQuery.disableAnimationsOf(context);
+
+    final badge = ExcludeSemantics(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: off ? null : DL.teal,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: off ? DL.muted(context) : DL.ink, width: 2),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!off) const Padding(padding: EdgeInsets.only(right: 3), child: Icon(Icons.check, size: 13, color: DL.ink)),
+            Text(off ? s.tileOff : s.tileOn,
+                style: t.labelSmall?.copyWith(color: off ? DL.muted(context) : DL.ink, fontWeight: FontWeight.w800)),
+          ],
+        ),
+      ),
+    );
+    final lead = isSwitch
+        ? Icon(icon, size: 24, color: fg)
+        : Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: DL.sky,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: DL.edge(context), width: 2),
+            ),
+            child: Icon(icon, size: 20, color: DL.ink),
+          );
+
+    return MergeSemantics(
+      child: Semantics(
+        toggled: value,
+        child: Padding(
+          padding: const EdgeInsets.only(right: 4, bottom: 4),
+          child: CustomPaint(
+            foregroundPainter: off ? _DashedOutline(DL.muted(context)) : null,
+            child: AnimatedContainer(
+              duration: still ? Duration.zero : const Duration(milliseconds: 140),
+              curve: Curves.easeOut,
+              decoration: BoxDecoration(
+                color: off
+                    ? Colors.transparent
+                    : (isSwitch ? DL.mint : Theme.of(context).colorScheme.surfaceContainerLowest),
+                borderRadius: r,
+                border: Border.all(color: off ? Colors.transparent : DL.edge(context), width: DL.stroke),
+                boxShadow: off ? const [] : DL.hard(context),
+              ),
+              child: Material(
+                type: MaterialType.transparency,
+                child: InkWell(
+                  borderRadius: r,
+                  onTap: () {
+                    if (isSwitch) HapticFeedback.selectionClick();
+                    onTap();
+                  },
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 108),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              lead,
+                              const Spacer(),
+                              if (isSwitch) badge else Icon(Icons.chevron_right, color: DL.muted(context)),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(title, style: t.titleSmall?.copyWith(color: fg)),
+                          if (subtitle != null) ...[
+                            const SizedBox(height: 2),
+                            Text(subtitle!, style: t.bodySmall?.copyWith(color: subColor)),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The dashed outline of a switched-off [SettingTile].
+class _DashedOutline extends CustomPainter {
+  const _DashedOutline(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final box = RRect.fromRectAndRadius(
+        (Offset.zero & size).deflate(DL.stroke / 2), const Radius.circular(DL.radius - DL.stroke / 2));
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = DL.stroke
+      ..strokeCap = StrokeCap.round
+      ..color = color;
+    for (final m in (Path()..addRRect(box)).computeMetrics()) {
+      for (var d = 0.0; d < m.length; d += 11) {
+        canvas.drawPath(m.extractPath(d, min(d + 5, m.length)), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedOutline old) => old.color != color;
 }
 
 /// Family share: the sender picks what goes in the code (QR or text); the receiver picks

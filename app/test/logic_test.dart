@@ -2992,6 +2992,15 @@ void main() {
       expect(old.lunchAt.minutes, 12 * 60);
     });
 
+    test('alertsOn counts the nine alerts More can switch', () {
+      expect(alertsOn(const Favorites()), lessThanOrEqualTo(alertKinds));
+      final all = const Favorites().copyWith(
+          mrtAlerts: true, rainAlerts: true, leaveAlerts: true, heatAlerts: true, dengueAlerts: true,
+          homesAlerts: true, hawkerAlerts: true, digestAlerts: true, lunchAlerts: true);
+      expect(alertsOn(all), alertKinds);
+      expect(alertsOn(all.copyWith(lunchAlerts: false, rainAlerts: false)), alertKinds - 2);
+    });
+
     test('the note names the place, never says where the user is, and opens Nearby on Eat', () {
       final n = lunchNote(s, place: 'Work', pick: LunchPick(near, 110, starred: true), rainy: true);
       expect(n.id, 23);
@@ -3001,7 +3010,10 @@ void main() {
       expect(n.link, 'dailylah://nearby/eat');
       final none = lunchNote(s, place: 'Work');
       expect(none.body, 'Tap to see where to eat near you now.');
-      expect(none.pills, isEmpty);
+      // Never a plain notification: the picture and one pill even with no hawker centre to name.
+      expect([for (final p in none.pills) p.text], ['Where to eat']);
+      expect(none.art, NoteArt.lunch);
+      expect(n.art, NoteArt.lunch);
     });
   });
 }
