@@ -8,7 +8,7 @@ import 'dart:io';
 import 'package:dailylah/data.dart';
 import 'package:dailylah/l10n.dart';
 import 'package:dailylah/api.dart';
-import 'package:dailylah/logic.dart' show offsetMetres, parseSharedPlace, rideMinutesTo;
+import 'package:dailylah/logic.dart' show alertsOn, offsetMetres, parseSharedPlace, rideMinutesTo;
 import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/mrt_ride.dart';
@@ -708,7 +708,7 @@ void main() {
       await settle(tester);
       containerOf(tester).read(shellTabProvider.notifier).state = _tabs['More']!;
       await settle(tester);
-      final row = find.widgetWithText(ListTile, 'Show me an example');
+      final row = find.widgetWithText(TextButton, 'Show me an example');
       await tester.ensureVisible(row);
       await tester.pump();
       await tester.tap(row);
@@ -736,6 +736,35 @@ void main() {
     });
   });
 
+  testWidgets('More > Alerts: a tile switches its alert, says On or Off, and the count follows', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    box.read(shellTabProvider.notifier).state = _tabs['More']!;
+    await settle(tester);
+    final before = alertsOn(box.read(favoritesProvider));
+    expect(box.read(favoritesProvider).dengueAlerts, isTrue);
+    expect(find.text('$before of 9 on'), findsOneWidget);
+    final tile = find.widgetWithText(SettingTile, 'New dengue cluster');
+    // Clear of the floating tab bar before tapping.
+    await Scrollable.ensureVisible(tester.element(tile), alignment: 0.3);
+    await settle(tester);
+    expect(find.descendant(of: tile, matching: find.text('On')), findsOneWidget);
+    expect(tester.getSemantics(tile), isSemantics(hasToggledState: true, isToggled: true, hasTapAction: true));
+    await tester.tap(tile);
+    await settle(tester);
+    expect(box.read(favoritesProvider).dengueAlerts, isFalse);
+    expect(find.descendant(of: tile, matching: find.text('Off')), findsOneWidget);
+    expect(tester.getSemantics(tile), isSemantics(hasToggledState: true, isToggled: false, hasTapAction: true));
+    expect(find.text('${before - 1} of 9 on'), findsOneWidget);
+    // Two tiles side by side, one column once the text is too large for two.
+    expect(tileColumns(1.0), 2);
+    expect(tileColumns(1.3), 2);
+    expect(tileColumns(2.0), 1);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Turning on "My car is electric" in More picks a plug', (tester) async {
     await applyCondition(tester, _normal);
     const fav = Favorites(places: {PlaceKind.home: Place(kind: PlaceKind.home, addrLat: 1.35, addrLng: 103.94)}, onboarded: true);
@@ -744,7 +773,7 @@ void main() {
     final box = containerOf(tester);
     box.read(shellTabProvider.notifier).state = _tabs['More']!;
     await settle(tester);
-    final toggle = find.widgetWithText(SwitchListTile, 'My car is electric');
+    final toggle = find.widgetWithText(SettingTile, 'My car is electric');
     await tester.ensureVisible(toggle);
     await tester.pump();
     await tester.tap(toggle);
@@ -1116,7 +1145,7 @@ void main() {
     expect(tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode, ThemeMode.system);
     box.read(shellTabProvider.notifier).state = _tabs['More']!;
     await settle(tester);
-    final row = find.widgetWithText(ListTile, 'Appearance');
+    final row = find.widgetWithText(SettingTile, 'Appearance');
     await tester.ensureVisible(row);
     await tester.pump();
     expect(find.descendant(of: row, matching: find.text('Follow my phone')), findsOneWidget);

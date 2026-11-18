@@ -2294,6 +2294,20 @@ LunchPick? lunchPick(List<Hawker> all, Set<String> starred, double lat, double l
   return LunchPick(open.first.$1, open.first.$2);
 }
 
+/// The alerts More > Alerts can switch, and how many are on (the "8 of 9 on" beside the title).
+const alertKinds = 9;
+int alertsOn(Favorites f) => [
+      f.mrtAlerts,
+      f.rainAlerts,
+      f.leaveAlerts,
+      f.heatAlerts,
+      f.dengueAlerts,
+      f.homesAlerts,
+      f.hawkerAlerts,
+      f.digestAlerts,
+      f.lunchAlerts,
+    ].where((on) => on).length;
+
 /// The place to suggest lunch near today: work or school on a day the user goes there (not on a
 /// public or school holiday), null on other days or while the suggestion is switched off.
 Place? lunchPlace(Favorites fav, DateTime now, [DaysOff off = const DaysOff()]) =>
@@ -3972,6 +3986,8 @@ RichNote hawkerNote(S s, String name, {String? altName, double? altMetres}) {
 
 /// Lunch time on a work or school day: an open hawker centre near [place] ("Work"), when there is
 /// one. It never says where the user is: a tap opens Nearby > Eat for where the phone is then.
+/// With no hawker centre to name it still has the picture and a "Where to eat" pill, so it never
+/// looks like a plain notification.
 RichNote lunchNote(S s, {required String place, LunchPick? pick, bool rainy = false}) => RichNote(
       id: 23,
       title: s.lunchTitle,
@@ -3979,8 +3995,10 @@ RichNote lunchNote(S s, {required String place, LunchPick? pick, bool rainy = fa
       pills: [
         if (pick != null) NotePill(s.lunchPill(pick.hawker.name, s.metres(pick.metres)), PillTone.mint),
         if (pick != null && pick.starred) NotePill(s.lunchStarredPill, PillTone.sky),
+        if (pick == null) NotePill(s.lunchWhereToEat, PillTone.teal),
         if (rainy) NotePill(s.lunchRainPill, PillTone.amber),
       ],
+      art: NoteArt.lunch,
       link: 'dailylah://nearby/eat',
     );
 

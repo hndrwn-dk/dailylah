@@ -108,7 +108,7 @@ class S {
   String get evNoData => 'The EV charger list is not downloaded yet.';
   String get evAsk => 'Electric car? Show EV chargers';
   String get evToggle => 'My car is electric';
-  String get evToggleSub => 'EV chargers with live free spots (LTA) in Nearby, Home and car trips.';
+  String get evToggleSub => 'EV chargers with live free spots';
   String get evPlugTitle => 'My plug';
   String get evPlugAsk => 'Which plug does your car use?';
   String evPlugHint(String plug) => switch (plug) {
@@ -165,7 +165,7 @@ class S {
   String get starHintNone => 'You get alerts for any line. Tap a line to star up to 3 and keep alerts to those.';
   String get days => 'Days';
   String get showHalal => 'Halal food nearby';
-  String get showHalalSub => 'Halal places listed on Muslim.sg, in Nearby and Home. Not affiliated with MUIS.';
+  String get showHalalSub => 'From Muslim.sg, in Nearby and Home. Not affiliated with MUIS.';
   /// Under the address on the sheet of a halal place: the disclaimer goes wherever halal places do.
   String halalSheetSubtitle(String address) => '$address\n$halalDisclaimer';
   String get halalTab => 'Halal';
@@ -611,8 +611,8 @@ class S {
   String digestHoliday(String name, String when) => 'Public holiday: $name, $when';
   String get alertDigest => 'This week around you';
   String get alertDigestSub => 'One summary on Sunday evening';
-  String get alertLeave => 'When to leave for my bus';
-  String get alertLeaveSub => 'Once a day, shortly before you usually leave';
+  String get alertLeave => 'When to leave';
+  String get alertLeaveSub => 'Once a day, for my bus';
   String get from => 'From';
   String get to => 'To';
   String get anyAddress => 'Search';
@@ -916,13 +916,17 @@ class S {
   String get leaveHome => 'Leave home';
   String get leaveWork => 'Leave work';
   String get notifications => 'Notifications';
-  String get alertMrt => 'MRT disruption on my lines';
+  String get alertMrt => 'MRT disruption';
+  String get alertMrtSub => 'On my lines';
   String get alertRain => 'Rain before I leave';
   String get alertRainSub => 'At most 3 a day, none 10 pm–6 am';
-  String get alertHawker => 'Favourite hawker closed tomorrow';
-  String get alertDengue => 'New dengue cluster near home or school';
+  String get alertHawker => 'Hawker closed';
+  String get alertHawkerSub => 'A favourite, tomorrow';
+  String get alertDengue => 'New dengue cluster';
+  String get alertNearSub => 'Near home or school';
   String get alertHeat => 'Heat, lightning or haze';
-  String get alertHomes => 'New resale transactions at watched blocks';
+  String get alertHomes => 'New resale sales';
+  String get alertHomesSub => 'At watched blocks';
   String get alertLunch => 'Lunch suggestion on work days';
   String get alertLunchSub => 'An open hawker centre near work or school at lunch time. Not on holidays.';
   String lunchTimeAt(String time) => 'Lunch time: $time';
@@ -932,7 +936,7 @@ class S {
   String get showPrayerSub => 'MUIS daily prayer times in Nearby';
   String get pickHomeFirst => 'Set your home address first.';
   String get familyShare => 'Share with family';
-  String get familyShareSub => 'Copy your places and lines to another phone';
+  String get familyShareSub => 'Copy to another phone';
   String get familyShareIntro => 'Send this code to someone in your family who has DailyLah. Pick what to include; '
       'they choose what to take, and nothing they saved is replaced unless they say so. No account or server involved.';
   String get shareInclude => 'Include';
@@ -988,7 +992,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "New: a lunch suggestion on your work days. Switch it on in More > Alerts and set the time: at lunch time you get one notification with an open hawker centre near work or school, your starred ones first. Tap it to see what is near you now. At the office, Today shows the same suggestion in the greeting; elsewhere it shows a card that opens Nearby > Eat. It goes by your work days and the time you set, not by where you are.",
+        "New look for More: every setting is a tile. Alerts and Extras tiles are switches that say On or Off, so you can see at a glance what is on, with a count beside Alerts. Lunch keeps its own row with its time. Fixed: the lunch alert now always comes with its picture and a pill, also on days with no open hawker centre within 1 km of work or school.",
       ];
 
   // about
@@ -1028,6 +1032,10 @@ class S {
   String get yourSetup => 'Your setup';
   String get editSetup => 'Places, lines and times';
   String get alertsTitle => 'Alerts';
+  String alertsOn(int on, int all) => '$on of $all on';
+  String get theApp => 'The app';
+  String get tileOn => 'On';
+  String get tileOff => 'Off';
   String get systemLanguage => 'Phone default';
 
   // address
@@ -1327,7 +1335,6 @@ class S {
   String uvPill(int uv) => 'UV $uv';
   String weekCostPill(String money) => '≈ $money this week';
   String get alertExample => 'Show me an example';
-  String get alertExampleSub => 'Posts sample alerts so you can see how they look';
   String exampleTitle(String title) => 'Example: $title';
   String get alertExampleOff => 'Allow notifications to see the examples';
   String stopsToGoPill(int n) => n == 1 ? '1 stop to go' : '$n stops to go';
