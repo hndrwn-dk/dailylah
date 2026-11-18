@@ -242,6 +242,31 @@ void main() {
   });
 
   group('alerts with pills (custom layout)', () {
+    test('lunch: once at the time set on a work day, only when switched on, never on a day off', () async {
+      final lunchOn = householdFavorites.copyWith(lunchAlerts: true);
+      final noon = DateTime(2026, 10, 20, 12, 5);
+      await _withFavorites(householdFavorites);
+      await runChecks(FakeApi(), noon, bundles: FileBundles());
+      expect(rich.where((n) => n['id'] == 23), isEmpty, reason: 'off until switched on');
+
+      await _withFavorites(lunchOn);
+      await runChecks(FakeApi(), DateTime(2026, 10, 20, 11, 50), bundles: FileBundles());
+      expect(rich.where((n) => n['id'] == 23), isEmpty, reason: 'before the time set');
+      await runChecks(FakeApi(), noon, bundles: FileBundles());
+      await runChecks(FakeApi(), noon.add(const Duration(minutes: 15)), bundles: FileBundles());
+      final note = rich.where((n) => n['id'] == 23).single;
+      expect(note['title'], 'Lunch time');
+      // A hawker centre near the office (Raffles Place), from the hawkers bundle.
+      expect(note['body'], startsWith('Near Work: '));
+      expect(pillsOf(note).first, contains(' m'));
+      expect(note['link'], 'dailylah://nearby/eat');
+
+      // Saturday: no work, no lunch suggestion.
+      rich.clear();
+      await runChecks(FakeApi(), DateTime(2026, 10, 24, 12, 5), bundles: FileBundles());
+      expect(rich.where((n) => n['id'] == 23), isEmpty);
+    });
+
     test('the rain alert goes out as a rich note with the umbrella pill, not as plain text', () async {
       await _withFavorites(householdFavorites);
       await runChecks(FakeApi(), rainyBeforeWork, bundles: FileBundles());

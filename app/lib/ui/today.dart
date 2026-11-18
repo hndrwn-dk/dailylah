@@ -17,14 +17,43 @@ import 'trip.dart';
 import 'widgets.dart';
 
 /// Today: morning card before 14:00, evening card after.
+/// Opens Nearby on Eat (for where the phone is, as Nearby starts on Here).
+void openNearbyEat(WidgetRef ref) {
+  ref.read(nearbySectionProvider.notifier).state = 'eat';
+  ref.read(shellTabProvider.notifier).state = 1;
+}
+
+/// Today at lunch time on a work or school day, away from the office: one line and a way to Nearby > Eat.
+class LunchCard extends ConsumerWidget {
+  const LunchCard({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    return Panel(
+      child: ListTile(
+        leading: const Icon(Icons.restaurant_outlined),
+        title: Text(s.lunchCardTitle, style: t.titleSmall),
+        subtitle: Text(s.lunchCardSub),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => openNearbyEat(ref),
+      ),
+    );
+  }
+}
+
 /// Today's card when the phone is at the office, the school or back home ([restingAt]): a
 /// greeting in place of the trip, with a way to see the trip anyway.
 class AtPlaceCard extends ConsumerWidget {
-  const AtPlaceCard({super.key, required this.kind, required this.leaveAt});
+  const AtPlaceCard({super.key, required this.kind, required this.leaveAt, this.lunch});
   final PlaceKind kind;
 
   /// The usual time to leave work or school.
   final TimeOfDayHM leaveAt;
+
+  /// At lunch time, a hawker centre near here that is open (lunch suggestion switched on).
+  final LunchPick? lunch;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -53,6 +82,11 @@ class AtPlaceCard extends ConsumerWidget {
                       Text(s.atPlaceTitle(kind.name), style: t.titleMedium?.copyWith(color: DL.ink)),
                       const SizedBox(height: 2),
                       Text(s.atPlaceSub(kind.name, leaveAt.format()), style: t.bodyMedium?.copyWith(color: DL.ink)),
+                      if (lunch case final l?) ...[
+                        const SizedBox(height: 8),
+                        Text(s.lunchNear(l.hawker.name, s.metres(l.metres)),
+                            style: t.bodyMedium?.copyWith(color: DL.ink, fontWeight: FontWeight.w700)),
+                      ],
                     ],
                   ),
                 ),
@@ -60,10 +94,21 @@ class AtPlaceCard extends ConsumerWidget {
             ),
             Align(
               alignment: AlignmentDirectional.centerEnd,
-              child: TextButton(
-                style: TextButton.styleFrom(foregroundColor: DL.ink, minimumSize: const Size(48, 48)),
-                onPressed: () => ref.read(showTripAnywayProvider.notifier).state = true,
-                child: Text(s.showTripAnyway),
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                children: [
+                  if (lunch != null)
+                    TextButton(
+                      style: TextButton.styleFrom(foregroundColor: DL.ink, minimumSize: const Size(48, 48)),
+                      onPressed: () => openNearbyEat(ref),
+                      child: Text(s.lunchWhereToEat),
+                    ),
+                  TextButton(
+                    style: TextButton.styleFrom(foregroundColor: DL.ink, minimumSize: const Size(48, 48)),
+                    onPressed: () => ref.read(showTripAnywayProvider.notifier).state = true,
+                    child: Text(s.showTripAnyway),
+                  ),
+                ],
               ),
             ),
           ],
@@ -96,8 +141,15 @@ class TodayPage extends ConsumerWidget {
     final destKind = destinationFor(kind, fav, now, off);
     final dest = destKind == null ? null : fav.places[destKind];
     // Already at the office or back home: a greeting instead of bus times and I'm leaving.
-    final resting =
-        ref.watch(showTripAnywayProvider) ? null : restingAt(kind, fav, now, ref.watch(phoneAtProvider), off);
+    final phoneAt = ref.watch(phoneAtProvider);
+    final resting = ref.watch(showTripAnywayProvider) ? null : restingAt(kind, fav, now, phoneAt, off);
+    // Lunch (switched on in More > Alerts): at the office, an open hawker centre near it inside the
+    // greeting; elsewhere a card that opens Nearby > Eat, since Today does not know where that is.
+    final lunchSpot = lunchCardDue(now, fav.lunchAt) ? lunchPlace(fav, now, off) : null;
+    final lunchHere = lunchSpot == null || resting != lunchSpot.kind
+        ? null
+        : lunchPick(ref.watch(hawkersProvider).value ?? const [], fav.hawkers, lunchSpot.lat, lunchSpot.lng,
+            dateOnly(now));
     final alerts = ref.watch(todayAlertsProvider);
     final t = Theme.of(context).textTheme;
 
@@ -143,8 +195,9 @@ class TodayPage extends ConsumerWidget {
               icon: Icons.beach_access_outlined, tone: AlertTone.info, text: s.schoolHolidayToday(schoolHoliday.name)),
         ),
       if (origin != null) _WeatherTiles(origin: origin),
+      if (lunchHere == null && lunchSpot != null && phoneAt != PlaceKind.home) const LunchCard(),
       if (commute && origin != null && dest != null && resting != null)
-        AtPlaceCard(kind: resting, leaveAt: commuteTimes(fav, now).$2)
+        AtPlaceCard(kind: resting, leaveAt: commuteTimes(fav, now).$2, lunch: lunchHere)
       else if (commute && origin != null && dest != null)
         TripSection(
           commute: true,

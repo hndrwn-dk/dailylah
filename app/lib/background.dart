@@ -345,6 +345,24 @@ Future<void> runChecks(DailyLahApi api, DateTime now, {BundleRepository? bundles
     }
   });
 
+  // Lunch on a work or school day: once, at the time set, with an open hawker centre near there.
+  // By the calendar, not by where the phone is: the app does not read the position in the background.
+  await guard(() async {
+    final place = lunchPlace(fav, now, off);
+    if (place == null || !inLunchWindow(now, fav.lunchAt) || await log.alreadySent('lunch:$day')) return;
+    final raw = await repo.load('hawkers');
+    final all = [if (raw is List) for (final r in raw) Hawker.fromBundle(r as Map<String, dynamic>)];
+    final f = forecastBody == null ? null : forecastNear(forecastBody!, place.lat, place.lng);
+    await showNote(
+      lunchNote(s,
+          place: s.placeLabel(place.kind.name),
+          pick: lunchPick(all, fav.hawkers, place.lat, place.lng, dateOnly(now)),
+          rainy: f != null && f.isRainy),
+      s: s,
+    );
+    await log.markSent('lunch:$day');
+  });
+
   // New dengue cluster within 1 km of home or school: once per cluster.
   await guard(() async {
     if (!fav.dengueAlerts || quiet) return;
@@ -521,12 +539,16 @@ bool _sameMap(Map<String, String> a, Map<String, String> b) =>
 
 /// Taps on the home screen widget, as the tab to open (dailylah://today, nearby, home).
 /// Nothing under `flutter test`, where no plugin answers the channel.
-Stream<int> widgetTabTaps() async* {
+Stream<(int, String?)> widgetTabTaps() async* {
   if (Platform.environment.containsKey('FLUTTER_TEST')) return;
+  (int, String?)? target(Uri? uri) => switch (tabForWidgetUri(uri)) {
+        final int tab => (tab, nearbySectionForUri(uri)),
+        null => null,
+      };
   try {
-    if (tabForWidgetUri(await HomeWidget.initiallyLaunchedFromHomeWidget()) case final tab?) yield tab;
+    if (target(await HomeWidget.initiallyLaunchedFromHomeWidget()) case final t?) yield t;
   } on Object catch (e) {
     debugPrint('widget launch check skipped: $e');
   }
-  yield* HomeWidget.widgetClicked.map(tabForWidgetUri).where((t) => t != null).cast<int>();
+  yield* HomeWidget.widgetClicked.map(target).where((t) => t != null).cast<(int, String?)>();
 }

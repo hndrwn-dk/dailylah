@@ -265,6 +265,8 @@ class Favorites {
     this.dengueAlerts = true,
     this.heatAlerts = true,
     this.homesAlerts = true,
+    this.lunchAlerts = false,
+    this.lunchAt = const TimeOfDayHM(12, 0),
     this.learnHabits = true,
     this.digestAlerts = true,
     this.leaveAlerts = true,
@@ -298,6 +300,10 @@ class Favorites {
   final bool dengueAlerts;
   final bool heatAlerts;
   final bool homesAlerts;
+
+  /// Lunch suggestion on work and school days (off until switched on), at [lunchAt].
+  final bool lunchAlerts;
+  final TimeOfDayHM lunchAt;
 
   /// Keep trip times and meals the user logs (on this phone only) for insights.
   final bool learnHabits;
@@ -379,6 +385,8 @@ class Favorites {
     bool? dengueAlerts,
     bool? heatAlerts,
     bool? homesAlerts,
+    bool? lunchAlerts,
+    TimeOfDayHM? lunchAt,
     bool? learnHabits,
     bool? digestAlerts,
     bool? leaveAlerts,
@@ -412,6 +420,8 @@ class Favorites {
         dengueAlerts: dengueAlerts ?? this.dengueAlerts,
         heatAlerts: heatAlerts ?? this.heatAlerts,
         homesAlerts: homesAlerts ?? this.homesAlerts,
+        lunchAlerts: lunchAlerts ?? this.lunchAlerts,
+        lunchAt: lunchAt ?? this.lunchAt,
         learnHabits: learnHabits ?? this.learnHabits,
         digestAlerts: digestAlerts ?? this.digestAlerts,
         leaveAlerts: leaveAlerts ?? this.leaveAlerts,
@@ -446,6 +456,8 @@ class Favorites {
         'dengueAlerts': dengueAlerts,
         'heatAlerts': heatAlerts,
         'homesAlerts': homesAlerts,
+        'lunchAlerts': lunchAlerts,
+        'lunchAt': lunchAt.toString(),
         'learnHabits': learnHabits,
         'digestAlerts': digestAlerts,
         'leaveAlerts': leaveAlerts,
@@ -487,6 +499,8 @@ class Favorites {
       dengueAlerts: (j['dengueAlerts'] ?? true) as bool,
       heatAlerts: (j['heatAlerts'] ?? true) as bool,
       homesAlerts: (j['homesAlerts'] ?? true) as bool,
+      lunchAlerts: (j['lunchAlerts'] ?? false) as bool,
+      lunchAt: TimeOfDayHM.parse((j['lunchAt'] ?? '12:0') as String),
       learnHabits: (j['learnHabits'] ?? true) as bool,
       digestAlerts: (j['digestAlerts'] ?? true) as bool,
       leaveAlerts: (j['leaveAlerts'] ?? true) as bool,

@@ -2267,6 +2267,51 @@ PrivateProject? privateProjectFor(List<PrivateProject> all, Place home, {double 
   return n != null && n.$2 <= maxMetres ? n.$1 : null;
 }
 
+// ---------------------------------------------------------------- lunch
+
+/// Where to eat near a place today: a hawker centre that is open, a starred one first.
+class LunchPick {
+  const LunchPick(this.hawker, this.metres, {this.starred = false});
+  final Hawker hawker;
+  final double metres;
+  final bool starred;
+}
+
+/// How far a lunch suggestion may be from the place.
+const lunchMaxMetres = 1000.0;
+
+/// The hawker centre to suggest for lunch near ([lat], [lng]) on [day]: within [lunchMaxMetres]
+/// and not closed that day; a starred one wins over a nearer one. Null when there is none.
+LunchPick? lunchPick(List<Hawker> all, Set<String> starred, double lat, double lng, DateTime day) {
+  final open = [
+    for (final e in within(all, lat, lng, lunchMaxMetres, latOf: (h) => h.lat, lngOf: (h) => h.lng))
+      if (e.$1.closureOn(day) == null) e,
+  ];
+  if (open.isEmpty) return null;
+  for (final e in open) {
+    if (starred.contains(e.$1.id)) return LunchPick(e.$1, e.$2, starred: true);
+  }
+  return LunchPick(open.first.$1, open.first.$2);
+}
+
+/// The place to suggest lunch near today: work or school on a day the user goes there (not on a
+/// public or school holiday), null on other days or while the suggestion is switched off.
+Place? lunchPlace(Favorites fav, DateTime now, [DaysOff off = const DaysOff()]) =>
+    fav.lunchAlerts ? commutePlace(fav, now, off) : null;
+
+/// The lunch notification goes out in the 45 minutes from the time set (the background check runs
+/// every 15 minutes or so), once a day.
+bool inLunchWindow(DateTime now, TimeOfDayHM at) {
+  final m = now.hour * 60 + now.minute;
+  return m >= at.minutes && m < at.minutes + 45;
+}
+
+/// Today shows the lunch line from half an hour before the time set until two hours after.
+bool lunchCardDue(DateTime now, TimeOfDayHM at) {
+  final m = now.hour * 60 + now.minute;
+  return m >= at.minutes - 30 && m < at.minutes + 120;
+}
+
 // ---------------------------------------------------------------- nearby: order in
 
 /// Suggest delivery when it is raining near the place (any rainfall in the last
@@ -3188,6 +3233,10 @@ int? tabForWidgetUri(Uri? uri) {
   };
 }
 
+/// The Nearby section a link asks for (`dailylah://nearby/eat`: the lunch suggestion), or null.
+String? nearbySectionForUri(Uri? uri) =>
+    tabForWidgetUri(uri) == 1 && uri!.pathSegments.length == 1 && uri.pathSegments.first == 'eat' ? 'eat' : null;
+
 // ---------------------------------------------------------------- shared from another app
 
 /// A place shared to DailyLah from another app (Google Maps' Share button sends text like
@@ -3921,6 +3970,20 @@ RichNote hawkerNote(S s, String name, {String? altName, double? altMetres}) {
   );
 }
 
+/// Lunch time on a work or school day: an open hawker centre near [place] ("Work"), when there is
+/// one. It never says where the user is: a tap opens Nearby > Eat for where the phone is then.
+RichNote lunchNote(S s, {required String place, LunchPick? pick, bool rainy = false}) => RichNote(
+      id: 23,
+      title: s.lunchTitle,
+      body: pick == null ? s.lunchBodyNone : s.lunchBody(place, pick.hawker.name, s.metres(pick.metres)),
+      pills: [
+        if (pick != null) NotePill(s.lunchPill(pick.hawker.name, s.metres(pick.metres)), PillTone.mint),
+        if (pick != null && pick.starred) NotePill(s.lunchStarredPill, PillTone.sky),
+        if (rainy) NotePill(s.lunchRainPill, PillTone.amber),
+      ],
+      link: 'dailylah://nearby/eat',
+    );
+
 /// High heat stress near [place] ("School"); [level] as NEA names it, [uv] the UV index.
 RichNote heatNote(S s, {required String place, required String level, int? uv}) => RichNote(
       id: 5,
@@ -4099,6 +4162,9 @@ List<RichNote> sampleNotes(S s) => [
         holidayRichNote(s, s.sampleHolidayTitle, s.sampleHolidayBody),
         rideNextNote(s, s.sampleStation),
         rideDisruptedNote(s, 'DTL'),
+        lunchNote(s,
+            place: s.placeLabel('work'),
+            pick: LunchPick(Hawker(id: '', name: s.sampleHawkerAlt, address: '', lat: 0, lng: 0), 250, starred: true)),
       ])
         n.asSample(s.exampleTitle(n.title)),
     ];

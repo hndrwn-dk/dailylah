@@ -18,6 +18,7 @@ import 'package:dailylah/store.dart';
 import 'package:dailylah/ui/address_picker.dart';
 import 'package:dailylah/ui/bus_sheet.dart';
 import 'package:dailylah/ui/history.dart';
+import 'package:dailylah/ui/more.dart';
 import 'package:dailylah/ui/mrt_ride.dart';
 import 'package:dailylah/ui/nearby.dart';
 import 'package:dailylah/ui/theme.dart';
@@ -541,6 +542,74 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Lunch: switched on in More, Today suggests a hawker at the office and opens Nearby on Eat', (tester) async {
+    // The office is where the test phone is (Tampines Int), so Today greets instead of showing the trip.
+    final atOffice = householdFavorites.copyWith(places: {
+      ...householdFavorites.places,
+      PlaceKind.work: Place(
+        kind: PlaceKind.work,
+        stops: const [fullertonSq],
+        address: '1 TAMPINES CENTRAL',
+        addrLat: tampinesInt.lat,
+        addrLng: tampinesInt.lng,
+        go: const TimeOfDayHM(8, 0),
+        back: const TimeOfDayHM(18, 0),
+      ),
+    });
+    final noon = DateTime(2026, 10, 20, 12);
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, atOffice, noon));
+    await settle(tester);
+    expect(find.text('Have a good day at work'), findsOneWidget);
+    expect(find.textContaining('Lunch?'), findsNothing, reason: 'off until switched on');
+    expect(find.byType(LunchCard), findsNothing);
+
+    // More > Alerts: the switch, then the time shows.
+    final box = containerOf(tester);
+    box.read(shellTabProvider.notifier).state = _tabs['More']!;
+    await settle(tester);
+    expect(find.text('Lunch time: 12.00'), findsNothing);
+    await tester.scrollUntilVisible(find.text('Lunch suggestion on work days'), 200,
+        scrollable: find.descendant(of: find.byType(MorePage), matching: find.byType(Scrollable)).first);
+    // Clear of the floating tab bar before tapping.
+    await Scrollable.ensureVisible(tester.element(find.text('Lunch suggestion on work days')), alignment: 0.3);
+    await settle(tester);
+    await tester.tap(find.text('Lunch suggestion on work days'));
+    await settle(tester);
+    expect(box.read(favoritesProvider).lunchAlerts, isTrue);
+    expect(find.text('Lunch time: 12.00'), findsOneWidget);
+
+    // Back on Today: a hawker centre near the office, inside the greeting.
+    box.read(shellTabProvider.notifier).state = _tabs['Today']!;
+    await settle(tester);
+    expect(find.textContaining('Lunch?'), findsOneWidget);
+    expect(find.byType(LunchCard), findsNothing);
+    await tester.tap(find.text('Where to eat'));
+    await settle(tester);
+    expect(box.read(shellTabProvider), _tabs['Nearby']);
+    expect(box.read(nearbySectionProvider), 'eat');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Lunch away from the office: a card on Today that opens Nearby on Eat', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(
+        appUnder(_normal, householdFavorites.copyWith(lunchAlerts: true), DateTime(2026, 10, 20, 12)));
+    await settle(tester);
+    expect(find.byType(LunchCard), findsOneWidget);
+    expect(find.textContaining('Lunch?'), findsNothing);
+    await tester.tap(find.byType(LunchCard));
+    await settle(tester);
+    final box = containerOf(tester);
+    expect(box.read(shellTabProvider), _tabs['Nearby']);
+    expect(box.read(nearbySectionProvider), 'eat');
+    // Outside lunch time there is no card.
+    await tester.pumpWidget(KeyedSubtree(
+        key: UniqueKey(), child: appUnder(_normal, householdFavorites.copyWith(lunchAlerts: true), tuesdayMorning)));
+    await settle(tester);
+    expect(find.byType(LunchCard), findsNothing);
+  });
+
   testWidgets('Without location, or away from home, Today shows the trip as before', (tester) async {
     const denied = Condition('denied', location: LocationPermission.denied);
     for (final c in [_normal, denied]) {
@@ -650,7 +719,7 @@ void main() {
       allowed = true;
       await openMore(tester);
       expect(rich.map((n) => n['id']).toSet(),
-          {102, 108, 109, 101, 110, 103, 105, 112, 106, 104, 111, 107, 120, 121, 122});
+          {102, 108, 109, 101, 110, 103, 105, 112, 106, 104, 111, 107, 120, 121, 122, 123});
       expect(rich.every((n) => (n['pills'] as List).isNotEmpty), isTrue);
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getStringList('alerts.sent'), isNull, reason: 'a sample must not stop the real alert');

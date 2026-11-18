@@ -1,6 +1,6 @@
 # DailyLah Privacy Policy
 
-**Last updated: 17 November 2026**
+**Last updated: 18 November 2026**
 App: DailyLah (Android, package `com.tursinalabs.dailylah`)
 Published at: https://www.tursinalabs.com/dailylah/privacy
 
@@ -54,7 +54,7 @@ The **Emergency** tab lists AEDs, A&E hospitals, CHAS clinics, fire stations and
 The website, including the **Where to live?** page, has no account, no cookies, no analytics and no advertising. On Where to live? your choices (office area, rent or buy, flat type, budget, travel time) are worked out in your browser from a public data file and kept in the page address, so a link you share carries them. When that address is opened or reloaded, it reaches our hosting provider like any page request and appears in its short-lived technical request logs (section 5); we do not use it for anything else and nothing else about your choices is sent. The map on that page loads map tiles and the OneMap logo from **OneMap** (Singapore Land Authority), so OneMap receives your IP address and which map area is shown, as with any website you visit; it does not receive your choices. Our hosting provider keeps the same technical request logs as for the data bundles above.
 
 ## 6. Notifications
-Alerts for MRT disruptions, rain before your usual departure, favourite hawker centres closing tomorrow, dengue clusters near home or school, high heat stress or lightning, new resale transactions at blocks you watch, when to leave for your bus (to work or school, or to a saved place you gave a usual time), the Sunday "This week around you" summary and your parking time are decided **on your phone**. Every 15 minutes or so, the app checks the latest public alerts and forecast and, if they match your settings, shows a local notification. No push token or device identifier is sent to Tursina Labs. You can turn alerts off in the app settings or in Android settings.
+Alerts for MRT disruptions, rain before your usual departure, favourite hawker centres closing tomorrow, dengue clusters near home or school, high heat stress or lightning, new resale transactions at blocks you watch, when to leave for your bus (to work or school, or to a saved place you gave a usual time), the Sunday "This week around you" summary, your parking time and, if you switch it on, a lunch suggestion on your work or school days are decided **on your phone**. The lunch suggestion goes by the days and the time you set, not by where you are: it names an open hawker centre near your saved Work or School, worked out on the phone from the public hawker list, and the app does not read your position for it. Every 15 minutes or so, the app checks the latest public alerts and forecast and, if they match your settings, shows a local notification. No push token or device identifier is sent to Tursina Labs. You can turn alerts off in the app settings or in Android settings.
 
 ## 7. What we do not do
 - No DailyLah account and no sign-in

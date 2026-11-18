@@ -923,6 +923,10 @@ class S {
   String get alertDengue => 'New dengue cluster near home or school';
   String get alertHeat => 'Heat, lightning or haze';
   String get alertHomes => 'New resale transactions at watched blocks';
+  String get alertLunch => 'Lunch suggestion on work days';
+  String get alertLunchSub => 'An open hawker centre near work or school at lunch time. Not on holidays.';
+  String lunchTimeAt(String time) => 'Lunch time: $time';
+  String get lunchTimeHelp => 'When to suggest lunch';
   String get extras => 'Extras';
   String get showPrayer => 'Show prayer times';
   String get showPrayerSub => 'MUIS daily prayer times in Nearby';
@@ -984,7 +988,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Already at the office or back home? Today now greets you instead of showing bus times and I'm leaving, and a trip you forgot to end with Arrived ends by itself. Your trip home comes back an hour before you usually leave, or tap Show my trip anyway. Needs location allowed; where you are is checked on your phone only.",
+        "New: a lunch suggestion on your work days. Switch it on in More > Alerts and set the time: at lunch time you get one notification with an open hawker centre near work or school, your starred ones first. Tap it to see what is near you now. At the office, Today shows the same suggestion in the greeting; elsewhere it shows a card that opens Nearby > Eat. It goes by your work days and the time you set, not by where you are.",
       ];
 
   // about
@@ -1123,6 +1127,18 @@ class S {
   String get channelDesc => 'MRT disruptions, rain, hawker closures, dengue and heat';
   String get checkAlternatives => 'Check alternative routes.';
   String get hawkerTomorrowTitle => 'Hawker closed tomorrow';
+  String get lunchTitle => 'Lunch time';
+  String lunchBody(String place, String name, String dist) =>
+      'Near $place: $name, $dist, open today. Tap to see what is near you now.';
+  String get lunchBodyNone => 'Tap to see where to eat near you now.';
+  String lunchPill(String name, String dist) => '$name, $dist';
+  String get lunchStarredPill => 'Your favourite';
+  String get lunchRainPill => 'Rain expected';
+  /// Today at lunch time: inside the greeting at work or school, or a card of its own.
+  String lunchNear(String name, String dist) => 'Lunch? $name is $dist away and open today.';
+  String get lunchCardTitle => 'Lunch time';
+  String get lunchCardSub => 'See where to eat near you now.';
+  String get lunchWhereToEat => 'Where to eat';
   String get dengueTitle => 'Dengue cluster nearby';
   String get heatTitle => 'Heat and lightning';
 
