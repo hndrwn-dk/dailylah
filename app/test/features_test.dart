@@ -759,9 +759,20 @@ void main() {
     expect(tester.getSemantics(tile), isSemantics(hasToggledState: true, isToggled: false, hasTapAction: true));
     expect(find.text('${before - 1} of 9 on'), findsOneWidget);
     // Two tiles side by side, one column once the text is too large for two.
-    expect(tileColumns(1.0), 2);
-    expect(tileColumns(1.3), 2);
-    expect(tileColumns(2.0), 1);
+    // (grid width, text scale): a 412, 360 and 320 dp phone have 380, 328 and 288 dp for the grid.
+    expect(tileColumns(380, 1.0), 2);
+    expect(tileColumns(380, 1.5), 2);
+    expect(tileColumns(328, 1.3), 2);
+    expect(tileColumns(328, 1.5), 1);
+    expect(tileColumns(288, 1.0), 2);
+    expect(tileColumns(288, 1.3), 1, reason: 'a long word would break in a tile this narrow');
+    expect(tileColumns(380, 2.0), 1);
+    // A link tile is a button to TalkBack, with its title and line in one node.
+    final link = find.widgetWithText(SettingTile, 'Appearance');
+    await Scrollable.ensureVisible(tester.element(link), alignment: 0.3);
+    await settle(tester);
+    expect(tester.getSemantics(link),
+        isSemantics(isButton: true, hasTapAction: true, label: 'Appearance\nFollow my phone'));
     expect(tester.takeException(), isNull);
   });
 

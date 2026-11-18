@@ -1,1 +1,1 @@
-New look for More: every setting is a tile. Alerts and Extras tiles are switches that say On or Off, so you can see at a glance what is on, with a count beside Alerts. Lunch keeps its own row with its time. Fixed: the lunch alert now always comes with its picture and a pill, also on days with no open hawker centre within 1 km of work or school.
+Small fixes on More: on small phones with larger text the tiles now go to one column sooner, so long words are no longer split, and TalkBack announces the tiles that open a page as buttons.
