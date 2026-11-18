@@ -146,9 +146,9 @@ feature, screen, provider or rule moves, appears or goes away.
   disclaimer gets a short line on its screen and its full wording in `docs/legal/terms.md` section 3 (About
   links to the Terms of Service).
   Tests: `test/about_test.dart`, `test/source_notes_test.dart`.
-- More (`ui/more.dart`) is sticker tiles in a `TileGrid` (two columns; one above 130% text, `tileColumns`): a
+- More (`ui/more.dart`) is sticker tiles in a `TileGrid` (two columns; one when a tile would be narrower than `tileMinWidth` times the text scale, `tileColumns`): a
   `SettingTile` with a `value` is a switch (mint and raised when on, dashed and flat when off, "On"/"Off" in words,
-  `toggled` for TalkBack), without one it opens something (chevron). Your setup and The app are link tiles, Alerts
+  `toggled` for TalkBack), without one it opens something (chevron, a button for TalkBack). Your setup and The app are link tiles, Alerts
   and Extras switch tiles; Alerts shows "8 of 9 on" beside its title (`alertsOn`, `alertKinds`). What needs a
   second control stays a full-width `Panel` row under its grid: lunch (switch and time) and My plug. "Show me an
   example" and "Delete my history" are text links under their grids.

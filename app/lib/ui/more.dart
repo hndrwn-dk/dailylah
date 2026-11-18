@@ -244,43 +244,55 @@ ButtonStyle _linkStyle(Color color) => TextButton.styleFrom(
       minimumSize: const Size(kMinInteractiveDimension, kMinInteractiveDimension),
     );
 
-/// Tiles side by side on More: two columns, one when the text is too large for two
-/// (`tileColumns`). Tiles in a row are the same height.
+/// Tiles side by side on More: two columns, one when a tile would be too narrow for whole words
+/// at this width and text size (`tileColumns`). Tiles in a row are the same height.
 class TileGrid extends StatelessWidget {
   const TileGrid({super.key, required this.children});
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    final cols = tileColumns(MediaQuery.textScalerOf(context).scale(1));
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var i = 0; i < children.length; i += cols)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var j = i; j < i + cols; j++) ...[
-                      if (j > i) const SizedBox(width: 12),
-                      Expanded(child: j < children.length ? children[j] : const SizedBox()),
+    final scale = MediaQuery.textScalerOf(context).scale(1);
+    return LayoutBuilder(builder: (context, box) {
+      final cols = tileColumns(box.maxWidth, scale);
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < children.length; i += cols)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (var j = i; j < i + cols; j++) ...[
+                        if (j > i) const SizedBox(width: _tileGap),
+                        Expanded(child: j < children.length ? children[j] : const SizedBox()),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
-            ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
+    });
   }
 }
 
-/// Columns of a [TileGrid] at this text scale: above 130% a tile is too narrow for whole words.
-int tileColumns(double textScale) => textScale > 1.3 ? 1 : 2;
+const _tileGap = 12.0;
+
+/// The narrowest a tile may be at 100% text for its longest words ("disruption", "Appearance")
+/// to stay whole; it grows with the text size.
+const tileMinWidth = 120.0;
+
+/// Columns of a [TileGrid] that is [width] wide at this text scale: two while each tile keeps
+/// [tileMinWidth] times the scale, else one. So a 360 dp phone has two up to 130% text, a 320 dp
+/// phone up to 110%, and 200% text is always one.
+int tileColumns(double width, double textScale) =>
+    (width - _tileGap) / 2 >= tileMinWidth * textScale ? 2 : 1;
 
 /// One setting on More as a sticker tile. With [value] it is a switch: raised and mint when on,
 /// flat with a dashed outline when off, and "On" / "Off" in words so colour is not the only
@@ -345,6 +357,8 @@ class SettingTile extends ConsumerWidget {
     return MergeSemantics(
       child: Semantics(
         toggled: value,
+        // A link tile is a button to TalkBack; a switch tile is announced as a switch.
+        button: value == null ? true : null,
         child: Padding(
           padding: const EdgeInsets.only(right: 4, bottom: 4),
           child: CustomPaint(
