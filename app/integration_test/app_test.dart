@@ -99,10 +99,13 @@ void main() {
     );
     await FavoritesStore().save(own);
     await tester.pumpWidget(KeyedSubtree(key: UniqueKey(), child: page(own)));
-    await waitFor(tester, find.byType(TextField), timeout: const Duration(seconds: 10));
-    await tester.ensureVisible(find.byType(TextField));
+    await waitFor(tester, find.text(s.copyCode), timeout: const Duration(seconds: 10));
+    // The field is at the end of a list longer than a small screen: it is built once scrolled to.
+    final list = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.byType(TextField), 200, scrollable: list);
     await tester.enterText(find.byType(TextField), code);
     final import = find.widgetWithText(FilledButton, s.importCode);
+    await tester.scrollUntilVisible(import, 200, scrollable: list);
     await tester.ensureVisible(import);
     await tester.pump();
     await tester.tap(import);

@@ -95,19 +95,28 @@ run_attempt() {
     "$ROOT/app/maestro" --format junit --output "$dir/report.xml" --debug-output "$dir/debug" \
     --test-output-dir "$dir/output") || return $?
   # The same install and household at the largest font size (app/maestro/large_text).
-  local big=0
-  # Maestro's first session has just removed its driver: adb can answer "device offline" for a
-  # moment. Wait until it takes a command, set the font size, then let the screen lay out again.
-  for _ in $(seq 1 30); do
-    "${ADB[@]}" shell true >/dev/null 2>&1 && break
-    sleep 2
+  # Maestro's first session has just removed its driver, and its second one installs it again:
+  # adb can answer "device offline" for a moment, which fails the flow in its first second. These
+  # flows need nothing but the saved household, so they alone are tried up to three times.
+  local big=0 try
+  for try in 1 2 3; do
+    big=0
+    wait_for_device
+    for _ in $(seq 1 30); do
+      "${ADB[@]}" shell true >/dev/null 2>&1 && break
+      sleep 2
+    done
+    "${ADB[@]}" shell settings put system font_scale 2.0 \
+      || { echo "::error::Could not set the font size on the emulator."; return 1; }
+    sleep 5
+    rm -rf "$dir/report-large-text.xml" "$dir/debug-large-text" "$dir/output-large-text"
+    (cd "$dir" && maestro --device "$DEVICE" test --config "$ROOT/app/maestro/large_text/config.yaml" \
+      "$ROOT/app/maestro/large_text" --format junit --output "$dir/report-large-text.xml" \
+      --debug-output "$dir/debug-large-text" --test-output-dir "$dir/output-large-text") || big=$?
+    [ "$big" -eq 0 ] && break
+    echo "::warning title=Maestro large text::Try $try of 3 failed."
+    sleep 10
   done
-  "${ADB[@]}" shell settings put system font_scale 2.0 \
-    || { echo "::error::Could not set the font size on the emulator."; return 1; }
-  sleep 5
-  (cd "$dir" && maestro --device "$DEVICE" test --config "$ROOT/app/maestro/large_text/config.yaml" \
-    "$ROOT/app/maestro/large_text" --format junit --output "$dir/report-large-text.xml" \
-    --debug-output "$dir/debug-large-text" --test-output-dir "$dir/output-large-text") || big=$?
   "${ADB[@]}" shell settings put system font_scale 1.0 >/dev/null 2>&1 || true
   return "$big"
 }

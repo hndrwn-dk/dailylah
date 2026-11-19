@@ -228,7 +228,10 @@ Writing flows:
 - `app/maestro/large_text/` runs after the other flows have passed, on the same install and
   household, with the emulator's font size at 200% (`settings put system font_scale 2.0` in
   `scripts/emulator_maestro.sh`, set back after). A flow that needs large text goes there; its
-  result is in the same summary and counts for the retry like any other flow.
+  result is in the same summary and counts for the retry like any other flow. The folder runs in a
+  second Maestro session, which adb sometimes meets with "device offline"; it needs only the saved
+  household, so the script tries it up to three times (a warning per failed try) before the
+  attempt fails.
 - Run by hand on a branch: Actions > emulator > Run workflow (or
   `gh api -X POST repos/hndrwn-dk/dailylah/actions/workflows/emulator.yml/dispatches -f ref=<branch>`).
 ## Contract tests (app and backend)
