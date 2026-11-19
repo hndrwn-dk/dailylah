@@ -1285,6 +1285,66 @@ void main() {
     expect(Habits.fromJson({'trips': [], 'meals': []}).parkings, isEmpty);
   });
 
+  test('meal date: a late meal moves to the day it was eaten, never into the future', () {
+    final now = DateTime(2026, 11, 19, 9, 30, 42);
+    // Logged this morning, eaten yesterday at the same time of day.
+    expect(mealOnDay(DateTime(2026, 11, 19, 9, 4), DateTime(2026, 11, 18), now), DateTime(2026, 11, 18, 9, 4));
+    // Across a month and a year end.
+    expect(mealOnDay(DateTime(2026, 11, 1, 12, 15), DateTime(2026, 10, 31), now), DateTime(2026, 10, 31, 12, 15));
+    // A dinner moved to today before dinner time becomes now (to the minute).
+    expect(mealOnDay(DateTime(2026, 11, 17, 19), DateTime(2026, 11, 19), now), DateTime(2026, 11, 19, 9, 30));
+    // The picker goes a year back, or to the meal's own day when that is older.
+    expect(mealFirstDay(DateTime(2026, 11, 18, 12), now), DateTime(2025, 11, 19));
+    expect(mealFirstDay(DateTime(2025, 3, 2, 12), now), DateTime(2025, 3, 2));
+  });
+
+  test('spending chart: bars per day or month by kind, average, top day and last period', () {
+    final now = DateTime(2026, 11, 19, 9); // Thursday
+    final h = Habits(
+      trips: [
+        TripLog(route: 'home>work', start: DateTime(2026, 11, 16, 8), minutes: 40, costCents: 200),
+        TripLog(route: 'work>home', start: DateTime(2026, 11, 18, 18), minutes: 40, costCents: 150),
+        TripLog(route: 'home>work', start: DateTime(2026, 11, 10, 8), minutes: 40, costCents: 300), // last Tuesday
+        TripLog(route: 'home>work', start: DateTime(2026, 11, 13, 8), minutes: 40, costCents: 900), // last Friday
+      ],
+      parkings: [ParkLog(name: 'Mall', start: DateTime(2026, 11, 18, 14), minutes: 90, costCents: 350)],
+      meals: [
+        MealLog(hawkerId: 'a', at: DateTime(2026, 11, 18, 12), priceCents: 2000),
+        MealLog(hawkerId: 'a', at: DateTime(2026, 11, 19, 8)), // no price: not counted
+        MealLog(hawkerId: 'a', at: DateTime(2026, 9, 30, 12), priceCents: 500),
+      ],
+    );
+    List<HistoryEntry> of(HistoryPeriod p) => historyEntries(h, since: historySince(p, now));
+
+    final week = historySpendBars(of(HistoryPeriod.week), HistoryPeriod.week, now);
+    expect(week.map((b) => b.start.day), [16, 17, 18, 19, 20, 21, 22]);
+    expect(week.map((b) => b.cents), [200, 0, 2500, 0, 0, 0, 0]);
+    expect((week[2].mealCents, week[2].tripCents, week[2].parkingCents), (2000, 150, 350));
+    final prev = historyPreviousCents(h, HistoryPeriod.week, now, {});
+    expect(prev, 300, reason: 'last Monday to Thursday, not the Friday after');
+    final ins = historySpendInsight(week, HistoryPeriod.week, now, previousCents: prev);
+    expect((ins.cents, ins.averageCents, ins.top?.start, ins.previousCents), (2700, 675, DateTime(2026, 11, 18), 300));
+    // Only trips shown: the comparison follows the filter.
+    expect(historyPreviousCents(h, HistoryPeriod.week, now, {HistoryKind.meal}), 0);
+
+    final month = historySpendBars(of(HistoryPeriod.month), HistoryPeriod.month, now);
+    expect(month.length, 30);
+    expect(month.fold(0, (a, b) => a + b.cents), 3900);
+    expect(historyPreviousCents(h, HistoryPeriod.month, now, {}), 0, reason: '1 to 19 October');
+    expect(historySpendInsight(month, HistoryPeriod.month, now).averageCents, (3900 / 19).round());
+
+    final all = historySpendBars(of(HistoryPeriod.all), HistoryPeriod.all, now);
+    expect(all.map((b) => (b.start.month, b.cents)), [(9, 500), (10, 0), (11, 3900)]);
+    expect(historyPreviousCents(h, HistoryPeriod.all, now, {}), isNull);
+    expect(historySpendInsight(all, HistoryPeriod.all, now).averageCents, (4400 / 3).round());
+    // One day with spending has no "most on".
+    expect(historySpendInsight([week[0]], HistoryPeriod.week, now).top, isNull);
+    // "All" keeps the last 12 months.
+    final old = [HistoryEntry(HistoryKind.meal, DateTime(2024, 1, 5), const Object(), costCents: 100)];
+    final capped = historySpendBars(old, HistoryPeriod.all, now);
+    expect((capped.length, capped.first.start, capped.fold(0, (a, b) => a + b.cents)), (12, DateTime(2025, 12), 0));
+  });
+
   test('meal price: saved as cents, optional, and old meals without one load unchanged', () {
     final at = DateTime(2026, 11, 10, 12, 30);
     final priced = MealLog(hawkerId: 'h1', at: at, priceCents: 550);

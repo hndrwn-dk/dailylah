@@ -7,6 +7,7 @@ import '../l10n.dart';
 import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
+import 'theme.dart';
 import 'widgets.dart';
 
 /// Which period History shows. Kept while the app runs.
@@ -35,6 +36,7 @@ class HistoryPage extends ConsumerWidget {
     final entries =
         historyOfKinds(historyEntries(habits, since: historySince(period, now)), {if (kind != null) kind});
     final sum = historySummary(entries);
+    final bars = historySpendBars(entries, period, now);
     final hawkers = {for (final h in ref.watch(hawkersProvider).value ?? const <Hawker>[]) h.id: h.name};
 
     return Scaffold(
@@ -120,6 +122,22 @@ class HistoryPage extends ConsumerWidget {
                   child: Text(s.historyCostNote, style: t.bodySmall),
                 ),
                 ),
+                // Where the money went: a bar per day (per month for "all"), split by kind.
+                if (sum.costCents > 0)
+                  FullWidth(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: _SpendChart(
+                        // A new period or filter starts without a picked bar.
+                        key: ValueKey((period, kind)),
+                        bars: bars,
+                        period: period,
+                        now: now,
+                        insight: historySpendInsight(bars, period, now,
+                            previousCents: historyPreviousCents(habits, period, now, {if (kind != null) kind})),
+                      ),
+                    ),
+                  ),
                 // Clean up many at once, e.g. meals logged by mistake.
                 if (entries.isNotEmpty)
                   FullWidth(
@@ -176,11 +194,221 @@ class HistoryPage extends ConsumerWidget {
     );
   }
 
-  static String _dayLabel(S s, DateTime day, DateTime now) {
-    final today = dateOnly(now);
-    if (day == today) return s.today;
-    if (day == today.subtract(const Duration(days: 1))) return s.yesterday;
-    return '${s.dayShort[day.weekday - 1]} ${shortDate(day)}';
+}
+
+/// "Today", "Yesterday" or "Wed 18/11".
+String _dayLabel(S s, DateTime day, DateTime now) {
+  final today = dateOnly(now);
+  final d = dateOnly(day);
+  if (d == today) return s.today;
+  if (d == DateTime(today.year, today.month, today.day - 1)) return s.yesterday;
+  return '${s.dayShort[d.weekday - 1]} ${shortDate(d)}';
+}
+
+/// Spending as stacked bars (meals, transport, parking) with the totals per kind and a few
+/// lines of what stands out. Tap a bar to read its day or month.
+class _SpendChart extends StatefulWidget {
+  const _SpendChart({super.key, required this.bars, required this.period, required this.now, required this.insight});
+  final List<SpendBar> bars;
+  final HistoryPeriod period;
+  final DateTime now;
+  final SpendInsight insight;
+
+  @override
+  State<_SpendChart> createState() => _SpendChartState();
+}
+
+class _SpendChartState extends State<_SpendChart> {
+  static const _height = 120.0;
+  int? _picked;
+
+  bool get _byMonth => widget.period == HistoryPeriod.all;
+
+  String _when(S s, SpendBar b) => _byMonth
+      ? '${s.monthShort[b.start.month - 1]} ${b.start.year}'
+      : '${s.dayShort[b.start.weekday - 1]} ${shortDate(b.start)}';
+
+  /// Which bars get a label under them: every day of a week, every 7th day of a month, and
+  /// for months all of them up to 6, else every 3rd.
+  bool _labelled(int i) => switch (widget.period) {
+        HistoryPeriod.week => true,
+        HistoryPeriod.month => i % 7 == 0,
+        HistoryPeriod.all => widget.bars.length <= 6 || i % 3 == 0,
+      };
+
+  String _label(S s, SpendBar b) => switch (widget.period) {
+        HistoryPeriod.week => s.dayShort[b.start.weekday - 1].substring(0, 1),
+        HistoryPeriod.month => '${b.start.day}',
+        HistoryPeriod.all => s.monthShort[b.start.month - 1],
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final s = const S();
+    final t = Theme.of(context).textTheme;
+    final bars = widget.bars;
+    final ins = widget.insight;
+    final week = widget.period == HistoryPeriod.week;
+    final meal = DL.amber, trip = DL.goText(context), parking = DL.muted(context);
+    var max = 1, trips = 0, parkings = 0, meals = 0;
+    for (final b in bars) {
+      if (b.cents > max) max = b.cents;
+      trips += b.tripCents;
+      parkings += b.parkingCents;
+      meals += b.mealCents;
+    }
+    final picked = _picked != null && _picked! < bars.length ? bars[_picked!] : null;
+    final lines = [
+      if (ins.averageCents > 0)
+        _byMonth
+            ? (bars.length > 1 ? s.spendAverageMonth(s.money(ins.averageCents)) : null)
+            : s.spendAverageDay(s.money(ins.averageCents)),
+      if (ins.top case final b?)
+        _byMonth ? s.spendTopMonth(_when(s, b), s.money(b.cents)) : s.spendTop(_when(s, b), s.money(b.cents)),
+      if (ins.previousCents case final p? when p > 0)
+        p == ins.cents
+            ? s.spendSameAsLast(week: week)
+            : s.spendVsLast(s.money((ins.cents - p).abs()), more: ins.cents > p, week: week),
+    ].whereType<String>().toList();
+
+    return Panel(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.end,
+              children: [
+                Text(s.spendTitle, style: t.titleMedium),
+                Text(_byMonth ? s.spendPerMonth : s.spendPerDay, style: t.bodySmall),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              picked == null
+                  ? (_byMonth ? s.spendTapHintMonth : s.spendTapHint)
+                  : s.spendBar(_when(s, picked), s.money(picked.cents)),
+              style: picked == null ? t.bodySmall : t.labelMedium,
+            ),
+            const SizedBox(height: 10),
+            // One description for screen readers instead of up to 31 bars.
+            Semantics(
+              label: [
+                for (final b in bars)
+                  if (b.cents > 0) s.spendBar(_when(s, b), s.money(b.cents)),
+              ].join(', '),
+              child: ExcludeSemantics(
+                child: LayoutBuilder(
+                  builder: (context, box) {
+                    final w = box.maxWidth / bars.length;
+                    final gap = w > 16 ? 3.0 : 1.0;
+                    Widget part(Color c, int cents, {bool top = false}) => Container(
+                          height: _height * cents / max,
+                          decoration: BoxDecoration(
+                            color: c,
+                            borderRadius: top ? const BorderRadius.vertical(top: Radius.circular(3)) : null,
+                          ),
+                        );
+                    return Column(
+                      children: [
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTapUp: (d) => setState(() {
+                            final i = (d.localPosition.dx / w).floor().clamp(0, bars.length - 1);
+                            _picked = _picked == i ? null : i;
+                          }),
+                          child: SizedBox(
+                            height: _height,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                for (final (i, b) in bars.indexed)
+                                  Expanded(
+                                    child: Opacity(
+                                      opacity: picked == null || _picked == i ? 1 : 0.4,
+                                      child: Padding(
+                                        padding: EdgeInsets.symmetric(horizontal: gap),
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.end,
+                                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                                          children: [
+                                            // Top to bottom: parking, transport, meals.
+                                            if (b.parkingCents > 0) part(parking, b.parkingCents, top: true),
+                                            if (b.tripCents > 0) part(trip, b.tripCents, top: b.parkingCents == 0),
+                                            if (b.mealCents > 0)
+                                              part(meal, b.mealCents, top: b.parkingCents + b.tripCents == 0),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Container(height: 1.5, color: DL.edge(context)),
+                        const SizedBox(height: 4),
+                        // Labels sit under their bar; a wide one may run past the next bars.
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            // Full width, so a label's left edge is its bar's.
+                            SizedBox(width: box.maxWidth, child: Text(' ', style: t.bodySmall)),
+                            for (final (i, b) in bars.indexed)
+                              if (_labelled(i))
+                                Positioned(
+                                  left: i * w,
+                                  width: week ? w : null,
+                                  child: Text(_label(s, b),
+                                      style: t.bodySmall,
+                                      maxLines: 1,
+                                      softWrap: false,
+                                      textAlign: week ? TextAlign.center : TextAlign.start),
+                                ),
+                          ],
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 14,
+              runSpacing: 6,
+              children: [
+                for (final (c, name, cents) in [
+                  (meal, s.historyMeals, meals),
+                  (trip, s.spendTransport, trips),
+                  (parking, s.historyParking, parkings),
+                ])
+                  if (cents > 0)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(3)),
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(child: Text('$name ${s.money(cents)}', style: t.labelMedium)),
+                      ],
+                    ),
+              ],
+            ),
+            if (lines.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              for (final l in lines) Text(l, style: t.bodyMedium),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -262,7 +490,7 @@ class _EntryTile extends ConsumerWidget {
   }
 }
 
-/// Edit a logged meal: its optional price (chips or "Other") and when it was eaten.
+/// Edit a logged meal: its optional price (chips or "Other") and the day and time it was eaten.
 class _MealSheet extends ConsumerStatefulWidget {
   const _MealSheet({required this.meal, required this.title});
   final MealLog meal;
@@ -275,6 +503,19 @@ class _MealSheet extends ConsumerStatefulWidget {
 class _MealSheetState extends ConsumerState<_MealSheet> {
   late int? _price = widget.meal.priceCents;
   late DateTime _at = widget.meal.at;
+
+  Future<void> _pickDate(S s) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: dateOnly(_at),
+      firstDate: mealFirstDay(_at, now),
+      lastDate: dateOnly(now),
+      helpText: s.mealDateHelp,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _at = mealOnDay(_at, picked, DateTime.now()));
+  }
 
   Future<void> _pickTime(S s) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -297,7 +538,8 @@ class _MealSheetState extends ConsumerState<_MealSheet> {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
     final notifier = ref.read(habitsProvider.notifier);
-    return Padding(
+    // Scrolls when it is taller than the sheet may be (large text on a small phone).
+    return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + MediaQuery.of(context).viewInsets.bottom),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -309,6 +551,19 @@ class _MealSheetState extends ConsumerState<_MealSheet> {
           const SizedBox(height: 4),
           MealPricePicker(s: s, value: _price, onChanged: (v) => setState(() => _price = v)),
           const SizedBox(height: 8),
+          // The day first: a meal logged a day late moves to the day it was eaten.
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            children: [
+              Text(_dayLabel(s, _at, DateTime.now()), style: t.bodyMedium),
+              TextButton.icon(
+                icon: const Icon(Icons.event_outlined),
+                label: Text(s.mealChangeDate),
+                onPressed: () => _pickDate(s),
+              ),
+            ],
+          ),
           Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,
             spacing: 8,

@@ -514,6 +514,31 @@ class _AteHereButtonState extends ConsumerState<_AteHereButton> {
   late int? _price = mealPriceToOffer(ref.read(habitsProvider).meals, widget.id, DateTime.now(),
       name: widget.place ? widget.name : null);
 
+  /// When it was eaten, for a meal logged later; null is now.
+  DateTime? _at;
+
+  Future<void> _pickDay(S s) async {
+    final now = DateTime.now();
+    final day = await showDatePicker(
+      context: context,
+      initialDate: dateOnly(_at ?? now),
+      firstDate: mealFirstDay(now, now),
+      lastDate: dateOnly(now),
+      helpText: s.mealDateHelp,
+    );
+    if (day == null || !mounted) return;
+    if (day == dateOnly(now)) return setState(() => _at = null);
+    // Another day: the time of day matters too (lunch or dinner), so ask for it.
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_at ?? now),
+      helpText: s.mealTimeHelp,
+    );
+    if (!mounted) return;
+    final clock = time == null ? (_at ?? now) : DateTime(now.year, now.month, now.day, time.hour, time.minute);
+    setState(() => _at = mealOnDay(clock, day, DateTime.now()));
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!ref.watch(favoritesProvider.select((f) => f.learnHabits))) return const SizedBox.shrink();
@@ -526,7 +551,25 @@ class _AteHereButtonState extends ConsumerState<_AteHereButton> {
           Text(s.mealPrice, style: Theme.of(context).textTheme.labelMedium),
           const SizedBox(height: 4),
           MealPricePicker(s: s, value: _price, onChanged: (v) => setState(() => _price = v)),
-          const SizedBox(height: 8),
+          // Forgot to log it? Pick the day it was eaten.
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            children: [
+              Text(
+                switch (_at) {
+                  null => s.mealWhenNow,
+                  final at => s.mealWhenOn('${s.dayShort[at.weekday - 1]} ${shortDate(at)}', clockLabel(at)),
+                },
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.event_outlined),
+                label: Text(s.mealAnotherDay),
+                onPressed: () => _pickDay(s),
+              ),
+            ],
+          ),
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
             icon: const Icon(Icons.ramen_dining_outlined),
@@ -536,7 +579,7 @@ class _AteHereButtonState extends ConsumerState<_AteHereButton> {
               final before = ref.read(habitsProvider);
               final messenger = ScaffoldMessenger.of(context);
               Navigator.of(context).pop();
-              await notifier.ateAt(widget.id, DateTime.now(), name: widget.place ? widget.name : null, priceCents: _price);
+              await notifier.ateAt(widget.id, _at ?? DateTime.now(), name: widget.place ? widget.name : null, priceCents: _price);
               showActionSnackBar(messenger, s.ateLogged(widget.name),
                   actionLabel: s.undo, onAction: () => notifier.restore(before));
             },

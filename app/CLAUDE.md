@@ -290,13 +290,19 @@ feature, screen, provider or rule moves, appears or goes away.
   row), with Undo; taps within 30 min count as one meal (`addMeal`). Halal places have no id, so their
   meals use `mealPlaceId` (position) and keep the name in `MealLog.name`; `mealNudge` counts hawkers only.
   Meals have an optional price (`MealLog.priceCents`, JSON key `c`, absent on older meals): "Ate here"
-  and the History meal sheet (`_MealSheet`: price and `mealTimeOn` time, same day, not in the future,
-  saved with `editMeal`) share `MealPricePicker` in widgets.dart (chips `mealPriceChips` $4/$6/$8, Other
+  and the History meal sheet (`_MealSheet`: price, day (`mealOnDay`, up to `mealBackDays` back via
+  `mealFirstDay`) and `mealTimeOn` time, never in the future, saved with `editMeal`) share `MealPricePicker` in widgets.dart (chips `mealPriceChips` $4/$6/$8, Other
   through `askMealPrice`/`parseMealCents`, max `mealPriceMaxCents` $200); "Ate here" preselects the price
   of a meal it corrects (logged in the last 30 min) or else the last price at that place, by name
   for halal places (`mealPriceToOffer`, `lastMealPrice`), and still logs with one tap. `historySummary` adds priced meals
   to `costCents` and counts them (`mealsPriced`, `mealCents`); the Meals tile says "$x · n of m meals
   priced" and each meal row shows its price.
+  "Ate here" can log a meal eaten earlier: "Another day" asks for the day and then the time (`_AteHereButton`).
+  Spending chart (`_SpendChart`, shown when the period has any cost): stacked bars drawn with plain
+  widgets (no chart package), meals / transport / parking, one bar per day for week and month and per
+  month for "all" (`historySpendBars`, last 12 months); tap a bar to read it. Under it the totals per
+  kind and the lines from `historySpendInsight` (average per day so far, the day that cost most) and
+  `historyPreviousCents` (the same number of days last week or month). It follows the kind filter.
   Every trip card (commute and "Go somewhere") has I'm leaving; the running trip shows in `TripBanner`
   above the tabs (inline on the planner page, which hides the tabs) with Arrived / Stop timing. Commute
   keys stay "home>work"; planned trips keep the names shown (`tripRouteKey`, `S.routeEnd`).
