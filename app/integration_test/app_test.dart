@@ -104,13 +104,15 @@ void main() {
     final list = find.byType(Scrollable).first;
     await tester.scrollUntilVisible(find.byType(TextField), 200, scrollable: list);
     await tester.enterText(find.byType(TextField), code);
-    final import = find.widgetWithText(FilledButton, s.importCode);
+    // The keyboard is up and covers the end of the list on a small screen. This test is about the
+    // clipboard and what is stored, so the buttons are pressed directly; taps on this page are
+    // followed by test/persona_test.dart and Maestro flow 15.
+    final import = find.widgetWithText(FilledButton, s.importCode, skipOffstage: false);
     await tester.scrollUntilVisible(import, 200, scrollable: list);
-    await tester.ensureVisible(import);
-    await tester.pump();
-    await tester.tap(import);
-    await waitFor(tester, find.text(s.importSelected), timeout: const Duration(seconds: 10));
-    await tester.tap(find.text(s.importSelected));
+    tester.widget<FilledButton>(import).onPressed!();
+    final take = find.widgetWithText(FilledButton, s.importSelected, skipOffstage: false);
+    await waitFor(tester, take, timeout: const Duration(seconds: 10));
+    tester.widget<FilledButton>(take).onPressed!();
     await waitFor(tester, find.text(s.importDone), timeout: const Duration(seconds: 10));
 
     // Kept on disk: its own home (not ticked, so not replaced) and the shared school.
