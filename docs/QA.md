@@ -8,17 +8,18 @@ This file maps that plan to the automated tests in this repo and describes how a
 | Layer | Where | When | Covers (plan section) |
 | --- | --- | --- | --- |
 | Logic tests `app/test/logic_test.dart` | GitHub Actions `app` | every push | parsing and rules |
-| Screen matrix `app/test/screens_matrix_test.dart` | GitHub Actions `app` | every push | 2 (every tab, section and page) × 4 (normal, offline with cache, offline first install, location denied, 200% text, dark mode, 320 dp screen, 200% text on a 320 dp screen, foldable on its side 880×600 dp, the same at 130% text, tablet 1280×800 dp) |
+| Screen matrix `app/test/screens_matrix_test.dart` | GitHub Actions `app` | every push | 2 (every tab, section and page) × 4 (normal, offline with cache, offline first install, location denied, 200% text, dark mode, 320 dp screen, 200% text on a 320 dp screen, foldable on its side 880×600 dp, the same at 130% text, tablet 1280×800 dp, a 360×640 dp phone at 130% text, a phone on its side 640×360 dp, the foldable on its side in dark mode at 200% text); each screen is also checked for 48 dp tap targets and screen reader labels, see "Persona journeys" |
 | Alert rules `app/test/background_rules_test.dart` | GitHub Actions `app` | every push | 2 Notifications, 3B: runs the real `runChecks` pass |
 | Upgrade formats `app/test/upgrade_test.dart` | GitHub Actions `app` | every push | 5: old stored data still loads |
 | On-device flows `app/integration_test/app_test.dart` | GitHub Actions `emulator` (API 29 = minSdk / Android 10, API 35, API 36 = Play's required target) | every PR touching `app/` | 1, 3A, 3B, 3C: real SharedPreferences, notification read back from Android's active notifications, widget provider in the package, location revoked |
 | Upgrade on device `scripts/emulator_upgrade.sh` | GitHub Actions `emulator` | every PR (from `origin/main`), every release (from the last release tag `v*`), or by hand with a `base_ref` | 5: previous build installed (with its own `pubspec.lock`), data seeded, new build installed with `adb install -r`; see "Release tags" below |
 | Release build (R8) `scripts/emulator_release.sh` | GitHub Actions `emulator` (API 35) | every PR touching `app/` | release build with R8 starts with saved data, runs the WorkManager job and widget; fails on missing classes/plugins in logcat |
-| Maestro flows `app/maestro/` (`scripts/emulator_maestro.sh`) | GitHub Actions `emulator` job `maestro` (API 35) | every PR touching `app/`, and every release before the upload | 1, 3A, 3C as a person uses the release build: onboarding, Setup saved over a restart, Today bus arrivals, Nearby sections, Home block, location denied then allowed, Appearance, the block's commute and all-in cost, Plan a trip (route card, swap, search, the bus to leave for), Compare blocks (add a block from the block page); see "Maestro" below |
+| Maestro flows `app/maestro/` (`scripts/emulator_maestro.sh`) | GitHub Actions `emulator` job `maestro` (API 35) | every PR touching `app/`, and every release before the upload | 1, 3A, 3C as a person uses the release build: onboarding, Setup saved over a restart, Today bus arrivals, Nearby sections, Home block, location denied then allowed, Appearance, the block's commute and all-in cost, Plan a trip (route card, swap, search, the bus to leave for), Compare blocks (add a block from the block page), a school found by name (flow 11), and at the largest font size with every permission denied: the tabs, Plan a trip and About (`large_text/`, flow 12); see "Maestro" below |
 | Contract tests `contracts/v1/` | GitHub Actions `backend` (`tests/test_contracts.py`) and `app` (`test/contract_test.dart`) | every push touching `backend/`, `app/` or `contracts/` | the app and the server agree on every `/v1/*` response; see "Contract tests" below |
 | Golden tests `app/test/golden_test.dart` | GitHub Actions `app` (Linux only, `GOLDENS=1`) | every push touching `app/` | Today, Nearby, Home and More in light and dark, pixel by pixel against `app/test/goldens/`; see "Golden tests" below |
 | AI review (advisory) `.claude/skills/review-pr` | a Claude Code session, on request | "review PR #N" or "security gate for PR #N" before a merge | bugs, CLAUDE.md rules and security on a PR; one comment, never blocks; see "AI review" below |
 | Web check `scripts/web_check.sh` | GitHub Actions `web-check` | daily 07:23 Singapore time, and by hand | dailylah.sg opens, /privacy and /terms redirect to the policy pages, `data/manifest.json` valid on all three hosts, one bundle matches its sha256; see "Web check" below |
+| Persona journeys `app/test/persona_test.dart` | GitHub Actions `app` (flutter test) | every PR | what five kinds of users do, where no other test follows it: Wake me from start to alert, a trip timed over a restart, school as the only commute and MOE school holidays, a family code imported on screen, a slow server, a home-only household, the largest text with location denied; see "Persona journeys" below |
 | Feature tests `app/test/features_test.dart` | GitHub Actions `app` (flutter test) | every PR | each feature through the real widgets: Ate here at halal places, meal time in History, live bus position |
 | Release gate | GitHub Actions `app` jobs `e2e` + `play` + `release-tag` | every version bump on `main` and manual releases | the whole `emulator` workflow must pass on the commit before the AAB is tagged or goes to Google Play; where a version bump goes is the repository variable `PLAY_PUSH_TRACK` (unset = `manual`: no upload, see "Manual releases"); one upload at a time; the released commit is tagged `v<versionName>` and its files kept in a draft GitHub Release |
 | Production release `app.yml` job `promote` (`scripts/play_promote.py`) | GitHub Actions `app` | every version bump on `main`, after `play` and `release-tag`, while `AUTO_PROMOTE` is `on` | after the owner's approval, puts the versionCode just uploaded to `alpha` on production as a staged rollout at 20%; see "Production release (automatic)" |
@@ -220,6 +221,10 @@ Writing flows:
   location off says `location: deny` (Nearby otherwise switches itself to "Here").
 - Live data changes: flow 03 passes on live arrivals and on "Buses have stopped" at night, and only
   fails on "Bus times not available".
+- `app/maestro/large_text/` runs after the other flows have passed, on the same install and
+  household, with the emulator's font size at 200% (`settings put system font_scale 2.0` in
+  `scripts/emulator_maestro.sh`, set back after). A flow that needs large text goes there; its
+  result is in the same summary and counts for the retry like any other flow.
 - Run by hand on a branch: Actions > emulator > Run workflow (or
   `gh api -X POST repos/hndrwn-dk/dailylah/actions/workflows/emulator.yml/dispatches -f ref=<branch>`).
 ## Contract tests (app and backend)
@@ -307,6 +312,51 @@ by hand (Actions > web-check > Run workflow) and on PRs that change it. With cur
 A failed scheduled run emails the repository owner (GitHub's default for scheduled workflows); the
 job summary lists each check. The backend on Render is not checked here: the app tolerates it
 sleeping, and waking it daily would only spend free-tier hours.
+
+## Persona journeys
+
+The tests are also read by who uses the app. Five kinds of people, and where each is followed:
+
+| Persona | What they do | Followed by |
+| --- | --- | --- |
+| Office worker | fixed commute at peak hours, I'm leaving, Wake me, Plan B, no alert on a public holiday | `persona_test.dart` "Office worker" (Wake me on every tab, at the stop, without location; a trip timed over a restart), `features_test.dart` (I'm leaving, public holiday), `background_rules_test.dart` (holiday note), Maestro 03, 09 |
+| Student | school as a saved place, found by name, early start, MOE school holidays, a phone shared with family | `persona_test.dart` "Student" (school day and school holiday on Today, a family code imported on screen), Maestro 11 |
+| University student | several places, Plan a trip to shop and restaurant names, Share from Google Maps, patchy network | `features_test.dart` (place search, shared places and routes), `persona_test.dart` "University student" (a server slow to wake up), the shared-place step of `scripts/emulator_release.sh`, Maestro 09 |
+| Homemaker | only a home saved, off-peak errands, Nearby, Need a toilet?, Home and block prices | `persona_test.dart` "Homemaker" (no commute, every tab and section on a phone, at 130% text and on a foldable), Maestro 04, 05, 08, 10 |
+| Senior | text at 130% to 200%, TalkBack, permissions denied, large tap targets | the 130% and 200% rows of the screen matrix with `expectAccessible`, `persona_test.dart` "Senior", Maestro 12 (largest font size, every permission denied) |
+
+- `expectAccessible` (`app/test/support/harness.dart`) checks what is on screen against Android's
+  tap target guideline (48 dp in both directions) and for a label on everything that can be
+  tapped. The screen matrix calls it on every screen under every condition: at the top, every
+  other drag on the way down, and at the end.
+- Deterministic: a fixed clock, the fake API and the bundles committed in `web/data/`. A journey
+  that needs a date uses one from those files (a public holiday from `holidays.json`, a school
+  holiday from `school_holidays.json`).
+- A new feature: add its screen or sheet to the screen matrix, and one case to the persona it
+  matters to in `persona_test.dart` (the journey a person takes through it, not one more render).
+  Add a Maestro flow only when the journey needs the real build (a plugin, a permission prompt,
+  a restart); put it in `large_text/` when it is about large text.
+- Not applicable today: there is no spotlight tour in the app, and it asks for no exact-alarm
+  permission (alerts come from WorkManager's 15-minute check).
+
+## Open findings
+
+Found by the tests above and not fixed yet. Each is let through by name, so the tests stay green
+and anything new still fails. The pull request that fixes one removes its entry
+(`knownSmallTargets` in the harness, `_knownIssues` in the screen matrix, the `skip` in
+`persona_test.dart` "Open findings").
+
+| ID | Persona | Screen | Steps | Expected | Actual | Severity | Suggested fix |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| QA-01 | Senior | the tab bar, every tab | open the app on any phone | each tab button is at least 48×48 dp | 47 dp tall on every screen; 43.8 dp wide on a 320 dp screen | P2 | one more dp of height in `PillNav`; on a 320 dp screen less padding around the bar |
+| QA-02 | Senior | the tab bar | TalkBack on, focus the selected tab | "Today, selected" | the label is "Today Today": the pill's text and the button's label are both read | P2 | exclude the visible text from semantics (`ExcludeSemantics`), the tooltip already names the button |
+| QA-03 | Senior | Today > MRT lines; Setup | look at the star on an MRT line, or Remove on a stop or place | 48×48 dp | 40×40 dp | P2 | drop the `constraints`/`visualDensity` that shrink these `IconButton`s |
+| QA-04 | Senior | a bus stop's page (Stop arrivals) | open a stop with a bus that is "Arr" | a row that opens Where's my bus is at least 48 dp tall | 46 dp; its label also says the load twice ("Packed, Packed") | P2 | a minimum height of 48 on the row; one of the two load texts out of semantics |
+| QA-05 | Senior, Student | On the train (`MrtRidePage`) | start I'm on the train on a 320 dp phone, or on a 360 dp phone with the font size at 130% or more | station rows wrap | the station row overflows on the right (39 px at 130% on 360 dp); the end of the row is cut off | P1 | let the station name wrap (`Expanded`/`Flexible` around it) or move the code chips under the name when the row is narrow, as the bus board does |
+| QA-06 | Senior | the taxi sheet (Nearby > Taxi, a trip's Taxi card) | open it on a 320 dp phone with the font size at 200% | the Walk there button fits | its label overflows the card by 12 px | P2 | let the label wrap or scale down (`FittedBox`), as the Setup time buttons do |
+
+Severity: P0 = crash, wrong alarm or route, a journey that cannot be finished; P1 = major
+usability or accessibility failure; P2 = polish.
 
 ## Layout bugs the matrix found (fixed in PR #51)
 
@@ -552,6 +602,8 @@ Emulators cannot cover these: they have no vendor battery saver or Doze schedule
 phone, no Samsung or foldable launcher, and no real bus ride. Do the ones that match what the
 release changed, on the closed-testing or production build; none of them blocks a release.
 
+- [ ] TalkBack by ear: the tests check that everything has a label and is large enough, not how it sounds. Walk Today, a bus row and More with TalkBack on.
+- [ ] A foldable's hinge states (half open, tent, flipping the cover screen on) and the vendor's "full screen" or aspect ratio settings: emulators only know sizes.
 - [ ] Lock a real phone for an hour with the app set up; at least one alert or widget update arrives (Doze, vendor battery savers).
 - [ ] Widget on a Samsung phone: add it, resize it through 2x1, 4x1, 2x2, 4x2 and 4x3+; each size shows a full layout with nothing cut off, also at the largest font size and in dark mode.
 - [ ] Widget on a foldable (Galaxy Z Fold): fold and unfold; the widget switches layout on each screen. On a Galaxy Z Flip, add it under Settings > Cover screen > Widgets.
