@@ -2540,6 +2540,23 @@ DateTime? mealTimeOn(DateTime logged, int hour, int minute, DateTime now) {
   return t.isAfter(now) ? null : t;
 }
 
+/// How far back a meal can be dated (History and "Ate here"): a year.
+const mealBackDays = 365;
+
+/// A meal moved to [day] (logged late, or on the wrong day): the same clock time there. On
+/// today a time that has not come yet becomes [now], since a meal cannot be in the future.
+DateTime mealOnDay(DateTime at, DateTime day, DateTime now) {
+  final t = DateTime(day.year, day.month, day.day, at.hour, at.minute);
+  return t.isAfter(now) ? DateTime(now.year, now.month, now.day, now.hour, now.minute) : t;
+}
+
+/// The first day the date picker offers for a meal eaten at [at]: [mealBackDays] back, or the
+/// meal's own day when it is older.
+DateTime mealFirstDay(DateTime at, DateTime now) {
+  final back = DateTime(now.year, now.month, now.day - mealBackDays);
+  return at.isBefore(back) ? dateOnly(at) : back;
+}
+
 /// "Ate here" twice within 30 minutes is one meal: the newer tap replaces the older one.
 List<MealLog> addMeal(List<MealLog> meals, MealLog m) => [
       for (final x in meals)
@@ -2788,6 +2805,117 @@ List<(DateTime, List<HistoryEntry>)> historyByDay(List<HistoryEntry> entries) {
     out.last.$2.add(e);
   }
   return out;
+}
+
+/// One bar of the History spending chart: what a day (or, for "all", a month starting at
+/// [start]) cost, split by kind. Estimates count like entered amounts, as in the Spent total.
+class SpendBar {
+  const SpendBar(this.start, {this.tripCents = 0, this.parkingCents = 0, this.mealCents = 0});
+  final DateTime start;
+  final int tripCents;
+  final int parkingCents;
+  final int mealCents;
+  int get cents => tripCents + parkingCents + mealCents;
+}
+
+/// The bars for [entries] of [period]: Monday to Sunday for the week, every day of the month,
+/// and for "all" one bar per month from the first entry to now (the last 12 at most). Days
+/// without spending are bars of 0, so the gaps show.
+List<SpendBar> historySpendBars(List<HistoryEntry> entries, HistoryPeriod period, DateTime now) {
+  final byMonth = period == HistoryPeriod.all;
+  DateTime key(DateTime t) => byMonth ? DateTime(t.year, t.month) : dateOnly(t);
+  final today = dateOnly(now);
+  final List<DateTime> starts;
+  switch (period) {
+    case HistoryPeriod.week:
+      final mon = historySince(period, now)!;
+      starts = [for (var i = 0; i < 7; i++) DateTime(mon.year, mon.month, mon.day + i)];
+    case HistoryPeriod.month:
+      final days = DateTime(today.year, today.month + 1, 0).day;
+      starts = [for (var d = 1; d <= days; d++) DateTime(today.year, today.month, d)];
+    case HistoryPeriod.all:
+      var first = DateTime(today.year, today.month);
+      for (final e in entries) {
+        if (e.at.isBefore(first)) first = key(e.at);
+      }
+      final oldest = DateTime(today.year, today.month - 11);
+      if (first.isBefore(oldest)) first = oldest;
+      starts = [
+        for (var m = first; !m.isAfter(today); m = DateTime(m.year, m.month + 1)) m,
+      ];
+  }
+  final sums = {for (final d in starts) d: [0, 0, 0]};
+  for (final e in entries) {
+    final c = e.costCents;
+    final sum = sums[key(e.at)];
+    if (c == null || sum == null) continue;
+    sum[e.kind.index] += c;
+  }
+  return [
+    for (final d in starts)
+      SpendBar(d,
+          tripCents: sums[d]![HistoryKind.trip.index],
+          parkingCents: sums[d]![HistoryKind.parking.index],
+          mealCents: sums[d]![HistoryKind.meal.index]),
+  ];
+}
+
+/// What the spending chart says in words. [averageCents] is per day so far this week or month
+/// (per month for "all"), [top] the bar that cost most when at least two have spending, and
+/// [previousCents] what the same number of days cost last week or last month (null for "all").
+class SpendInsight {
+  const SpendInsight({required this.cents, required this.averageCents, this.top, this.previousCents});
+  final int cents;
+  final int averageCents;
+  final SpendBar? top;
+  final int? previousCents;
+}
+
+SpendInsight historySpendInsight(List<SpendBar> bars, HistoryPeriod period, DateTime now, {int? previousCents}) {
+  final today = dateOnly(now);
+  // Days still to come this week or month do not pull the average down.
+  final sofar = period == HistoryPeriod.all ? bars.length : bars.where((b) => !b.start.isAfter(today)).length;
+  var total = 0, spent = 0;
+  SpendBar? top;
+  for (final b in bars) {
+    total += b.cents;
+    if (b.cents == 0) continue;
+    spent++;
+    if (top == null || b.cents > top.cents) top = b;
+  }
+  return SpendInsight(
+    cents: total,
+    averageCents: sofar == 0 ? 0 : (total / sofar).round(),
+    top: spent >= 2 ? top : null,
+    previousCents: previousCents,
+  );
+}
+
+/// What last week or last month cost up to the same point (this Thursday 9:00: last week's
+/// Monday to Thursday 9:00), for [kinds] (all when empty). Null for "all", and when a full log
+/// (`Habits.maxTrips` and so on) no longer reaches back to the start of that period, so the
+/// sum would be only part of it.
+int? historyPreviousCents(Habits h, HistoryPeriod period, DateTime now, Set<HistoryKind> kinds) {
+  final start = historySince(period, now);
+  if (start == null) return null;
+  final days = dateOnly(now).difference(start).inDays + 1;
+  final from = period == HistoryPeriod.week
+      ? DateTime(start.year, start.month, start.day - 7)
+      : DateTime(start.year, start.month - 1);
+  var to = DateTime(from.year, from.month, from.day + days - 1, now.hour, now.minute);
+  if (to.isAfter(start)) to = start;
+  bool cut(HistoryKind kind, Iterable<DateTime> times, int max) =>
+      (kinds.isEmpty || kinds.contains(kind)) && times.length >= max && times.every((t) => t.isAfter(from));
+  if (cut(HistoryKind.trip, h.trips.map((t) => t.start), Habits.maxTrips) ||
+      cut(HistoryKind.parking, h.parkings.map((p) => p.start), Habits.maxParkings) ||
+      cut(HistoryKind.meal, h.meals.map((m) => m.at), Habits.maxMeals)) {
+    return null;
+  }
+  var cents = 0;
+  for (final e in historyOfKinds(historyEntries(h, since: from), kinds)) {
+    if (!e.at.isAfter(to)) cents += e.costCents ?? 0;
+  }
+  return cents;
 }
 
 /// Usual door-to-door minutes on a route ("home>work") from logged trips: the median once

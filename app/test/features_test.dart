@@ -8,7 +8,7 @@ import 'dart:io';
 import 'package:dailylah/data.dart';
 import 'package:dailylah/l10n.dart';
 import 'package:dailylah/api.dart';
-import 'package:dailylah/logic.dart' show alertsOn, offsetMetres, parseSharedPlace, rideMinutesTo;
+import 'package:dailylah/logic.dart' show HistoryPeriod, alertsOn, offsetMetres, parseSharedPlace, rideMinutesTo;
 import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/mrt_ride.dart';
@@ -286,6 +286,49 @@ void main() {
     expect(meal.priceCents, isNull, reason: 'changing the time does not add a price');
   });
 
+  testWidgets('History: a meal logged late moves to the day before, and the chart shows what was spent', (tester) async {
+    await applyCondition(tester, _normal);
+    // The date picker goes by the real clock, so the app runs on it too, and the meal is on the
+    // 15th of last month.
+    final real = DateTime.now();
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, real));
+    await settle(tester);
+    const s = S();
+    final box = containerOf(tester);
+    final at = DateTime(real.year, real.month - 1, 15, 12, 30);
+    await box.read(habitsProvider.notifier).restore(Habits(
+      meals: [MealLog(hawkerId: 'p:1.35000,103.94000', at: at, name: 'Test Kitchen', priceCents: 2000)],
+    ));
+    box.read(historyPeriodProvider.notifier).state = HistoryPeriod.all;
+    box.read(shellTabProvider.notifier).state = _tabs['History']!;
+    await settle(tester);
+
+    // The chart: one meal, so only Meals in the legend.
+    await _scrollTo(tester, find.text(s.spendTitle), page: HistoryPage);
+    expect(find.text('${s.historyMeals} ${s.money(2000)}'), findsOneWidget);
+    expect(find.textContaining(s.spendTransport), findsNothing);
+
+    final row = find.descendant(of: find.byType(HistoryPage), matching: find.text('Test Kitchen'));
+    await _scrollTo(tester, row, page: HistoryPage);
+    await tester.drag(find.descendant(of: find.byType(HistoryPage), matching: find.byType(Scrollable)).first,
+        const Offset(0, -300), warnIfMissed: false);
+    await tester.pump();
+    await tester.tap(row);
+    await settle(tester);
+    await tester.tap(find.text(s.mealChangeDate));
+    await settle(tester);
+    expect(find.byType(DatePickerDialog), findsOneWidget);
+    await tester.tap(find.descendant(of: find.byType(DatePickerDialog), matching: find.text('14')));
+    await tester.tap(find.text('OK'));
+    await settle(tester);
+    await tester.tap(find.text(s.save));
+    await settle(tester);
+
+    final meal = box.read(habitsProvider).meals.single;
+    expect(meal.at, DateTime(at.year, at.month, 14, 12, 30));
+    expect((meal.name, meal.priceCents), ('Test Kitchen', 2000));
+  });
+
   testWidgets(r'Ate here with a price at 200% text on 320 dp: $6 is logged and offered again next time', (tester) async {
     const big = Condition('big', textScale: 2.0, size: Size(320, 780));
     const s = S();
@@ -355,9 +398,9 @@ void main() {
 
     final row = find.text('Test Kitchen');
     await _scrollTo(tester, row, page: HistoryPage);
-    // Bring the row above the floating tab bar, then tap it.
+    // Bring the row to the middle of the screen, clear of the floating tab bar, then tap it.
     await tester.drag(find.descendant(of: find.byType(HistoryPage), matching: find.byType(Scrollable)).first,
-        const Offset(0, -200), warnIfMissed: false);
+        Offset(0, 390 - tester.getCenter(row).dy), warnIfMissed: false);
     await tester.pump();
     await tester.tap(row);
     await settle(tester);

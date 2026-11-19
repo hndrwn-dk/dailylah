@@ -257,9 +257,12 @@ class HabitsNotifier extends Notifier<Habits> {
   }
 
   /// Logs a meal at a hawker centre ([hawkerId]) or, with [name], at another food place, with
-  /// what it cost when the user picked a price.
-  Future<void> ateAt(String hawkerId, DateTime now, {String? name, int? priceCents}) {
-    final meals = addMeal(state.meals, MealLog(hawkerId: hawkerId, at: now, name: name, priceCents: priceCents));
+  /// what it cost when the user picked a price. A meal logged now replaces one tapped in the
+  /// last 30 minutes (`addMeal`); a [backdated] one, with a day and time the user picked, is
+  /// only added, so it never removes another meal of that day.
+  Future<void> ateAt(String hawkerId, DateTime now, {String? name, int? priceCents, bool backdated = false}) {
+    final m = MealLog(hawkerId: hawkerId, at: now, name: name, priceCents: priceCents);
+    final meals = backdated ? [...state.meals, m] : addMeal(state.meals, m);
     return _set(state.copyWith(meals: meals.length > Habits.maxMeals ? meals.sublist(meals.length - Habits.maxMeals) : meals));
   }
 

@@ -67,7 +67,7 @@ class S {
   String get historyParking => 'Parking';
   String get historyMeals => 'Meals';
   String get historySpent => 'Spent';
-  String get historyCostNote => '≈ is an estimate (adult card fare, HDB parking rates). Meals count only when they have a price. Tap a trip or parking to enter what you paid, or a meal to set its price or time.';
+  String get historyCostNote => '≈ is an estimate (adult card fare, HDB parking rates). Meals count only when they have a price. Tap a trip or parking to enter what you paid, or a meal to set its price, date or time.';
   String mealsPriced(int priced, int meals, int cents) => '${money(cents)} · $priced of $meals meals priced';
   String get historyAll => 'All';
   String historyRemoveShown(int n) => n == 1 ? 'Remove this entry' : 'Remove these $n entries';
@@ -94,6 +94,27 @@ class S {
   String get mealPriceClear => 'No price';
   String mealTimeAt(String time) => 'Eaten at $time';
   String get mealChangeTime => 'Change time';
+  String get mealChangeDate => 'Change date';
+  String get mealDateHelp => 'Which day did you eat?';
+  String get mealWhenNow => 'Eaten now';
+  String mealWhenOn(String day, String time) => 'Eaten $day, $time';
+  String get mealAnotherDay => 'Another day';
+  List<String> get monthShort =>
+      const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  String get spendTitle => 'Spending';
+  String get spendPerDay => 'per day';
+  String get spendPerMonth => 'per month';
+  String get spendTransport => 'Transport';
+  String get spendTapHint => 'Tap a bar to see that day.';
+  String get spendTapHintMonth => 'Tap a bar to see that month.';
+  String spendBar(String when, String money) => '$when: $money';
+  String spendAverageDay(String money) => 'About $money a day so far.';
+  String spendAverageMonth(String money) => 'About $money a month.';
+  String spendTop(String when, String money) => 'Most on $when: $money.';
+  String spendTopMonth(String when, String money) => 'Most in $when: $money.';
+  String spendVsLast(String money, {required bool more, required bool week}) =>
+      '$money ${more ? 'more' : 'less'} than at this point last ${week ? 'week' : 'month'}.';
+  String spendSameAsLast({required bool week}) => 'The same as at this point last ${week ? 'week' : 'month'}.';
 
   /// "$4" for whole dollars, else "$5.50" (the meal price chips).
   String moneyShort(int cents) => cents % 100 == 0 ? '\$${cents ~/ 100}' : money(cents);
@@ -992,7 +1013,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Small fixes on More: on small phones with larger text the tiles now go to one column sooner, so long words are no longer split, and TalkBack announces the tiles that open a page as buttons.",
+        "New in History: a spending chart. See what each day cost, split into meals, transport and parking, with your average per day and how it compares with last week or month. Tap a bar to read that day. Forgot to log a meal? Ate here now has Another day, and a meal in History can be moved to the day you ate it.",
       ];
 
   // about
