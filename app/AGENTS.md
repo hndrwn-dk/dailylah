@@ -465,7 +465,7 @@ feature, screen, provider or rule moves, appears or goes away.
   and section in light and dark. Text on the page or a card uses `DL.goText`, `DL.muted`, `DL.stopText`
   (theme-aware), never the light-only `DL.tealText`/`DL.mist`/`DL.stop`; those stay for sticker surfaces.
 - `maestro/` drives the release build through the screen like a person (onboarding, Setup over a restart,
-  Today buses, Nearby, Home, location, Appearance, Where to live, Plan a trip, Compare blocks, the greeting at home or at work, a school found by name, the sample alerts in the notification shade, and in `maestro/large_text/` the tabs, Plan a trip and About at the largest font size), run by the emulator `maestro` job. A change to a
+  Today buses, Nearby, Home, location, Appearance, Where to live, Plan a trip, Compare blocks, the greeting at home or at work, a school found by name, Share with family, the sample alerts in the notification shade, and in `maestro/large_text/` the tabs, Plan a trip and About at the largest font size), run by the emulator `maestro` job. A change to a
   string, tab or screen those flows tap on updates the flow in the same PR; how to write and run them
   is in docs/QA.md "Maestro". Every `launchApp` denies notifications. A failed run prints why and runs all
   flows once more; a pass on that retry is a "Maestro flaky" warning to read, not to ignore.

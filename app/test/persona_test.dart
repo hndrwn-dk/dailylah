@@ -235,6 +235,97 @@ void main() {
     });
   });
 
+  group('Family', () {
+    testWidgets('A parent picks what to share; the child keeps their own home unless they tick it', (tester) async {
+      // What Copy code puts on the clipboard.
+      final copied = <String>[];
+      final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') copied.add('${(call.arguments as Map)['text']}');
+        return null;
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(SystemChannels.platform, null));
+
+      // The parent's phone: home and school are offered first, work only when picked.
+      await applyCondition(tester, _normal);
+      await tester.pumpWidget(pageUnder(_normal, householdFavorites, tuesdayMorning, const FamilySharePage()));
+      await settle(tester);
+      final copy = find.text(_s.copyCode);
+      await tester.ensureVisible(copy);
+      await tester.pump();
+      await tester.tap(copy);
+      await settle(tester);
+      expect(find.text(_s.codeCopied), findsOneWidget);
+      expect(readShareCode(copied.single)!.places.keys.toSet(), {PlaceKind.home, PlaceKind.school});
+
+      final work = find.widgetWithText(FilterChip, _s.placeLabel(PlaceKind.work.name));
+      await tester.ensureVisible(work);
+      await tester.pump();
+      await tester.tap(work);
+      await settle(tester);
+      await tester.ensureVisible(copy);
+      await tester.pump();
+      await tester.tap(copy);
+      await settle(tester);
+      expect(readShareCode(copied.last)!.places.keys.toSet(), {PlaceKind.home, PlaceKind.school, PlaceKind.work});
+      // Nothing left to share: no code, and the page says what to do.
+      for (final label in [
+        _s.placeLabel(PlaceKind.home.name),
+        _s.placeLabel(PlaceKind.school.name),
+        _s.placeLabel(PlaceKind.work.name),
+        _s.shareLinesTimes,
+      ]) {
+        final chip = find.widgetWithText(FilterChip, label);
+        await tester.ensureVisible(chip);
+        await tester.pump();
+        await tester.tap(chip);
+        await settle(tester);
+      }
+      expect(find.text(_s.shareNothing), findsOneWidget);
+      expect(find.text(_s.copyCode), findsNothing);
+
+      // The child's phone: its own home, no school yet. The code offers both.
+      const ownHome = Place(
+          kind: PlaceKind.home, address: '201 ANG MO KIO AVE 3', postal: '560201', addrLat: 1.36881, addrLng: 103.84457);
+      final child = Favorites(places: {PlaceKind.home: ownHome}, onboarded: true);
+      await tester.pumpWidget(
+          KeyedSubtree(key: UniqueKey(), child: pageUnder(_normal, child, tuesdayMorning, const FamilySharePage())));
+      await settle(tester);
+      final box = containerOf(tester);
+      final field = find.byType(TextField);
+      final import = find.widgetWithText(FilledButton, _s.importCode);
+
+      Future<void> openImport() async {
+        await tester.ensureVisible(field);
+        await tester.enterText(field, copied.first);
+        await tester.ensureVisible(import);
+        await tester.pump();
+        await tester.tap(import);
+        await settle(tester);
+        expect(find.text(_s.importWhat), findsOneWidget);
+      }
+
+      // The home it would replace is said so and is not ticked: importing as offered keeps it.
+      await openImport();
+      expect(find.textContaining(_s.replacesYours(_s.placeLabel(PlaceKind.home.name).toLowerCase())), findsOneWidget);
+      await tester.tap(find.text(_s.importSelected));
+      await settle(tester);
+      expect(box.read(favoritesProvider).places[PlaceKind.home]?.postal, '560201');
+      expect(box.read(favoritesProvider).places[PlaceKind.school]?.address, _school.address);
+
+      // Ticked, the parent's home replaces it.
+      await tester.pump(const Duration(seconds: 5)); // the message goes away
+      await settle(tester);
+      await openImport();
+      await tester.tap(find.widgetWithText(CheckboxListTile, _s.placeLabel(PlaceKind.home.name)));
+      await settle(tester);
+      await tester.tap(find.text(_s.importSelected));
+      await settle(tester);
+      expect(box.read(favoritesProvider).places[PlaceKind.home]?.postal, '521156');
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   group('University student', () {
     testWidgets('A server slow to wake up: Today is there at once and fills in when it answers', (tester) async {
       await applyCondition(tester, _normal);
