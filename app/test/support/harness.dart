@@ -12,7 +12,9 @@ import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/app_frame.dart';
+import 'package:dailylah/ui/setup.dart';
 import 'package:dailylah/ui/theme.dart';
+import 'package:dailylah/ui/today.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -438,22 +440,27 @@ Future<void> settle(WidgetTester tester) async {
 }
 
 /// A tap target the accessibility check lets through for now: an open finding in docs/QA.md
-/// ("Open findings"). [minSide] is its size today, so it may not shrink further. Remove the entry
-/// in the pull request that fixes the finding.
+/// ("Open findings"). [minWidth] and [minHeight] are its size today, so it may not shrink
+/// further, and it is let through only while [screen] is in the tree (any screen when null).
+/// Remove the entry in the pull request that fixes the finding.
 class KnownSmallTarget {
-  const KnownSmallTarget(this.id, this.node, this.minSide);
+  const KnownSmallTarget(this.id, this.node, {required this.minWidth, required this.minHeight, this.screen});
   final String id;
   final RegExp node;
-  final double minSide;
+  final double minWidth;
+  final double minHeight;
+  final Type? screen;
 }
 
 final knownSmallTargets = [
   // QA-01: the five tab buttons are 47 dp tall, and 43.8 dp wide on a 320 dp screen.
-  KnownSmallTarget('QA-01', RegExp(r'tooltip: "(Today|Nearby|Home|History|More)"'), 43.8),
+  KnownSmallTarget('QA-01', RegExp(r'tooltip: "(Today|Nearby|Home|History|More)"'), minWidth: 43.8, minHeight: 47),
   // QA-03: the star on an MRT line (Today) and Remove on a place or stop (Setup) are 40 dp.
-  KnownSmallTarget('QA-03', RegExp(r'tooltip: "(Star this line|Remove)"'), 40),
+  KnownSmallTarget('QA-03', RegExp(r'tooltip: "Star this line"'), minWidth: 40, minHeight: 40, screen: TodayPage),
+  KnownSmallTarget('QA-03', RegExp(r'tooltip: "Remove"'), minWidth: 40, minHeight: 40, screen: SetupPage),
   // QA-04: a bus row on the stop page is 46 dp tall.
-  KnownSmallTarget('QA-04', RegExp(r'label: "[0-9A-Za-z]+\\nArr'), 46),
+  KnownSmallTarget('QA-04', RegExp(r'label: "[0-9A-Za-z]+\\nArr'),
+      minWidth: 48, minHeight: 46, screen: StopArrivalsPage),
 ];
 
 final _nodeRect = RegExp(r'Rect\.fromLTRB\(([-0-9.]+), ([-0-9.]+), ([-0-9.]+), ([-0-9.]+)\)');
@@ -471,9 +478,13 @@ Future<void> expectAccessible(WidgetTester tester) async {
       final fresh = nodes.where((l) {
         final r = _nodeRect.firstMatch(l);
         if (r == null) return true;
-        final side = [double.parse(r[3]!) - double.parse(r[1]!), double.parse(r[4]!) - double.parse(r[2]!)]
-            .reduce((a, b) => a < b ? a : b);
-        return !knownSmallTargets.any((k) => k.node.hasMatch(l) && side >= k.minSide - 0.01);
+        final width = double.parse(r[3]!) - double.parse(r[1]!);
+        final height = double.parse(r[4]!) - double.parse(r[2]!);
+        return !knownSmallTargets.any((k) =>
+            k.node.hasMatch(l) &&
+            width >= k.minWidth - 0.01 &&
+            height >= k.minHeight - 0.01 &&
+            (k.screen == null || find.byType(k.screen!).evaluate().isNotEmpty));
       }).toList();
       if (nodes.isEmpty || fresh.isNotEmpty) {
         fail('Tap targets under 48 dp:\n${nodes.isEmpty ? small.reason : fresh.join('\n')}');

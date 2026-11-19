@@ -240,7 +240,7 @@ void main() {
       // Nothing has answered yet: the page, the trip and the tabs are usable all the same.
       expect(find.byType(TodayPage), findsOneWidget);
       expect(find.byType(TripSection), findsOneWidget);
-      expect(find.textContaining('Thundery'), findsNothing);
+      expect(find.textContaining('Thundery', findRichText: true), findsNothing);
       await scrollThrough(tester);
       expect(tester.takeException(), isNull);
       for (var tab = 1; tab < _tabs.length; tab++) {
@@ -252,6 +252,12 @@ void main() {
       containerOf(tester).read(shellTabProvider.notifier).state = 0;
       await tester.pump(const Duration(seconds: 55));
       await settle(tester);
+      // Back at the top of Today, the forecast for home has arrived.
+      for (var i = 0; i < 4; i++) {
+        await tester.drag(find.byType(Scrollable).hitTestable().first, const Offset(0, 2000), warnIfMissed: false);
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+      expect(find.textContaining('Thundery', findRichText: true), findsWidgets);
       await scrollThrough(tester, times: 2);
       expect(tester.takeException(), isNull);
       // Let the calls still on their way finish before the test ends.

@@ -27,8 +27,15 @@ name: 12 Senior largest text
 - extendedWaitUntil:
     visible: "(?s).*(Buses near here|Bus stops|Search).*"
     timeout: 20000
+# Each tab shows its own content, not just the tab bar: the saved block, then History's first line.
 - tapOn: "(?s)Home.*"
+- extendedWaitUntil:
+    visible: "(?s).*Ang Mo Kio Ave 3.*"
+    timeout: 20000
 - tapOn: "(?s)History.*"
+- extendedWaitUntil:
+    visible: "(?s).*(On this phone only|Learn my habits|Nothing yet).*"
+    timeout: 20000
 - tapOn: "(?s)More.*"
 - scrollUntilVisible:
     element: "(?s)About DailyLah.*"
