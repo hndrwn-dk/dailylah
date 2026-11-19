@@ -94,7 +94,10 @@ void main() {
 
     // The receiver: a phone with only its own home takes the school from the code.
     const own = Favorites(
-      places: {PlaceKind.home: Place(kind: PlaceKind.home, address: '201 ANG MO KIO AVE 3', postal: '560201')},
+      places: {
+        PlaceKind.home: Place(
+            kind: PlaceKind.home, address: '201 ANG MO KIO AVE 3', postal: '560201', addrLat: 1.36881, addrLng: 103.84457),
+      },
       onboarded: true,
     );
     await FavoritesStore().save(own);
