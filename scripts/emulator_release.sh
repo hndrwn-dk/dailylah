@@ -121,8 +121,9 @@ fi
 "${ADB[@]}" shell am start -W -n "$PKG/.MainActivity"
 sleep 10
 
-# A place shared from Google Maps (Share > DailyLah): the release build must take the SEND intent
-# by its manifest filter (no component named) and read it without an error in the log below.
+# A place shared from Google Maps (Share > DailyLah): the SEND intent must resolve to the release
+# build by its manifest filter (no component named), and handing it over must leave no error in
+# the log below. What the app then shows is covered by the widget tests, not here.
 SHARED=$("${ADB[@]}" shell "am start -W -a android.intent.action.SEND -t text/plain -p $PKG \
   --es android.intent.extra.TEXT 'Lau Pa Sat, 18 Raffles Quay, Singapore 048582'" 2>&1 | tr -d '\r' || true)
 echo "$SHARED"
@@ -145,4 +146,4 @@ fi
 "${ADB[@]}" shell pidof "$PKG" >/dev/null || { echo "::error::Release build is not running after restart."; exit 1; }
 [ -z "${JOB_MISSING:-}" ] || exit 1
 [ -z "${SHARE_FAILED:-}" ] || exit 1
-echo "- Release build (R8) started, ran the background check and took a shared place without errors ✅" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+echo "- Release build (R8) started, ran the background check and was handed a shared place without errors ✅" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"

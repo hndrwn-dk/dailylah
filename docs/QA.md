@@ -327,8 +327,8 @@ The tests are also read by who uses the app. Five kinds of people, and where eac
 
 - `expectAccessible` (`app/test/support/harness.dart`) checks what is on screen against Android's
   tap target guideline (48 dp in both directions) and for a label on everything that can be
-  tapped. The screen matrix calls it on every screen, at the top and after scrolling to the end,
-  under every condition.
+  tapped. The screen matrix calls it on every screen under every condition: at the top, every
+  other drag on the way down, and at the end.
 - Deterministic: a fixed clock, the fake API and the bundles committed in `web/data/`. A journey
   that needs a date uses one from those files (a public holiday from `holidays.json`, a school
   holiday from `school_holidays.json`).

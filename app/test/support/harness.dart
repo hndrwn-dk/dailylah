@@ -444,17 +444,23 @@ Future<void> settle(WidgetTester tester) async {
 /// further, and it is let through only while [screen] is in the tree (any screen when null).
 /// Remove the entry in the pull request that fixes the finding.
 class KnownSmallTarget {
-  const KnownSmallTarget(this.id, this.node, {required this.minWidth, required this.minHeight, this.screen});
+  const KnownSmallTarget(this.id, this.node,
+      {required this.minWidth, required this.minHeight, this.screen, this.maxViewWidth});
   final String id;
   final RegExp node;
   final double minWidth;
   final double minHeight;
   final Type? screen;
+
+  /// Only on a window at most this wide (dp); any width when null.
+  final double? maxViewWidth;
 }
 
 final knownSmallTargets = [
   // QA-01: the five tab buttons are 47 dp tall, and 43.8 dp wide on a 320 dp screen.
-  KnownSmallTarget('QA-01', RegExp(r'tooltip: "(Today|Nearby|Home|History|More)"'), minWidth: 43.8, minHeight: 47),
+  KnownSmallTarget('QA-01', RegExp(r'tooltip: "(Today|Nearby|Home|History|More)"'), minWidth: 48, minHeight: 47),
+  KnownSmallTarget('QA-01', RegExp(r'tooltip: "(Today|Nearby|Home|History|More)"'),
+      minWidth: 43.8, minHeight: 47, maxViewWidth: 320),
   // QA-03: the star on an MRT line (Today) and Remove on a place or stop (Setup) are 40 dp.
   KnownSmallTarget('QA-03', RegExp(r'tooltip: "Star this line"'), minWidth: 40, minHeight: 40, screen: TodayPage),
   KnownSmallTarget('QA-03', RegExp(r'tooltip: "Remove"'), minWidth: 40, minHeight: 40, screen: SetupPage),
@@ -472,6 +478,7 @@ Future<void> expectAccessible(WidgetTester tester) async {
   final handle = tester.ensureSemantics();
   try {
     await tester.pump();
+    final viewWidth = tester.view.physicalSize.width / tester.view.devicePixelRatio;
     final small = await androidTapTargetGuideline.evaluate(tester);
     if (!small.passed) {
       final nodes = (small.reason ?? '').split('\n').where((l) => l.contains('SemanticsNode#')).toList();
@@ -484,6 +491,7 @@ Future<void> expectAccessible(WidgetTester tester) async {
             k.node.hasMatch(l) &&
             width >= k.minWidth - 0.01 &&
             height >= k.minHeight - 0.01 &&
+            (k.maxViewWidth == null || viewWidth <= k.maxViewWidth! + 0.01) &&
             (k.screen == null || find.byType(k.screen!).evaluate().isNotEmpty));
       }).toList();
       if (nodes.isEmpty || fresh.isNotEmpty) {
@@ -500,11 +508,14 @@ ProviderContainer containerOf(WidgetTester tester) =>
     ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
 
 /// Scrolls the main list to the end so every widget below the fold is built and laid out.
-Future<void> scrollThrough(WidgetTester tester, {int times = 8}) async {
+/// With [accessible], what comes on screen on the way is checked too ([expectAccessible], every
+/// other drag), so a small tap target in the middle of a long page is measured as well.
+Future<void> scrollThrough(WidgetTester tester, {int times = 8, bool accessible = false}) async {
   final lists = find.byType(Scrollable).hitTestable();
   if (lists.evaluate().isEmpty) return;
   for (var i = 0; i < times; i++) {
     await tester.drag(lists.first, const Offset(0, -600), warnIfMissed: false);
     await tester.pump(const Duration(milliseconds: 200));
+    if (accessible && i.isOdd) await expectAccessible(tester);
   }
 }

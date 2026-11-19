@@ -225,7 +225,7 @@ void main() {
           await settle(tester);
           expect(find.byType(TodayPage), findsOneWidget);
           await expectAccessible(tester);
-          await scrollThrough(tester);
+          await scrollThrough(tester, accessible: true);
           await expectAccessible(tester);
           expect(tester.takeException(), isNull);
         });
@@ -246,7 +246,7 @@ void main() {
             scrollable: find.byType(Scrollable).hitTestable().first);
         expect(find.byType(WhatsNewCard), findsOneWidget);
         await expectAccessible(tester);
-        await scrollThrough(tester);
+        await scrollThrough(tester, accessible: true);
         await expectAccessible(tester);
         expect(tester.takeException(), isNull);
       });
@@ -256,7 +256,7 @@ void main() {
         await tester.pumpWidget(appUnder(c, householdFavorites, tuesdayMorning, disruptedLine: 'EWL'));
         await settle(tester);
         await expectAccessible(tester);
-        await scrollThrough(tester);
+        await scrollThrough(tester, accessible: true);
         await expectAccessible(tester);
         expect(tester.takeException(), isNull);
       });
@@ -272,7 +272,7 @@ void main() {
           box.read(nearbySectionProvider.notifier).state = section;
           await settle(tester);
           await expectAccessible(tester);
-          await scrollThrough(tester);
+          await scrollThrough(tester, accessible: true);
           await expectAccessible(tester);
           expect(tester.takeException(), isNull);
         });
@@ -289,7 +289,7 @@ void main() {
           box.read(homeSectionProvider.notifier).state = section;
           await settle(tester);
           await expectAccessible(tester);
-          await scrollThrough(tester);
+          await scrollThrough(tester, accessible: true);
           await expectAccessible(tester);
           expect(tester.takeException(), isNull);
         });
@@ -306,7 +306,7 @@ void main() {
         await settle(tester);
         expect(find.byType(HistoryPage), findsOneWidget);
         await expectAccessible(tester);
-        await scrollThrough(tester);
+        await scrollThrough(tester, accessible: true);
         await expectAccessible(tester);
         expect(tester.takeException(), isNull);
       });
@@ -320,7 +320,7 @@ void main() {
         await settle(tester);
         expect(find.byType(MorePage), findsOneWidget);
         await expectAccessible(tester);
-        await scrollThrough(tester);
+        await scrollThrough(tester, accessible: true);
         await expectAccessible(tester);
         expect(tester.takeException(), isNull);
       });
@@ -340,7 +340,11 @@ void main() {
           await settle(tester);
           // The block page runs long (commute and the town board): scroll to its end.
           await expectAccessible(tester);
-          await scrollThrough(tester, times: entry.key.startsWith('Block page') ? 30 : 8);
+          // A ride must be running, or these two pages are empty and prove nothing.
+          if (entry.key.contains('train') && c.cachedBundles) {
+            expect(containerOf(tester).read(rideProvider), isNotNull, reason: 'no ride was started');
+          }
+          await scrollThrough(tester, times: entry.key.startsWith('Block page') ? 30 : 8, accessible: true);
           await expectAccessible(tester);
           expect(tester.takeException(), isNull);
         });
