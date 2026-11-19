@@ -116,12 +116,6 @@ class HistoryPage extends ConsumerWidget {
                   ],
                 ),
                 ),
-                FullWidth(
-                  child: Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 10, 4, 0),
-                  child: Text(s.historyCostNote, style: t.bodySmall),
-                ),
-                ),
                 // Where the money went: a bar per day (per month for "all"), split by kind.
                 if (sum.costCents > 0)
                   FullWidth(
@@ -186,6 +180,14 @@ class HistoryPage extends ConsumerWidget {
                     ),
                   ),
                 ],
+                // How the costs are made, after the list like the notes on Nearby: above the
+                // chart it pushed the numbers down the page.
+                FullWidth(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+                    child: Text(s.historyCostNote, style: t.bodySmall),
+                  ),
+                ),
               ],
             ),
           ),

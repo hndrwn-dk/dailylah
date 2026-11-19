@@ -397,9 +397,9 @@ void main() {
 
     final row = find.text('Test Kitchen');
     await _scrollTo(tester, row, page: HistoryPage);
-    // Bring the row above the floating tab bar, then tap it.
+    // Bring the row to the middle of the screen, clear of the floating tab bar, then tap it.
     await tester.drag(find.descendant(of: find.byType(HistoryPage), matching: find.byType(Scrollable)).first,
-        const Offset(0, -200), warnIfMissed: false);
+        Offset(0, 390 - tester.getCenter(row).dy), warnIfMissed: false);
     await tester.pump();
     await tester.tap(row);
     await settle(tester);
