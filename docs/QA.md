@@ -14,12 +14,12 @@ This file maps that plan to the automated tests in this repo and describes how a
 | On-device flows `app/integration_test/app_test.dart` | GitHub Actions `emulator` (API 29 = minSdk / Android 10, API 35, API 36 = Play's required target) | every PR touching `app/` | 1, 3A, 3B, 3C: real SharedPreferences, notification read back from Android's active notifications, widget provider in the package, location revoked |
 | Upgrade on device `scripts/emulator_upgrade.sh` | GitHub Actions `emulator` | every PR (from `origin/main`), every release (from the last release tag `v*`), or by hand with a `base_ref` | 5: previous build installed (with its own `pubspec.lock`), data seeded, new build installed with `adb install -r`; see "Release tags" below |
 | Release build (R8) `scripts/emulator_release.sh` | GitHub Actions `emulator` (API 35) | every PR touching `app/` | release build with R8 starts with saved data, runs the WorkManager job and widget; fails on missing classes/plugins in logcat |
-| Maestro flows `app/maestro/` (`scripts/emulator_maestro.sh`) | GitHub Actions `emulator` job `maestro` (API 35) | every PR touching `app/`, and every release before the upload | 1, 3A, 3C as a person uses the release build: onboarding, Setup saved over a restart, Today bus arrivals, Nearby sections, Home block, location denied then allowed, Appearance, the block's commute and all-in cost, Plan a trip (route card, swap, search, the bus to leave for), Compare blocks (add a block from the block page), a school found by name (flow 11), and at the largest font size with every permission denied: the tabs, Plan a trip and About (`large_text/`, flow 12); see "Maestro" below |
+| Maestro flows `app/maestro/` (`scripts/emulator_maestro.sh`) | GitHub Actions `emulator` job `maestro` (API 35) | every PR touching `app/`, and every release before the upload | 1, 3A, 3C as a person uses the release build: onboarding, Setup saved over a restart, Today bus arrivals, Nearby sections, Home block, location denied then allowed, Appearance, the block's commute and all-in cost, Plan a trip (route card, swap, search, the bus to leave for), Compare blocks (add a block from the block page), the greeting when the phone is at home or at work (flow 13), a school found by name (flow 11), the sample alerts in the notification shade (flow 14), and at the largest font size with every permission denied: the tabs, Plan a trip and About (`large_text/`, flow 12); see "Maestro" below |
 | Contract tests `contracts/v1/` | GitHub Actions `backend` (`tests/test_contracts.py`) and `app` (`test/contract_test.dart`) | every push touching `backend/`, `app/` or `contracts/` | the app and the server agree on every `/v1/*` response; see "Contract tests" below |
 | Golden tests `app/test/golden_test.dart` | GitHub Actions `app` (Linux only, `GOLDENS=1`) | every push touching `app/` | Today, Nearby, Home and More in light and dark, pixel by pixel against `app/test/goldens/`; see "Golden tests" below |
 | AI review (advisory) `.claude/skills/review-pr` | a Claude Code session, on request | "review PR #N" or "security gate for PR #N" before a merge | bugs, CLAUDE.md rules and security on a PR; one comment, never blocks; see "AI review" below |
 | Web check `scripts/web_check.sh` | GitHub Actions `web-check` | daily 07:23 Singapore time, and by hand | dailylah.sg opens, /privacy and /terms redirect to the policy pages, `data/manifest.json` valid on all three hosts, one bundle matches its sha256; see "Web check" below |
-| Persona journeys `app/test/persona_test.dart` | GitHub Actions `app` (flutter test) | every PR | what five kinds of users do, where no other test follows it: Wake me from start to alert, a trip timed over a restart, school as the only commute and MOE school holidays, a family code imported on screen, a slow server, a home-only household, the largest text with location denied; see "Persona journeys" below |
+| Persona journeys `app/test/persona_test.dart` | GitHub Actions `app` (flutter test) | every PR | what five kinds of users do, where no other test follows it: Wake me from start to alert, a trip timed over a restart, school as the only commute and MOE school holidays, a family code imported on screen, a slow server, a home-only household, the largest text with location denied, a meal logged for another day; see "Persona journeys" below |
 | Feature tests `app/test/features_test.dart` | GitHub Actions `app` (flutter test) | every PR | each feature through the real widgets: Ate here at halal places, meal time in History, live bus position |
 | Release gate | GitHub Actions `app` jobs `e2e` + `play` + `release-tag` | every version bump on `main` and manual releases | the whole `emulator` workflow must pass on the commit before the AAB is tagged or goes to Google Play; where a version bump goes is the repository variable `PLAY_PUSH_TRACK` (unset = `manual`: no upload, see "Manual releases"); one upload at a time; the released commit is tagged `v<versionName>` and its files kept in a draft GitHub Release |
 | Production release `app.yml` job `promote` (`scripts/play_promote.py`) | GitHub Actions `app` | every version bump on `main`, after `play` and `release-tag`, while `AUTO_PROMOTE` is `on` | after the owner's approval, puts the versionCode just uploaded to `alpha` on production as a staged rollout at 20%; see "Production release (automatic)" |
@@ -221,6 +221,10 @@ Writing flows:
   location off says `location: deny` (Nearby otherwise switches itself to "Here").
 - Live data changes: flow 03 passes on live arrivals and on "Buses have stopped" at night, and only
   fails on "Bus times not available".
+- Flow 13 sets the emulator's location to the saved home, then to the saved work if Today shows
+  the trip: which of the two greets depends on the time of day, and a public holiday (no commute)
+  passes on its banner. Flow 14 is the only one that allows notifications; it runs last, reads
+  "Example: …" in the notification shade and clears what it posted.
 - `app/maestro/large_text/` runs after the other flows have passed, on the same install and
   household, with the emulator's font size at 200% (`settings put system font_scale 2.0` in
   `scripts/emulator_maestro.sh`, set back after). A flow that needs large text goes there; its
@@ -319,10 +323,10 @@ The tests are also read by who uses the app. Five kinds of people, and where eac
 
 | Persona | What they do | Followed by |
 | --- | --- | --- |
-| Office worker | fixed commute at peak hours, I'm leaving, Wake me, Plan B, no alert on a public holiday | `persona_test.dart` "Office worker" (Wake me on every tab, at the stop, without location; a trip timed over a restart), `features_test.dart` (I'm leaving, public holiday), `background_rules_test.dart` (holiday note), Maestro 03, 09 |
+| Office worker | fixed commute at peak hours, I'm leaving, Wake me, Plan B, no alert on a public holiday | `persona_test.dart` "Office worker" (Wake me on every tab, at the stop, without location; a trip timed over a restart), `features_test.dart` (I'm leaving, public holiday, already at work or home), `logic_test.dart` (the 150 m edge of `savedPlaceAt`), `background_rules_test.dart` (holiday note, alerts with pills), Maestro 03, 09, 13 (the greeting with the emulator's location at home or at work), 14 (the sample alerts posted by the release build) |
 | Student | school as a saved place, found by name, early start, MOE school holidays, a phone shared with family | `persona_test.dart` "Student" (school day and school holiday on Today, a family code imported on screen), Maestro 11 |
 | University student | several places, Plan a trip to shop and restaurant names, Share from Google Maps, patchy network | `features_test.dart` (place search, shared places and routes), `persona_test.dart` "University student" (a server slow to wake up), the shared-place step of `scripts/emulator_release.sh`, Maestro 09 |
-| Homemaker | only a home saved, off-peak errands, Nearby, Need a toilet?, Home and block prices | `persona_test.dart` "Homemaker" (no commute, every tab and section on a phone, at 130% text and on a foldable), Maestro 04, 05, 08, 10 |
+| Homemaker | only a home saved, off-peak errands, Nearby, Need a toilet?, Home and block prices | `persona_test.dart` "Homemaker" (no commute, every tab and section on a phone, at 130% text and on a foldable; Ate here > Another day), the History meal sheet in the screen matrix, Maestro 04, 05, 08, 10 |
 | Senior | text at 130% to 200%, TalkBack, permissions denied, large tap targets | the 130% and 200% rows of the screen matrix with `expectAccessible`, `persona_test.dart` "Senior", Maestro 12 (largest font size, every permission denied) |
 
 - `expectAccessible` (`app/test/support/harness.dart`) checks what is on screen against Android's
@@ -341,22 +345,23 @@ The tests are also read by who uses the app. Five kinds of people, and where eac
 
 ## Open findings
 
-Found by the tests above and not fixed yet. Each is let through by name, so the tests stay green
-and anything new still fails. The pull request that fixes one removes its entry
-(`knownSmallTargets` in the harness, `_knownIssues` in the screen matrix, the `skip` in
-`persona_test.dart` "Open findings").
+None. A finding that cannot be fixed in the pull request that finds it is let through by name
+(`knownSmallTargets` in the harness, `_knownIssues` in the screen matrix, a `skip` with its ID in
+`persona_test.dart` "Fixed findings"), listed here with its ID, persona, screen, steps, expected and
+actual, severity (P0 = crash, wrong alarm or route, a journey that cannot be finished; P1 = major
+usability or accessibility failure; P2 = polish) and a suggested fix, and removed from all of
+them by the pull request that fixes it.
 
-| ID | Persona | Screen | Steps | Expected | Actual | Severity | Suggested fix |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| QA-01 | Senior | the tab bar, every tab | open the app on any phone | each tab button is at least 48×48 dp | 47 dp tall on every screen; 43.8 dp wide on a 320 dp screen | P2 | one more dp of height in `PillNav`; on a 320 dp screen less padding around the bar |
-| QA-02 | Senior | the tab bar | TalkBack on, focus the selected tab | "Today, selected" | the label is "Today Today": the pill's text and the button's label are both read | P2 | exclude the visible text from semantics (`ExcludeSemantics`), the tooltip already names the button |
-| QA-03 | Senior | Today > MRT lines; Setup | look at the star on an MRT line, or Remove on a stop or place | 48×48 dp | 40×40 dp | P2 | drop the `constraints`/`visualDensity` that shrink these `IconButton`s |
-| QA-04 | Senior | a bus stop's page (Stop arrivals) | open a stop with a bus that is "Arr" | a row that opens Where's my bus is at least 48 dp tall | 46 dp; its label also says the load twice ("Packed, Packed") | P2 | a minimum height of 48 on the row; one of the two load texts out of semantics |
-| QA-05 | Senior, Student | On the train (`MrtRidePage`) | start I'm on the train on a 320 dp phone, or on a 360 dp phone with the font size at 130% or more | station rows wrap | the station row overflows on the right (39 px at 130% on 360 dp); the end of the row is cut off | P1 | let the station name wrap (`Expanded`/`Flexible` around it) or move the code chips under the name when the row is narrow, as the bus board does |
-| QA-06 | Senior | the taxi sheet (Nearby > Taxi, a trip's Taxi card) | open it on a 320 dp phone with the font size at 200% | the Walk there button fits | its label overflows the card by 12 px | P2 | let the label wrap or scale down (`FittedBox`), as the Setup time buttons do |
+### Fixed in 2.11.1 (found by the persona gate)
 
-Severity: P0 = crash, wrong alarm or route, a journey that cannot be finished; P1 = major
-usability or accessibility failure; P2 = polish.
+| ID | Screen | What was wrong | Fix |
+| --- | --- | --- | --- |
+| QA-01 | the tab bar | tab buttons 47 dp tall, 43.8 dp wide on a 320 dp screen | the bar's inner padding gives 48 dp; on windows under 345 dp wide it sits closer to the edges |
+| QA-02 | the tab bar | TalkBack read the selected tab's name twice | the visible word is out of semantics, the button keeps its label |
+| QA-03 | Today > MRT lines, Setup | the star on a line and Remove on a bus stop were 40 dp | no compact density on the two buttons |
+| QA-04 | a bus stop's page | a bus row was 46 dp tall and said the load twice | a tappable row is at least 48 dp; the load label is said once |
+| QA-05 (P1) | On the train | station rows overflowed on a 320 dp phone and from 130% text on 360 dp | the tag beside a station takes at most 36% of the width and wraps |
+| QA-06 | the taxi sheet | the legend under the radar ("Taxi stand") overflowed at 200% text on a 320 dp phone | the legend label wraps |
 
 ## Layout bugs the matrix found (fixed in PR #51)
 

@@ -309,6 +309,60 @@ void main() {
     }
   });
 
+  group('Homemaker, meals', () {
+    testWidgets('Forgot to log lunch: Ate here > Another day puts the meal on the day it was eaten', (tester) async {
+      await applyCondition(tester, _normal);
+      await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+      await settle(tester);
+      final box = containerOf(tester);
+      box.read(shellTabProvider.notifier).state = 1;
+      box.read(nearbySectionProvider.notifier).state = 'eat';
+      await settle(tester);
+      final place = find.widgetWithIcon(ListTile, Icons.restaurant_outlined).first;
+      await tester.ensureVisible(place);
+      await tester.pump();
+      final name = ((tester.widget<ListTile>(place).title!) as Text).data!;
+      await tester.tap(place);
+      await settle(tester);
+
+      // Another day: yesterday, typed (the calendar grid depends on today's date), then the time.
+      // The pickers use the phone's clock, as the app does.
+      final yesterday = dateOnly(DateTime.now()).subtract(const Duration(days: 1));
+      final another = find.text(_s.mealAnotherDay);
+      await tester.ensureVisible(another);
+      await tester.pump();
+      await tester.tap(another);
+      await settle(tester);
+      expect(find.byType(DatePickerDialog), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.edit_outlined));
+      await settle(tester);
+      String two(int n) => n.toString().padLeft(2, '0');
+      await tester.enterText(
+          find.descendant(of: find.byType(DatePickerDialog), matching: find.byType(TextField)),
+          '${two(yesterday.month)}/${two(yesterday.day)}/${yesterday.year}');
+      await tester.tap(find.text('OK'));
+      await settle(tester);
+      expect(find.byType(TimePickerDialog), findsOneWidget);
+      await tester.tap(find.text('OK'));
+      await settle(tester);
+
+      final ate = find.text(_s.ateHere);
+      await tester.ensureVisible(ate);
+      await tester.pump();
+      await tester.tap(ate);
+      await settle(tester);
+      final meal = box.read(habitsProvider).meals.single;
+      expect(meal.name, name);
+      expect(dateOnly(meal.at), yesterday);
+      expect(meal.at.isBefore(DateTime.now()), isTrue);
+
+      box.read(shellTabProvider.notifier).state = 3;
+      await settle(tester);
+      expect(find.text(name), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   group('Senior', () {
     const senior = Condition('text 200%, location denied',
         textScale: 2.0, size: Size(360, 640), location: LocationPermission.deniedForever);
@@ -342,10 +396,10 @@ void main() {
     });
   });
 
-  // Open findings (docs/QA.md "Open findings"): what the app should do and does not do yet.
-  // Remove the `skip` in the pull request that fixes the finding.
-  group('Open findings', () {
-    testWidgets('QA-01: the tab buttons are at least 48 dp tall and wide', skip: true, (tester) async {
+  // Findings of the first persona pass, fixed in 2.11.1 (docs/QA.md "Open findings"): kept so they
+  // stay fixed. A new finding that cannot be fixed at once goes here with `skip: true` and its ID.
+  group('Fixed findings', () {
+    testWidgets('QA-01: the tab buttons are at least 48 dp tall and wide', (tester) async {
       const small = Condition('small screen 320dp', size: Size(320, 568));
       await applyCondition(tester, small);
       await tester.pumpWidget(appUnder(small, householdFavorites, tuesdayMorning));
@@ -357,7 +411,7 @@ void main() {
       }
     });
 
-    testWidgets('QA-02: TalkBack says the name of the selected tab once', skip: true, (tester) async {
+    testWidgets('QA-02: TalkBack says the name of the selected tab once', (tester) async {
       await applyCondition(tester, _normal);
       final handle = tester.ensureSemantics();
       await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));

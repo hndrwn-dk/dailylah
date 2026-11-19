@@ -68,6 +68,8 @@ class LoadMeter extends StatelessWidget {
     // overflowing the row; the label itself wraps too.
     return Semantics(
       label: label,
+      // The label is said once, not again for the text beside the bars.
+      excludeSemantics: true,
       child: Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,
         spacing: 8,
@@ -680,7 +682,8 @@ class PillNav extends StatelessWidget {
     final reduce = MediaQuery.of(context).disableAnimations;
     return Container(
       height: 64,
-      padding: const EdgeInsets.all(6),
+      // 5.5 above and below (with the 2.5 outline) leaves each tab 48 dp to tap.
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5.5),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(40),
@@ -714,24 +717,27 @@ class PillNav extends StatelessWidget {
                         border: Border.all(color: i == index ? DL.ink : Colors.transparent, width: DL.stroke),
                         boxShadow: i == index ? const [BoxShadow(color: DL.ink, offset: Offset(3, 3))] : null,
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(i == index ? items[i].$2 : items[i].$1,
-                              size: 22, color: i == index ? DL.ink : t.bodySmall?.color),
-                          if (i == index) ...[
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                items[i].$3,
-                                maxLines: 1,
-                                overflow: TextOverflow.fade,
-                                softWrap: false,
-                                style: t.labelLarge?.copyWith(color: DL.ink),
+                      // The button already has its name: the visible word is not read again.
+                      child: ExcludeSemantics(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(i == index ? items[i].$2 : items[i].$1,
+                                size: 22, color: i == index ? DL.ink : t.bodySmall?.color),
+                            if (i == index) ...[
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  items[i].$3,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.fade,
+                                  softWrap: false,
+                                  style: t.labelLarge?.copyWith(color: DL.ink),
+                                ),
                               ),
-                            ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
                   ),

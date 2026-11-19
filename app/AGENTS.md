@@ -465,7 +465,7 @@ feature, screen, provider or rule moves, appears or goes away.
   and section in light and dark. Text on the page or a card uses `DL.goText`, `DL.muted`, `DL.stopText`
   (theme-aware), never the light-only `DL.tealText`/`DL.mist`/`DL.stop`; those stay for sticker surfaces.
 - `maestro/` drives the release build through the screen like a person (onboarding, Setup over a restart,
-  Today buses, Nearby, Home, location, Appearance, Where to live, Plan a trip, Compare blocks, a school found by name, and in `maestro/large_text/` the tabs, Plan a trip and About at the largest font size), run by the emulator `maestro` job. A change to a
+  Today buses, Nearby, Home, location, Appearance, Where to live, Plan a trip, Compare blocks, the greeting at home or at work, a school found by name, the sample alerts in the notification shade, and in `maestro/large_text/` the tabs, Plan a trip and About at the largest font size), run by the emulator `maestro` job. A change to a
   string, tab or screen those flows tap on updates the flow in the same PR; how to write and run them
   is in docs/QA.md "Maestro". Every `launchApp` denies notifications. A failed run prints why and runs all
   flows once more; a pass on that retry is a "Maestro flaky" warning to read, not to ignore.
@@ -480,7 +480,7 @@ feature, screen, provider or rule moves, appears or goes away.
   denied location, 130% and 200% text, dark, small screen, a phone on its side, foldable on its side, tablet) and checks each for
   48 dp tap targets and screen reader labels (`expectAccessible`). Rule: a new screen, sheet or tab section must be added
   there in the same PR, and a tap target under 48 dp is fixed, not added to `knownSmallTargets`
-  (that list and `_knownIssues` hold only the open findings of docs/QA.md "Open findings").
+  (that list and `_knownIssues` are empty; they hold only what docs/QA.md "Open findings" lists).
 - `test/persona_test.dart` follows five kinds of users (office worker, student, university student, homemaker,
   senior) through the journeys no other test covers; a feature PR adds one case to the persona it matters to
   (docs/QA.md "Persona journeys").

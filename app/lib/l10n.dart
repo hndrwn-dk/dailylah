@@ -1013,7 +1013,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "New in History: a spending chart. See what each day cost, split into meals, transport and parking, with your average per day and how it compares with last week or month. Tap a bar to read that day. Forgot to log a meal? Ate here now has Another day, and a meal in History can be moved to the day you ate it.",
+        "Easier to use with large text and TalkBack. On the train no longer cuts off station names on small phones or with larger text. The tab bar, the star on an MRT line and Remove on a bus stop are bigger to tap. TalkBack now says a tab's name and how full a bus is once, not twice.",
       ];
 
   // about

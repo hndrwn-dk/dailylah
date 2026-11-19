@@ -2968,6 +2968,12 @@ void main() {
       expect(savedPlaceAt(fav, 1.3516, 103.9450), PlaceKind.home);
       expect(savedPlaceAt(fav, 1.2850, 103.8514), PlaceKind.work); // 100 m north of the office
       expect(savedPlaceAt(fav, 1.2860, 103.8514), isNull); // 210 m
+      // The edge itself (`arrivedMetres`, 150 m): a metre or two inside counts, outside does not.
+      expect(distanceMeters(1.2841, 103.8514, 1.2841 + 0.00133, 103.8514), inInclusiveRange(147, 149.9));
+      expect(savedPlaceAt(fav, 1.2841 + 0.00133, 103.8514), PlaceKind.work);
+      expect(distanceMeters(1.2841, 103.8514, 1.2841 + 0.00137, 103.8514), inInclusiveRange(150.1, 153));
+      expect(savedPlaceAt(fav, 1.2841 + 0.00137, 103.8514), isNull);
+      expect(arrivedMetres, 150);
       // A place saved with bus stops only has no address to be at.
       const stopsOnly = Favorites(places: {
         PlaceKind.home: Place(kind: PlaceKind.home, stops: [BusStop(code: 'A', name: 'A', road: '', lat: 1.3, lng: 103.8)]),

@@ -12,9 +12,7 @@ import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/app_frame.dart';
-import 'package:dailylah/ui/setup.dart';
 import 'package:dailylah/ui/theme.dart';
-import 'package:dailylah/ui/today.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -456,18 +454,8 @@ class KnownSmallTarget {
   final double? maxViewWidth;
 }
 
-final knownSmallTargets = [
-  // QA-01: the five tab buttons are 47 dp tall, and 43.8 dp wide on a 320 dp screen.
-  KnownSmallTarget('QA-01', RegExp(r'tooltip: "(Today|Nearby|Home|History|More)"'), minWidth: 48, minHeight: 47),
-  KnownSmallTarget('QA-01', RegExp(r'tooltip: "(Today|Nearby|Home|History|More)"'),
-      minWidth: 43.8, minHeight: 47, maxViewWidth: 320),
-  // QA-03: the star on an MRT line (Today) and Remove on a place or stop (Setup) are 40 dp.
-  KnownSmallTarget('QA-03', RegExp(r'tooltip: "Star this line"'), minWidth: 40, minHeight: 40, screen: TodayPage),
-  KnownSmallTarget('QA-03', RegExp(r'tooltip: "Remove"'), minWidth: 40, minHeight: 40, screen: SetupPage),
-  // QA-04: a bus row on the stop page is 46 dp tall.
-  KnownSmallTarget('QA-04', RegExp(r'label: "[0-9A-Za-z]+\\nArr'),
-      minWidth: 48, minHeight: 46, screen: StopArrivalsPage),
-];
+/// Empty since 2.11.1 fixed QA-01, QA-03 and QA-04: a tap target under 48 dp is fixed, not listed.
+final knownSmallTargets = <KnownSmallTarget>[];
 
 final _nodeRect = RegExp(r'Rect\.fromLTRB\(([-0-9.]+), ([-0-9.]+), ([-0-9.]+), ([-0-9.]+)\)');
 

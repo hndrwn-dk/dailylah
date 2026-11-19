@@ -200,13 +200,7 @@ class _PlannerWithState extends ConsumerState<_PlannerWith> {
 /// Screens with an open finding (docs/QA.md "Open findings"): skipped under the conditions where
 /// they fail today, so the finding stays visible in the test run. Remove the entry in the pull
 /// request that fixes it.
-final Map<String, bool Function(Condition)> _knownIssues = {
-  // QA-05: the station rows of On the train overflow on the right on a 320 dp screen, and on a
-  // 360 dp screen at 130% text and up.
-  'Page: On the train': (c) => c.size.width <= 360 && (c.textScale > 1 || c.size.width < 360),
-  // QA-06: the Walk there button of the taxi sheet overflows at 200% text on a 320 dp screen.
-  'Page: Taxi': (c) => c.textScale >= 2 && c.size.width < 360,
-};
+final Map<String, bool Function(Condition)> _knownIssues = {};
 
 bool _knownIssue(String test, Condition c) => _knownIssues[test]?.call(c) ?? false;
 
@@ -308,6 +302,30 @@ void main() {
         await expectAccessible(tester);
         await scrollThrough(tester, accessible: true);
         await expectAccessible(tester);
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('History: meal sheet (price, day and time)', (tester) async {
+        await applyCondition(tester, c);
+        await tester.pumpWidget(appUnder(c, householdFavorites, tuesdayMorning));
+        await settle(tester);
+        final box = containerOf(tester);
+        await box.read(habitsProvider.notifier).restore(Habits(
+          meals: [MealLog(hawkerId: 'p:1.35000,103.94000', at: DateTime(2026, 10, 20, 6, 30), name: 'Test Kitchen')],
+        ));
+        box.read(shellTabProvider.notifier).state = _tabs['History']!;
+        await settle(tester);
+        // Bring the row clear of the floating tab bar, then open its sheet.
+        final row = find.text('Test Kitchen');
+        final list = find.byType(Scrollable).hitTestable().first;
+        await tester.scrollUntilVisible(row, 150, scrollable: list);
+        await Scrollable.ensureVisible(tester.element(row), alignment: 0.4);
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.tap(row);
+        await settle(tester);
+        expect(find.text(const S().mealChangeTime), findsOneWidget);
+        await expectAccessible(tester);
+        await scrollThrough(tester, times: 3, accessible: true);
         expect(tester.takeException(), isNull);
       });
 

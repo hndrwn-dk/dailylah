@@ -432,7 +432,6 @@ class _MrtCard extends ConsumerWidget {
               ),
               if (showCrowd && starred.contains(st.line)) _CrowdBadge(line: st.line),
               IconButton(
-                visualDensity: VisualDensity.compact,
                 tooltip: s.starLine,
                 icon: Icon(starred.contains(st.line) ? Icons.star : Icons.star_border,
                     color: starred.contains(st.line) ? DL.amber : null),
@@ -628,6 +627,9 @@ class BusRow extends ConsumerWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
+      // A row that can be tapped is at least 48 dp tall.
+      child: ConstrainedBox(
+      constraints: BoxConstraints(minHeight: onTap == null ? 0 : 48),
       child: Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
@@ -666,6 +668,7 @@ class BusRow extends ConsumerWidget {
           ),
           if (onTap != null) const Icon(Icons.chevron_right),
         ],
+      ),
       ),
       ),
     );
@@ -1414,7 +1417,8 @@ class _TaxiRadarState extends ConsumerState<TaxiRadar> {
                     children: [
                       Container(width: 12, height: 8, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
                       const SizedBox(width: 6),
-                      Text(label, style: t.bodySmall?.copyWith(color: DL.card)),
+                      // Wraps at the largest text on a narrow phone.
+                      Flexible(child: Text(label, style: t.bodySmall?.copyWith(color: DL.card))),
                     ],
                   ),
               ],
