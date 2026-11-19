@@ -1,0 +1,44 @@
+# Senior: the largest font size, location and notifications denied. Every tab opens, Plan a trip
+# opens from Today, and About can be reached and read (docs/QA.md "Persona journeys").
+# The texts are the same at any font size; what is checked here is that they can be reached.
+appId: com.tursinalabs.dailylah
+name: 12 Senior largest text
+---
+- launchApp:
+    stopApp: true
+    permissions:
+      all: deny
+- startRecording: 12_senior_large_text
+- extendedWaitUntil:
+    visible: "(?s)Today.*"
+    timeout: 30000
+- assertNotVisible: "(?s).*Welcome to.*"
+- scrollUntilVisible:
+    element: "(?s)Plan a trip.*"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- tapOn: "(?s)Plan a trip.*"
+- extendedWaitUntil:
+    visible: "Swap From and To"
+    timeout: 20000
+- back
+- tapOn: "(?s)Nearby.*"
+- extendedWaitUntil:
+    visible: "(?s).*(Buses near here|Bus stops|Search).*"
+    timeout: 20000
+- tapOn: "(?s)Home.*"
+- tapOn: "(?s)History.*"
+- tapOn: "(?s)More.*"
+- scrollUntilVisible:
+    element: "(?s)About DailyLah.*"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- tapOn: "(?s)About DailyLah.*"
+- scrollUntilVisible:
+    element: "(?s).*Privacy policy.*"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- stopRecording

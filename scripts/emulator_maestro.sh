@@ -90,22 +90,38 @@ run_attempt() {
   "${ADB[@]}" install "$APK" >/dev/null
   "${ADB[@]}" logcat -c 2>/dev/null || true
   # Screenshots and recordings go to --test-output-dir (Maestro 2 ignores the working directory).
+  "${ADB[@]}" shell settings put system font_scale 1.0 >/dev/null 2>&1 || true
   (cd "$dir" && maestro --device "$DEVICE" test --config "$ROOT/app/maestro/config.yaml" \
     "$ROOT/app/maestro" --format junit --output "$dir/report.xml" --debug-output "$dir/debug" \
-    --test-output-dir "$dir/output")
+    --test-output-dir "$dir/output") || return $?
+  # The same install and household at the largest font size (app/maestro/large_text).
+  local big=0
+  "${ADB[@]}" shell settings put system font_scale 2.0 \
+    || { echo "::error::Could not set the font size on the emulator."; return 1; }
+  (cd "$dir" && maestro --device "$DEVICE" test --config "$ROOT/app/maestro/large_text/config.yaml" \
+    "$ROOT/app/maestro/large_text" --format junit --output "$dir/report-large-text.xml" \
+    --debug-output "$dir/debug-large-text" --test-output-dir "$dir/output-large-text") || big=$?
+  "${ADB[@]}" shell settings put system font_scale 1.0 >/dev/null 2>&1 || true
+  return "$big"
 }
 
 # flow_lines N: one line per flow in the job summary, from the JUnit report.
 flow_lines() {
-  python3 - "$OUT/attempt-$1/report.xml" <<'EOF'
-import sys
+  python3 - "$OUT/attempt-$1" <<'EOF'
+import os, sys
 import xml.etree.ElementTree as ET
 try:
-    root = ET.parse(sys.argv[1]).getroot()
+    root = ET.parse(os.path.join(sys.argv[1], "report.xml")).getroot()
 except (OSError, ET.ParseError):
     print("- No report: Maestro did not finish.")
     raise SystemExit
-for case in root.iter("testcase"):
+cases = list(root.iter("testcase"))
+# The flows at the largest font size run only after all of these passed.
+try:
+    cases += ET.parse(os.path.join(sys.argv[1], "report-large-text.xml")).getroot().iter("testcase")
+except (OSError, ET.ParseError):
+    pass
+for case in cases:
     failed = case.find("failure") is not None or case.find("error") is not None
     print(f"- {case.get('name')}: {'❌ failed' if failed else '✅ passed'}")
 EOF
@@ -119,7 +135,12 @@ import xml.etree.ElementTree as ET
 d = sys.argv[1]
 out = []
 try:
-    for case in ET.parse(os.path.join(d, "report.xml")).getroot().iter("testcase"):
+    cases = list(ET.parse(os.path.join(d, "report.xml")).getroot().iter("testcase"))
+    try:
+        cases += ET.parse(os.path.join(d, "report-large-text.xml")).getroot().iter("testcase")
+    except (OSError, ET.ParseError):
+        pass
+    for case in cases:
         bad = case.find("failure") if case.find("failure") is not None else case.find("error")
         if bad is not None:
             msg = (bad.get("message") or bad.text or "").strip().splitlines()
@@ -134,15 +155,19 @@ EOF
 diagnose() {
   local dir="$OUT/attempt-$1"
   echo "::group::Attempt $1: failed flows (report.xml)"
-  python3 - "$dir/report.xml" <<'EOF' || true
-import sys
+  python3 - "$dir" <<'EOF' || true
+import os, sys
 import xml.etree.ElementTree as ET
 try:
-    root = ET.parse(sys.argv[1]).getroot()
+    cases = list(ET.parse(os.path.join(sys.argv[1], "report.xml")).getroot().iter("testcase"))
 except (OSError, ET.ParseError):
     print("No report.xml: Maestro stopped before writing it.")
     raise SystemExit
-for case in root.iter("testcase"):
+try:
+    cases += ET.parse(os.path.join(sys.argv[1], "report-large-text.xml")).getroot().iter("testcase")
+except (OSError, ET.ParseError):
+    pass
+for case in cases:
     for tag in ("failure", "error"):
         bad = case.find(tag)
         if bad is not None:

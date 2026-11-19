@@ -1,0 +1,9 @@
+# Flows that run with the phone's font size at its largest (200%). scripts/emulator_maestro.sh
+# sets the font size and runs this folder after the flows in app/maestro, on the household they
+# saved (docs/QA.md "Persona journeys").
+flows:
+  - "*.yaml"
+executionOrder:
+  continueOnFailure: false
+  flowsOrder:
+    - "12 Senior largest text"

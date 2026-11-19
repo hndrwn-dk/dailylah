@@ -121,6 +121,17 @@ fi
 "${ADB[@]}" shell am start -W -n "$PKG/.MainActivity"
 sleep 10
 
+# A place shared from Google Maps (Share > DailyLah): the release build must take the SEND intent
+# by its manifest filter (no component named) and read it without an error in the log below.
+SHARED=$("${ADB[@]}" shell "am start -W -a android.intent.action.SEND -t text/plain -p $PKG \
+  --es android.intent.extra.TEXT 'Lau Pa Sat, 18 Raffles Quay, Singapore 048582'" 2>&1 | tr -d '\r' || true)
+echo "$SHARED"
+if echo "$SHARED" | grep -qiE "error|unable to resolve"; then
+  echo "::error::The release build did not take a shared place (SEND text/plain): $(echo "$SHARED" | tr '\n' ' ' | cut -c1-300)"
+  SHARE_FAILED=1
+fi
+sleep 8
+
 LOG=$("${ADB[@]}" logcat -d)
 echo "$LOG" | grep -E "flutter|AndroidRuntime" | tail -60 || true
 # Job logs cannot always be read, so surface the app's own log lines on the commit too.
@@ -133,4 +144,5 @@ if echo "$LOG" | grep -E "$BAD" >/tmp/bad.txt; then
 fi
 "${ADB[@]}" shell pidof "$PKG" >/dev/null || { echo "::error::Release build is not running after restart."; exit 1; }
 [ -z "${JOB_MISSING:-}" ] || exit 1
-echo "- Release build (R8) started, ran the background check without errors ✅" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+[ -z "${SHARE_FAILED:-}" ] || exit 1
+echo "- Release build (R8) started, ran the background check and took a shared place without errors ✅" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"

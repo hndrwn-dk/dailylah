@@ -372,6 +372,12 @@ const conditions = [
   Condition('foldable landscape 880dp, text 130%', textScale: 1.3, size: Size(880, 600)),
   // Wider than the two-column layout gets: the page colour shows beside it.
   Condition('tablet 1280dp', size: Size(1280, 800)),
+  // The smallest phone still common (360x640 dp) at the first step of larger text.
+  Condition('phone 360x640dp, text 130%', textScale: 1.3, size: Size(360, 640)),
+  // A phone on its side: one 600 dp column and very little height.
+  Condition('phone on its side 640x360dp', size: Size(640, 360)),
+  // The wide window with the largest text (one 600 dp column again) in dark mode.
+  Condition('foldable landscape 880dp, dark, text 200%', textScale: 2.0, size: Size(880, 600), dark: true),
 ];
 
 /// Applies a condition to the test view and fakes. Call at the start of each test.
@@ -428,6 +434,54 @@ Future<void> settle(WidgetTester tester) async {
   for (var i = 0; i < 12; i++) {
     await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     await tester.pump(const Duration(milliseconds: 250));
+  }
+}
+
+/// A tap target the accessibility check lets through for now: an open finding in docs/QA.md
+/// ("Open findings"). [minSide] is its size today, so it may not shrink further. Remove the entry
+/// in the pull request that fixes the finding.
+class KnownSmallTarget {
+  const KnownSmallTarget(this.id, this.node, this.minSide);
+  final String id;
+  final RegExp node;
+  final double minSide;
+}
+
+final knownSmallTargets = [
+  // QA-01: the five tab buttons are 47 dp tall, and 43.8 dp wide on a 320 dp screen.
+  KnownSmallTarget('QA-01', RegExp(r'tooltip: "(Today|Nearby|Home|History|More)"'), 43.8),
+  // QA-03: the star on an MRT line (Today) and Remove on a place or stop (Setup) are 40 dp.
+  KnownSmallTarget('QA-03', RegExp(r'tooltip: "(Star this line|Remove)"'), 40),
+  // QA-04: a bus row on the stop page is 46 dp tall.
+  KnownSmallTarget('QA-04', RegExp(r'label: "[0-9A-Za-z]+\\nArr'), 46),
+];
+
+final _nodeRect = RegExp(r'Rect\.fromLTRB\(([-0-9.]+), ([-0-9.]+), ([-0-9.]+), ([-0-9.]+)\)');
+
+/// What is on screen now can be used with TalkBack and a finger: every tappable thing is at least
+/// 48 dp in both directions (Android's guideline) and has a label a screen reader can say.
+/// Tap targets listed in [knownSmallTargets] are let through at the size they have today.
+Future<void> expectAccessible(WidgetTester tester) async {
+  final handle = tester.ensureSemantics();
+  try {
+    await tester.pump();
+    final small = await androidTapTargetGuideline.evaluate(tester);
+    if (!small.passed) {
+      final nodes = (small.reason ?? '').split('\n').where((l) => l.contains('SemanticsNode#')).toList();
+      final fresh = nodes.where((l) {
+        final r = _nodeRect.firstMatch(l);
+        if (r == null) return true;
+        final side = [double.parse(r[3]!) - double.parse(r[1]!), double.parse(r[4]!) - double.parse(r[2]!)]
+            .reduce((a, b) => a < b ? a : b);
+        return !knownSmallTargets.any((k) => k.node.hasMatch(l) && side >= k.minSide - 0.01);
+      }).toList();
+      if (nodes.isEmpty || fresh.isNotEmpty) {
+        fail('Tap targets under 48 dp:\n${nodes.isEmpty ? small.reason : fresh.join('\n')}');
+      }
+    }
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+  } finally {
+    handle.dispose();
   }
 }
 

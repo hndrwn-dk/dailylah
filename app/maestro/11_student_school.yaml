@@ -1,0 +1,73 @@
+# Student: a school is found by its name, not a postal code, and is kept over a restart
+# (docs/QA.md "Persona journeys"). Runs last of the household flows: it adds School to the
+# places flows 01 and 02 saved.
+appId: com.tursinalabs.dailylah
+name: 11 Student school by name
+---
+- launchApp:
+    stopApp: true
+    permissions:
+      notifications: deny
+- startRecording: 11_student_school
+- tapOn: "(?s)More.*"
+- scrollUntilVisible:
+    element: "(?s).*Places, lines and times.*"
+    direction: DOWN
+- tapOn: "(?s).*Places, lines and times.*"
+# Home and Work have an address; the first "Set address" left is School.
+- scrollUntilVisible:
+    element: "Set address"
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    text: "Set address"
+    index: 0
+- extendedWaitUntil:
+    visible: "Address of School"
+    timeout: 10000
+# The search field has focus. The API may be asleep: when nothing shows, search once more.
+- inputText: "Ang Mo Kio Secondary School"
+- pressKey: Enter
+- extendedWaitUntil:
+    visible: "(?si).*ang mo kio secondary school.*singapore \\d{6}.*"
+    timeout: 90000
+    optional: true
+- runFlow:
+    when:
+      notVisible: "(?si).*ang mo kio secondary school.*singapore \\d{6}.*"
+    commands:
+      - eraseText
+      - inputText: "Ang Mo Kio Secondary School"
+      - pressKey: Enter
+      - extendedWaitUntil:
+          visible: "(?si).*ang mo kio secondary school.*singapore \\d{6}.*"
+          timeout: 90000
+- tapOn:
+    text: "(?si).*ang mo kio secondary school.*singapore \\d{6}.*"
+    index: 0
+- extendedWaitUntil:
+    notVisible: "Address of School"
+    timeout: 20000
+- scrollUntilVisible:
+    element: "Save"
+    direction: DOWN
+- tapOn: "Save"
+- runFlow: common/decline_notifications.yaml
+- stopApp
+- launchApp:
+    permissions:
+      notifications: deny
+# Today still opens with the school saved, on a school day and in the school holidays alike.
+- extendedWaitUntil:
+    visible: "(?s)Today.*"
+    timeout: 30000
+- assertNotVisible: "(?s).*Welcome to.*"
+- tapOn: "(?s)More.*"
+- scrollUntilVisible:
+    element: "(?s).*Places, lines and times.*"
+    direction: DOWN
+- tapOn: "(?s).*Places, lines and times.*"
+- scrollUntilVisible:
+    element: "(?si).*ang mo kio (secondary|st(reet)? 22).*"
+    direction: DOWN
+- stopRecording
