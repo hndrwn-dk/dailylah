@@ -82,6 +82,15 @@ List<Map<Object?, Object?>> _alerts(WidgetTester tester) {
   return shown;
 }
 
+/// Waits (in real time, up to about 5 s) until [done]: what a plugin, a position stream or stored
+/// data brings in arrives when the machine gets to it, not after a fixed number of frames.
+Future<void> _until(WidgetTester tester, bool Function() done) async {
+  for (var i = 0; i < 100 && !done(); i++) {
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+}
+
 void main() {
   group('Office worker', () {
     testWidgets('Wake me keeps watching on every tab, and Stop ends it', (tester) async {
@@ -92,6 +101,7 @@ void main() {
       final box = containerOf(tester);
       // On bus 10 at Tampines Int, a long way from Fullerton Sq.
       await tester.runAsync(() => box.read(wakeProvider.notifier).start('10', fullertonSq, null, from: tampinesInt));
+      await _until(tester, () => box.read(wakeProvider)?.left != null);
       await settle(tester);
 
       final riding = find.descendant(
@@ -117,6 +127,7 @@ void main() {
       // The phone is at Tampines Int, the stop to wake at.
       await tester.pumpWidget(
           pageUnder(_normal, householdFavorites, tuesdayEvening, const WakeMePage(service: '10', alight: tampinesInt)));
+      await _until(tester, () => alerts.isNotEmpty);
       await settle(tester);
       expect(find.text(_s.wakeNowAt('Tampines Int')), findsOneWidget);
       expect(alerts, hasLength(1));
@@ -131,6 +142,7 @@ void main() {
       final alerts = _alerts(tester);
       await tester.pumpWidget(
           pageUnder(denied, householdFavorites, tuesdayEvening, const WakeMePage(service: '10', alight: fullertonSq)));
+      await _until(tester, () => find.text(_s.locationDenied).evaluate().isNotEmpty);
       await settle(tester);
       expect(find.text(_s.locationDenied), findsOneWidget);
       expect(containerOf(tester).read(wakeProvider)!.left, isNull);
@@ -152,6 +164,7 @@ void main() {
       // Killed and opened again: a new app on the same stored data.
       await tester.pumpWidget(KeyedSubtree(key: UniqueKey(), child: appUnder(_normal, householdFavorites, tuesdayMorning)));
       await settle(tester);
+      await _until(tester, () => containerOf(tester).read(habitsProvider).tripRoute != null);
       expect(containerOf(tester).read(habitsProvider).tripRoute, 'home>work');
       expect(arrived, findsOneWidget);
       await tester.tap(arrived);
