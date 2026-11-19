@@ -98,6 +98,13 @@ run_attempt() {
   local big=0
   "${ADB[@]}" shell settings put system font_scale 2.0 \
     || { echo "::error::Could not set the font size on the emulator."; return 1; }
+  # Maestro's first session has just removed its driver and the screen is being laid out again:
+  # adb can answer "device offline" for a moment. Wait until it takes a command.
+  for _ in $(seq 1 30); do
+    "${ADB[@]}" shell true >/dev/null 2>&1 && break
+    sleep 2
+  done
+  sleep 5
   (cd "$dir" && maestro --device "$DEVICE" test --config "$ROOT/app/maestro/large_text/config.yaml" \
     "$ROOT/app/maestro/large_text" --format junit --output "$dir/report-large-text.xml" \
     --debug-output "$dir/debug-large-text" --test-output-dir "$dir/output-large-text") || big=$?
