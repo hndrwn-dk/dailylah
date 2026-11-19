@@ -1324,6 +1324,17 @@ void main() {
     expect(prev, 300, reason: 'last Monday to Thursday, not the Friday after');
     final ins = historySpendInsight(week, HistoryPeriod.week, now, previousCents: prev);
     expect((ins.cents, ins.averageCents, ins.top?.start, ins.previousCents), (2700, 675, DateTime(2026, 11, 18), 300));
+    // Same point of the day: last Thursday's lunch does not count at 9:00 this Thursday.
+    final lunch = Habits(meals: [MealLog(hawkerId: 'a', at: DateTime(2026, 11, 12, 12), priceCents: 700)]);
+    expect(historyPreviousCents(lunch, HistoryPeriod.week, now, {}), 0);
+    expect(historyPreviousCents(lunch, HistoryPeriod.week, DateTime(2026, 11, 19, 12), {}), 700);
+    // A full trip log that starts after last Monday knows only part of last week: no comparison.
+    final full = Habits(trips: [
+      for (var i = 0; i < Habits.maxTrips; i++)
+        TripLog(route: 'home>work', start: DateTime(2026, 11, 11, 8).add(Duration(hours: i)), minutes: 30, costCents: 100),
+    ]);
+    expect(historyPreviousCents(full, HistoryPeriod.week, now, {}), isNull);
+    expect(historyPreviousCents(full, HistoryPeriod.week, now, {HistoryKind.meal}), 0);
     // Only trips shown: the comparison follows the filter.
     expect(historyPreviousCents(h, HistoryPeriod.week, now, {HistoryKind.meal}), 0);
 

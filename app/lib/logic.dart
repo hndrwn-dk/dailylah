@@ -2891,8 +2891,10 @@ SpendInsight historySpendInsight(List<SpendBar> bars, HistoryPeriod period, Date
   );
 }
 
-/// What the days of last week or last month up to the same point cost (this Thursday: last
-/// week's Monday to Thursday), for [kinds] (all when empty). Null for "all".
+/// What last week or last month cost up to the same point (this Thursday 9:00: last week's
+/// Monday to Thursday 9:00), for [kinds] (all when empty). Null for "all", and when a full log
+/// (`Habits.maxTrips` and so on) no longer reaches back to the start of that period, so the
+/// sum would be only part of it.
 int? historyPreviousCents(Habits h, HistoryPeriod period, DateTime now, Set<HistoryKind> kinds) {
   final start = historySince(period, now);
   if (start == null) return null;
@@ -2900,11 +2902,18 @@ int? historyPreviousCents(Habits h, HistoryPeriod period, DateTime now, Set<Hist
   final from = period == HistoryPeriod.week
       ? DateTime(start.year, start.month, start.day - 7)
       : DateTime(start.year, start.month - 1);
-  var to = DateTime(from.year, from.month, from.day + days);
+  var to = DateTime(from.year, from.month, from.day + days - 1, now.hour, now.minute);
   if (to.isAfter(start)) to = start;
+  bool cut(HistoryKind kind, Iterable<DateTime> times, int max) =>
+      (kinds.isEmpty || kinds.contains(kind)) && times.length >= max && times.every((t) => t.isAfter(from));
+  if (cut(HistoryKind.trip, h.trips.map((t) => t.start), Habits.maxTrips) ||
+      cut(HistoryKind.parking, h.parkings.map((p) => p.start), Habits.maxParkings) ||
+      cut(HistoryKind.meal, h.meals.map((m) => m.at), Habits.maxMeals)) {
+    return null;
+  }
   var cents = 0;
   for (final e in historyOfKinds(historyEntries(h, since: from), kinds)) {
-    if (e.at.isBefore(to)) cents += e.costCents ?? 0;
+    if (!e.at.isAfter(to)) cents += e.costCents ?? 0;
   }
   return cents;
 }

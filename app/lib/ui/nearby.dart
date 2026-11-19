@@ -534,8 +534,9 @@ class _AteHereButtonState extends ConsumerState<_AteHereButton> {
       initialTime: TimeOfDay.fromDateTime(_at ?? now),
       helpText: s.mealTimeHelp,
     );
-    if (!mounted) return;
-    final clock = time == null ? (_at ?? now) : DateTime(now.year, now.month, now.day, time.hour, time.minute);
+    // No time, no change: a guessed time would put the meal at the wrong point of that day.
+    if (time == null || !mounted) return;
+    final clock = DateTime(now.year, now.month, now.day, time.hour, time.minute);
     setState(() => _at = mealOnDay(clock, day, DateTime.now()));
   }
 
@@ -579,7 +580,8 @@ class _AteHereButtonState extends ConsumerState<_AteHereButton> {
               final before = ref.read(habitsProvider);
               final messenger = ScaffoldMessenger.of(context);
               Navigator.of(context).pop();
-              await notifier.ateAt(widget.id, _at ?? DateTime.now(), name: widget.place ? widget.name : null, priceCents: _price);
+              await notifier.ateAt(widget.id, _at ?? DateTime.now(),
+                  name: widget.place ? widget.name : null, priceCents: _price, backdated: _at != null);
               showActionSnackBar(messenger, s.ateLogged(widget.name),
                   actionLabel: s.undo, onAction: () => notifier.restore(before));
             },

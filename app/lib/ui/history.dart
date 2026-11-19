@@ -117,7 +117,8 @@ class HistoryPage extends ConsumerWidget {
                 ),
                 ),
                 // Where the money went: a bar per day (per month for "all"), split by kind.
-                if (sum.costCents > 0)
+                // "All" draws the last 12 months: older costs alone make no chart.
+                if (bars.any((b) => b.cents > 0))
                   FullWidth(
                     child: Padding(
                       padding: const EdgeInsets.only(top: 12),

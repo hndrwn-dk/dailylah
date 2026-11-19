@@ -288,12 +288,13 @@ void main() {
 
   testWidgets('History: a meal logged late moves to the day before, and the chart shows what was spent', (tester) async {
     await applyCondition(tester, _normal);
-    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    // The date picker goes by the real clock, so the app runs on it too, and the meal is on the
+    // 15th of last month.
+    final real = DateTime.now();
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, real));
     await settle(tester);
     const s = S();
     final box = containerOf(tester);
-    // The sheet checks against the real clock, so the meal is on the 15th of last month.
-    final real = DateTime.now();
     final at = DateTime(real.year, real.month - 1, 15, 12, 30);
     await box.read(habitsProvider.notifier).restore(Habits(
       meals: [MealLog(hawkerId: 'p:1.35000,103.94000', at: at, name: 'Test Kitchen', priceCents: 2000)],

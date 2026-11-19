@@ -297,12 +297,13 @@ feature, screen, provider or rule moves, appears or goes away.
   for halal places (`mealPriceToOffer`, `lastMealPrice`), and still logs with one tap. `historySummary` adds priced meals
   to `costCents` and counts them (`mealsPriced`, `mealCents`); the Meals tile says "$x · n of m meals
   priced" and each meal row shows its price.
-  "Ate here" can log a meal eaten earlier: "Another day" asks for the day and then the time (`_AteHereButton`).
+  "Ate here" can log a meal eaten earlier: "Another day" asks for the day and then the time (`_AteHereButton`);
+  such a meal is only added (`ateAt(backdated: true)`), never merged with one within 30 min.
   Spending chart (`_SpendChart`, shown when the period has any cost): stacked bars drawn with plain
   widgets (no chart package), meals / transport / parking, one bar per day for week and month and per
   month for "all" (`historySpendBars`, last 12 months); tap a bar to read it. Under it the totals per
   kind and the lines from `historySpendInsight` (average per day so far, the day that cost most) and
-  `historyPreviousCents` (the same number of days last week or month). It follows the kind filter.
+  `historyPreviousCents` (last week or month up to the same point; none when a full log no longer reaches back that far). It follows the kind filter.
   Every trip card (commute and "Go somewhere") has I'm leaving; the running trip shows in `TripBanner`
   above the tabs (inline on the planner page, which hides the tabs) with Arrived / Stop timing. Commute
   keys stay "home>work"; planned trips keep the names shown (`tripRouteKey`, `S.routeEnd`).
