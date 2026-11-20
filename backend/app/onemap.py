@@ -29,6 +29,8 @@ class OneMap:
         self._token: str | None = None
         self._expires = 0.0
         self._lock = asyncio.Lock()
+        # Whether the last request went out with a token (for the log, see why_failed).
+        self._sent_token = False
 
     @property
     def configured(self) -> bool:
@@ -64,12 +66,24 @@ class OneMap:
 
     async def get(self, url: str, params: dict) -> httpx.Response:
         """GET with the token; renews it once when OneMap says it is no longer valid."""
-        r = await self.client.get(url, params=params, headers=await self.headers())
+        headers = await self.headers()
+        self._sent_token = bool(headers)
+        r = await self.client.get(url, params=params, headers=headers)
         if r.status_code in (401, 403) and self.configured:
             tok = await self.token(force=True)
             if tok:
+                self._sent_token = True
                 r = await self.client.get(url, params=params, headers={"Authorization": tok})
         return r
+
+    def why_failed(self, e: Exception) -> str:
+        """Why a OneMap call failed, for the log: OneMap's status, or the kind of network error,
+        and whether the request went out with a token. Nothing OneMap wrote is logged: its
+        message could echo the text searched for."""
+        sent = "with token" if self._sent_token else "no token"
+        if isinstance(e, httpx.HTTPStatusError):
+            return f"HTTP {e.response.status_code} ({sent})"
+        return f"{type(e).__name__} ({sent})"
 
     async def search(self, query: str, page: int = 1) -> dict:
         r = await self.get(

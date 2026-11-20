@@ -313,6 +313,8 @@ async def search(
     try:
         body = await om.search(query)
     except httpx.HTTPError as e:
+        # Why, but never what was searched for.
+        log.warning("OneMap search failed: %s", om.why_failed(e))
         raise HTTPException(502, "upstream OneMap error") from e
     data = {"fetched_at": int(time.time()), "data": body}
     c.set_memory_only(key, data, s.search_ttl)
