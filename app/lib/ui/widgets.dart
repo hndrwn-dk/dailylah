@@ -455,7 +455,12 @@ class BentoTile extends StatelessWidget {
     required this.caption,
     this.tint,
     this.onTap,
+    this.fitValue = false,
   });
+
+  /// Shrink [value] to the tile's width instead of cutting it off ("100 parkings" in a
+  /// half-width tile of History).
+  final bool fitValue;
   final IconData icon;
   final String value;
   final String caption;
@@ -486,10 +491,17 @@ class BentoTile extends StatelessWidget {
                 child: Icon(icon, size: 18, color: highlighted ? DL.ink : tint ?? Theme.of(context).colorScheme.primary),
               ),
               const SizedBox(height: 12),
-              Text(value,
-                  style: t.displaySmall?.copyWith(color: highlighted ? DL.ink : null),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis),
+              if (fitValue)
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text(value, style: t.displaySmall?.copyWith(color: highlighted ? DL.ink : null), maxLines: 1),
+                )
+              else
+                Text(value,
+                    style: t.displaySmall?.copyWith(color: highlighted ? DL.ink : null),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
               const SizedBox(height: 2),
               Text(caption,
                   style: t.bodySmall?.copyWith(color: highlighted ? DL.ink : null),

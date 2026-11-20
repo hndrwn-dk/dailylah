@@ -68,7 +68,7 @@ class S {
   String get historyMeals => 'Meals';
   String get historySpent => 'Spent';
   String get historyCostNote => '≈ is an estimate (adult card fare, HDB parking rates). Meals count only when they have a price. Tap a trip or parking to enter what you paid, or a meal to set its price, date or time.';
-  String mealsPriced(int priced, int meals, int cents) => '${money(cents)} · $priced of $meals meals priced';
+  String mealsPriced(int priced, int meals, int cents) => '${money(cents)} · $priced of $meals priced';
   String get historyAll => 'All';
   String historyRemoveShown(int n) => n == 1 ? 'Remove this entry' : 'Remove these $n entries';
   String historyRemoveAsk(int n) => n == 1 ? 'Remove this entry from History?' : 'Remove these $n entries from History?';
@@ -608,7 +608,15 @@ class S {
   String tripLogged(int minutes) => 'Logged: $minutes min door to door.';
   String get tripCancel => 'Stop timing';
   /// History and the trip banner: home/work/school by name, anything else as saved.
-  String routeEnd(String key) => const {'home', 'work', 'school'}.contains(key) ? placeLabel(key) : key;
+  /// Trips logged before 2.11.3 kept the phone's position as "Here".
+  String routeEnd(String key) => const {'home', 'work', 'school'}.contains(key)
+      ? placeLabel(key)
+      : key == 'Here'
+          ? hereNow
+          : key;
+  /// A trip end at the phone's position, named after the MRT station or bus stop beside it.
+  String nearPlace(String name) => 'Near $name';
+  String stationName(String name) => '$name station';
   String get tripTooShort => 'Not logged: that trip looked too short or too long.';
   String usualTrip(int minutes, int count) => 'Usually $minutes min door to door ($count trips).';
   String rainyTrip(int minutes) => 'On rainy days $minutes min.';
@@ -1114,7 +1122,7 @@ class S {
   String get placeName => 'Name';
   String get placeNameHint => "e.g. Mum's house, Gym";
   String get rename => 'Rename';
-  String get hereNow => 'Here';
+  String get hereNow => 'Current location';
 
   // ---------------------------------------------------------------- nearby (out and about)
   String get nearbySubtitle => 'What you need around you right now.';

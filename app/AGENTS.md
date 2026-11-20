@@ -86,7 +86,7 @@ feature, screen, provider or rule moves, appears or goes away.
   side of the road with a direct bus, or nearby stops with one are suggested, `tripStops`;
   loop services that go the long way are dropped, `tripRides`). Bus/MRT also shows the nearest MRT
   station at each end from the `mrt_stations.json` bundle (`mrtPlan`). "Plan a trip" (`TripPlannerPage`,
-  `GoSomewhere`) is one route card: From on top, To below, both with the same choices (Here, Home, Work,
+  `GoSomewhere`) is one route card: From on top, To below, both with the same choices (Current location = `S.hereNow`, called Here below, Home, Work,
   School, saved places, and a search field, `goAdhocFromProvider`/`goAdhocDestProvider`) and a
   swap button between. That search (`AddressPickerPage(places: true)`, `placeSearchProvider`) also finds
   shops and restaurants by name: a query that starts with a number or "Blk"/"Block" and a number goes to
@@ -303,8 +303,8 @@ feature, screen, provider or rule moves, appears or goes away.
   through `askMealPrice`/`parseMealCents`, max `mealPriceMaxCents` $200); "Ate here" preselects the price
   of a meal it corrects (logged in the last 30 min) or else the last price at that place, by name
   for halal places (`mealPriceToOffer`, `lastMealPrice`), and still logs with one tap. `historySummary` adds priced meals
-  to `costCents` and counts them (`mealsPriced`, `mealCents`); the Meals tile says "$x · n of m meals
-  priced" and each meal row shows its price.
+  to `costCents` and counts them (`mealsPriced`, `mealCents`); the Meals tile says "$x · n of m
+  priced" (the totals are a `TileGrid`: tiles of one size, two a row) and each meal row shows its price.
   "Ate here" can log a meal eaten earlier: "Another day" asks for the day and then the time (`_AteHereButton`);
   such a meal is only added (`ateAt(backdated: true)`), never merged with one within 30 min.
   Spending chart (`_SpendChart`, shown when the period has any cost): stacked bars drawn with plain
@@ -314,7 +314,7 @@ feature, screen, provider or rule moves, appears or goes away.
   `historyPreviousCents` (last week or month up to the same point; none when a full log no longer reaches back that far). It follows the kind filter.
   Every trip card (commute and "Go somewhere") has I'm leaving; the running trip shows in `TripBanner`
   above the tabs (inline on the planner page, which hides the tabs) with Arrived / Stop timing. Commute
-  keys stay "home>work"; planned trips keep the names shown (`tripRouteKey`, `S.routeEnd`).
+  keys stay "home>work"; planned trips keep the names shown (`tripRouteKey`, `S.routeEnd`), and an end at the phone's position is named on the phone (`hereName`: the saved place it is at, else "Near <station> station" or "Near <bus stop>" within `hereNameMetres`, else "Current location"; the position is not kept).
 - Habits (`Habits` in models.dart, `HabitsStore` in store.dart, `habitsProvider`): parked car, trips
   logged with I'm leaving/Arrived (`tripStats`), "Ate here" meals (`mealNudge`). On the phone only,
   behind `Favorites.learnHabits`, never in the share code. Weekly Sunday digest (`weeklyDigest`)

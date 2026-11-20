@@ -80,6 +80,25 @@ class TripSection extends ConsumerWidget {
     final title = s.tripTitle(fromLabel ?? placeTitle(s.placeLabel, from), toLabel);
     final modes = tripModes(modePlace.modes);
 
+    // History says where a trip started or ended, not "Current location": the saved place the
+    // phone is at, else the station or bus stop beside it, found on the phone.
+    String hereEnd(Place p, Place other) {
+      final near = hereName(p.lat, p.lng,
+          otherEnd: other.kind == PlaceKind.other ? null : other.kind,
+          fav: ref.watch(favoritesProvider),
+          stations: ref.watch(mrtStationsProvider).value ?? const [],
+          stops: ref.watch(busStopsProvider).value ?? const []);
+      if (near.saved != null) return near.saved!.name;
+      if (near.station != null) return s.nearPlace(s.stationName(near.station!));
+      return near.stop != null ? s.nearPlace(near.stop!) : s.hereNow;
+    }
+
+    String routeEnd(Place p, Place other, {required bool here}) =>
+        here ? hereEnd(p, other) : (p.kind == PlaceKind.other ? placeTitle(s.placeLabel, p) : p.kind.name);
+    final route = commute
+        ? tripRouteKey(from.kind.name, to.kind.name)
+        : tripRouteKey(routeEnd(from, to, here: startsHere), routeEnd(to, from, here: endsHere));
+
     final body = switch (mode) {
       TravelMode.transit => _TransitBlock(
           fromKey: fromKey,
@@ -87,7 +106,8 @@ class TripSection extends ConsumerWidget {
           fromName: fromLabel ?? placeTitle(s.placeLabel, from),
           to: to,
           toLabel: toLabel,
-          startsHere: startsHere),
+          startsHere: startsHere,
+          route: route),
       TravelMode.car => _DriveBlock(from: from, to: to, toLabel: toLabel, lotType: 'C', endsHere: endsHere),
       TravelMode.motorcycle => _DriveBlock(from: from, to: to, toLabel: toLabel, lotType: 'Y', endsHere: endsHere),
       TravelMode.bicycle => _CycleBlock(from: from, to: to, toLabel: toLabel, endsHere: endsHere),
@@ -102,11 +122,7 @@ class TripSection extends ConsumerWidget {
       child: Text(title, style: t.titleLarge),
     );
     final timer = _TripTimer(
-      route: commute
-          ? tripRouteKey(from.kind.name, to.kind.name)
-          : tripRouteKey(
-              fromLabel ?? (from.kind == PlaceKind.other ? placeTitle(s.placeLabel, from) : from.kind.name),
-              to.kind == PlaceKind.other ? toLabel : to.kind.name),
+      route: route,
       from: from,
       to: to,
       mode: mode,
@@ -402,8 +418,12 @@ class _TransitBlock extends ConsumerWidget {
     required this.to,
     required this.toLabel,
     required this.startsHere,
+    required this.route,
   });
   final bool startsHere;
+
+  /// The key this trip is logged under ([tripRouteKey]), also when it starts with "I'm on the train".
+  final String route;
   final String? fromKey;
   final Place from;
   final String fromName;
@@ -439,7 +459,7 @@ class _TransitBlock extends ConsumerWidget {
           walkCard: st == trip.stops.first,
         ),
     ];
-    final mrt = _MrtOption(from: from, to: to);
+    final mrt = _MrtOption(from: from, to: to, route: route);
     // Plan B: when the train on this trip is disrupted, buses come first with a note.
     final stations = ref.watch(mrtStationsProvider).value ?? const <MrtStation>[];
     final plan = stations.isEmpty ? null : mrtPlan(stations, from, to);
@@ -488,9 +508,10 @@ class _TransitBlock extends ConsumerWidget {
 
 /// Nearest MRT/LRT station at each end, with the line if no change is needed.
 class _MrtOption extends ConsumerWidget {
-  const _MrtOption({required this.from, required this.to});
+  const _MrtOption({required this.from, required this.to, required this.route});
   final Place from;
   final Place to;
+  final String route;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -659,7 +680,7 @@ class _MrtOption extends ConsumerWidget {
                   final fav = ref.read(favoritesProvider);
                   if (fav.learnHabits && ref.read(habitsProvider).tripStart == null) {
                     await ref.read(habitsProvider.notifier).startTrip(
-                          key,
+                          route,
                           DateTime.now(),
                           mode: TravelMode.transit.name,
                           km: distanceMeters(from.lat, from.lng, to.lat, to.lng) / 1000,
@@ -706,11 +727,16 @@ class _MrtOption extends ConsumerWidget {
   }
 }
 
-/// The trip key a picked line is saved under (the same key History uses).
-String mrtRouteKey(S s, Place from, Place to) => tripRouteKey(
-      from.kind == PlaceKind.other ? placeTitle(s.placeLabel, from) : from.kind.name,
-      to.kind == PlaceKind.other ? placeTitle(s.placeLabel, to) : to.kind.name,
-    );
+/// The key a picked line is saved under ([Favorites.mrtLines]). An end at the phone's position
+/// keeps the key "Here" it had before that chip was renamed, so saved picks still apply.
+String mrtRouteKey(S s, Place from, Place to) {
+  String end(Place p) => p.kind != PlaceKind.other
+      ? p.kind.name
+      : p.name == s.hereNow
+          ? 'Here'
+          : placeTitle(s.placeLabel, p);
+  return tripRouteKey(end(from), end(to));
+}
 
 /// "How do you want to go today?": the usual route or a line to start on.
 Future<void> showMrtLineSheet(BuildContext context, {required Place from, required Place to}) =>

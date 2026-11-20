@@ -245,16 +245,24 @@ ButtonStyle _linkStyle(Color color) => TextButton.styleFrom(
     );
 
 /// Tiles side by side on More: two columns, one when a tile would be too narrow for whole words
-/// at this width and text size (`tileColumns`). Tiles in a row are the same height.
+/// at this width and text size (`tileColumns`). Tiles in a row are the same width and height.
+/// With [wideMinWidth], all tiles share one row when each would be at least that wide (times
+/// the text scale): the totals of History on a foldable or tablet.
 class TileGrid extends StatelessWidget {
-  const TileGrid({super.key, required this.children});
+  const TileGrid({super.key, required this.children, this.wideMinWidth, this.minTileWidth = tileMinWidth});
   final List<Widget> children;
+  final double? wideMinWidth;
+
+  /// The narrowest a tile may be at 100% text before the grid goes to one column.
+  final double minTileWidth;
 
   @override
   Widget build(BuildContext context) {
     final scale = MediaQuery.textScalerOf(context).scale(1);
     return LayoutBuilder(builder: (context, box) {
-      final cols = tileColumns(box.maxWidth, scale);
+      final n = children.length;
+      final oneRow = wideMinWidth != null && n > 2 && (box.maxWidth - _tileGap * (n - 1)) / n >= wideMinWidth! * scale;
+      final cols = oneRow ? n : tileColumns(box.maxWidth, scale, minTileWidth);
       return Padding(
         padding: const EdgeInsets.only(bottom: 4),
         child: Column(
@@ -291,8 +299,8 @@ const tileMinWidth = 120.0;
 /// Columns of a [TileGrid] that is [width] wide at this text scale: two while each tile keeps
 /// [tileMinWidth] times the scale, else one. So a 360 dp phone has two up to 130% text, a 320 dp
 /// phone up to 110%, and 200% text is always one.
-int tileColumns(double width, double textScale) =>
-    (width - _tileGap) / 2 >= tileMinWidth * textScale ? 2 : 1;
+int tileColumns(double width, double textScale, [double minWidth = tileMinWidth]) =>
+    (width - _tileGap) / 2 >= minWidth * textScale ? 2 : 1;
 
 /// One setting on More as a sticker tile. With [value] it is a switch: raised and mint when on,
 /// flat with a dashed outline when off, and "On" / "Off" in words so colour is not the only
