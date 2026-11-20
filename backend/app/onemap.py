@@ -7,7 +7,6 @@ ONEMAP_PASSWORD), so the token itself is never stored anywhere but memory.
 
 import asyncio
 import logging
-import re
 import time
 
 import httpx
@@ -17,9 +16,6 @@ log = logging.getLogger("dailylah.onemap")
 TOKEN_URL = "https://www.onemap.gov.sg/api/auth/post/getToken"  # noqa: S105 (an endpoint URL, not a secret)
 SEARCH_URL = "https://www.onemap.gov.sg/api/common/elastic/search"
 THEME_URL = "https://www.onemap.gov.sg/api/public/themesvc/retrieveTheme"
-
-# A OneMap error message that may go in the log (see OneMap.why_failed).
-_PLAIN_WORDS = re.compile(r"[A-Za-z .,'…]{1,80}")
 
 # Renew this long before the token expires.
 RENEW_MARGIN_S = 6 * 3600
@@ -80,32 +76,14 @@ class OneMap:
                 r = await self.client.get(url, params=params, headers={"Authorization": tok})
         return r
 
-    def why_failed(self, e: Exception, query: str) -> str:
+    def why_failed(self, e: Exception) -> str:
         """Why a OneMap call failed, for the log: OneMap's status, or the kind of network error,
-        and whether the request went out with a token. OneMap's own message is added only when it
-        refused the token or the rate (401, 403, 429), with the text searched for cut out, and
-        only if what is left is plain words (letters, spaces and . , '): no digits, so no postal
-        code or token, and no control characters, so no forged log line. Any other message is
-        left out: it could echo the search text in a form that cannot be recognised."""
+        and whether the request went out with a token. Nothing OneMap wrote is logged: its
+        message could echo the text searched for."""
         sent = "with token" if self._sent_token else "no token"
-        if not isinstance(e, httpx.HTTPStatusError):
-            return f"{type(e).__name__} ({sent})"
-        status = e.response.status_code
-        said = ""
-        if status in (401, 403, 429):
-            try:
-                body = e.response.json()
-                if isinstance(body, dict):
-                    said = str(body.get("message") or body.get("error") or "")
-            except ValueError:
-                pass
-            # The whole query and each word of it, in any case.
-            for part in sorted({query, *query.split()}, key=len, reverse=True):
-                if part:
-                    said = re.sub(re.escape(part), "…", said, flags=re.IGNORECASE)
-            if not _PLAIN_WORDS.fullmatch(said):
-                said = ""
-        return f"HTTP {status} ({sent}) {said}".rstrip()
+        if isinstance(e, httpx.HTTPStatusError):
+            return f"HTTP {e.response.status_code} ({sent})"
+        return f"{type(e).__name__} ({sent})"
 
     async def search(self, query: str, page: int = 1) -> dict:
         r = await self.get(
