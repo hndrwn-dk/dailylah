@@ -315,27 +315,56 @@ class _HeroWeather extends ConsumerWidget {
     final t = Theme.of(context).textTheme;
     final dim = t.bodyMedium;
 
+    // Everything about rain is said here once: the forecast at both ends, what the gauge near
+    // the start reads now, and the tip for the trip's mode.
+    final gauge = ref.watch(rainfallProvider).value;
+    final mm = gauge == null ? 0.0 : (rainfallNear(gauge, origin.lat, origin.lng)?.$2 ?? 0.0);
+    String? tipFor(bool rainy) => !rainy || tripMode == null
+        ? null
+        : tripAdvice(mode: tripMode!, rainy: true).map(s.rainTip).nonNulls.firstOrNull;
+    // The gauge is its own reading: with no forecast to show (loading, failed, none for this
+    // place) rain that is falling is still said, with the tip, above what the forecast says.
+    Widget withRainNow(Widget fallback) => mm <= 0
+        ? fallback
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Panel(
+                margin: const EdgeInsets.only(bottom: 10),
+                color: DL.amber,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(s.rainingNow(mm), style: t.titleLarge?.copyWith(color: DL.ink)),
+                      if (tipFor(true) case final tip?) ...[
+                        const SizedBox(height: 4),
+                        Text(tip, style: t.bodyMedium?.copyWith(color: DL.ink)),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              fallback,
+            ],
+          );
+
     return body.when(
-      loading: () => Text(s.loading, style: dim),
-      error: (_, __) => Row(
+      loading: () => withRainNow(Text(s.loading, style: dim)),
+      error: (_, __) => withRainNow(Row(
         children: [
           Expanded(child: Text(s.serverWaking, style: dim)),
           TextButton(onPressed: () => ref.invalidate(forecastProvider), child: Text(s.retry)),
         ],
-      ),
+      )),
       data: (json) {
         final stale = liveStaleSince(json, ref.watch(clockProvider).value ?? DateTime.now());
         final here = forecastNear(json, origin.lat, origin.lng);
         final there = destPlace == null ? null : forecastNear(json, destPlace.lat, destPlace.lng);
-        if (here == null) return Text(s.notAvailable, style: dim);
-        // Everything about rain is said here once: the forecast at both ends, what the gauge near
-        // the start reads now, and the tip for the trip's mode.
-        final gauge = ref.watch(rainfallProvider).value;
-        final mm = gauge == null ? 0.0 : (rainfallNear(gauge, origin.lat, origin.lng)?.$2 ?? 0.0);
+        if (here == null) return withRainNow(Text(s.notAvailable, style: dim));
         final rainy = here.isRainy || (there?.isRainy ?? false) || mm > 0;
-        final tip = !rainy || tripMode == null
-            ? null
-            : tripAdvice(mode: tripMode!, rainy: true).map(s.rainTip).nonNulls.firstOrNull;
+        final tip = tipFor(rainy);
         // Sky panel when dry, amber when rain is expected or falling.
         return Panel(
           margin: EdgeInsets.zero,

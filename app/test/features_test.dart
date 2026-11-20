@@ -27,6 +27,7 @@ import 'package:dailylah/ui/toilets.dart';
 import 'package:dailylah/ui/trip.dart';
 import 'package:dailylah/ui/wake.dart';
 import 'package:dailylah/ui/widgets.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -48,6 +49,16 @@ class _ReadingsApi extends FakeApi {
     if (!file.existsSync()) return super.weather(kind);
     return ((jsonDecode(file.readAsStringSync()) as Map)['response'] as Map).cast<String, dynamic>();
   }
+}
+
+/// The readings answer, the 2-hour forecast does not (its upstream is down and nothing is cached).
+class _NoForecastApi extends _ReadingsApi {
+  @override
+  Future<Map<String, dynamic>> forecast() async => throw DioException(
+        requestOptions: RequestOptions(path: '/v1/weather/forecast'),
+        type: DioExceptionType.connectionError,
+        message: 'forecast down (test)',
+      );
 }
 
 Widget _appWithReadings(DateTime now) => ProviderScope(retry: noRetry,
@@ -2248,6 +2259,30 @@ void main() {
     expect(find.text(s.tripAdvice(TripAdvice.rainDrive)), findsNothing);
     await tester.scrollUntilVisible(find.text(s.bringUmbrella), -200, scrollable: find.byType(Scrollable).first);
     expect(find.descendant(of: card, matching: find.text(s.rainTip(TripAdvice.rainDrive)!)), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Today still says it is raining, with the tip, when the forecast cannot be read', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(ProviderScope(retry: noRetry,
+      overrides: [
+        initialFavoritesProvider.overrideWithValue(householdFavorites),
+        apiProvider.overrideWithValue(_NoForecastApi()),
+        bundleRepoProvider.overrideWithValue(FileBundles()),
+        clockProvider.overrideWith((ref) => Stream.value(tuesdayMorning)),
+      ],
+      child: const DailyLahApp(),
+    ));
+    await settle(tester);
+
+    const s = S();
+    expect(find.text(s.bringUmbrella), findsNothing);
+    expect(find.text(s.rainingNow(0.4)), findsOneWidget);
+    await tester.scrollUntilVisible(find.byType(ModeRail), 200, scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.byTooltip('Car'));
+    await settle(tester);
+    await tester.scrollUntilVisible(find.text(s.rainingNow(0.4)), -200, scrollable: find.byType(Scrollable).first);
+    expect(find.text(s.rainTip(TripAdvice.rainDrive)!), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
