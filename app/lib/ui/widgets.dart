@@ -739,9 +739,12 @@ class _ModeRailState extends State<ModeRail> with SingleTickerProviderStateMixin
                           children: [
                             Icon(icon, size: 16, color: fg),
                             const SizedBox(width: 5),
+                            // One word a name: shrunk a little when the tile is too narrow, never broken.
                             Flexible(
-                              child: Text(label,
-                                  maxLines: 2, overflow: TextOverflow.ellipsis, style: t.labelLarge?.copyWith(color: fg)),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(label, maxLines: 1, softWrap: false, style: t.labelLarge?.copyWith(color: fg)),
+                              ),
                             ),
                           ],
                         ),

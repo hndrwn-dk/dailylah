@@ -776,9 +776,10 @@ class _Reading {
   final bool warn;
 }
 
-/// Readings that open nothing (rain, UV, heat stress): flat, between two thin lines, so they do not
-/// look like the cards that can be tapped. Side by side, or one under the other when a cell would
-/// be too narrow for its words (large text, small screens). Amber still means look now.
+/// Readings that open nothing (rain, UV, heat stress): one flat card with a thin outline and no
+/// shadow, so it does not look like the cards that can be tapped. Side by side, or one under the
+/// other when a cell would be too narrow for its words (large text, small screens). A reading to
+/// look at now turns only its small icon chip amber; every cell keeps the same surface.
 class _ReadingStrip extends StatelessWidget {
   const _ReadingStrip(this.readings);
   final List<_Reading> readings;
@@ -790,7 +791,10 @@ class _ReadingStrip extends StatelessWidget {
       final scale = MediaQuery.textScalerOf(context).scale(1);
       final stacked = box.maxWidth / readings.length < 100 * scale;
       return DecoratedBox(
-        decoration: BoxDecoration(border: Border(top: line, bottom: line)),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(DL.radius),
+          border: Border.all(color: line.color, width: line.width),
+        ),
         child: stacked
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -828,27 +832,32 @@ class _ReadingCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final ink = reading.warn ? DL.ink : null;
+    final primary = Theme.of(context).colorScheme.primary;
     final value = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(reading.icon, size: 16, color: ink ?? Theme.of(context).colorScheme.primary),
-        const SizedBox(width: 5),
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: reading.warn ? DL.amber : primary.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(8),
+            border: reading.warn ? Border.all(color: DL.edge(context), width: 1.5) : null,
+          ),
+          child: Icon(reading.icon, size: 16, color: reading.warn ? DL.ink : primary),
+        ),
+        const SizedBox(width: 7),
         Flexible(
           child: Text(reading.value,
-              style: t.displaySmall?.copyWith(fontSize: 24, color: ink), maxLines: 1, overflow: TextOverflow.ellipsis),
+              style: t.displaySmall?.copyWith(fontSize: 24), maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
       ],
     );
-    return ColoredBox(
-      color: reading.warn ? DL.amber : Colors.transparent,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        child: MergeSemantics(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [value, const SizedBox(height: 2), Text(reading.caption, style: t.bodySmall?.copyWith(color: ink))],
-          ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      child: MergeSemantics(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [value, const SizedBox(height: 4), Text(reading.caption, style: t.bodySmall)],
         ),
       ),
     );
