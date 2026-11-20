@@ -82,6 +82,15 @@ List<Map<Object?, Object?>> _alerts(WidgetTester tester) {
   return shown;
 }
 
+/// Waits (in real time, up to about 5 s) until [done]: what a plugin, a position stream or stored
+/// data brings in arrives when the machine gets to it, not after a fixed number of frames.
+Future<void> _until(WidgetTester tester, bool Function() done) async {
+  for (var i = 0; i < 100 && !done(); i++) {
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+}
+
 void main() {
   group('Office worker', () {
     testWidgets('Wake me keeps watching on every tab, and Stop ends it', (tester) async {
@@ -92,6 +101,7 @@ void main() {
       final box = containerOf(tester);
       // On bus 10 at Tampines Int, a long way from Fullerton Sq.
       await tester.runAsync(() => box.read(wakeProvider.notifier).start('10', fullertonSq, null, from: tampinesInt));
+      await _until(tester, () => box.read(wakeProvider)?.left != null);
       await settle(tester);
 
       final riding = find.descendant(
@@ -117,6 +127,7 @@ void main() {
       // The phone is at Tampines Int, the stop to wake at.
       await tester.pumpWidget(
           pageUnder(_normal, householdFavorites, tuesdayEvening, const WakeMePage(service: '10', alight: tampinesInt)));
+      await _until(tester, () => alerts.isNotEmpty);
       await settle(tester);
       expect(find.text(_s.wakeNowAt('Tampines Int')), findsOneWidget);
       expect(alerts, hasLength(1));
@@ -131,6 +142,7 @@ void main() {
       final alerts = _alerts(tester);
       await tester.pumpWidget(
           pageUnder(denied, householdFavorites, tuesdayEvening, const WakeMePage(service: '10', alight: fullertonSq)));
+      await _until(tester, () => find.text(_s.locationDenied).evaluate().isNotEmpty);
       await settle(tester);
       expect(find.text(_s.locationDenied), findsOneWidget);
       expect(containerOf(tester).read(wakeProvider)!.left, isNull);
@@ -152,6 +164,7 @@ void main() {
       // Killed and opened again: a new app on the same stored data.
       await tester.pumpWidget(KeyedSubtree(key: UniqueKey(), child: appUnder(_normal, householdFavorites, tuesdayMorning)));
       await settle(tester);
+      await _until(tester, () => containerOf(tester).read(habitsProvider).tripRoute != null);
       expect(containerOf(tester).read(habitsProvider).tripRoute, 'home>work');
       expect(arrived, findsOneWidget);
       await tester.tap(arrived);
@@ -218,6 +231,97 @@ void main() {
       expect(places[PlaceKind.work]?.address, '1 RAFFLES PLACE');
       expect(places[PlaceKind.school]?.address, _school.address);
       expect(find.text(_s.importDone), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('Family', () {
+    testWidgets('A parent picks what to share; the child keeps their own home unless they tick it', (tester) async {
+      // What Copy code puts on the clipboard.
+      final copied = <String>[];
+      final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') copied.add('${(call.arguments as Map)['text']}');
+        return null;
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(SystemChannels.platform, null));
+
+      // The parent's phone: home and school are offered first, work only when picked.
+      await applyCondition(tester, _normal);
+      await tester.pumpWidget(pageUnder(_normal, householdFavorites, tuesdayMorning, const FamilySharePage()));
+      await settle(tester);
+      final copy = find.text(_s.copyCode);
+      await tester.ensureVisible(copy);
+      await tester.pump();
+      await tester.tap(copy);
+      await settle(tester);
+      expect(find.text(_s.codeCopied), findsOneWidget);
+      expect(readShareCode(copied.single)!.places.keys.toSet(), {PlaceKind.home, PlaceKind.school});
+
+      final work = find.widgetWithText(FilterChip, _s.placeLabel(PlaceKind.work.name));
+      await tester.ensureVisible(work);
+      await tester.pump();
+      await tester.tap(work);
+      await settle(tester);
+      await tester.ensureVisible(copy);
+      await tester.pump();
+      await tester.tap(copy);
+      await settle(tester);
+      expect(readShareCode(copied.last)!.places.keys.toSet(), {PlaceKind.home, PlaceKind.school, PlaceKind.work});
+      // Nothing left to share: no code, and the page says what to do.
+      for (final label in [
+        _s.placeLabel(PlaceKind.home.name),
+        _s.placeLabel(PlaceKind.school.name),
+        _s.placeLabel(PlaceKind.work.name),
+        _s.shareLinesTimes,
+      ]) {
+        final chip = find.widgetWithText(FilterChip, label);
+        await tester.ensureVisible(chip);
+        await tester.pump();
+        await tester.tap(chip);
+        await settle(tester);
+      }
+      expect(find.text(_s.shareNothing), findsOneWidget);
+      expect(find.text(_s.copyCode), findsNothing);
+
+      // The child's phone: its own home, no school yet. The code offers both.
+      const ownHome = Place(
+          kind: PlaceKind.home, address: '201 ANG MO KIO AVE 3', postal: '560201', addrLat: 1.36881, addrLng: 103.84457);
+      final child = Favorites(places: {PlaceKind.home: ownHome}, onboarded: true);
+      await tester.pumpWidget(
+          KeyedSubtree(key: UniqueKey(), child: pageUnder(_normal, child, tuesdayMorning, const FamilySharePage())));
+      await settle(tester);
+      final box = containerOf(tester);
+      final field = find.byType(TextField);
+      final import = find.widgetWithText(FilledButton, _s.importCode);
+
+      Future<void> openImport() async {
+        await tester.ensureVisible(field);
+        await tester.enterText(field, copied.first);
+        await tester.ensureVisible(import);
+        await tester.pump();
+        await tester.tap(import);
+        await settle(tester);
+        expect(find.text(_s.importWhat), findsOneWidget);
+      }
+
+      // The home it would replace is said so and is not ticked: importing as offered keeps it.
+      await openImport();
+      expect(find.textContaining(_s.replacesYours(_s.placeLabel(PlaceKind.home.name).toLowerCase())), findsOneWidget);
+      await tester.tap(find.text(_s.importSelected));
+      await settle(tester);
+      expect(box.read(favoritesProvider).places[PlaceKind.home]?.postal, '560201');
+      expect(box.read(favoritesProvider).places[PlaceKind.school]?.address, _school.address);
+
+      // Ticked, the parent's home replaces it.
+      await tester.pump(const Duration(seconds: 5)); // the message goes away
+      await settle(tester);
+      await openImport();
+      await tester.tap(find.widgetWithText(CheckboxListTile, _s.placeLabel(PlaceKind.home.name)));
+      await settle(tester);
+      await tester.tap(find.text(_s.importSelected));
+      await settle(tester);
+      expect(box.read(favoritesProvider).places[PlaceKind.home]?.postal, '521156');
       expect(tester.takeException(), isNull);
     });
   });
@@ -309,6 +413,60 @@ void main() {
     }
   });
 
+  group('Homemaker, meals', () {
+    testWidgets('Forgot to log lunch: Ate here > Another day puts the meal on the day it was eaten', (tester) async {
+      await applyCondition(tester, _normal);
+      await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+      await settle(tester);
+      final box = containerOf(tester);
+      box.read(shellTabProvider.notifier).state = 1;
+      box.read(nearbySectionProvider.notifier).state = 'eat';
+      await settle(tester);
+      final place = find.widgetWithIcon(ListTile, Icons.restaurant_outlined).first;
+      await tester.ensureVisible(place);
+      await tester.pump();
+      final name = ((tester.widget<ListTile>(place).title!) as Text).data!;
+      await tester.tap(place);
+      await settle(tester);
+
+      // Another day: yesterday, typed (the calendar grid depends on today's date), then the time.
+      // The pickers use the phone's clock, as the app does.
+      final yesterday = dateOnly(DateTime.now()).subtract(const Duration(days: 1));
+      final another = find.text(_s.mealAnotherDay);
+      await tester.ensureVisible(another);
+      await tester.pump();
+      await tester.tap(another);
+      await settle(tester);
+      expect(find.byType(DatePickerDialog), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.edit_outlined));
+      await settle(tester);
+      String two(int n) => n.toString().padLeft(2, '0');
+      await tester.enterText(
+          find.descendant(of: find.byType(DatePickerDialog), matching: find.byType(TextField)),
+          '${two(yesterday.month)}/${two(yesterday.day)}/${yesterday.year}');
+      await tester.tap(find.text('OK'));
+      await settle(tester);
+      expect(find.byType(TimePickerDialog), findsOneWidget);
+      await tester.tap(find.text('OK'));
+      await settle(tester);
+
+      final ate = find.text(_s.ateHere);
+      await tester.ensureVisible(ate);
+      await tester.pump();
+      await tester.tap(ate);
+      await settle(tester);
+      final meal = box.read(habitsProvider).meals.single;
+      expect(meal.name, name);
+      expect(dateOnly(meal.at), yesterday);
+      expect(meal.at.isBefore(DateTime.now()), isTrue);
+
+      box.read(shellTabProvider.notifier).state = 3;
+      await settle(tester);
+      expect(find.text(name), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   group('Senior', () {
     const senior = Condition('text 200%, location denied',
         textScale: 2.0, size: Size(360, 640), location: LocationPermission.deniedForever);
@@ -342,10 +500,10 @@ void main() {
     });
   });
 
-  // Open findings (docs/QA.md "Open findings"): what the app should do and does not do yet.
-  // Remove the `skip` in the pull request that fixes the finding.
-  group('Open findings', () {
-    testWidgets('QA-01: the tab buttons are at least 48 dp tall and wide', skip: true, (tester) async {
+  // Findings of the first persona pass, fixed in 2.11.1 (docs/QA.md "Open findings"): kept so they
+  // stay fixed. A new finding that cannot be fixed at once goes here with `skip: true` and its ID.
+  group('Fixed findings', () {
+    testWidgets('QA-01: the tab buttons are at least 48 dp tall and wide', (tester) async {
       const small = Condition('small screen 320dp', size: Size(320, 568));
       await applyCondition(tester, small);
       await tester.pumpWidget(appUnder(small, householdFavorites, tuesdayMorning));
@@ -357,7 +515,7 @@ void main() {
       }
     });
 
-    testWidgets('QA-02: TalkBack says the name of the selected tab once', skip: true, (tester) async {
+    testWidgets('QA-02: TalkBack says the name of the selected tab once', (tester) async {
       await applyCondition(tester, _normal);
       final handle = tester.ensureSemantics();
       await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));

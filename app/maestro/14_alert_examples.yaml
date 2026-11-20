@@ -1,0 +1,34 @@
+# More > Alerts > Show me an example: the release build posts the sample alerts through its
+# notification plugin and Android shows them in the shade (docs/QA.md "Persona journeys").
+# The only flow that allows notifications; it runs last and clears what it posted.
+appId: com.tursinalabs.dailylah
+name: 14 Alert examples
+---
+- launchApp:
+    stopApp: true
+    permissions:
+      notifications: allow
+- startRecording: 14_alert_examples
+- tapOn: "(?s)More.*"
+- scrollUntilVisible:
+    element: "Show me an example"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- tapOn: "Show me an example"
+- assertNotVisible: "(?s).*Allow notifications to see the examples.*"
+# Pull the notification shade down and look for one of them.
+- swipe:
+    start: 50%, 1%
+    end: 50%, 75%
+    duration: 600
+- extendedWaitUntil:
+    visible: "(?s).*Example: .*"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "(?i)clear all"
+    commands:
+      - tapOn: "(?i)clear all"
+- pressKey: back
+- stopRecording

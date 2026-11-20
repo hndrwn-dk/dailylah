@@ -1,0 +1,36 @@
+# Share with family on the release build: the page opens from More with its QR code, and Copy
+# code answers "Code copied" (docs/QA.md "Persona journeys"). Importing a code is followed by the
+# widget and on-device tests; here only what needs the release build.
+appId: com.tursinalabs.dailylah
+name: 15 Share with family
+---
+- launchApp:
+    stopApp: true
+    permissions:
+      notifications: deny
+- startRecording: 15_share_with_family
+- tapOn: "(?s)More.*"
+- scrollUntilVisible:
+    element: "(?s)Share with family.*"
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
+- tapOn: "(?s)Share with family.*"
+- extendedWaitUntil:
+    visible: "Include"
+    timeout: 20000
+- scrollUntilVisible:
+    element: "Copy code"
+    direction: DOWN
+    centerElement: true
+    timeout: 30000
+- assertVisible: "Share code"
+- tapOn: "Copy code"
+- extendedWaitUntil:
+    visible: "(?s).*Code copied.*"
+    timeout: 10000
+- scrollUntilVisible:
+    element: "(?s).*Import from a family member.*"
+    direction: DOWN
+    timeout: 30000
+- stopRecording

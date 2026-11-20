@@ -172,7 +172,6 @@ class SetupPage extends ConsumerWidget {
                       Expanded(child: Text('${st.name} · ${st.code}', style: t.bodyMedium)),
                       IconButton(
                         tooltip: s.remove,
-                        visualDensity: VisualDensity.compact,
                         icon: const Icon(Icons.close, size: 18),
                         onPressed: () => _removeStop(ref, place, st),
                       ),

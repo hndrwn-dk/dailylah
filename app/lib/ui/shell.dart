@@ -215,7 +215,10 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
         ),
         child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 14, 22, 12),
+          // On the narrowest phones the bar goes closer to the edges, so each tab stays 48 dp wide.
+          padding: MediaQuery.sizeOf(context).width < 345
+              ? const EdgeInsets.fromLTRB(6, 14, 8, 12)
+              : const EdgeInsets.fromLTRB(18, 14, 22, 12),
           child: Center(
             heightFactor: 1,
             child: ConstrainedBox(

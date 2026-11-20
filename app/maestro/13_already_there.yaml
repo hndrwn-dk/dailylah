@@ -1,0 +1,59 @@
+# Already there: with the phone at a saved place, Today greets instead of showing the trip
+# (docs/QA.md "Persona journeys"). Home greets on the evening card, Work on the morning card and
+# while still at work, so at any time of day one of the two does; on a public holiday there is
+# no commute and the holiday banner shows instead. Runs before flow 11 adds the school.
+appId: com.tursinalabs.dailylah
+name: 13 Already there
+---
+# Blk 201 Ang Mo Kio Ave 3, the saved home (flow 01).
+- setLocation:
+    latitude: 1.36881
+    longitude: 103.84457
+- launchApp:
+    stopApp: true
+    permissions:
+      location: allow
+      notifications: deny
+- startRecording: 13_already_there
+- extendedWaitUntil:
+    visible: "(?s)Today.*"
+    timeout: 30000
+# The greeting replaces the trip once the phone's position is in (up to 15 s): wait for it with
+# the list still at the top, or a scroll would pass the place where it then appears. It sits under
+# the header and the alert banners, so on a small screen with a few alerts it starts below the
+# fold: then scroll to it.
+- extendedWaitUntil:
+    visible: "(?s).*(You.re home\\. Take a rest|public holiday).*"
+    timeout: 20000
+    optional: true
+- scrollUntilVisible:
+    element: "(?s).*(You.re home\\. Take a rest|public holiday).*"
+    direction: DOWN
+    timeout: 30000
+    optional: true
+- runFlow:
+    when:
+      notVisible: "(?s).*(You.re home\\. Take a rest|public holiday).*"
+    commands:
+      # Morning card: the trip to Work shows at home. At the office (Blk 201 Toa Payoh North,
+      # flow 02) Today greets.
+      - stopApp
+      - setLocation:
+          latitude: 1.34132
+          longitude: 103.85021
+      - launchApp:
+          permissions:
+            location: allow
+            notifications: deny
+      - extendedWaitUntil:
+          visible: "(?s)Today.*"
+          timeout: 30000
+      - extendedWaitUntil:
+          visible: "(?s).*Have a good day at work.*"
+          timeout: 20000
+          optional: true
+      - scrollUntilVisible:
+          element: "(?s).*Have a good day at work.*"
+          direction: DOWN
+          timeout: 45000
+- stopRecording

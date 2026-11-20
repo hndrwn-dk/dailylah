@@ -273,11 +273,17 @@ class _RideRow extends StatelessWidget {
           if (tag.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(left: 8, top: 10),
-              child: Text(
-                tag,
-                style: t.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: last ? DL.goText(context) : passed ? DL.muted(context) : DL.nearText(context),
+              // At most a good third of the row: with large text the tag wraps instead of pushing
+              // the row off the screen.
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.36),
+                child: Text(
+                  tag,
+                  textAlign: TextAlign.end,
+                  style: t.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: last ? DL.goText(context) : passed ? DL.muted(context) : DL.nearText(context),
+                  ),
                 ),
               ),
             ),

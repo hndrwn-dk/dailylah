@@ -15,10 +15,12 @@ import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/store.dart';
+import 'package:dailylah/ui/more.dart';
 import 'package:dailylah/ui/nearby.dart';
 import 'package:dailylah/ui/setup.dart';
 import 'package:dailylah/ui/today.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:dailylah_notify/dailylah_notify.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -70,6 +72,57 @@ void main() {
     expect(find.byType(TodayPage), findsOneWidget);
     final reloaded = await FavoritesStore().load();
     expect(reloaded.toJson(), householdFavorites.toJson());
+  });
+
+  testWidgets('Share with family: a code copied on one phone is imported on another and kept', (tester) async {
+    const s = S();
+    Widget page(Favorites fav) => ProviderScope(
+          retry: noRetry,
+          overrides: [initialFavoritesProvider.overrideWithValue(fav)],
+          child: const MaterialApp(home: FamilySharePage()),
+        );
+
+    // The sender: the QR code draws, and Copy code puts a DailyLah code on the real clipboard.
+    await tester.pumpWidget(page(householdFavorites));
+    await waitFor(tester, find.text(s.copyCode), timeout: const Duration(seconds: 10));
+    await tester.ensureVisible(find.text(s.copyCode));
+    await tester.pump();
+    await tester.tap(find.text(s.copyCode));
+    await tester.pump(const Duration(seconds: 1));
+    final code = (await Clipboard.getData(Clipboard.kTextPlain))?.text ?? '';
+    expect(code, startsWith('DL1:'));
+
+    // The receiver: a phone with only its own home takes the school from the code.
+    const own = Favorites(
+      places: {
+        PlaceKind.home: Place(
+            kind: PlaceKind.home, address: '201 ANG MO KIO AVE 3', postal: '560201', addrLat: 1.36881, addrLng: 103.84457),
+      },
+      onboarded: true,
+    );
+    await FavoritesStore().save(own);
+    await tester.pumpWidget(KeyedSubtree(key: UniqueKey(), child: page(own)));
+    await waitFor(tester, find.text(s.copyCode), timeout: const Duration(seconds: 10));
+    // The field is at the end of a list longer than a small screen: it is built once scrolled to.
+    final list = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.byType(TextField), 200, scrollable: list);
+    await tester.enterText(find.byType(TextField), code);
+    // The keyboard is up and covers the end of the list on a small screen. This test is about the
+    // clipboard and what is stored, so the buttons are pressed directly; taps on this page are
+    // followed by test/persona_test.dart and Maestro flow 15.
+    final import = find.widgetWithText(FilledButton, s.importCode, skipOffstage: false);
+    await tester.scrollUntilVisible(import, 200, scrollable: list);
+    tester.widget<FilledButton>(import).onPressed!();
+    final take = find.widgetWithText(FilledButton, s.importSelected, skipOffstage: false);
+    await waitFor(tester, take, timeout: const Duration(seconds: 10));
+    tester.widget<FilledButton>(take).onPressed!();
+    await waitFor(tester, find.text(s.importDone), timeout: const Duration(seconds: 10));
+
+    // Kept on disk: its own home (not ticked, so not replaced) and the shared school.
+    final stored = await FavoritesStore().load();
+    expect(stored.places[PlaceKind.home]?.postal, '560201');
+    expect(stored.places[PlaceKind.school]?.address, householdFavorites.places[PlaceKind.school]!.address);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Today renders live data from production without crashing', (tester) async {
