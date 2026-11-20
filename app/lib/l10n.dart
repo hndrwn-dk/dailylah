@@ -1027,7 +1027,9 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Share with family: a code that holds a place without a location now leaves that place out and imports the rest, instead of doing nothing when you tap Import.",
+        "Today: travel modes are now one row with a rough time for each. Tap a mode or drag the yellow marker to switch.",
+        "Today: everything about rain is in the weather card: the forecast, rain right now and a tip for how you travel. No more repeated rain banners.",
+        "Today: Air (PSI) is the card you can tap; UV and heat stress sit in one quiet strip.",
       ];
 
   // about
