@@ -227,9 +227,19 @@ class S {
   String get lightningNear => 'Lightning nearby. Stay indoors.';
   String mrtAlert(String lines) => 'Disruption on $lines';
   String rainAt(String place) => 'Rain expected near $place';
+  String rainingNow(double mm) => 'Raining now · ${rainMm(mm)}';
+
+  /// The rain tip for a trip's mode, as a line of the weather card (which already says to bring
+  /// an umbrella). Null for advice that is not about rain.
+  String? rainTip(TripAdvice a) => switch (a) {
+        TripAdvice.rainRide => 'Riding: bring a rain jacket or wait it out.',
+        TripAdvice.rainWalk => 'Walking: take the sheltered way.',
+        TripAdvice.rainDrive => 'Driving: roads get slower, so allow extra time.',
+        TripAdvice.rainTaxi => 'Taxi: they get scarce in the rain, so book early.',
+        _ => null,
+      };
 
   String tryInstead(String name, String dist) => 'Try $name ($dist)';
-  String get rainNow => 'Rain now';
   String rainMm(double mm) => mm == 0 ? 'Dry' : '${mm.toStringAsFixed(1)} mm';
   String get uvLabel => 'UV';
   String uvLevel(int v) => v >= 11

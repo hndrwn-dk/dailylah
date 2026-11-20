@@ -183,7 +183,10 @@ class TodayPage extends ConsumerWidget {
     final dests = <Widget>[
       // What's new and the alerts span both columns on a wide window; the cards share them.
       if (whatsNewDue(fav, ref.watch(releaseVersionProvider))) const FullWidth(child: WhatsNewCard()),
-      for (final a in alerts) FullWidth(child: AlertBanner(icon: _alertIcon(a.kind), text: a.text)),
+      // Rain is the weather card's to say (it shows whenever there is an origin), so no banner repeats it.
+      for (final a in alerts)
+        if (a.kind != AlertKind.rain || origin == null)
+          FullWidth(child: AlertBanner(icon: _alertIcon(a.kind), text: a.text)),
       if (publicHoliday != null)
         FullWidth(
           child: AlertBanner(
@@ -206,6 +209,7 @@ class TodayPage extends ConsumerWidget {
           to: dest,
           modeKey: (kind == CardKind.morning ? dest : origin).kind.name,
           modePlace: kind == CardKind.morning ? dest : origin,
+          weatherAbove: true,
         ),
       if (resting == null && (!commute || (tripMode ?? TravelMode.transit) == TravelMode.transit))
         _MrtCard(showCrowd: kind == CardKind.evening),
@@ -246,7 +250,13 @@ class TodayPage extends ConsumerWidget {
                   ),
                   Text(s.greeting(now.hour), style: t.displayLarge),
                   const SizedBox(height: 18),
-                  if (origin != null) _HeroWeather(origin: origin, kind: kind),
+                  if (origin != null)
+                    _HeroWeather(
+                      origin: origin,
+                      kind: kind,
+                      // The rain tip for the trip's mode, while the trip shows below.
+                      tripMode: commute && dest != null && resting == null ? tripMode : null,
+                    ),
                 ],
               ),
             ),
@@ -288,9 +298,12 @@ IconData _alertIcon(AlertKind k) => switch (k) {
 
 /// Weather for the trip, set in large type inside the hero.
 class _HeroWeather extends ConsumerWidget {
-  const _HeroWeather({required this.origin, required this.kind});
+  const _HeroWeather({required this.origin, required this.kind, this.tripMode});
   final Place origin;
   final CardKind kind;
+
+  /// The mode of the trip shown under the card, for its rain tip; null when no trip shows.
+  final TravelMode? tripMode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -315,8 +328,15 @@ class _HeroWeather extends ConsumerWidget {
         final here = forecastNear(json, origin.lat, origin.lng);
         final there = destPlace == null ? null : forecastNear(json, destPlace.lat, destPlace.lng);
         if (here == null) return Text(s.notAvailable, style: dim);
-        final rainy = here.isRainy || (there?.isRainy ?? false);
-        // Sky panel when dry, amber when rain is expected.
+        // Everything about rain is said here once: the forecast at both ends, what the gauge near
+        // the start reads now, and the tip for the trip's mode.
+        final gauge = ref.watch(rainfallProvider).value;
+        final mm = gauge == null ? 0.0 : (rainfallNear(gauge, origin.lat, origin.lng)?.$2 ?? 0.0);
+        final rainy = here.isRainy || (there?.isRainy ?? false) || mm > 0;
+        final tip = !rainy || tripMode == null
+            ? null
+            : tripAdvice(mode: tripMode!, rainy: true).map(s.rainTip).nonNulls.firstOrNull;
+        // Sky panel when dry, amber when rain is expected or falling.
         return Panel(
           margin: EdgeInsets.zero,
           color: rainy ? DL.amber : DL.sky,
@@ -346,6 +366,14 @@ class _HeroWeather extends ConsumerWidget {
                     _ForecastLine(label: s.placeLabel(origin.kind.name), f: here),
                     if (there != null && destPlace != null)
                       _ForecastLine(label: s.placeLabel(destPlace.kind.name), f: there),
+                    if (mm > 0) ...[
+                      const SizedBox(height: 4),
+                      Text(s.rainingNow(mm), style: t.labelLarge?.copyWith(color: DL.ink)),
+                    ],
+                    if (tip != null) ...[
+                      const SizedBox(height: 4),
+                      Text(tip, style: t.bodyMedium?.copyWith(color: DL.ink)),
+                    ],
                     if (here.validText != null) ...[
                       const SizedBox(height: 4),
                       Text('${s.weather2h} · ${s.validUntil(here.validText!)}',
@@ -675,8 +703,8 @@ class BusRow extends ConsumerWidget {
   }
 }
 
-/// Live readings near the origin: air as a card that opens its sheet, then rain gauge, UV and heat
-/// stress as a flat strip (they open nothing).
+/// Live readings near the origin: air as a card that opens its sheet, then UV and heat stress as
+/// a flat strip (they open nothing). Rain now is in the weather card, with the rest about rain.
 class _WeatherTiles extends ConsumerWidget {
   const _WeatherTiles({required this.origin});
   final Place origin;
@@ -684,16 +712,13 @@ class _WeatherTiles extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final rain = ref.watch(rainfallProvider).value;
     final uv = ref.watch(uvProvider).value;
     final wbgt = ref.watch(wbgtProvider).value;
     final air = airNear(ref.watch(psiProvider).value, ref.watch(pm25Provider).value, origin.lat, origin.lng);
-    final r = rain == null ? null : rainfallNear(rain, origin.lat, origin.lng);
     final u = uv == null ? null : uvIndex(uv);
     final w = wbgt == null ? null : wbgtNear(wbgt, origin.lat, origin.lng);
-    if (r == null && u == null && w == null && air == null) return const SizedBox.shrink();
+    if (u == null && w == null && air == null) return const SizedBox.shrink();
     final readings = [
-      if (r != null) _Reading(Icons.water_drop_outlined, s.rainMm(r.$2), s.rainNow, r.$2 > 0),
       if (u != null) _Reading(Icons.wb_sunny_outlined, '$u', '${s.uvLabel} · ${s.uvLevel(u)}', u >= 8),
       if (w != null)
         _Reading(Icons.thermostat, '${w.$1.toStringAsFixed(1)}°', '${s.heatLabel} · ${s.heatLevel(w.$2)}', isHighHeat(w.$2)),
@@ -776,7 +801,7 @@ class _Reading {
   final bool warn;
 }
 
-/// Readings that open nothing (rain, UV, heat stress): one flat card with a thin outline and no
+/// Readings that open nothing (UV, heat stress): one flat card with a thin outline and no
 /// shadow, so it does not look like the cards that can be tapped. Side by side, or one under the
 /// other when a cell would be too narrow for its words (large text, small screens). A reading to
 /// look at now turns only its small icon chip amber; every cell keeps the same surface.
