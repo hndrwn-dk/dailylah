@@ -7,6 +7,7 @@ import '../l10n.dart';
 import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
+import 'more.dart' show TileGrid;
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -92,29 +93,28 @@ class HistoryPage extends ConsumerWidget {
                     ),
                   ),
                   ),
-                // Totals for the period; wraps at large text.
+                // Totals for the period: tiles of one size, two a row (one at large text, all in
+                // one row on a wide screen).
                 FullWidth(
-                  child: Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    for (final (icon, value, caption) in [
-                      (Icons.route_outlined, s.tripsCount(sum.trips), s.durationShort(sum.tripMinutes)),
-                      (Icons.local_parking, s.parkingsCount(sum.parkings), s.durationShort(sum.parkMinutes)),
-                      // Meal spending when any meal has a price; meals without one are not counted.
-                      (
-                        Icons.ramen_dining_outlined,
-                        s.mealsCount(sum.meals),
-                        sum.mealsPriced == 0 ? s.historyMeals : s.mealsPriced(sum.mealsPriced, sum.meals, sum.mealCents),
-                      ),
-                      if (sum.costCents > 0) (Icons.payments_outlined, s.money(sum.costCents), s.historySpent),
-                    ])
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(minWidth: 150, maxWidth: 220),
-                        child: IntrinsicWidth(child: BentoTile(icon: icon, value: value, caption: caption)),
-                      ),
-                  ],
-                ),
+                  child: TileGrid(
+                    wideMinWidth: 170,
+                    // "12 parkings" in the large figures needs more room than a word on More.
+                    minTileWidth: 150,
+                    children: [
+                      for (final (icon, value, caption) in [
+                        (Icons.route_outlined, s.tripsCount(sum.trips), s.durationShort(sum.tripMinutes)),
+                        (Icons.local_parking, s.parkingsCount(sum.parkings), s.durationShort(sum.parkMinutes)),
+                        // Meal spending when any meal has a price; meals without one are not counted.
+                        (
+                          Icons.ramen_dining_outlined,
+                          s.mealsCount(sum.meals),
+                          sum.mealsPriced == 0 ? s.historyMeals : s.mealsPriced(sum.mealsPriced, sum.meals, sum.mealCents),
+                        ),
+                        if (sum.costCents > 0) (Icons.payments_outlined, s.money(sum.costCents), s.historySpent),
+                      ])
+                        BentoTile(icon: icon, value: value, caption: caption, fitValue: true),
+                    ],
+                  ),
                 ),
                 // Where the money went: a bar per day (per month for "all"), split by kind.
                 // "All" draws the last 12 months: older costs alone make no chart.

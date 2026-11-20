@@ -9,7 +9,7 @@ name: 06 Location denied then allowed
       notifications: deny
 - startRecording: 06_location
 - tapOn: "(?s)Nearby.*"
-- tapOn: "(?s)Here"
+- tapOn: "(?s)Current location"
 # Android may ask again; say no.
 - runFlow:
     when:
@@ -37,7 +37,7 @@ name: 06 Location denied then allowed
       location: allow
       notifications: deny
 - tapOn: "(?s)Nearby.*"
-- tapOn: "(?s)Here"
+- tapOn: "(?s)Current location"
 - extendedWaitUntil:
     visible: "(?s).*My location.*"
     timeout: 30000

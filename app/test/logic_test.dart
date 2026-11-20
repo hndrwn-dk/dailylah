@@ -1486,7 +1486,7 @@ void main() {
     final sum = historySummary(week);
     expect((sum.meals, sum.mealsPriced, sum.mealCents), (5, 3, 1750));
     expect(sum.costCents, 200 + 1750);
-    expect(const S().mealsPriced(sum.mealsPriced, sum.meals, sum.mealCents), r'$17.50 · 3 of 5 meals priced');
+    expect(const S().mealsPriced(sum.mealsPriced, sum.meals, sum.mealCents), r'$17.50 · 3 of 5 priced');
     // A meal's row shows its own price, never as an estimate.
     final row = week.firstWhere((e) => e.kind == HistoryKind.meal);
     expect((row.costCents, row.estimated), (800, false));
@@ -1799,11 +1799,42 @@ void main() {
 
   test('Trip keys keep home/work/school and use names for other places', () {
     expect(tripRouteKey('home', 'work'), 'home>work');
-    expect(tripRouteKey('Here', 'ION > Orchard'), 'Here>ION › Orchard');
-    expect(tripRouteEnds('Here>ION › Orchard'), ('Here', 'ION › Orchard'));
+    expect(tripRouteKey('Near Bugis station', 'ION > Orchard'), 'Near Bugis station>ION › Orchard');
+    expect(tripRouteEnds('Near Bugis station>ION › Orchard'), ('Near Bugis station', 'ION › Orchard'));
     expect(tripRouteEnds('nonsense'), isNull);
     expect(const S().routeEnd('work'), 'Work');
     expect(const S().routeEnd('ION Orchard'), 'ION Orchard');
+    // Trips logged before the position had a name.
+    expect(const S().routeEnd('Here'), 'Current location');
+  });
+
+  test("A trip end at the phone's position is named after what is beside it", () {
+    const bugis = MrtStation(name: 'Bugis', codes: ['EW12', 'DT14'], lat: 1.3009, lng: 103.8559);
+    const stop = BusStop(code: '01113', name: 'Bugis Stn Exit B', road: 'Victoria St', lat: 1.3003, lng: 103.8562);
+    const far = BusStop(code: '01559', name: 'Aft Sultan Mque', road: 'Nth Bridge Rd', lat: 1.3030, lng: 103.8600);
+    ({PlaceKind? saved, String? station, String? stop}) at(double lat, double lng,
+            {List<MrtStation> stations = const [bugis], List<BusStop> stops = const [stop, far]}) =>
+        hereName(lat, lng, fav: householdFavorites, stations: stations, stops: stops);
+    // A station within 300 m wins over a nearer bus stop.
+    expect(at(1.3004, 103.8562), (saved: null, station: 'Bugis', stop: null));
+    // No station that near: the nearest bus stop.
+    expect(at(1.3031, 103.8601), (saved: null, station: null, stop: 'Aft Sultan Mque'));
+    expect(at(1.3004, 103.8562, stations: const []), (saved: null, station: null, stop: 'Bugis Stn Exit B'));
+    // Nothing within 300 m, or the bundles not loaded yet.
+    expect(at(1.3200, 103.9000), (saved: null, station: null, stop: null));
+    expect(at(1.3004, 103.8562, stations: const [], stops: const []), (saved: null, station: null, stop: null));
+    // At a saved place: that place, whatever else is near.
+    final home = householdFavorites.places[PlaceKind.home]!;
+    expect(hereName(home.addrLat!, home.addrLng!, fav: householdFavorites, stations: [
+      MrtStation(name: 'X', codes: const ['X1'], lat: home.addrLat!, lng: home.addrLng!),
+    ]).saved, PlaceKind.home);
+    // A trip to that same saved place is not "Home → Home": the station or stop instead.
+    expect(
+        hereName(home.addrLat!, home.addrLng!, fav: householdFavorites, otherEnd: PlaceKind.home, stops: [
+          BusStop(code: '1', name: 'Blk 156', road: 'Tampines St 12', lat: home.addrLat!, lng: home.addrLng!),
+        ]),
+        (saved: null, station: null, stop: 'Blk 156'));
+    expect(const S().nearPlace(const S().stationName('Bugis')), 'Near Bugis station');
   });
 
   test('Taxi ease, taxis around a stand and compass direction', () {

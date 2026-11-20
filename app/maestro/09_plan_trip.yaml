@@ -29,9 +29,9 @@ name: 09 Plan a trip
 - tapOn:
     text: "Work"
     index: 1
-# From starts on Here once the location is in, else on Home.
+# From starts on Current location once the location is in, else on Home.
 - extendedWaitUntil:
-    visible: "(?s).*(Here|Home) → Work.*"
+    visible: "(?s).*(Current location|Home) → Work.*"
     timeout: 30000
 # Buses (the bus to leave for first), the train, or a note when nothing runs now.
 - scrollUntilVisible:
@@ -51,7 +51,7 @@ name: 09 Plan a trip
     direction: UP
 - tapOn: "Swap From and To"
 - extendedWaitUntil:
-    visible: "(?s).*Work → (Here|Home).*"
+    visible: "(?s).*Work → (Current location|Home).*"
     timeout: 20000
 # Start from a searched address instead. Back to the top first, so both search fields are on
 # screen and the first one is From's (off-screen rows are not in the hierarchy).
@@ -68,9 +68,9 @@ name: 09 Plan a trip
     env:
       POSTAL: "189630"
 - extendedWaitUntil:
-    visible: "(?s).*\\S → (Here|Home).*"
+    visible: "(?s).*\\S → (Current location|Home).*"
     timeout: 20000
-- assertNotVisible: "(?s).*Work → (Here|Home).*"
+- assertNotVisible: "(?s).*Work → (Current location|Home).*"
 - scrollUntilVisible:
     element: "(?s).*Tip: add places.*"
     direction: DOWN

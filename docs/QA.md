@@ -218,7 +218,7 @@ Writing flows:
 - Test addresses: 560201 (Blk 201 Ang Mo Kio Ave 3, home) and 310201 (Toa Payoh, work). The first
   search wakes Render and can take about a minute; the shared flow retries once.
 - `launchApp` grants every permission unless the flow lists `permissions`; a flow that needs
-  location off says `location: deny` (Nearby otherwise switches itself to "Here").
+  location off says `location: deny` (Nearby otherwise switches itself to "Current location").
 - Live data changes: flow 03 passes on live arrivals and on "Buses have stopped" at night, and only
   fails on "Bus times not available".
 - Flow 13 sets the emulator's location to the saved home, then to the saved work if Today shows
