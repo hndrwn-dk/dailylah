@@ -690,7 +690,7 @@ ShareImport? readShareCode(String code) {
     for (final p in (j['p'] as List? ?? const [])) {
       final place = Place.fromJson(p as Map<String, dynamic>);
       // A place with no position cannot be shown or routed to: left out, the rest still counts.
-      if (_hasPosition(place)) places[place.kind] = place;
+      if (place.hasPosition) places[place.kind] = place;
     }
     final hasLines = j.containsKey('l');
     final imp = ShareImport(
@@ -706,15 +706,12 @@ ShareImport? readShareCode(String code) {
   }
 }
 
-/// Whether [p] has a point: its address, or else its first bus stop ([Place.lat] throws without).
-bool _hasPosition(Place p) => (p.addrLat != null && p.addrLng != null) || p.stops.isNotEmpty;
-
 /// Places in [imp] that would replace a different place the receiver already saved.
 Set<PlaceKind> shareConflicts(ShareImport imp, Favorites current) => {
       for (final e in imp.places.entries)
         if (current.places[e.key] case final mine?
-            when !_hasPosition(mine) ||
-                !_hasPosition(e.value) ||
+            when !mine.hasPosition ||
+                !e.value.hasPosition ||
                 distanceMeters(mine.lat, mine.lng, e.value.lat, e.value.lng) > 50)
           e.key,
     };

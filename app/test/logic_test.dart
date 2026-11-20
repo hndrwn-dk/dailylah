@@ -1275,6 +1275,12 @@ void main() {
     expect(after.places[PlaceKind.school]!.lat, 1.3353);
     expect(after.hawkers, {'h1'});
 
+    // A place saved from such a code by an older version is dropped when settings are read.
+    final stored = Favorites.fromJson({
+      'places': [noPoint, onlyLat, school],
+    });
+    expect(stored.places.keys.toSet(), {PlaceKind.school});
+
     // A place the receiver saved without a position counts as different, it does not throw.
     const old = Favorites(places: {PlaceKind.school: Place(kind: PlaceKind.school)});
     expect(shareConflicts(imp, old), {PlaceKind.school});

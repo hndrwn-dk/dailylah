@@ -145,6 +145,10 @@ class Place {
   final double? addrLng;
 
   bool get hasAddress => addrLat != null && addrLng != null;
+
+  /// Whether the place has a point: its address, or else its first bus stop. [lat] and [lng]
+  /// throw without one, so a place read from outside (a share code, storage) is checked first.
+  bool get hasPosition => hasAddress || stops.isNotEmpty;
   double get lat => addrLat ?? stops.first.lat;
   double get lng => addrLng ?? stops.first.lng;
 
@@ -485,7 +489,8 @@ class Favorites {
     final places = <PlaceKind, Place>{};
     for (final p in (j['places'] as List? ?? const [])) {
       final place = Place.fromJson(p as Map<String, dynamic>);
-      places[place.kind] = place;
+      // A place without a position (imported from a family code by 2.11.1 or older) is dropped.
+      if (place.hasPosition) places[place.kind] = place;
     }
     Set<String> strings(String k) => {for (final v in (j[k] as List? ?? const [])) '$v'};
     return Favorites(
