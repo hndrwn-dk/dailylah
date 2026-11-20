@@ -96,12 +96,24 @@ class TripSection extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(4, 6, 4, 8),
       child: Text(title, style: t.titleLarge),
     );
+    // History says where a trip started or ended, not "Current location": the saved place the
+    // phone is at, else the station or bus stop beside it, found on the phone.
+    String hereEnd(Place p) {
+      final near = hereName(p.lat, p.lng,
+          fav: ref.watch(favoritesProvider),
+          stations: ref.watch(mrtStationsProvider).value ?? const [],
+          stops: ref.watch(busStopsProvider).value ?? const []);
+      if (near.saved != null) return near.saved!.name;
+      if (near.station != null) return s.nearPlace(s.stationName(near.station!));
+      return near.stop != null ? s.nearPlace(near.stop!) : s.hereNow;
+    }
+
+    String routeEnd(Place p, {required bool here}) =>
+        here ? hereEnd(p) : (p.kind == PlaceKind.other ? placeTitle(s.placeLabel, p) : p.kind.name);
     final timer = _TripTimer(
       route: commute
           ? tripRouteKey(from.kind.name, to.kind.name)
-          : tripRouteKey(
-              fromLabel ?? (from.kind == PlaceKind.other ? placeTitle(s.placeLabel, from) : from.kind.name),
-              to.kind == PlaceKind.other ? toLabel : to.kind.name),
+          : tripRouteKey(routeEnd(from, here: startsHere), routeEnd(to, here: endsHere)),
       from: from,
       to: to,
       mode: mode,

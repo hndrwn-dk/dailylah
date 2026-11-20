@@ -245,16 +245,21 @@ ButtonStyle _linkStyle(Color color) => TextButton.styleFrom(
     );
 
 /// Tiles side by side on More: two columns, one when a tile would be too narrow for whole words
-/// at this width and text size (`tileColumns`). Tiles in a row are the same height.
+/// at this width and text size (`tileColumns`). Tiles in a row are the same width and height.
+/// With [wideMinWidth], all tiles share one row when each would be at least that wide (times
+/// the text scale): the totals of History on a foldable or tablet.
 class TileGrid extends StatelessWidget {
-  const TileGrid({super.key, required this.children});
+  const TileGrid({super.key, required this.children, this.wideMinWidth});
   final List<Widget> children;
+  final double? wideMinWidth;
 
   @override
   Widget build(BuildContext context) {
     final scale = MediaQuery.textScalerOf(context).scale(1);
     return LayoutBuilder(builder: (context, box) {
-      final cols = tileColumns(box.maxWidth, scale);
+      final n = children.length;
+      final oneRow = wideMinWidth != null && n > 2 && (box.maxWidth - _tileGap * (n - 1)) / n >= wideMinWidth! * scale;
+      final cols = oneRow ? n : tileColumns(box.maxWidth, scale);
       return Padding(
         padding: const EdgeInsets.only(bottom: 4),
         child: Column(

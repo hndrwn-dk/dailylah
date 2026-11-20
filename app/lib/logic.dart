@@ -2512,7 +2512,7 @@ int _median(List<int> xs) {
 
 /// Minutes of a finished trip, or null when it does not look like one (under 3 min or over 3 h).
 /// Key of a logged trip: "home>work" between saved home/work/school, else the names shown
-/// ("Here>ION Orchard") so History can say where a planned trip went.
+/// ("Near Bugis station>ION Orchard", see [hereName]) so History can say where a planned trip went.
 String tripRouteKey(String from, String to) => '${_routeEnd(from)}>${_routeEnd(to)}';
 String _routeEnd(String s) => s.replaceAll('>', '›').trim();
 
@@ -2520,6 +2520,40 @@ String _routeEnd(String s) => s.replaceAll('>', '›').trim();
 (String, String)? tripRouteEnds(String route) {
   final parts = route.split('>');
   return parts.length == 2 ? (parts[0], parts[1]) : null;
+}
+
+/// A trip end at the phone's position takes the name of an MRT station or bus stop this near.
+const hereNameMetres = 300.0;
+
+/// What the phone's position is called in a logged trip, worked out on the phone: the saved
+/// Home, Work or School it is at ([saved]), else the nearest MRT/LRT station ([station]), else
+/// the nearest bus stop ([stop]), each within [hereNameMetres]. All null: nothing known nearby.
+({PlaceKind? saved, String? station, String? stop}) hereName(
+  double lat,
+  double lng, {
+  required Favorites fav,
+  List<MrtStation> stations = const [],
+  List<BusStop> stops = const [],
+}) {
+  final at = savedPlaceAt(fav, lat, lng);
+  if (at != null) return (saved: at, station: null, stop: null);
+  String? nearest<T>(List<T> all, double Function(T) dist, String Function(T) name) {
+    T? best;
+    var bestD = hereNameMetres;
+    for (final x in all) {
+      final d = dist(x);
+      if (d < bestD) {
+        bestD = d;
+        best = x;
+      }
+    }
+    return best == null ? null : name(best);
+  }
+
+  final station = nearest(stations, (m) => distanceMeters(lat, lng, m.lat, m.lng), (m) => m.name);
+  if (station != null) return (saved: null, station: station, stop: null);
+  final stop = nearest(stops, (b) => distanceMeters(lat, lng, b.lat, b.lng), (b) => b.name);
+  return (saved: null, station: null, stop: stop);
 }
 
 int? tripMinutes(DateTime start, DateTime end) {

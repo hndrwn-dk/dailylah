@@ -1428,7 +1428,7 @@ void main() {
     final toY = tester.getTopLeft(find.text(s.to)).dy;
     expect(fromY < swapY && swapY < toY, isTrue);
     // Both ends offer Here, Home, Work, School, the saved Gym and a search field (not a chip).
-    for (final label in ['Here', 'Home', 'Work', 'School', 'Gym']) {
+    for (final label in ['Current location', 'Home', 'Work', 'School', 'Gym']) {
       expect(find.text(label), findsNWidgets(2), reason: label);
     }
     expect(find.text(s.searchAddressHint), findsNWidgets(2));
@@ -1441,14 +1441,14 @@ void main() {
     await tester.tap(find.text('Work').at(1));
     await settle(tester);
     expect(box.read(goKeyProvider), 'work');
-    expect(find.text('Here → Work'), findsOneWidget);
+    expect(find.text('Current location → Work'), findsOneWidget);
 
     // Swap: Work → Here.
     await tester.tap(find.byTooltip(s.swapEnds));
     await settle(tester);
     expect(box.read(goFromKeyProvider), 'work');
     expect(box.read(goKeyProvider), 'here');
-    expect(find.text('Work → Here'), findsOneWidget);
+    expect(find.text('Work → Current location'), findsOneWidget);
 
     // Picking on one end what the other end has swaps them, so a trip never goes to itself.
     await tester.tap(find.text('Work').at(1));
@@ -1580,7 +1580,7 @@ void main() {
     await tester.tap(find.textContaining('51 Bencoolen Street'));
     await settle(tester);
     expect(box.read(goKeyProvider), 'adhoc');
-    expect(find.text('Here → $name'), findsOneWidget);
+    expect(find.text('Current location → $name'), findsOneWidget);
 
     await tester.tap(find.byTooltip(s.clearSearch));
     await settle(tester);
@@ -1750,7 +1750,7 @@ void main() {
     await settle(tester);
     await tester.tap(find.byTooltip(s.swapEnds));
     await settle(tester);
-    expect(find.text('Work → Here'), findsOneWidget);
+    expect(find.text('Work → Current location'), findsOneWidget);
     nav.pop();
     await settle(tester);
 
@@ -1759,7 +1759,7 @@ void main() {
     // Here is wherever the phone is now: the old destination is gone and the trip starts Here.
     expect(box.read(goKeyProvider), isNull);
     expect(box.read(goFromKeyProvider), 'here');
-    expect(find.text('Here → Here'), findsNothing);
+    expect(find.text('Current location → Current location'), findsNothing);
     expect(find.text(const S().goSomewhereHint), findsOneWidget);
   });
 
@@ -1819,10 +1819,10 @@ void main() {
     box.read(goFromKeyProvider.notifier).state = 'here';
     box.read(goKeyProvider.notifier).state = 'here';
     box.read(goFromHereProvider.notifier).state =
-        Place(kind: PlaceKind.other, name: 'Here', addrLat: tampinesInt.lat, addrLng: tampinesInt.lng);
+        Place(kind: PlaceKind.other, name: 'Current location', addrLat: tampinesInt.lat, addrLng: tampinesInt.lng);
     await settle(tester);
-    expect(find.text('Here → Here'), findsNothing);
-    expect(find.text('Home → Here'), findsOneWidget);
+    expect(find.text('Current location → Current location'), findsNothing);
+    expect(find.text('Home → Current location'), findsOneWidget);
   });
 
   testWidgets('Plan a trip: without location, picks work on the start shown on screen', (tester) async {
@@ -2001,6 +2001,59 @@ void main() {
     expect(find.text(s.tripLearnHint), findsNothing);
     expect(find.textContaining(s.usualTrip(42, 3)), findsOneWidget);
     expect(find.text(s.imLeaving), findsOneWidget);
+  });
+
+  testWidgets('Plan a trip from the current location: History says where it started', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    const s = S();
+    // A trip logged by an older version, from "Here".
+    await box.read(habitsProvider.notifier).restore(Habits(trips: [
+      TripLog(route: 'Here>Masjid Sultan', start: tuesdayMorning.subtract(const Duration(hours: 1)), minutes: 11),
+    ]));
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    // The phone is at Tampines Int (the fake location), beside Tampines station.
+    expect(box.read(goFromKeyProvider), 'here');
+    await tester.tap(find.text('Work').at(1));
+    await settle(tester);
+    expect(find.text('Current location → Work'), findsOneWidget);
+    await _scrollTo(tester, find.text(s.imLeaving), page: TripPlannerPage);
+    await tester.tap(find.text(s.imLeaving));
+    await settle(tester);
+    expect(box.read(habitsProvider).tripRoute, 'Near Tampines station>work');
+    expect(find.text('Near Tampines station → Work'), findsOneWidget);
+
+    Navigator.of(tester.element(find.byType(TripPlannerPage))).pop();
+    await settle(tester);
+    box.read(shellTabProvider.notifier).state = _tabs['History']!;
+    await settle(tester);
+    final history = find.byType(HistoryPage);
+    await _scrollTo(tester, find.text('Current location → Masjid Sultan'), page: HistoryPage);
+    expect(find.descendant(of: history, matching: find.text('Here → Masjid Sultan')), findsNothing);
+  });
+
+  testWidgets('History: the totals are tiles of one size', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    await box.read(habitsProvider.notifier).restore(Habits(
+      trips: [TripLog(route: 'home>work', start: tuesdayMorning.subtract(const Duration(hours: 2)), minutes: 40, mode: 'transit', km: 12)],
+      meals: [MealLog(hawkerId: 'h1', at: tuesdayMorning.subtract(const Duration(hours: 1)), priceCents: 4390)],
+    ));
+    box.read(shellTabProvider.notifier).state = _tabs['History']!;
+    await settle(tester);
+    final tiles = find.descendant(of: find.byType(HistoryPage), matching: find.byType(BentoTile));
+    expect(tiles, findsNWidgets(4));
+    final sizes = {for (final e in tiles.evaluate()) tester.getSize(find.byWidget(e.widget)).width.round()};
+    expect(sizes.length, 1, reason: '$sizes');
+    // Two a row on a phone: the rows line up.
+    expect(tester.getTopLeft(tiles.at(0)).dx, tester.getTopLeft(tiles.at(2)).dx);
+    expect(tester.getTopLeft(tiles.at(1)).dx, tester.getTopLeft(tiles.at(3)).dx);
+    expect(tester.getSize(tiles.at(2)).height, tester.getSize(tiles.at(3)).height);
   });
 
   testWidgets('A place shared from Google Maps opens the planner with it as the destination', (tester) async {
