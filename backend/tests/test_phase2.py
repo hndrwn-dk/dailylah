@@ -336,3 +336,29 @@ def test_search_renews_token_when_rejected(monkeypatch):
         r = client.get("/v1/search", params={"q": "marine drive"})
         assert r.status_code == 200
     get_settings.cache_clear()
+
+
+@respx.mock
+def test_search_failure_logs_why_but_not_the_query(monkeypatch, caplog):
+    monkeypatch.setenv("ONEMAP_EMAIL", "dev@example.com")
+    monkeypatch.setenv("ONEMAP_PASSWORD", "x")
+    get_settings.cache_clear()
+    respx.post(ONEMAP_TOKEN).mock(
+        return_value=httpx.Response(
+            200, json={"access_token": "T1", "expiry_timestamp": "9999999999"}
+        )
+    )
+    respx.get(ONEMAP_SEARCH).mock(
+        side_effect=[
+            httpx.Response(429, json={"message": "Too many requests for 66 MARINE DRIVE"}),
+            httpx.ConnectTimeout("slow"),
+        ]
+    )
+    with caplog.at_level("WARNING"), TestClient(app) as client:
+        assert client.get("/v1/search", params={"q": "66 marine drive"}).status_code == 502
+        assert client.get("/v1/search", params={"q": "66 marine drive"}).status_code == 502
+    said = [r.getMessage() for r in caplog.records if "OneMap search failed" in r.getMessage()]
+    assert said[0] == "OneMap search failed: HTTP 429 (with token) Too many requests for …"
+    assert said[1] == "OneMap search failed: ConnectTimeout (with token)"
+    assert all("marine" not in line.lower() and "66" not in line for line in said)
+    get_settings.cache_clear()

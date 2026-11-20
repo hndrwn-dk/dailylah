@@ -7,6 +7,7 @@ ONEMAP_PASSWORD), so the token itself is never stored anywhere but memory.
 
 import asyncio
 import logging
+import re
 import time
 
 import httpx
@@ -70,6 +71,26 @@ class OneMap:
             if tok:
                 r = await self.client.get(url, params=params, headers={"Authorization": tok})
         return r
+
+    def why_failed(self, e: Exception, query: str) -> str:
+        """Why a OneMap call failed, for the log: OneMap's status and its own short message, or
+        the kind of network error, and whether a token was sent. Never the text searched for:
+        it is cut out of the message in case OneMap echoes it."""
+        sent = "with token" if self._token else "no token"
+        if isinstance(e, httpx.HTTPStatusError):
+            said = ""
+            try:
+                body = e.response.json()
+                if isinstance(body, dict):
+                    said = str(body.get("message") or body.get("error") or "")
+            except ValueError:
+                pass
+            # The whole query and each word of it, in any case.
+            for part in sorted({query, *query.split()}, key=len, reverse=True):
+                if len(part) >= 2:
+                    said = re.sub(re.escape(part), "…", said, flags=re.IGNORECASE)
+            return f"HTTP {e.response.status_code} ({sent}) {said[:120]}".rstrip()
+        return f"{type(e).__name__} ({sent})"
 
     async def search(self, query: str, page: int = 1) -> dict:
         r = await self.get(
