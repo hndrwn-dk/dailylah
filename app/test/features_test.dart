@@ -2035,6 +2035,32 @@ void main() {
     expect(find.descendant(of: history, matching: find.text('Here → Masjid Sultan')), findsNothing);
   });
 
+  testWidgets("Plan a trip from the current location: I'm on the train logs it under the same name", (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    const s = S();
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    expect(box.read(goFromKeyProvider), 'here');
+    await tester.tap(find.text('Work').at(1));
+    await settle(tester);
+    await _scrollTo(tester, find.text(s.imOnTrain), page: TripPlannerPage);
+    await tester.tap(find.text(s.imOnTrain));
+    await settle(tester);
+    expect(box.read(habitsProvider).tripRoute, 'Near Tampines station>work');
+    // A line picked for a trip from here before the chip was renamed is still found.
+    final here = box.read(goFromHereProvider)!;
+    expect(mrtRouteKey(s, here, householdFavorites.places[PlaceKind.work]!), 'Here>work');
+  });
+
+  test('History totals go to one column sooner than the tiles of More', () {
+    expect(tileColumns(328, 1.0, 150), 2);
+    expect(tileColumns(328, 1.3, 150), 1);
+    expect(tileColumns(288, 1.0, 150), 1);
+  });
+
   testWidgets('History: the totals are tiles of one size', (tester) async {
     await applyCondition(tester, _normal);
     await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));

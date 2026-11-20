@@ -98,6 +98,8 @@ class HistoryPage extends ConsumerWidget {
                 FullWidth(
                   child: TileGrid(
                     wideMinWidth: 170,
+                    // "12 parkings" in the large figures needs more room than a word on More.
+                    minTileWidth: 150,
                     children: [
                       for (final (icon, value, caption) in [
                         (Icons.route_outlined, s.tripsCount(sum.trips), s.durationShort(sum.tripMinutes)),
