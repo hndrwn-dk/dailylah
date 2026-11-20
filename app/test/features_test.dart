@@ -40,6 +40,26 @@ import 'support/harness.dart';
 
 const _normal = Condition('normal');
 
+/// Live readings from the shared examples in contracts/v1 (PSI 48, rain 0.4 mm, UV 8, WBGT 30.2).
+class _ReadingsApi extends FakeApi {
+  @override
+  Future<Map<String, dynamic>> weather(String kind) async {
+    final file = File('../contracts/v1/weather_$kind.json');
+    if (!file.existsSync()) return super.weather(kind);
+    return ((jsonDecode(file.readAsStringSync()) as Map)['response'] as Map).cast<String, dynamic>();
+  }
+}
+
+Widget _appWithReadings(DateTime now) => ProviderScope(retry: noRetry,
+      overrides: [
+        initialFavoritesProvider.overrideWithValue(householdFavorites),
+        apiProvider.overrideWithValue(_ReadingsApi()),
+        bundleRepoProvider.overrideWithValue(FileBundles()),
+        clockProvider.overrideWith((ref) => Stream.value(now)),
+      ],
+      child: const DailyLahApp(),
+    );
+
 /// OneMap that knows one postal code (Somerset Bencoolen) and no shop names.
 class _OneMap extends OneMapApi {
   final queries = <String>[];
@@ -2079,5 +2099,50 @@ void main() {
     expect(dest.name, 'Putra Minang Restaurant Bencoolen');
     expect(dest.addrLat, closeTo(1.29942, 1e-4));
     expect(box.read(goKeyProvider), 'adhoc');
+  });
+
+  testWidgets('Today readings: only Air looks tappable and opens its sheet; rain, UV and heat are a flat strip',
+      (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(_appWithReadings(tuesdayMorning));
+    await settle(tester);
+
+    const s = S();
+    final air = find.textContaining(s.airLabel);
+    expect(air, findsOneWidget);
+    // The reading that opens something is a raised card with a chevron and a tap.
+    final airCard = find.ancestor(of: air, matching: find.byType(Panel));
+    expect(airCard, findsOneWidget);
+    expect(find.descendant(of: airCard, matching: find.byIcon(Icons.chevron_right)), findsOneWidget);
+    // The others open nothing, so they are no card and take no tap.
+    for (final caption in [s.rainNow, '${s.uvLabel} · ', '${s.heatLabel} · ']) {
+      final reading = find.textContaining(caption);
+      expect(reading, findsOneWidget, reason: caption);
+      expect(find.ancestor(of: reading, matching: find.byType(Panel)), findsNothing, reason: caption);
+      expect(find.ancestor(of: reading, matching: find.byType(InkWell)), findsNothing, reason: caption);
+    }
+    // Side by side on a phone at normal text.
+    expect(tester.getTopLeft(find.textContaining(s.rainNow)).dy,
+        closeTo(tester.getTopLeft(find.textContaining('${s.uvLabel} · ')).dy, 1));
+
+    await tester.ensureVisible(air);
+    await tester.tap(air);
+    await settle(tester);
+    expect(find.text(s.moreAtHaze), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Today readings at 200% text on 320 dp: the strip stacks and nothing overflows', (tester) async {
+    await applyCondition(tester, const Condition('large text, small phone', textScale: 2.0, size: Size(320, 640)));
+    await tester.pumpWidget(_appWithReadings(tuesdayMorning));
+    await settle(tester);
+
+    const s = S();
+    final rain = find.textContaining(s.rainNow);
+    final uv = find.textContaining('${s.uvLabel} · ');
+    await tester.scrollUntilVisible(uv, 200, scrollable: find.byType(Scrollable).first);
+    expect(rain, findsOneWidget);
+    expect(tester.getTopLeft(uv).dy, greaterThan(tester.getBottomLeft(rain).dy - 1));
+    expect(tester.takeException(), isNull);
   });
 }
