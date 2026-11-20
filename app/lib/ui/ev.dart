@@ -96,6 +96,7 @@ class _EvRow extends ConsumerWidget {
                     constraints: const BoxConstraints(maxWidth: 96),
                     child: BigNumber(value: '${counts.$1}', label: s.evOfFree(counts.$2), warn: counts.$1 == 0),
                   ),
+            const Icon(Icons.chevron_right),
           ],
         ),
       ),

@@ -65,8 +65,12 @@ relative to `app/` unless they start with a top-level folder. File and symbol in
   (Panel, HeroHeader, BusPlate, PillRow, ModeRail, BentoTile...). Keep the sticker style: ink outlines
   and hard offset shadows (`Panel`), not soft Material cards. Signature elements (see `DL`):
   bus plates and the LED `BusBoard` for live arrivals, MRT `StationChip`/`LineChip` in official
-  colours, `PaintedBlockNumber` as the Home hero, amber = look now / teal = go and nothing else. A raised card (hard shadow) is one that opens something; a reading that
-  opens nothing lies flat (Today's rain, UV and heat strip, `_ReadingStrip`, beside the Air card that opens its sheet).
+  colours, `PaintedBlockNumber` as the Home hero, amber = look now / teal = go and nothing else. Raised (hard shadow) means a tap does something: a card that
+  opens, or a card's action button wrapped in `Raised`. A card that only tells is `Panel(flat: true)` (thin outline, no
+  shadow; sky, mint and amber keep their fill), a card that only holds other things is `Panel(group: true)` (a quiet
+  outline, e.g. the bus card around its board), and a row that opens a sheet or page ends in a chevron. Today and the
+  trip cards follow this (the weather panel, the Leave card, the walk and mode cards are flat; Rain, UV and heat are a
+  flat strip, `_ReadingStrip`, beside the Air card that opens its sheet).
   Layouts must hold at 200% system
   text, also on a 320 dp phone (wrap, never fixed widths for text); secondary text keeps 4.5:1 contrast
   (`DL.mist`). Tap targets are at least 48 dp (`kMinInteractiveDimension`), also custom ones

@@ -59,7 +59,7 @@ class AtPlaceCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    return Panel(
+    return Panel(flat: true,
       color: DL.mint,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
@@ -317,7 +317,7 @@ class _HeroWeather extends ConsumerWidget {
         if (here == null) return Text(s.notAvailable, style: dim);
         final rainy = here.isRainy || (there?.isRainy ?? false);
         // Sky panel when dry, amber when rain is expected.
-        return Panel(
+        return Panel(flat: true,
           margin: EdgeInsets.zero,
           color: rainy ? DL.amber : DL.sky,
           child: Padding(
@@ -441,7 +441,7 @@ class _MrtCard extends ConsumerWidget {
           ),
         );
 
-    return Panel(
+    return Panel(flat: true,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 8, 12),
         child: alerts.when(
@@ -493,6 +493,8 @@ class _MrtCard extends ConsumerWidget {
                                 LineChip(st.line, dense: true),
                                 const SizedBox(width: 3),
                                 const Icon(Icons.circle, size: 8, color: Color(0xFF2E9E5B)),
+                                // The chip can be starred.
+                                Icon(Icons.star_border, size: 14, color: DL.muted(context)),
                               ],
                             ),
                           ),
@@ -955,6 +957,7 @@ class _WeekendCard extends ConsumerWidget {
                         if (facilities[p.name] case final f?) FacilityIcons(f),
                     ],
                   ),
+                  trailing: const Icon(Icons.chevron_right),
                   onTap: () => showPlaceSheet(
                     context,
                     s: s,
@@ -994,7 +997,7 @@ class _SavedParking extends ConsumerWidget {
     final saved = info.where((c) => fav.carparks.contains(c.id)).toList();
     if (saved.isEmpty) return const SizedBox.shrink();
     final t = Theme.of(context).textTheme;
-    return Panel(
+    return Panel(flat: true,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
         child: Column(
@@ -1666,7 +1669,7 @@ class WhatsNewCard extends ConsumerWidget {
     final s = ref.watch(stringsProvider);
     final version = ref.watch(releaseVersionProvider);
     final t = Theme.of(context).textTheme;
-    return Panel(
+    return Panel(flat: true,
       color: DL.mint,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 4, 14),
