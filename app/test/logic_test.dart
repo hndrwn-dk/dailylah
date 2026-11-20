@@ -1828,6 +1828,12 @@ void main() {
     expect(hereName(home.addrLat!, home.addrLng!, fav: householdFavorites, stations: [
       MrtStation(name: 'X', codes: const ['X1'], lat: home.addrLat!, lng: home.addrLng!),
     ]).saved, PlaceKind.home);
+    // A trip to that same saved place is not "Home → Home": the station or stop instead.
+    expect(
+        hereName(home.addrLat!, home.addrLng!, fav: householdFavorites, otherEnd: PlaceKind.home, stops: [
+          BusStop(code: '1', name: 'Blk 156', road: 'Tampines St 12', lat: home.addrLat!, lng: home.addrLng!),
+        ]),
+        (saved: null, station: null, stop: 'Blk 156'));
     expect(const S().nearPlace(const S().stationName('Bugis')), 'Near Bugis station');
   });
 

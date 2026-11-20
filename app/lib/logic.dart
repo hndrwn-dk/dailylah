@@ -2528,15 +2528,18 @@ const hereNameMetres = 300.0;
 /// What the phone's position is called in a logged trip, worked out on the phone: the saved
 /// Home, Work or School it is at ([saved]), else the nearest MRT/LRT station ([station]), else
 /// the nearest bus stop ([stop]), each within [hereNameMetres]. All null: nothing known nearby.
+/// [otherEnd] is the saved place at the trip's other end, which this end is then not named after.
 ({PlaceKind? saved, String? station, String? stop}) hereName(
   double lat,
   double lng, {
   required Favorites fav,
   List<MrtStation> stations = const [],
   List<BusStop> stops = const [],
+  PlaceKind? otherEnd,
 }) {
+  // Not the saved place the trip's other end is: "Work → Work" from across a large campus.
   final at = savedPlaceAt(fav, lat, lng);
-  if (at != null) return (saved: at, station: null, stop: null);
+  if (at != null && at != otherEnd) return (saved: at, station: null, stop: null);
   String? nearest<T>(List<T> all, double Function(T) dist, String Function(T) name) {
     T? best;
     var bestD = hereNameMetres;

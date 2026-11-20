@@ -112,7 +112,7 @@ class HistoryPage extends ConsumerWidget {
                         ),
                         if (sum.costCents > 0) (Icons.payments_outlined, s.money(sum.costCents), s.historySpent),
                       ])
-                        BentoTile(icon: icon, value: value, caption: caption),
+                        BentoTile(icon: icon, value: value, caption: caption, fitValue: true),
                     ],
                   ),
                 ),

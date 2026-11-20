@@ -77,8 +77,9 @@ class TripSection extends ConsumerWidget {
 
     // History says where a trip started or ended, not "Current location": the saved place the
     // phone is at, else the station or bus stop beside it, found on the phone.
-    String hereEnd(Place p) {
+    String hereEnd(Place p, Place other) {
       final near = hereName(p.lat, p.lng,
+          otherEnd: other.kind == PlaceKind.other ? null : other.kind,
           fav: ref.watch(favoritesProvider),
           stations: ref.watch(mrtStationsProvider).value ?? const [],
           stops: ref.watch(busStopsProvider).value ?? const []);
@@ -87,11 +88,11 @@ class TripSection extends ConsumerWidget {
       return near.stop != null ? s.nearPlace(near.stop!) : s.hereNow;
     }
 
-    String routeEnd(Place p, {required bool here}) =>
-        here ? hereEnd(p) : (p.kind == PlaceKind.other ? placeTitle(s.placeLabel, p) : p.kind.name);
+    String routeEnd(Place p, Place other, {required bool here}) =>
+        here ? hereEnd(p, other) : (p.kind == PlaceKind.other ? placeTitle(s.placeLabel, p) : p.kind.name);
     final route = commute
         ? tripRouteKey(from.kind.name, to.kind.name)
-        : tripRouteKey(routeEnd(from, here: startsHere), routeEnd(to, here: endsHere));
+        : tripRouteKey(routeEnd(from, to, here: startsHere), routeEnd(to, from, here: endsHere));
 
     final body = switch (mode) {
       TravelMode.transit => _TransitBlock(

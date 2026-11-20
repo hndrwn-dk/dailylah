@@ -2055,6 +2055,23 @@ void main() {
     expect(mrtRouteKey(s, here, householdFavorites.places[PlaceKind.work]!), 'Here>work');
   });
 
+  testWidgets('A History total shrinks a long figure instead of cutting it off', (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(
+        body: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: 158,
+            child: BentoTile(icon: Icons.local_parking, value: '100 parkings', caption: '3 h', fitValue: true),
+          ),
+        ),
+      ),
+    ));
+    final text = find.text('100 parkings');
+    expect(tester.renderObject<RenderParagraph>(text).didExceedMaxLines, isFalse);
+    expect(tester.getRect(text).right, lessThanOrEqualTo(158));
+  });
+
   test('History totals go to one column sooner than the tiles of More', () {
     expect(tileColumns(328, 1.0, 150), 2);
     expect(tileColumns(328, 1.3, 150), 1);
