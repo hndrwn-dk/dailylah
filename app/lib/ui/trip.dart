@@ -122,13 +122,35 @@ class TripSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        heading,
+        // The one-row mode picker shows icons only, so the heading names the picked mode.
+        LayoutBuilder(
+          builder: (context, box) =>
+              ModeRail.fits(box.maxWidth, modes.length, MediaQuery.textScalerOf(context).scale(1))
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 6, 4, 8),
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(title, style: t.titleLarge),
+                          Text(s.tripBy(s.modeLabel(mode.name)),
+                              style: t.titleSmall?.copyWith(color: DL.muted(context))),
+                        ],
+                      ),
+                    )
+                  : heading,
+        ),
         for (final a in _advice(ref, mode, from))
           AlertBanner(icon: _adviceIcon(a), text: s.tripAdvice(a)),
         Padding(
           padding: const EdgeInsets.only(bottom: 14),
-          child: PillRow(
-            items: [for (final m in modes) (m.name, modeIcon(m), s.modeLabel(m.name))],
+          child: ModeRail(
+            items: [
+              for (final m in modes)
+                (m.name, modeIcon(m), s.modeLabel(m.name), switch (modeMinutes(m, straight)) {
+                  final min? => s.shortMinutes(min),
+                  null => null,
+                }),
+            ],
             selected: mode.name,
             onTap: (k) => ref.read(modeOverrideProvider.notifier).state = {
               ...ref.read(modeOverrideProvider),

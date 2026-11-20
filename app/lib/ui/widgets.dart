@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
@@ -498,6 +499,284 @@ class BentoTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The travel modes of a trip in one row: an icon and a rough time each, with an amber thumb on
+/// the picked one. Tap a mode, or drag the thumb: it follows the finger and springs to the mode
+/// nearest where the drag was heading. When a segment would be narrower than 48 dp times the
+/// text scale (large text, small phones) it is a grid of named tiles instead ([fits]).
+/// Items: (key, icon, name, time or null).
+class ModeRail extends StatefulWidget {
+  const ModeRail({super.key, required this.items, required this.selected, required this.onTap});
+  final List<(String, IconData, String, String?)> items;
+  final String selected;
+  final ValueChanged<String> onTap;
+
+  static const _pad = 4.0;
+  static const _shadow = 3.0;
+
+  /// Width of one segment of the one-row layout in a box [width] wide.
+  static double segmentWidth(double width, int count) => (width - _shadow - 2 * (DL.stroke + _pad)) / count;
+
+  /// Whether [count] modes fit in one row at this width and text scale. The row shows no names,
+  /// so whoever draws it names the picked mode nearby.
+  static bool fits(double width, int count, double textScale) =>
+      count > 0 && segmentWidth(width, count) >= kMinInteractiveDimension * textScale;
+
+  @override
+  State<ModeRail> createState() => _ModeRailState();
+}
+
+class _ModeRailState extends State<ModeRail> with SingleTickerProviderStateMixin {
+  // Where the thumb is, in segments (1.0 = on the second mode), so it survives a change of width.
+  late final AnimationController _pos = AnimationController.unbounded(vsync: this, value: _index.toDouble());
+  bool _held = false;
+
+  // Critically damped (no bounce), settles in about a third of a second.
+  static final _spring = SpringDescription.withDampingRatio(mass: 1, stiffness: 320, ratio: 1);
+
+  int get _index {
+    final i = widget.items.indexWhere((m) => m.$1 == widget.selected);
+    return i < 0 ? 0 : i;
+  }
+
+  @override
+  void didUpdateWidget(ModeRail old) {
+    super.didUpdateWidget(old);
+    if (!_held && (old.selected != widget.selected || old.items.length != widget.items.length)) _settle(0);
+  }
+
+  @override
+  void dispose() {
+    _pos.dispose();
+    super.dispose();
+  }
+
+  /// Moves the thumb to the picked mode from where it is now, keeping its speed.
+  void _settle(double velocity) {
+    final target = _index.toDouble();
+    if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) {
+      _pos.value = target;
+    } else {
+      _pos.animateWith(SpringSimulation(_spring, _pos.value, target, velocity));
+    }
+  }
+
+  void _pick(int i) {
+    final key = widget.items[i.clamp(0, widget.items.length - 1)].$1;
+    if (key != widget.selected) {
+      widget.onTap(key);
+    } else {
+      _settle(0);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, box) {
+      final n = widget.items.length;
+      final scale = MediaQuery.textScalerOf(context).scale(1);
+      if (!ModeRail.fits(box.maxWidth, n, scale)) return _grid(context, box.maxWidth, scale);
+      final seg = ModeRail.segmentWidth(box.maxWidth, n);
+      final edge = DL.edge(context);
+      final t = Theme.of(context).textTheme;
+      return Padding(
+        padding: const EdgeInsets.only(right: ModeRail._shadow),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          // Each segment is its own button for TalkBack; the drag is for fingers.
+          excludeFromSemantics: true,
+          onTapUp: (d) => _pick(((d.localPosition.dx - DL.stroke - ModeRail._pad) / seg).floor()),
+          onHorizontalDragStart: (d) {
+            // Only the thumb can be dragged; a drag that starts elsewhere is left alone.
+            final at = (d.localPosition.dx - DL.stroke - ModeRail._pad) / seg - 0.5;
+            if ((at - _pos.value).abs() > 0.6) return;
+            _pos.stop();
+            setState(() => _held = true);
+          },
+          onHorizontalDragUpdate: (d) {
+            if (!_held) return;
+            _pos.value = (_pos.value + d.delta.dx / seg).clamp(-0.15, n - 0.85);
+          },
+          onHorizontalDragEnd: (d) {
+            if (!_held) return;
+            setState(() => _held = false);
+            // Where the thumb was heading, not only where it was let go.
+            final v = d.velocity.pixelsPerSecond.dx / seg;
+            final i = (_pos.value + v * 0.1).round().clamp(0, n - 1);
+            if (widget.items[i].$1 != widget.selected) {
+              widget.onTap(widget.items[i].$1);
+              // The parent rebuilds with the new pick; carry the speed into that move.
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) _settle(v);
+              });
+            } else {
+              _settle(v);
+            }
+          },
+          onHorizontalDragCancel: () {
+            if (_held) setState(() => _held = false);
+            _settle(0);
+          },
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: edge, width: DL.stroke),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(ModeRail._pad),
+              child: AnimatedBuilder(
+                animation: _pos,
+                builder: (context, _) => Stack(
+                  children: [
+                    Positioned(
+                      left: _pos.value * seg,
+                      top: 0,
+                      bottom: ModeRail._shadow,
+                      width: seg - ModeRail._shadow,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: DL.amber,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: edge, width: DL.stroke),
+                          boxShadow: [BoxShadow(color: edge, offset: Offset(_held ? 1 : 3, _held ? 1 : 3))],
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        for (var i = 0; i < n; i++)
+                          SizedBox(
+                            width: seg,
+                            child: _segment(context, t, i, under: (_pos.value - i).abs() < 0.5),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _segment(BuildContext context, TextTheme t, int i, {required bool under}) {
+    final (key, icon, label, time) = widget.items[i];
+    return Tooltip(
+      message: label,
+      child: Semantics(
+        button: true,
+        selected: key == widget.selected,
+        value: time,
+        onTap: () => _pick(i),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: kMinInteractiveDimension + ModeRail._shadow),
+          child: Padding(
+            padding: const EdgeInsets.only(top: 5, bottom: 5 + ModeRail._shadow, right: ModeRail._shadow),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 20, color: under ? DL.ink : Theme.of(context).colorScheme.onSurface),
+                if (time != null)
+                  ExcludeSemantics(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(time,
+                          maxLines: 1,
+                          style: t.displaySmall?.copyWith(fontSize: 15, color: under ? DL.ink : DL.muted(context))),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Too narrow for one row: equal tiles with the name and the time, three across or two.
+  Widget _grid(BuildContext context, double width, double scale) {
+    final t = Theme.of(context).textTheme;
+    final edge = DL.edge(context);
+    final columns = width / 3 >= 96 * scale ? 3 : 2;
+    final items = widget.items;
+    Widget tile(int i) {
+      final (key, icon, label, time) = items[i];
+      final on = key == widget.selected;
+      final fg = on ? DL.ink : Theme.of(context).colorScheme.onSurface;
+      final r = BorderRadius.circular(12);
+      return Padding(
+        padding: const EdgeInsets.only(right: 3, bottom: 3),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: on ? DL.amber : Theme.of(context).colorScheme.surfaceContainerLowest,
+            borderRadius: r,
+            border: Border.all(color: edge, width: DL.stroke),
+            boxShadow: on ? [BoxShadow(color: edge, offset: const Offset(3, 3))] : null,
+          ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: Semantics(
+              button: true,
+              selected: on,
+              child: InkWell(
+                borderRadius: r,
+                onTap: () => widget.onTap(key),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(icon, size: 16, color: fg),
+                            const SizedBox(width: 5),
+                            Flexible(
+                              child: Text(label,
+                                  maxLines: 2, overflow: TextOverflow.ellipsis, style: t.labelLarge?.copyWith(color: fg)),
+                            ),
+                          ],
+                        ),
+                        if (time != null)
+                          Text(time,
+                              style: t.displaySmall?.copyWith(fontSize: 16, color: on ? DL.ink : DL.muted(context))),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        for (var row = 0; row < items.length; row += columns)
+          Padding(
+            padding: EdgeInsets.only(top: row == 0 ? 0 : 6),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var c = 0; c < columns; c++) ...[
+                    if (c > 0) const SizedBox(width: 6),
+                    Expanded(child: row + c < items.length ? tile(row + c) : const SizedBox()),
+                  ],
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

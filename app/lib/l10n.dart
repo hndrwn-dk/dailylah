@@ -321,6 +321,10 @@ class S {
         'walk' => 'Walk',
         _ => 'Taxi',
       };
+  /// A rough travel time small enough for the mode picker: "18 min", "1 h 28".
+  String shortMinutes(int m) => m < 60 ? '$m min' : (m % 60 == 0 ? '${m ~/ 60} h' : '${m ~/ 60} h ${m % 60}');
+  /// After a trip's title when the mode picker shows icons only: "Home → Work · Car".
+  String tripBy(String mode) => ' · $mode';
   String get usuallyBy => 'Usually by';
   String get usuallyByHint => 'Pick one or more. The first is used on the Today card.';
   String get whenLabel => 'When';

@@ -62,10 +62,11 @@ relative to `app/` unless they start with a top-level folder. File and symbol in
   or when the card switches while another tab is open (`todayBackToTop`).
 - UI: `ui/shell.dart` (tabs Today / Nearby / Home / History / More), `ui/theme.dart` (design tokens
   in `DL`, fonts Plus Jakarta Sans + Barlow Condensed in `assets/fonts/`), `ui/widgets.dart`
-  (Panel, HeroHeader, BusPlate, PillRow, BentoTile...). Keep the sticker style: ink outlines
+  (Panel, HeroHeader, BusPlate, PillRow, ModeRail, BentoTile...). Keep the sticker style: ink outlines
   and hard offset shadows (`Panel`), not soft Material cards. Signature elements (see `DL`):
   bus plates and the LED `BusBoard` for live arrivals, MRT `StationChip`/`LineChip` in official
-  colours, `PaintedBlockNumber` as the Home hero, amber = look now / teal = go and nothing else.
+  colours, `PaintedBlockNumber` as the Home hero, amber = look now / teal = go and nothing else. A raised card (hard shadow) is one that opens something; a reading that
+  opens nothing lies flat (Today's rain, UV and heat strip, `_ReadingStrip`, beside the Air card that opens its sheet).
   Layouts must hold at 200% system
   text, also on a 320 dp phone (wrap, never fixed widths for text); secondary text keeps 4.5:1 contrast
   (`DL.mist`). Tap targets are at least 48 dp (`kMinInteractiveDimension`), also custom ones
@@ -110,7 +111,11 @@ feature, screen, provider or rule moves, appears or goes away.
   (`busNotFaster`), there is no "Leave now" card and the buses fold into one line ("Bus 196 · 1 stop · not faster
   than walking", tap to open) under the walking card (`_WalkCard`). Car, Motorbike, Bicycle and Taxi start with
   `_ModeCard`: a rough time and distance (`modeMinutes`, `cycleKmh`, `driveKmh`, `routeMetres`) and Google Maps as
-  an explicit button; no chip opens another app by itself. Under that card `_LiveExtras` shows LTA DataMall
+  an explicit button; no chip opens another app by itself. The modes are picked in `ModeRail` (widgets.dart): one row of icons, each
+  with a rough time (`modeMinutes`, `S.shortMinutes`; none for Bus/MRT), an amber thumb on the pick that can be tapped or
+  dragged (it springs to the mode the drag was heading for), names as tooltips and the pick named after the trip's
+  title (`S.tripBy`); when a segment would be under 48 dp times the text scale (`ModeRail.fits`) it is a grid of
+  named tiles instead. Under that card `_LiveExtras` shows LTA DataMall
   details from `/v1/trip-extras` (`tripExtrasProvider`, asked only while that mode is picked; `parseTripExtras`,
   `TripExtras`, `ExtraSpot`): Car and Motorbike the nearest car parks to the destination with free lots (C/Y),
   distance, agency and "Lots as of HH:mm" (Motorbike hides the section when none has motorbike lots); Bicycle the
