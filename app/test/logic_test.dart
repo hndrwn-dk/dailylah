@@ -1252,6 +1252,34 @@ void main() {
     expect(readShareCode(encodeShareCode(sender, const ShareChoice(places: {}, lines: false))), isNull);
   });
 
+  test('family share: a place with no position is left out of the code', () {
+    String code(Object payload) => 'DL1:${base64Url.encode(utf8.encode(jsonEncode(payload)))}';
+    const noPoint = {'kind': 'home', 'addr': '1 Nowhere Road'};
+    const onlyLat = {'kind': 'work', 'la': 1.3};
+    const school = {'kind': 'school', 'la': 1.3353, 'lo': 103.7021};
+    const me = Favorites(places: {
+      PlaceKind.home: Place(kind: PlaceKind.home, addrLat: 1.37, addrLng: 103.84),
+      PlaceKind.school: Place(kind: PlaceKind.school, addrLat: 1.40, addrLng: 103.90),
+    });
+
+    // Nothing else in the code: not a code.
+    expect(readShareCode(code({'p': [noPoint]})), isNull);
+    expect(readShareCode(code({'p': [onlyLat]})), isNull);
+
+    // The rest of the code still counts, and nothing throws for the receiver.
+    final imp = readShareCode(code({'p': [noPoint, onlyLat, school], 'k': ['h1']}))!;
+    expect(imp.places.keys.toSet(), {PlaceKind.school});
+    expect(shareConflicts(imp, me), {PlaceKind.school});
+    final after = applyShare(me, imp, take: {PlaceKind.school});
+    expect(after.places[PlaceKind.home]!.lat, 1.37);
+    expect(after.places[PlaceKind.school]!.lat, 1.3353);
+    expect(after.hawkers, {'h1'});
+
+    // A place the receiver saved without a position counts as different, it does not throw.
+    const old = Favorites(places: {PlaceKind.school: Place(kind: PlaceKind.school)});
+    expect(shareConflicts(imp, old), {PlaceKind.school});
+  });
+
   test('history: entries by period, day groups and totals', () {
     final now = DateTime(2026, 10, 25, 9); // Sunday
     final h = Habits(
