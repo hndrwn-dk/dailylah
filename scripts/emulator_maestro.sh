@@ -98,7 +98,7 @@ run_attempt() {
   # Maestro's first session has just removed its driver, and its second one installs it again:
   # adb can answer "device offline" for a moment, which fails the flow in its first second. These
   # flows need nothing but the saved household, so they alone are tried up to three times.
-  local big=0 try
+  local big=0 try why
   for try in 1 2 3; do
     big=0
     wait_for_device
@@ -114,7 +114,23 @@ run_attempt() {
       "$ROOT/app/maestro/large_text" --format junit --output "$dir/report-large-text.xml" \
       --debug-output "$dir/debug-large-text" --test-output-dir "$dir/output-large-text") || big=$?
     [ "$big" -eq 0 ] && break
-    echo "::warning title=Maestro large text::Try $try of 3 failed."
+    # Say why, so a flow that really fails now and then is not taken for an adb hiccup: the
+    # report of this try is replaced by the next one.
+    why=$(python3 - "$dir/report-large-text.xml" <<'PY' 2>/dev/null | clean
+import sys
+import xml.etree.ElementTree as ET
+try:
+    for case in ET.parse(sys.argv[1]).getroot().iter("testcase"):
+        bad = case.find("failure") if case.find("failure") is not None else case.find("error")
+        if bad is not None:
+            msg = (bad.get("message") or bad.text or "").strip().splitlines()
+            print(f"{case.get('name')}: {msg[0] if msg else 'no message'}")
+except (OSError, ET.ParseError):
+    print("no report (Maestro did not start the flow)")
+PY
+    )
+    echo "::warning title=Maestro large text::Try $try of 3 failed: ${why:-unknown}"
+    echo "- ⚠️ Large text, try $try of 3 failed: ${why:-unknown}" >> "$SUMMARY"
     sleep 10
   done
   "${ADB[@]}" shell settings put system font_scale 1.0 >/dev/null 2>&1 || true

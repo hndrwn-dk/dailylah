@@ -467,7 +467,7 @@ feature, screen, provider or rule moves, appears or goes away.
 - `maestro/` drives the release build through the screen like a person (onboarding, Setup over a restart,
   Today buses, Nearby, Home, location, Appearance, Where to live, Plan a trip, Compare blocks, the greeting at home or at work, a school found by name, Share with family, the sample alerts in the notification shade, and in `maestro/large_text/` the tabs, Plan a trip and About at the largest font size), run by the emulator `maestro` job. A change to a
   string, tab or screen those flows tap on updates the flow in the same PR; how to write and run them
-  is in docs/QA.md "Maestro". Every `launchApp` denies notifications. A failed run prints why and runs all
+  is in docs/QA.md "Maestro". Every `launchApp` denies notifications, except flow 14, which needs them to post the sample alerts. A failed run prints why and runs all
   flows once more; a pass on that retry is a "Maestro flaky" warning to read, not to ignore.
 - `test/contract_test.dart` runs the parsers on the shared API examples in `contracts/v1/`; a parser
   that reads a new field or endpoint gets an example and a check there (docs/QA.md "Contract tests").
