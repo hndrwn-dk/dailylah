@@ -183,7 +183,10 @@ class TodayPage extends ConsumerWidget {
     final dests = <Widget>[
       // What's new and the alerts span both columns on a wide window; the cards share them.
       if (whatsNewDue(fav, ref.watch(releaseVersionProvider))) const FullWidth(child: WhatsNewCard()),
-      for (final a in alerts) FullWidth(child: AlertBanner(icon: _alertIcon(a.kind), text: a.text)),
+      // Rain is the weather card's to say (it shows whenever there is an origin), so no banner repeats it.
+      for (final a in alerts)
+        if (a.kind != AlertKind.rain || origin == null)
+          FullWidth(child: AlertBanner(icon: _alertIcon(a.kind), text: a.text)),
       if (publicHoliday != null)
         FullWidth(
           child: AlertBanner(
@@ -206,6 +209,7 @@ class TodayPage extends ConsumerWidget {
           to: dest,
           modeKey: (kind == CardKind.morning ? dest : origin).kind.name,
           modePlace: kind == CardKind.morning ? dest : origin,
+          weatherAbove: true,
         ),
       if (resting == null && (!commute || (tripMode ?? TravelMode.transit) == TravelMode.transit))
         _MrtCard(showCrowd: kind == CardKind.evening),
@@ -246,7 +250,13 @@ class TodayPage extends ConsumerWidget {
                   ),
                   Text(s.greeting(now.hour), style: t.displayLarge),
                   const SizedBox(height: 18),
-                  if (origin != null) _HeroWeather(origin: origin, kind: kind),
+                  if (origin != null)
+                    _HeroWeather(
+                      origin: origin,
+                      kind: kind,
+                      // The rain tip for the trip's mode, while the trip shows below.
+                      tripMode: commute && dest != null && resting == null ? tripMode : null,
+                    ),
                 ],
               ),
             ),
@@ -288,9 +298,12 @@ IconData _alertIcon(AlertKind k) => switch (k) {
 
 /// Weather for the trip, set in large type inside the hero.
 class _HeroWeather extends ConsumerWidget {
-  const _HeroWeather({required this.origin, required this.kind});
+  const _HeroWeather({required this.origin, required this.kind, this.tripMode});
   final Place origin;
   final CardKind kind;
+
+  /// The mode of the trip shown under the card, for its rain tip; null when no trip shows.
+  final TravelMode? tripMode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -302,21 +315,57 @@ class _HeroWeather extends ConsumerWidget {
     final t = Theme.of(context).textTheme;
     final dim = t.bodyMedium;
 
+    // Everything about rain is said here once: the forecast at both ends, what the gauge near
+    // the start reads now, and the tip for the trip's mode.
+    final gauge = ref.watch(rainfallProvider).value;
+    final mm = gauge == null ? 0.0 : (rainfallNear(gauge, origin.lat, origin.lng)?.$2 ?? 0.0);
+    String? tipFor(bool rainy) => !rainy || tripMode == null
+        ? null
+        : tripAdvice(mode: tripMode!, rainy: true).map(s.rainTip).nonNulls.firstOrNull;
+    // The gauge is its own reading: with no forecast to show (loading, failed, none for this
+    // place) rain that is falling is still said, with the tip, above what the forecast says.
+    Widget withRainNow(Widget fallback) => mm <= 0
+        ? fallback
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Panel(
+                margin: const EdgeInsets.only(bottom: 10),
+                color: DL.amber,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(s.rainingNow(mm), style: t.titleLarge?.copyWith(color: DL.ink)),
+                      if (tipFor(true) case final tip?) ...[
+                        const SizedBox(height: 4),
+                        Text(tip, style: t.bodyMedium?.copyWith(color: DL.ink)),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              fallback,
+            ],
+          );
+
     return body.when(
-      loading: () => Text(s.loading, style: dim),
-      error: (_, __) => Row(
+      loading: () => withRainNow(Text(s.loading, style: dim)),
+      error: (_, __) => withRainNow(Row(
         children: [
           Expanded(child: Text(s.serverWaking, style: dim)),
           TextButton(onPressed: () => ref.invalidate(forecastProvider), child: Text(s.retry)),
         ],
-      ),
+      )),
       data: (json) {
         final stale = liveStaleSince(json, ref.watch(clockProvider).value ?? DateTime.now());
         final here = forecastNear(json, origin.lat, origin.lng);
         final there = destPlace == null ? null : forecastNear(json, destPlace.lat, destPlace.lng);
-        if (here == null) return Text(s.notAvailable, style: dim);
-        final rainy = here.isRainy || (there?.isRainy ?? false);
-        // Sky panel when dry, amber when rain is expected.
+        if (here == null) return withRainNow(Text(s.notAvailable, style: dim));
+        final rainy = here.isRainy || (there?.isRainy ?? false) || mm > 0;
+        final tip = tipFor(rainy);
+        // Sky panel when dry, amber when rain is expected or falling.
         return Panel(
           margin: EdgeInsets.zero,
           color: rainy ? DL.amber : DL.sky,
@@ -346,6 +395,14 @@ class _HeroWeather extends ConsumerWidget {
                     _ForecastLine(label: s.placeLabel(origin.kind.name), f: here),
                     if (there != null && destPlace != null)
                       _ForecastLine(label: s.placeLabel(destPlace.kind.name), f: there),
+                    if (mm > 0) ...[
+                      const SizedBox(height: 4),
+                      Text(s.rainingNow(mm), style: t.labelLarge?.copyWith(color: DL.ink)),
+                    ],
+                    if (tip != null) ...[
+                      const SizedBox(height: 4),
+                      Text(tip, style: t.bodyMedium?.copyWith(color: DL.ink)),
+                    ],
                     if (here.validText != null) ...[
                       const SizedBox(height: 4),
                       Text('${s.weather2h} · ${s.validUntil(here.validText!)}',
@@ -675,7 +732,8 @@ class BusRow extends ConsumerWidget {
   }
 }
 
-/// Bento row with live readings near the origin: rain gauge, UV and heat stress.
+/// Live readings near the origin: air as a card that opens its sheet, then UV and heat stress as
+/// a flat strip (they open nothing). Rain now is in the weather card, with the rest about rain.
 class _WeatherTiles extends ConsumerWidget {
   const _WeatherTiles({required this.origin});
   final Place origin;
@@ -683,74 +741,179 @@ class _WeatherTiles extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final rain = ref.watch(rainfallProvider).value;
     final uv = ref.watch(uvProvider).value;
     final wbgt = ref.watch(wbgtProvider).value;
     final air = airNear(ref.watch(psiProvider).value, ref.watch(pm25Provider).value, origin.lat, origin.lng);
-    final r = rain == null ? null : rainfallNear(rain, origin.lat, origin.lng);
     final u = uv == null ? null : uvIndex(uv);
     final w = wbgt == null ? null : wbgtNear(wbgt, origin.lat, origin.lng);
-    if (r == null && u == null && w == null && air == null) return const SizedBox.shrink();
-    final tiles = <Widget>[
-      if (air != null)
-        Expanded(
-          child: BentoTile(
-            icon: Icons.masks_outlined,
-            value: air.psi24 != null ? '${air.psi24}' : '${air.pm25}',
-            caption: '${s.airLabel} · ${air.level.index >= AirLevel.unhealthy.index ? s.maskNeeded : s.noMask}',
-            tint: air.level.index >= AirLevel.unhealthy.index ? DL.amber : null,
-            onTap: () => _showAir(context, s, air),
-          ),
-        ),
-      if (r != null)
-        Expanded(
-          child: BentoTile(
-            icon: Icons.water_drop_outlined,
-            value: s.rainMm(r.$2),
-            caption: s.rainNow,
-            tint: r.$2 > 0 ? DL.amber : null,
-          ),
-        ),
-      if (u != null)
-        Expanded(
-          child: BentoTile(
-            icon: Icons.wb_sunny_outlined,
-            value: '$u',
-            caption: '${s.uvLabel} · ${s.uvLevel(u)}',
-            tint: u >= 8 ? DL.amber : null,
-          ),
-        ),
+    if (u == null && w == null && air == null) return const SizedBox.shrink();
+    final readings = [
+      if (u != null) _Reading(Icons.wb_sunny_outlined, '$u', '${s.uvLabel} · ${s.uvLevel(u)}', u >= 8),
       if (w != null)
-        Expanded(
-          child: BentoTile(
-            icon: Icons.thermostat,
-            value: '${w.$1.toStringAsFixed(1)}°',
-            caption: '${s.heatLabel} · ${s.heatLevel(w.$2)}',
-            tint: isHighHeat(w.$2) ? DL.amber : null,
-          ),
-        ),
+        _Reading(Icons.thermostat, '${w.$1.toStringAsFixed(1)}°', '${s.heatLabel} · ${s.heatLevel(w.$2)}', isHighHeat(w.$2)),
     ];
-    // Two tiles per row so numbers stay large.
-    final rows = [for (var i = 0; i < tiles.length; i += 2) tiles.sublist(i, i + 2 > tiles.length ? tiles.length : i + 2)];
-    return Column(
-      children: [
-        for (final row in rows)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 14),
-            child: IntrinsicHeight(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (air != null)
+            _AirRow(
+              value: air.psi24 != null ? '${air.psi24}' : '${air.pm25}',
+              caption: '${s.airLabel} · ${air.level.index >= AirLevel.unhealthy.index ? s.maskNeeded : s.noMask}',
+              warn: air.level.index >= AirLevel.unhealthy.index,
+              onTap: () => _showAir(context, s, air),
+            ),
+          if (air != null && readings.isNotEmpty) const SizedBox(height: 12),
+          if (readings.isNotEmpty) _ReadingStrip(readings),
+        ],
+      ),
+    );
+  }
+}
+
+/// The air reading: the one reading that opens a sheet, so the one raised card, with a chevron.
+class _AirRow extends StatelessWidget {
+  const _AirRow({required this.value, required this.caption, required this.warn, required this.onTap});
+  final String value;
+  final String caption;
+  final bool warn;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final primary = Theme.of(context).colorScheme.primary;
+    return Panel(
+      margin: EdgeInsets.zero,
+      color: warn ? DL.amber : null,
+      child: Semantics(
+        button: true,
+        child: InkWell(
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  for (var i = 0; i < row.length; i++) ...[
-                    if (i > 0) const SizedBox(width: 12),
-                    row[i],
-                  ],
-                  if (row.length == 1) ...[const SizedBox(width: 12), const Expanded(child: SizedBox())],
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: warn ? DL.card : primary.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: warn ? DL.ink : DL.edge(context), width: 2),
+                    ),
+                    child: Icon(Icons.masks_outlined, size: 18, color: warn ? DL.ink : primary),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(value, style: t.displaySmall?.copyWith(color: warn ? DL.ink : null)),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(caption, style: t.bodySmall?.copyWith(color: warn ? DL.ink : null))),
+                  Icon(Icons.chevron_right, color: warn ? DL.ink : null),
                 ],
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One reading of the strip: (icon, value, caption, look now).
+class _Reading {
+  const _Reading(this.icon, this.value, this.caption, this.warn);
+  final IconData icon;
+  final String value;
+  final String caption;
+  final bool warn;
+}
+
+/// Readings that open nothing (UV, heat stress): one flat card with a thin outline and no
+/// shadow, so it does not look like the cards that can be tapped. Side by side, or one under the
+/// other when a cell would be too narrow for its words (large text, small screens). A reading to
+/// look at now turns only its small icon chip amber; every cell keeps the same surface.
+class _ReadingStrip extends StatelessWidget {
+  const _ReadingStrip(this.readings);
+  final List<_Reading> readings;
+
+  @override
+  Widget build(BuildContext context) {
+    final line = BorderSide(color: DL.edge(context).withValues(alpha: 0.6), width: 1.5);
+    return LayoutBuilder(builder: (context, box) {
+      final scale = MediaQuery.textScalerOf(context).scale(1);
+      final stacked = box.maxWidth / readings.length < 100 * scale;
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(DL.radius),
+          border: Border.all(color: line.color, width: line.width),
+        ),
+        child: stacked
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < readings.length; i++)
+                    DecoratedBox(
+                      decoration: BoxDecoration(border: i == 0 ? null : Border(top: line)),
+                      child: _ReadingCell(readings[i]),
+                    ),
+                ],
+              )
+            : IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < readings.length; i++)
+                      Expanded(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(border: i == 0 ? null : Border(left: line)),
+                          child: _ReadingCell(readings[i]),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+      );
+    });
+  }
+}
+
+class _ReadingCell extends StatelessWidget {
+  const _ReadingCell(this.reading);
+  final _Reading reading;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final primary = Theme.of(context).colorScheme.primary;
+    final value = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: reading.warn ? DL.amber : primary.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(8),
+            border: reading.warn ? Border.all(color: DL.edge(context), width: 1.5) : null,
+          ),
+          child: Icon(reading.icon, size: 16, color: reading.warn ? DL.ink : primary),
+        ),
+        const SizedBox(width: 7),
+        Flexible(
+          child: Text(reading.value,
+              style: t.displaySmall?.copyWith(fontSize: 24), maxLines: 1, overflow: TextOverflow.ellipsis),
+        ),
       ],
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      child: MergeSemantics(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [value, const SizedBox(height: 4), Text(reading.caption, style: t.bodySmall)],
+        ),
+      ),
     );
   }
 }

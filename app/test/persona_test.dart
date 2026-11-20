@@ -19,6 +19,7 @@ import 'package:dailylah/ui/more.dart';
 import 'package:dailylah/ui/today.dart';
 import 'package:dailylah/ui/trip.dart';
 import 'package:dailylah/ui/wake.dart';
+import 'package:dailylah/ui/widgets.dart';
 import 'package:dailylah/wake_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -93,6 +94,26 @@ Future<void> _until(WidgetTester tester, bool Function() done) async {
 
 void main() {
   group('Office worker', () {
+    testWidgets('Rain on the way to work: one card says it, and switching to Taxi changes its tip', (tester) async {
+      await applyCondition(tester, _normal);
+      await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+      await settle(tester);
+
+      // The forecast says showers at home: said once, in the weather card, with no banner under it.
+      expect(find.text(_s.bringUmbrella), findsOneWidget);
+      expect(find.textContaining('Rain expected near'), findsNothing);
+      // By bus there is no tip; by taxi the card says to book early, and the trip adds no rain banner.
+      expect(find.text(_s.rainTip(TripAdvice.rainTaxi)!), findsNothing);
+      await tester.scrollUntilVisible(find.byType(ModeRail), 200, scrollable: find.byType(Scrollable).first);
+      await tester.tap(find.byTooltip('Taxi'));
+      await settle(tester);
+      expect(find.text(_s.tripBy('Taxi')), findsOneWidget);
+      expect(find.text(_s.tripAdvice(TripAdvice.rainTaxi)), findsNothing);
+      await tester.scrollUntilVisible(find.text(_s.bringUmbrella), -200, scrollable: find.byType(Scrollable).first);
+      expect(find.text(_s.rainTip(TripAdvice.rainTaxi)!), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('Wake me keeps watching on every tab, and Stop ends it', (tester) async {
       await applyCondition(tester, _normal);
       final alerts = _alerts(tester);

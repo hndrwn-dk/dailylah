@@ -27,6 +27,7 @@ import 'package:dailylah/ui/toilets.dart';
 import 'package:dailylah/ui/trip.dart';
 import 'package:dailylah/ui/wake.dart';
 import 'package:dailylah/ui/widgets.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -39,6 +40,36 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'support/harness.dart';
 
 const _normal = Condition('normal');
+
+/// Live readings from the shared examples in contracts/v1 (PSI 48, rain 0.4 mm, UV 8, WBGT 30.2).
+class _ReadingsApi extends FakeApi {
+  @override
+  Future<Map<String, dynamic>> weather(String kind) async {
+    final file = File('../contracts/v1/weather_$kind.json');
+    if (!file.existsSync()) return super.weather(kind);
+    return ((jsonDecode(file.readAsStringSync()) as Map)['response'] as Map).cast<String, dynamic>();
+  }
+}
+
+/// The readings answer, the 2-hour forecast does not (its upstream is down and nothing is cached).
+class _NoForecastApi extends _ReadingsApi {
+  @override
+  Future<Map<String, dynamic>> forecast() async => throw DioException(
+        requestOptions: RequestOptions(path: '/v1/weather/forecast'),
+        type: DioExceptionType.connectionError,
+        message: 'forecast down (test)',
+      );
+}
+
+Widget _appWithReadings(DateTime now) => ProviderScope(retry: noRetry,
+      overrides: [
+        initialFavoritesProvider.overrideWithValue(householdFavorites),
+        apiProvider.overrideWithValue(_ReadingsApi()),
+        bundleRepoProvider.overrideWithValue(FileBundles()),
+        clockProvider.overrideWith((ref) => Stream.value(now)),
+      ],
+      child: const DailyLahApp(),
+    );
 
 /// OneMap that knows one postal code (Somerset Bencoolen) and no shop names.
 class _OneMap extends OneMapApi {
@@ -2175,5 +2206,149 @@ void main() {
     expect(dest.name, 'Putra Minang Restaurant Bencoolen');
     expect(dest.addrLat, closeTo(1.29942, 1e-4));
     expect(box.read(goKeyProvider), 'adhoc');
+  });
+
+  testWidgets('Today readings: only Air looks tappable and opens its sheet; UV and heat are a flat strip',
+      (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(_appWithReadings(tuesdayMorning));
+    await settle(tester);
+
+    const s = S();
+    final air = find.textContaining(s.airLabel);
+    expect(air, findsOneWidget);
+    // The reading that opens something is a raised card with a chevron and a tap.
+    final airCard = find.ancestor(of: air, matching: find.byType(Panel));
+    expect(airCard, findsOneWidget);
+    expect(find.descendant(of: airCard, matching: find.byIcon(Icons.chevron_right)), findsOneWidget);
+    // The others open nothing, so they are no card and take no tap.
+    for (final caption in ['${s.uvLabel} · ', '${s.heatLabel} · ']) {
+      final reading = find.textContaining(caption);
+      expect(reading, findsOneWidget, reason: caption);
+      expect(find.ancestor(of: reading, matching: find.byType(Panel)), findsNothing, reason: caption);
+      expect(find.ancestor(of: reading, matching: find.byType(InkWell)), findsNothing, reason: caption);
+    }
+    // Side by side on a phone at normal text.
+    expect(tester.getTopLeft(find.textContaining('${s.uvLabel} · ')).dy,
+        closeTo(tester.getTopLeft(find.textContaining('${s.heatLabel} · ')).dy, 8));
+
+    await tester.ensureVisible(air);
+    await tester.tap(air);
+    await settle(tester);
+    expect(find.text(s.moreAtHaze), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Today says rain once, in the weather card: forecast, rain now and the tip for the mode', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(_appWithReadings(tuesdayMorning));
+    await settle(tester);
+
+    const s = S();
+    final card = find.ancestor(of: find.text(s.bringUmbrella), matching: find.byType(Panel));
+    expect(card, findsOneWidget);
+    // What the gauge reads now is a line of that card, not a reading of its own.
+    expect(find.descendant(of: card, matching: find.text(s.rainingNow(0.4))), findsOneWidget);
+    // No banner repeats the forecast.
+    expect(find.textContaining('Rain expected near'), findsNothing);
+    // Bus/MRT has no rain tip; Car has one, in the card and not as a banner in the trip.
+    expect(find.text(s.rainTip(TripAdvice.rainDrive)!), findsNothing);
+    await tester.scrollUntilVisible(find.byType(ModeRail), 200, scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.byTooltip('Car'));
+    await settle(tester);
+    expect(find.text(s.tripAdvice(TripAdvice.rainDrive)), findsNothing);
+    await tester.scrollUntilVisible(find.text(s.bringUmbrella), -200, scrollable: find.byType(Scrollable).first);
+    expect(find.descendant(of: card, matching: find.text(s.rainTip(TripAdvice.rainDrive)!)), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Today still says it is raining, with the tip, when the forecast cannot be read', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(ProviderScope(retry: noRetry,
+      overrides: [
+        initialFavoritesProvider.overrideWithValue(householdFavorites),
+        apiProvider.overrideWithValue(_NoForecastApi()),
+        bundleRepoProvider.overrideWithValue(FileBundles()),
+        clockProvider.overrideWith((ref) => Stream.value(tuesdayMorning)),
+      ],
+      child: const DailyLahApp(),
+    ));
+    await settle(tester);
+
+    const s = S();
+    expect(find.text(s.bringUmbrella), findsNothing);
+    expect(find.text(s.rainingNow(0.4)), findsOneWidget);
+    await tester.scrollUntilVisible(find.byType(ModeRail), 200, scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.byTooltip('Car'));
+    await settle(tester);
+    await tester.scrollUntilVisible(find.text(s.rainingNow(0.4)), -200, scrollable: find.byType(Scrollable).first);
+    expect(find.text(s.rainTip(TripAdvice.rainDrive)!), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Today readings at 200% text on 320 dp: the strip stacks and nothing overflows', (tester) async {
+    await applyCondition(tester, const Condition('large text, small phone', textScale: 2.0, size: Size(320, 640)));
+    await tester.pumpWidget(_appWithReadings(tuesdayMorning));
+    await settle(tester);
+
+    const s = S();
+    final uv = find.textContaining('${s.uvLabel} · ');
+    final heat = find.textContaining('${s.heatLabel} · ');
+    await tester.scrollUntilVisible(heat, 200, scrollable: find.byType(Scrollable).first);
+    expect(uv, findsOneWidget);
+    expect(tester.getTopLeft(heat).dy, greaterThan(tester.getBottomLeft(uv).dy - 1));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Trip modes are one row: a tap or a drag of the thumb picks, and the heading names the pick',
+      (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+
+    ModeRail rail() => tester.widget<ModeRail>(find.byType(ModeRail));
+    const s = S();
+    await tester.scrollUntilVisible(find.byType(ModeRail), 200, scrollable: find.byType(Scrollable).first);
+    final keys = [for (final m in rail().items) m.$1];
+    expect(keys.first, 'walk');
+    // Every mode but Bus/MRT shows a rough time; names are tooltips, the pick is named in the heading.
+    for (final m in rail().items) {
+      expect(m.$4 == null, m.$1 == 'transit', reason: m.$1);
+      expect(find.byTooltip(m.$3), findsOneWidget);
+    }
+    expect(find.text(s.tripBy(s.modeLabel(rail().selected))), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Car'));
+    await settle(tester);
+    expect(rail().selected, 'car');
+    expect(find.text(s.tripBy('Car')), findsOneWidget);
+
+    // Drag the thumb from Car to the mode on its left.
+    await tester.scrollUntilVisible(find.byType(ModeRail), -200, scrollable: find.byType(Scrollable).first);
+    final car = keys.indexOf('car');
+    final from = tester.getCenter(find.byTooltip('Car'));
+    final to = tester.getCenter(find.byTooltip(s.modeLabel(keys[car - 1])));
+    await tester.dragFrom(from, to - from);
+    await settle(tester);
+    expect(rail().selected, keys[car - 1]);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Trip modes at 200% text on 320 dp are named tiles that still pick', (tester) async {
+    const c = Condition('large text, small phone', textScale: 2.0, size: Size(320, 640));
+    await applyCondition(tester, c);
+    await tester.pumpWidget(appUnder(c, householdFavorites, tuesdayMorning));
+    await settle(tester);
+
+    final taxi = find.descendant(of: find.byType(ModeRail), matching: find.text('Taxi'));
+    await tester.scrollUntilVisible(taxi, 200, scrollable: find.byType(Scrollable).first);
+    expect(find.byTooltip('Taxi'), findsNothing);
+    // Clear of the tab bar at the bottom.
+    await Scrollable.ensureVisible(tester.element(taxi), alignment: 0.5);
+    await settle(tester);
+    await tester.tap(taxi);
+    await settle(tester);
+    expect(tester.widget<ModeRail>(find.byType(ModeRail)).selected, 'taxi');
+    expect(tester.takeException(), isNull);
   });
 }

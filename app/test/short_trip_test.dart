@@ -60,7 +60,9 @@ Future<void> _tap(WidgetTester tester, Finder target) async {
 }
 
 Future<void> _tapMode(WidgetTester tester, String label) async {
-  await _tap(tester, find.text(label).last);
+  // One row of icons named by tooltip, or named tiles when that row would be too narrow.
+  final segment = find.byTooltip(label);
+  await _tap(tester, segment.evaluate().isEmpty ? find.text(label).last : segment.last);
   await settle(tester);
 }
 
@@ -70,7 +72,7 @@ void main() {
     await _plan(tester, _siglap, _goodwill);
     const straight = 436.0;
     // Walk is the first chip and the one selected.
-    final chips = tester.widget<PillRow>(find.byType(PillRow).last);
+    final chips = tester.widget<ModeRail>(find.byType(ModeRail).last);
     expect(chips.items.first.$3, 'Walk');
     expect(chips.selected, TravelMode.walk.name);
     expect(find.textContaining(_s.walkMin(walkMinutesTo(straight))), findsOneWidget);
@@ -83,9 +85,9 @@ void main() {
 
     // Bus/MRT picked by hand stays, also after the page rebuilds.
     await _tapMode(tester, 'Bus/MRT');
-    expect(tester.widget<PillRow>(find.byType(PillRow).last).selected, TravelMode.transit.name);
+    expect(tester.widget<ModeRail>(find.byType(ModeRail).last).selected, TravelMode.transit.name);
     await settle(tester);
-    expect(tester.widget<PillRow>(find.byType(PillRow).last).selected, TravelMode.transit.name);
+    expect(tester.widget<ModeRail>(find.byType(ModeRail).last).selected, TravelMode.transit.name);
   });
 
   testWidgets('One stop by bus on a short trip: no "Leave now" card, the buses fold into one line', (tester) async {
@@ -111,7 +113,7 @@ void main() {
 
   testWidgets('A longer trip keeps the saved mode and the "Leave to catch" card', (tester) async {
     await _plan(tester, _siglap, _stPatricks);
-    expect(tester.widget<PillRow>(find.byType(PillRow).last).selected, TravelMode.transit.name);
+    expect(tester.widget<ModeRail>(find.byType(ModeRail).last).selected, TravelMode.transit.name);
     expect(find.textContaining(RegExp(r'to\scatch\s10')), findsOneWidget);
     expect(find.byType(BusBoard), findsWidgets);
     expect(find.textContaining('not faster than walking'), findsNothing);
@@ -274,11 +276,11 @@ void main() {
     box.read(goAdhocDestProvider.notifier).state =
         const Place(kind: PlaceKind.other, name: 'Opp Goodwill Ct', addrLat: 1.3132, addrLng: 103.9281);
     await settle(tester);
-    expect(tester.widget<PillRow>(find.byType(PillRow).last).selected, TravelMode.walk.name);
+    expect(tester.widget<ModeRail>(find.byType(ModeRail).last).selected, TravelMode.walk.name);
     // Walk picked for a short trip does not follow a long one.
     box.read(goAdhocDestProvider.notifier).state = _stPatricks;
     await settle(tester);
-    expect(tester.widget<PillRow>(find.byType(PillRow).last).selected, TravelMode.transit.name);
+    expect(tester.widget<ModeRail>(find.byType(ModeRail).last).selected, TravelMode.transit.name);
     // Nothing is kept under the commute's keys.
     expect(box.read(modeOverrideProvider).keys.every((k) => k.startsWith('plan:')), isTrue);
   });

@@ -41,7 +41,12 @@ class TripSection extends ConsumerWidget {
     this.commute = false,
     this.startsHere = false,
     this.endsHere = false,
+    this.weatherAbove = false,
   });
+
+  /// Today's weather card sits above this trip and says everything about rain, the tip for the
+  /// picked mode included, so the trip shows no rain banner of its own.
+  final bool weatherAbove;
 
   /// The destination is the phone's location: like [startsHere], it is never sent to the server.
   final bool endsHere;
@@ -138,13 +143,35 @@ class TripSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        heading,
-        for (final a in _advice(ref, mode, from))
+        // The one-row mode picker shows icons only, so the heading names the picked mode.
+        LayoutBuilder(
+          builder: (context, box) =>
+              ModeRail.fits(box.maxWidth, modes.length, MediaQuery.textScalerOf(context).scale(1))
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 6, 4, 8),
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(title, style: t.titleLarge),
+                          Text(s.tripBy(s.modeLabel(mode.name)),
+                              style: t.titleSmall?.copyWith(color: DL.muted(context))),
+                        ],
+                      ),
+                    )
+                  : heading,
+        ),
+        for (final a in _advice(ref, mode, from, withRain: !weatherAbove))
           AlertBanner(icon: _adviceIcon(a), text: s.tripAdvice(a)),
         Padding(
           padding: const EdgeInsets.only(bottom: 14),
-          child: PillRow(
-            items: [for (final m in modes) (m.name, modeIcon(m), s.modeLabel(m.name))],
+          child: ModeRail(
+            items: [
+              for (final m in modes)
+                (m.name, modeIcon(m), s.modeLabel(m.name), switch (modeMinutes(m, straight)) {
+                  final min? => s.shortMinutes(min),
+                  null => null,
+                }),
+            ],
             selected: mode.name,
             onTap: (k) => ref.read(modeOverrideProvider.notifier).state = {
               ...ref.read(modeOverrideProvider),
@@ -358,7 +385,7 @@ class _TripTimer extends ConsumerWidget {
 }
 
 /// Weather tips for this trip and mode, from the live NEA readings near the start.
-List<TripAdvice> _advice(WidgetRef ref, TravelMode mode, Place from) {
+List<TripAdvice> _advice(WidgetRef ref, TravelMode mode, Place from, {bool withRain = true}) {
   final lightning = ref.watch(lightningProvider).value;
   final wbgt = ref.watch(wbgtProvider).value;
   final forecast = ref.watch(forecastProvider).value;
@@ -370,7 +397,7 @@ List<TripAdvice> _advice(WidgetRef ref, TravelMode mode, Place from) {
     lightning: lightning != null && lightningNear(lightning, from.lat, from.lng),
     highHeat: wbgt != null && isHighHeat(heatStressNear(wbgt, from.lat, from.lng)),
     air: air?.level,
-    rainy: raining > 0 || (forecast != null && (forecastNear(forecast, from.lat, from.lng)?.isRainy ?? false)),
+    rainy: withRain && (raining > 0 || (forecast != null && (forecastNear(forecast, from.lat, from.lng)?.isRainy ?? false))),
   );
 }
 

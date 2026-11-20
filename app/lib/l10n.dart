@@ -227,9 +227,19 @@ class S {
   String get lightningNear => 'Lightning nearby. Stay indoors.';
   String mrtAlert(String lines) => 'Disruption on $lines';
   String rainAt(String place) => 'Rain expected near $place';
+  String rainingNow(double mm) => 'Raining now · ${rainMm(mm)}';
+
+  /// The rain tip for a trip's mode, as a line of the weather card (which already says to bring
+  /// an umbrella). Null for advice that is not about rain.
+  String? rainTip(TripAdvice a) => switch (a) {
+        TripAdvice.rainRide => 'Riding: bring a rain jacket or wait it out.',
+        TripAdvice.rainWalk => 'Walking: take the sheltered way.',
+        TripAdvice.rainDrive => 'Driving: roads get slower, so allow extra time.',
+        TripAdvice.rainTaxi => 'Taxi: they get scarce in the rain, so book early.',
+        _ => null,
+      };
 
   String tryInstead(String name, String dist) => 'Try $name ($dist)';
-  String get rainNow => 'Rain now';
   String rainMm(double mm) => mm == 0 ? 'Dry' : '${mm.toStringAsFixed(1)} mm';
   String get uvLabel => 'UV';
   String uvLevel(int v) => v >= 11
@@ -321,6 +331,10 @@ class S {
         'walk' => 'Walk',
         _ => 'Taxi',
       };
+  /// A rough travel time small enough for the mode picker: "18 min", "1 h 28".
+  String shortMinutes(int m) => m < 60 ? '$m min' : (m % 60 == 0 ? '${m ~/ 60} h' : '${m ~/ 60} h ${m % 60}');
+  /// After a trip's title when the mode picker shows icons only: "Home → Work · Car".
+  String tripBy(String mode) => ' · $mode';
   String get usuallyBy => 'Usually by';
   String get usuallyByHint => 'Pick one or more. The first is used on the Today card.';
   String get whenLabel => 'When';
@@ -1021,7 +1035,9 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "History: a trip from where you are now says where it started (\"Near Bugis station\") instead of \"Here\", and \"Here\" is now \"Current location\". The four totals in History are the same size.",
+        "Today: travel modes are now one row with a rough time for each. Tap a mode or drag the yellow marker to switch.",
+        "Today: everything about rain is in the weather card: the forecast, rain right now and a tip for how you travel. No more repeated rain banners.",
+        "Today: Air (PSI) is the card you can tap; UV and heat stress sit in one quiet strip.",
       ];
 
   // about
