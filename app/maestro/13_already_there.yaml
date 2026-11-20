@@ -18,8 +18,11 @@ name: 13 Already there
 - extendedWaitUntil:
     visible: "(?s)Today.*"
     timeout: 30000
-- extendedWaitUntil:
-    visible: "(?s).*(You.re home\\. Take a rest|public holiday).*"
+# The greeting sits under the header and the alert banners: on a small screen with a few
+# alerts it starts below the fold, so scroll to it.
+- scrollUntilVisible:
+    element: "(?s).*(You.re home\\. Take a rest|public holiday).*"
+    direction: DOWN
     timeout: 30000
     optional: true
 - runFlow:
@@ -37,6 +40,10 @@ name: 13 Already there
             location: allow
             notifications: deny
       - extendedWaitUntil:
-          visible: "(?s).*Have a good day at work.*"
+          visible: "(?s)Today.*"
+          timeout: 30000
+      - scrollUntilVisible:
+          element: "(?s).*Have a good day at work.*"
+          direction: DOWN
           timeout: 45000
 - stopRecording
