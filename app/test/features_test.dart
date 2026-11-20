@@ -2197,25 +2197,4 @@ void main() {
     expect(tester.widget<ModeRail>(find.byType(ModeRail)).selected, 'taxi');
     expect(tester.takeException(), isNull);
   });
-
-  testWidgets('Today: cards that only tell are flat, groups are quiet, and the actions are raised', (tester) async {
-    await applyCondition(tester, _normal);
-    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
-    await settle(tester);
-
-    const s = S();
-    Panel panelOf(Finder inside) => tester.widget<Panel>(find.ancestor(of: inside, matching: find.byType(Panel)).first);
-    // The weather only tells.
-    final weather = panelOf(find.textContaining(s.weather2h));
-    expect(weather.flat, isTrue);
-    // I'm leaving is the action: a raised button.
-    final leaving = find.text(s.imLeaving);
-    await tester.scrollUntilVisible(leaving, 200, scrollable: find.byType(Scrollable).first);
-    expect(find.ancestor(of: leaving, matching: find.byType(Raised)), findsOneWidget);
-    // The bus card is a quiet outline around the board, which is the thing to tap.
-    final board = find.byType(BusBoard).first;
-    await tester.scrollUntilVisible(board, 200, scrollable: find.byType(Scrollable).first);
-    expect(panelOf(board).group, isTrue);
-    expect(tester.takeException(), isNull);
-  });
 }

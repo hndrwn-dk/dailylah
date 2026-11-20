@@ -129,67 +129,27 @@ class LineChip extends StatelessWidget {
 
 /// The app's card: an outlined panel with a hard offset shadow, like a printed sticker.
 class Panel extends StatelessWidget {
-  const Panel({
-    super.key,
-    required this.child,
-    this.margin = const EdgeInsets.only(bottom: 16),
-    this.color,
-    this.flat = false,
-    this.group = false,
-  });
+  const Panel({super.key, required this.child, this.margin = const EdgeInsets.only(bottom: 16), this.color});
   final Widget child;
   final EdgeInsetsGeometry margin;
   final Color? color;
 
-  /// A card that only tells (a reading, a note, an estimate): no shadow and a thin outline, so
-  /// it does not look like the raised cards, which open something when tapped.
-  final bool flat;
-
-  /// A quiet outline around related things, some of them raised (a bus board, buttons).
-  final bool group;
-
-  static const _thin = 1.5;
-
   @override
   Widget build(BuildContext context) {
     final r = BorderRadius.circular(DL.radius);
-    final raised = !flat && !group;
-    final width = raised ? DL.stroke : _thin;
-    // A tinted sticker (sky, mint, amber) keeps its full outline; plain ones a lighter line.
-    final edge = raised || (flat && color != null) ? DL.edge(context) : DL.edge(context).withValues(alpha: 0.6);
     return Padding(
       padding: margin,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: group ? null : color ?? Theme.of(context).colorScheme.surfaceContainerLowest,
+          color: color ?? Theme.of(context).colorScheme.surfaceContainerLowest,
           borderRadius: r,
-          border: Border.all(color: edge, width: width),
-          boxShadow: raised ? DL.hard(context) : null,
+          border: Border.all(color: DL.edge(context), width: DL.stroke),
+          boxShadow: DL.hard(context),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(DL.radius - width),
+          borderRadius: BorderRadius.circular(DL.radius - DL.stroke),
           child: Material(type: MaterialType.transparency, child: child),
         ),
-      ),
-    );
-  }
-}
-
-/// A hard shadow under a button that is the action of its card: raised means a tap does something.
-class Raised extends StatelessWidget {
-  const Raised({super.key, required this.child});
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 3, bottom: 3),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(color: DL.edge(context), offset: const Offset(3, 3))],
-        ),
-        child: child,
       ),
     );
   }

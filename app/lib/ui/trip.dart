@@ -176,7 +176,7 @@ class _WalkCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    return Panel(flat: true,
+    return Panel(
       color: DL.mint,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
@@ -224,7 +224,7 @@ class _ModeCard extends ConsumerWidget {
     final t = Theme.of(context).textTheme;
     final straight = distanceMeters(from.lat, from.lng, to.lat, to.lng);
     final minutes = modeMinutes(mode, straight);
-    return Panel(flat: true,
+    return Panel(
       margin: const EdgeInsets.only(bottom: 14),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
@@ -249,11 +249,11 @@ class _ModeCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Raised(child: OutlinedButton.icon(
+            OutlinedButton.icon(
               icon: const Icon(Icons.open_in_new, size: 18),
               label: Text(mapsLabel),
               onPressed: () => openDirections(to.lat, to.lng, mode: mapsMode),
-            )),
+            ),
           ],
         ),
       ),
@@ -270,7 +270,7 @@ class _ThereNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    return Panel(flat: true,
+    return Panel(
       color: DL.mint,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -340,7 +340,7 @@ class _TripTimer extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
           ],
-          Raised(child: OutlinedButton.icon(
+          OutlinedButton.icon(
             icon: const Icon(Icons.timer_outlined),
             onPressed: () => ref.read(habitsProvider.notifier).startTrip(
                   route,
@@ -350,7 +350,7 @@ class _TripTimer extends ConsumerWidget {
                   km: distanceMeters(from.lat, from.lng, to.lat, to.lng) / 1000,
                 ),
             label: Text(s.imLeaving),
-          )),
+          ),
           // How it works, small and under the button, until this trip has been learned.
           if (stats.usual == null)
             Padding(
@@ -418,7 +418,7 @@ class _TransitBlock extends ConsumerWidget {
 
     final buses = <Widget>[
       if (trip.stops.isEmpty)
-        Panel(flat: true,
+        Panel(
           child: EmptyNote(s.noDirectBus,
               action: TextButton(onPressed: () => openDirections(to.lat, to.lng), child: Text(s.routeInMaps))),
         ),
@@ -457,7 +457,7 @@ class _TransitBlock extends ConsumerWidget {
           if (!anyDirect)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: Raised(child: OutlinedButton.icon(
+              child: OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
                 icon: const Icon(Icons.local_taxi_outlined),
                 label: Text(s.taxiInstead),
@@ -467,7 +467,7 @@ class _TransitBlock extends ConsumerWidget {
                   showDragHandle: true,
                   builder: (_) => TaxiSheet(origin: from),
                 ),
-              )),
+              ),
             ),
         ],
         if (straight < walkInsteadMetres)
@@ -540,7 +540,7 @@ class _MrtOption extends ConsumerWidget {
           ),
         );
 
-    return Panel(group: true,
+    return Panel(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
         child: Column(
@@ -679,12 +679,12 @@ class _MrtOption extends ConsumerWidget {
           if (riding == null)
             Padding(
               padding: const EdgeInsets.only(top: 10),
-              child: Raised(child: OutlinedButton.icon(
+              child: OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
                 icon: const Icon(Icons.swap_horiz),
                 label: Text(s.changeLine),
                 onPressed: () => showMrtLineSheet(context, from: from, to: to),
-              )),
+              ),
             ),
           Align(
             alignment: Alignment.centerLeft,
@@ -830,7 +830,7 @@ class _LeaveCard extends ConsumerWidget {
         ),
       ],
     );
-    return Panel(flat: true,
+    return Panel(
       margin: const EdgeInsets.only(top: 4, bottom: 10),
       color: DL.mint,
       child: Padding(
@@ -906,7 +906,7 @@ class TripBusCard extends ConsumerWidget {
     final rides = routes.routes.isEmpty ? null : tripRides(routes, stop, to, destinationStops(to, all));
     final startName = fromName ?? (fromKey == null ? s.hereNow : s.placeLabel(fromKey!));
 
-    return Panel(group: true,
+    return Panel(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 8, 10),
         child: Column(
@@ -1131,7 +1131,7 @@ class TripBusCard extends ConsumerWidget {
             if (suggestedMetres != null && fromKey != null)
               Align(
                 alignment: Alignment.centerLeft,
-                child: Raised(child: OutlinedButton.icon(
+                child: OutlinedButton.icon(
                   icon: const Icon(Icons.push_pin_outlined),
                   label: Text(s.useThisStop),
                   onPressed: () async {
@@ -1139,7 +1139,7 @@ class TripBusCard extends ConsumerWidget {
                     await ref.read(favoritesProvider.notifier).useStop(fromKey!, stop);
                     messenger.showSnackBar(SnackBar(content: Text(s.stopSaved(stop.name))));
                   },
-                )),
+                ),
               ),
           ],
         ),
@@ -1178,7 +1178,7 @@ class _DriveBlock extends ConsumerWidget {
           EvChargers(lat: to.lat, lng: to.lng, title: s.evChargersNear(toLabel)),
         SectionTitle(s.trafficOnWay, padding: const EdgeInsets.fromLTRB(4, 0, 4, 10)),
         if (incidents.isEmpty)
-          Panel(flat: true, child: EmptyNote(s.noIncidents, icon: Icons.check_circle_outline))
+          Panel(child: EmptyNote(s.noIncidents, icon: Icons.check_circle_outline))
         else
           for (final (type, msg) in incidents.take(4))
             AlertBanner(icon: Icons.warning_amber_rounded, text: '$type: $msg'),
@@ -1271,7 +1271,7 @@ class _LiveExtras extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           heading,
-          const Panel(flat: true, child: Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator())),
+          const Panel(child: Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator())),
         ],
       ),
       error: (_, __) => small(s.liveUnavailable),
@@ -1311,7 +1311,7 @@ class _LiveExtras extends ConsumerWidget {
           if (mode == TravelMode.motorcycle) return const SizedBox.shrink();
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [heading, Panel(flat: true, child: EmptyNote(bike ? s.noBicycleParkingNear : s.noParkingNear))],
+            children: [heading, Panel(child: EmptyNote(bike ? s.noBicycleParkingNear : s.noParkingNear))],
           );
         }
         return Column(
@@ -1376,8 +1376,6 @@ class _LiveExtras extends ConsumerWidget {
                                         style: t.labelSmall),
                                   ],
                                 ),
-                              // The row opens the place's sheet.
-                              if (p.lots != null) const Icon(Icons.chevron_right),
                             ],
                           ),
                         ),
