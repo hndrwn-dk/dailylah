@@ -689,7 +689,8 @@ ShareImport? readShareCode(String code) {
     final places = <PlaceKind, Place>{};
     for (final p in (j['p'] as List? ?? const [])) {
       final place = Place.fromJson(p as Map<String, dynamic>);
-      places[place.kind] = place;
+      // A place with no position cannot be shown or routed to: left out, the rest still counts.
+      if (place.hasPosition) places[place.kind] = place;
     }
     final hasLines = j.containsKey('l');
     final imp = ShareImport(
@@ -709,7 +710,9 @@ ShareImport? readShareCode(String code) {
 Set<PlaceKind> shareConflicts(ShareImport imp, Favorites current) => {
       for (final e in imp.places.entries)
         if (current.places[e.key] case final mine?
-            when distanceMeters(mine.lat, mine.lng, e.value.lat, e.value.lng) > 50)
+            when !mine.hasPosition ||
+                !e.value.hasPosition ||
+                distanceMeters(mine.lat, mine.lng, e.value.lat, e.value.lng) > 50)
           e.key,
     };
 
