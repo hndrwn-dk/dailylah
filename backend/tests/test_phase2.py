@@ -350,15 +350,44 @@ def test_search_failure_logs_why_but_not_the_query(monkeypatch, caplog):
     )
     respx.get(ONEMAP_SEARCH).mock(
         side_effect=[
+            # Refused for the rate: OneMap's message is logged, without the text searched for.
             httpx.Response(429, json={"message": "Too many requests for 66 MARINE DRIVE"}),
+            # Any other status: no message at all (it could echo the text in another form).
+            httpx.Response(400, json={"message": "bad searchVal 66%20marine%20drive"}),
+            httpx.Response(500, text="<html>oops</html>"),
+            # A message with a token-like value, digits or a line break is left out too.
+            httpx.Response(429, json={"message": "Bad token eyJhbGciOi.J9x_0\nINFO: forged line"}),
+            httpx.Response(429, json={"message": "Limit of 250 a minute"}),
             httpx.ConnectTimeout("slow"),
         ]
     )
     with caplog.at_level("WARNING"), TestClient(app) as client:
-        assert client.get("/v1/search", params={"q": "66 marine drive"}).status_code == 502
-        assert client.get("/v1/search", params={"q": "66 marine drive"}).status_code == 502
+        for _ in range(6):
+            assert client.get("/v1/search", params={"q": "66 marine drive"}).status_code == 502
     said = [r.getMessage() for r in caplog.records if "OneMap search failed" in r.getMessage()]
-    assert said[0] == "OneMap search failed: HTTP 429 (with token) Too many requests for …"
-    assert said[1] == "OneMap search failed: ConnectTimeout (with token)"
-    assert all("marine" not in line.lower() and "66" not in line for line in said)
+    assert said == [
+        "OneMap search failed: HTTP 429 (with token) Too many requests for …",
+        "OneMap search failed: HTTP 400 (with token)",
+        "OneMap search failed: HTTP 500 (with token)",
+        "OneMap search failed: HTTP 429 (with token)",
+        "OneMap search failed: HTTP 429 (with token)",
+        "OneMap search failed: ConnectTimeout (with token)",
+    ]
+    get_settings.cache_clear()
+
+
+@respx.mock
+def test_search_failure_says_when_no_token_went_out(monkeypatch, caplog):
+    # The login is refused, so the search goes out without a token and OneMap answers 401.
+    monkeypatch.setenv("ONEMAP_EMAIL", "dev@example.com")
+    monkeypatch.setenv("ONEMAP_PASSWORD", "x")
+    get_settings.cache_clear()
+    respx.post(ONEMAP_TOKEN).mock(return_value=httpx.Response(401, json={}))
+    respx.get(ONEMAP_SEARCH).mock(
+        return_value=httpx.Response(401, json={"message": "Token missing"})
+    )
+    with caplog.at_level("WARNING"), TestClient(app) as client:
+        assert client.get("/v1/search", params={"q": "560201"}).status_code == 502
+    said = [r.getMessage() for r in caplog.records if "OneMap search failed" in r.getMessage()]
+    assert said == ["OneMap search failed: HTTP 401 (no token) Token missing"]
     get_settings.cache_clear()

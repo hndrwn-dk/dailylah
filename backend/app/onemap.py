@@ -18,6 +18,9 @@ TOKEN_URL = "https://www.onemap.gov.sg/api/auth/post/getToken"  # noqa: S105 (an
 SEARCH_URL = "https://www.onemap.gov.sg/api/common/elastic/search"
 THEME_URL = "https://www.onemap.gov.sg/api/public/themesvc/retrieveTheme"
 
+# A OneMap error message that may go in the log (see OneMap.why_failed).
+_PLAIN_WORDS = re.compile(r"[A-Za-z .,'…]{1,80}")
+
 # Renew this long before the token expires.
 RENEW_MARGIN_S = 6 * 3600
 
@@ -30,6 +33,8 @@ class OneMap:
         self._token: str | None = None
         self._expires = 0.0
         self._lock = asyncio.Lock()
+        # Whether the last request went out with a token (for the log, see why_failed).
+        self._sent_token = False
 
     @property
     def configured(self) -> bool:
@@ -65,20 +70,29 @@ class OneMap:
 
     async def get(self, url: str, params: dict) -> httpx.Response:
         """GET with the token; renews it once when OneMap says it is no longer valid."""
-        r = await self.client.get(url, params=params, headers=await self.headers())
+        headers = await self.headers()
+        self._sent_token = bool(headers)
+        r = await self.client.get(url, params=params, headers=headers)
         if r.status_code in (401, 403) and self.configured:
             tok = await self.token(force=True)
             if tok:
+                self._sent_token = True
                 r = await self.client.get(url, params=params, headers={"Authorization": tok})
         return r
 
     def why_failed(self, e: Exception, query: str) -> str:
-        """Why a OneMap call failed, for the log: OneMap's status and its own short message, or
-        the kind of network error, and whether a token was sent. Never the text searched for:
-        it is cut out of the message in case OneMap echoes it."""
-        sent = "with token" if self._token else "no token"
-        if isinstance(e, httpx.HTTPStatusError):
-            said = ""
+        """Why a OneMap call failed, for the log: OneMap's status, or the kind of network error,
+        and whether the request went out with a token. OneMap's own message is added only when it
+        refused the token or the rate (401, 403, 429), with the text searched for cut out, and
+        only if what is left is plain words (letters, spaces and . , '): no digits, so no postal
+        code or token, and no control characters, so no forged log line. Any other message is
+        left out: it could echo the search text in a form that cannot be recognised."""
+        sent = "with token" if self._sent_token else "no token"
+        if not isinstance(e, httpx.HTTPStatusError):
+            return f"{type(e).__name__} ({sent})"
+        status = e.response.status_code
+        said = ""
+        if status in (401, 403, 429):
             try:
                 body = e.response.json()
                 if isinstance(body, dict):
@@ -87,10 +101,11 @@ class OneMap:
                 pass
             # The whole query and each word of it, in any case.
             for part in sorted({query, *query.split()}, key=len, reverse=True):
-                if len(part) >= 2:
+                if part:
                     said = re.sub(re.escape(part), "…", said, flags=re.IGNORECASE)
-            return f"HTTP {e.response.status_code} ({sent}) {said[:120]}".rstrip()
-        return f"{type(e).__name__} ({sent})"
+            if not _PLAIN_WORDS.fullmatch(said):
+                said = ""
+        return f"HTTP {status} ({sent}) {said}".rstrip()
 
     async def search(self, query: str, page: int = 1) -> dict:
         r = await self.get(
