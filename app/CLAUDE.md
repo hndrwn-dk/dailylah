@@ -232,7 +232,8 @@ feature, screen, provider or rule moves, appears or goes away.
   opens the list "Nearby where?": Current location, the saved places, Search for a place), with the
   Use my current location button beside it. The sections are `SectionTiles` (widgets.dart: even tiles, icon over
   name, four a row or fewer when the longest name would not fit, `SectionTiles.columns`; a short last row is
-  filled by its last tile), one section at a time
+  filled by its last tile; a name a little too wide is drawn smaller, down to `SectionTiles.labelShrink`,
+  before a row gives up a tile), one section at a time
   (`nearbySectionProvider`: bus, eat, green = parks, park = car parking, taxi, toilet, prayer, help). A row that
   opens something is a `PlaceRow` (widgets.dart): name, a line under it, a large figure and a chevron. The
   figure is the distance (`S.metresParts`), or the row's own number (free lots, free chargers, the prayer time),
@@ -240,8 +241,8 @@ feature, screen, provider or rule moves, appears or goes away.
   Every such row opens that place's own sheet (an HDB car park: `_showCarpark`; a toilet: the place sheet with
   walking directions). The bus hint ("Tap a bus to see where it is") is said once beside the heading, See all
   sits at the end of its heading (`SectionTitle.trailingAtEnd`), and the Taxi card says the answer
-  (`taxiEase`, `S.taxiEaseTitle`) over "2 free taxis within 500 m · stand 88 m" (`S.taxiNearLine`). Other tabs
-  keep `PillRow` and `ListTile` rows until their own revamp (`NearGroup(figures:)`, `EvChargers(chevron:)`). The taxi sheet
+  (`taxiEase`, `S.taxiEaseTitle`) over "2 free taxis within 500 m · stand 88 m" (`S.taxiNearLine`). History
+  and the trip planner keep `PillRow`; EV rows on a car trip have no chevron yet (`EvChargers(chevron:)`). The taxi sheet
   (`TaxiSheet` in `ui/today.dart`) answers first (`TaxiEaseCard`, `taxiEase`), then the nearest stand with
   Walk there (`taxisAround`), then `TaxiRadar` on the dark board (tap a taxi: distance and `compass8`
   direction; stands are 48 dp `TaxiStandPin`s that open the stand; for TalkBack the radar has a label
@@ -394,11 +395,20 @@ feature, screen, provider or rule moves, appears or goes away.
   eligibility link, and "See data sources", which opens About). Maestro: `maestro/08_where_to_live.yaml`, `maestro/10_compare_blocks.yaml`.
 - Names put in title case (streets, OneMap addresses, CHAS clinics) keep short forms in capitals
   (`capitalizeWord` in data.dart: MRT, LRT, HDB, NTUC...), so "Tampines MRT Station" reads the same everywhere.
-- Home tab (`ui/home.dart`) is about the saved home, one section at a time (chips under the hero,
-  `homeSectionProvider`): its HDB block (`homeBlock`) or private project (`private_homes.json` from
-  URA, `privateProjectFor`; backend `app/ura.py`, secret `URA_ACCESS_KEY`), upgrading and
-  works (`around.json` bundle from OneMap themes, `projectsNear`), schools, health, community,
-  recycling, weekend, parking; block search is `BlockSearchPage`. HDB data is computed on the
+- Home tab (`ui/home.dart`) is about the saved home, one section at a time (`SectionTiles` under the hero, eight
+  in two rows, `homeSectionProvider`, `HomePage.sections`: home, safety, schools, health, community, weekend,
+  food, parking): its HDB block (`homeBlock`) or private project (`private_homes.json` from
+  URA, `privateProjectFor`; backend `app/ura.py`, secret `URA_ACCESS_KEY`). My home is the block card
+  (`_MyBlock`: built, lease left and storeys in a flat strip `_FactStrip`, one fact a line at large text; the
+  raised price card with a chevron opens `BlockPage`; watching is one line with Notify me / Stop) and "Around
+  your home" (`_Glance`): `PlaceRow`s for the nearest primary school, hawker and AED, each opening its section,
+  then Upgrading and works (`around.json` bundle from OneMap themes, `projectsNear`), Recycling and Blocks and
+  agents, each on a page of its own (`HomeTopicPage`, `HomePage.topics`, `S.homeTopic`). Safety (`_Safety`) is
+  the call buttons (995 red, 999 amber, as on Nearby), AEDs, A&E, police and fire stations, then the emergency
+  meeting points. Every list (`NearGroup`) is `PlaceRow`s like Nearby: the distance large, or the row's own
+  number with the distance under the name (`NearItem.big`; an empty `big` means no figure, a car park without
+  a live count), then a chevron; phone numbers and links are on the sheet, and a row never shows a web
+  address (`withoutWebAddress` in logic.dart). Block search is `BlockSearchPage`. HDB data is computed on the
   phone from bundles; only CEA lookups hit the API.
 - Share to DailyLah: OneMap search finds addresses and buildings, not shop names, so a place found in Google Maps
   is shared in (Android `SEND` text/plain filter on MainActivity, channel `dailylah/share`: `take` hands over the

@@ -751,19 +751,40 @@ class S {
   String get homeTitle => 'Home';
   String homeSection(String k) => switch (k) {
         'home' => 'My home',
-        'works' => 'Upgrading',
+        'safety' => 'Safety',
         'schools' => 'Schools',
-        'emergency' => 'Emergency',
-        'shelter' => 'Meeting points',
         'health' => 'Health',
         'community' => 'Community',
         'weekend' => 'Weekend',
-        'recycling' => 'Recycling',
         'food' => 'Food',
         'parking' => 'Parking',
-        'blocks' => 'Blocks & agents',
         _ => k,
       };
+
+  /// What My home links to on a page of its own.
+  String homeTopic(String k) => switch (k) {
+        'works' => 'Upgrading and works',
+        'recycling' => 'Recycling',
+        'blocks' => 'Blocks and agents',
+        _ => k,
+      };
+  String get aroundBlock => 'Around your home';
+  String get worksNoneShort => 'None listed within 1 km';
+  String get recyclingHint => 'E-waste drop-off, donate, resell or repair';
+  String blocksHint(int watched, int compared) => [
+        watched == 0 ? 'No watched blocks' : (watched == 1 ? '1 watched block' : '$watched watched blocks'),
+        if (compared >= 2) '$compared to compare',
+        'check a property agent',
+      ].join(' · ');
+  String get factBuilt => 'built';
+  String get factLease => 'lease left';
+  String get factStoreys => 'storeys';
+  String yearsShort(int n) => '$n yrs';
+  String get watchBlockHint => 'Get a note when a flat here is sold';
+  String get watchStart => 'Notify me';
+  String get watchStop => 'Stop';
+  String get watchStopLabel => 'Stop notifying me of new sales';
+  String get evChargersTitle => 'EV chargers';
   String get psfLabel => 'median per sq ft';
   String salesCount(int n, int months) => '$n ${n == 1 ? 'sale' : 'sales'} in the last ${months == 12 ? '12 months' : '3 years'}';
   String get latestSales => 'Latest sales';
@@ -790,7 +811,6 @@ class S {
         '${period.isEmpty ? '' : ' ($period median)'}';
   }
   String get propertyAgents => 'Property agents';
-  String get worksTitle => 'Upgrading and construction';
   String get worksNone => 'No upgrading or construction listed within 1 km.';
   String atYourBlock(String what) => 'At your block: $what';
   String projectKind(String k) => switch (k) {
@@ -844,7 +864,6 @@ class S {
   String eventNearby(String name, String distance) => '$name · $distance';
   String get studentCare => 'Student care';
   String get familyServices => 'Family services';
-  String get recyclingTitle => 'Recycling';
   String get ewastePoints => 'E-waste drop-off';
   String get reuseChannels => 'Donate, resell or repair';
   String get recyclingNote => 'Blue recycling bins are at every HDB block and collected by your public waste collector; collection days are not published as open data.';
@@ -1039,9 +1058,9 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Nearby: your place is now one button. Tap it to pick Current location, a saved place or Search.",
-        "Nearby: the sections (Bus, Eat, Parks, Parking and more) are even tiles in two rows.",
-        "Nearby: every row you can open shows an arrow, with the distance in large figures. Taxi tells you at once how easy it is to get one.",
+        "Home: eight sections in two even rows. Emergency and meeting points are now one section, Safety.",
+        "Home: your block's facts sit in one strip, and one card opens prices, rent and commute. Upgrading, Recycling and watched blocks are under Around your home.",
+        "Home: every row you can open shows an arrow, with the distance in large figures, the same as Nearby.",
       ];
 
   // about

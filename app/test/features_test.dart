@@ -8,7 +8,7 @@ import 'dart:io';
 import 'package:dailylah/data.dart';
 import 'package:dailylah/l10n.dart';
 import 'package:dailylah/api.dart';
-import 'package:dailylah/logic.dart' show HistoryPeriod, alertsOn, offsetMetres, parseSharedPlace, rideMinutesTo;
+import 'package:dailylah/logic.dart' show HistoryPeriod, alertsOn, offsetMetres, parseSharedPlace, rideMinutesTo, withoutWebAddress;
 import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/mrt_ride.dart';
@@ -20,6 +20,7 @@ import 'package:dailylah/ui/bus_sheet.dart';
 import 'package:dailylah/ui/history.dart';
 import 'package:dailylah/ui/more.dart';
 import 'package:dailylah/ui/mrt_ride.dart';
+import 'package:dailylah/ui/home.dart';
 import 'package:dailylah/ui/nearby.dart';
 import 'package:dailylah/ui/theme.dart';
 import 'package:dailylah/ui/today.dart';
@@ -2441,5 +2442,134 @@ void main() {
     expect(tester.getTopLeft(find.text('taxi')).dy, greaterThan(tester.getTopLeft(find.text('park')).dy));
     await tester.tap(find.text('help'));
     expect(tapped, 'help');
+  });
+
+  testWidgets('Home: eight section tiles, Safety has the calls and the meeting points, My home links to the rest',
+      (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    box.read(shellTabProvider.notifier).state = _tabs['Home']!;
+    await settle(tester);
+    final page = find.byType(HomePage);
+
+    // Tiles, not pills: two rows of four on a phone.
+    expect(find.descendant(of: page, matching: find.byType(PillRow)), findsNothing);
+    final tiles = tester.widget<SectionTiles>(find.descendant(of: page, matching: find.byType(SectionTiles)));
+    expect([for (final (k, _, _) in tiles.items) k], HomePage.sections);
+    expect(HomePage.sections, hasLength(8));
+    // "Community" is a little wider than a quarter of the row: it is drawn smaller, not on a row of three.
+    expect(SectionTiles.columns(380, 80), 4);
+    expect(SectionTiles.columns(380, 120), 3);
+
+    // The block's facts lie flat; the price card says where it goes and opens the block page.
+    for (final label in [_s.factBuilt, _s.factLease, _s.factStoreys]) {
+      expect(find.text(label), findsOneWidget);
+    }
+    expect(find.text(_s.watchingBlock), findsOneWidget);
+    await tester.tap(find.text(_s.watchStop));
+    await settle(tester);
+    expect(box.read(favoritesProvider).watchedBlocks, isEmpty);
+    expect(find.text(_s.watchStart), findsOneWidget);
+
+    // Around your home: a row opens its section...
+    final school = find.widgetWithText(PlaceRow, _s.nearestPrimary);
+    await tester.ensureVisible(school);
+    await tester.pump();
+    expect(tester.widget<PlaceRow>(school).figure, isNotNull);
+    await tester.tap(school);
+    await settle(tester);
+    expect(box.read(homeSectionProvider), 'schools');
+
+    // ...or a page of its own, for what is no longer a section.
+    box.read(homeSectionProvider.notifier).state = 'home';
+    await settle(tester);
+    for (final topic in HomePage.topics) {
+      final row = find.widgetWithText(PlaceRow, _s.homeTopic(topic));
+      await tester.ensureVisible(row);
+      await tester.pump();
+      await tester.tap(row);
+      await settle(tester);
+      expect(find.widgetWithText(AppBar, _s.homeTopic(topic)), findsOneWidget, reason: topic);
+      await tester.pageBack();
+      await settle(tester);
+    }
+
+    // Safety: the calls first (999 in amber, as on Nearby), then the meeting points further down.
+    await tester.ensureVisible(find.text('Safety'));
+    await tester.pump();
+    await tester.tap(find.text('Safety'));
+    await settle(tester);
+    expect(box.read(homeSectionProvider), 'safety');
+    expect(find.text(_s.call995), findsOneWidget);
+    final police = tester.widget<Panel>(find.ancestor(of: find.text(_s.call999), matching: find.byType(Panel)).first);
+    expect(police.color, DL.amber);
+    await tester.scrollUntilVisible(find.text(_s.meetingPoints), 300, scrollable: find.byType(Scrollable).hitTestable().first);
+    expect(find.text(_s.meetingPoints), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Home lists: a row shows its distance large, no web address and no call button; nor does the ActiveSG sheet',
+      (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    box.read(shellTabProvider.notifier).state = _tabs['Home']!;
+    box.read(homeSectionProvider.notifier).state = 'weekend';
+    await settle(tester);
+    await scrollThrough(tester);
+    final page = find.byType(HomePage);
+    final rows = tester.widgetList<PlaceRow>(find.descendant(of: page, matching: find.byType(PlaceRow), skipOffstage: false));
+    expect(rows, isNotEmpty);
+    for (final r in rows) {
+      expect(r.subtitle ?? '', isNot(contains('http')), reason: r.title);
+      expect(r.figure, isNotNull, reason: r.title);
+    }
+    expect(find.descendant(of: page, matching: find.byIcon(Icons.call_outlined), skipOffstage: false), findsNothing);
+
+    // The ActiveSG sheet has the booking button, so it does not print the site's address either.
+    final sport = find.descendant(of: page, matching: find.byWidgetPredicate((w) => w is PlaceRow && w.icon == Icons.sports_tennis_outlined)).first;
+    // Opened through the row's own action: after the scroll the row may sit under the tab bar.
+    tester.widget<PlaceRow>(sport).onTap();
+    await settle(tester);
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.text(_s.bookOnActiveSg, skipOffstage: false), findsOneWidget);
+    expect(find.textContaining('http', skipOffstage: false), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('A list row for an e-waste point whose details hold a link shows no web address', (tester) async {
+    await applyCondition(tester, _normal);
+    // Every e-waste point in the bundle is checked through the rule the rows use.
+    final around = AroundSet.fromBundle(jsonDecode(File('../web/data/around.json').readAsStringSync()) as Map<String, dynamic>);
+    final linked = [for (final p in around.of('ewaste')) if (p.detail.contains('http')) p];
+    expect(linked, isNotEmpty, reason: 'the bundle no longer has a linked e-waste point: pick another case');
+    for (final p in linked) {
+      expect(withoutWebAddress(p.detail), isNot(contains('http')), reason: p.name);
+    }
+    // And in a row: the list shows the details without the link, with the distance large.
+    final p = linked.first;
+    await tester.pumpWidget(pageUnder(
+      _normal,
+      householdFavorites,
+      tuesdayMorning,
+      Scaffold(
+        body: ListView(children: [
+          NearGroup(title: 'E-waste drop-off', icon: Icons.recycling, items: [
+            NearItem(name: p.name, detail: p.detail, lat: p.lat, lng: p.lng, distance: 120),
+          ]),
+        ]),
+      ),
+    ));
+    await settle(tester);
+    final row = tester.widget<PlaceRow>(find.byType(PlaceRow));
+    expect(p.detail, contains('http'));
+    expect(row.subtitle, withoutWebAddress(p.detail));
+    expect(row.subtitle, isNot(contains('http')));
+    expect((row.figure, row.figureLabel), ('120', 'm'));
+    expect(find.textContaining('http'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 }

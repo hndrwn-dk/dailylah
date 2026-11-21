@@ -1955,10 +1955,14 @@ class SectionTiles extends StatelessWidget {
 
   static const _gap = 8.0;
 
-  /// How many tiles go in a row of [width] when the widest name needs [labelWidth].
+  /// The smallest a name may be drawn, as a share of its size, to keep one more tile in a row.
+  static const labelShrink = 0.75;
+
+  /// How many tiles go in a row of [width] when the widest name needs [labelWidth]: a name may
+  /// shrink to [labelShrink] of its size before the row gives up a tile.
   static int columns(double width, double labelWidth, {int most = 4}) {
     for (var n = most; n > 1; n--) {
-      if ((width - _gap * (n - 1)) / n - 3 >= labelWidth + 10) return n;
+      if ((width - _gap * (n - 1)) / n - 3 >= labelWidth * labelShrink + 10) return n;
     }
     return 1;
   }
@@ -2059,11 +2063,11 @@ class _SectionTile extends StatelessWidget {
                   children: [
                     Icon(icon, size: 20, color: fg),
                     const SizedBox(height: 2),
-                    Text(label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: style?.copyWith(color: fg)),
+                    // A name a little too wide for its tile is drawn smaller, never cut.
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(label, maxLines: 1, textAlign: TextAlign.center, style: style?.copyWith(color: fg)),
+                    ),
                   ],
                 ),
               ),
