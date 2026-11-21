@@ -157,9 +157,13 @@ class Panel extends StatelessWidget {
 
 /// Section title with an optional trailing action.
 class SectionTitle extends StatelessWidget {
-  const SectionTitle(this.text, {super.key, this.trailing, this.padding = const EdgeInsets.fromLTRB(4, 20, 4, 10)});
+  const SectionTitle(this.text,
+      {super.key, this.trailing, this.trailingAtEnd = false, this.padding = const EdgeInsets.fromLTRB(4, 20, 4, 10)});
   final String text;
   final Widget? trailing;
+
+  /// Puts [trailing] at the end of the row instead of right after the title's half.
+  final bool trailingAtEnd;
   final EdgeInsets padding;
 
   @override
@@ -169,7 +173,10 @@ class SectionTitle extends StatelessWidget {
       child: Row(
         children: [
           Expanded(child: Text(text, style: Theme.of(context).textTheme.titleMedium)),
-          if (trailing != null) Flexible(child: trailing!),
+          if (trailing != null)
+            Flexible(
+              child: trailingAtEnd ? Align(alignment: AlignmentDirectional.centerEnd, child: trailing!) : trailing!,
+            ),
         ],
       ),
     );
@@ -432,7 +439,8 @@ class PageTitle extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: t.displayLarge),
+              // Wraps between words; a word wider than the screen (large text) shrinks to fit.
+              WordWrapTitle(title, style: t.displayLarge),
               if (subtitle != null) ...[
                 const SizedBox(height: 4),
                 Text(subtitle!, style: t.bodyMedium?.copyWith(color: t.bodySmall?.color)),
@@ -1556,7 +1564,8 @@ class BigNumber extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text(value, style: t.displaySmall?.copyWith(fontSize: 26, height: 1, color: warn ? DL.ink : null)),
-          Text(label, textAlign: TextAlign.end, style: t.labelSmall?.copyWith(color: warn ? DL.ink : null)),
+          if (label.isNotEmpty)
+            Text(label, textAlign: TextAlign.end, style: t.labelSmall?.copyWith(color: warn ? DL.ink : null)),
         ],
       ),
     );
@@ -1898,4 +1907,283 @@ class _RenderColumns extends RenderBox
 
   @override
   void paint(PaintingContext context, Offset offset) => defaultPaint(context, offset);
+}
+
+/// A title that wraps between words and never inside one: when its longest word is wider than the
+/// line (long street names at 200% text), the whole title is set smaller until that word fits.
+class WordWrapTitle extends StatelessWidget {
+  const WordWrapTitle(this.text, {super.key, this.style});
+  final String text;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = style ?? DefaultTextStyle.of(context).style;
+    final scaler = MediaQuery.textScalerOf(context);
+    return LayoutBuilder(builder: (context, box) {
+      var widest = 0.0;
+      for (final w in text.split(' ')) {
+        final tp = TextPainter(text: TextSpan(text: w, style: base), textDirection: TextDirection.ltr, textScaler: scaler)
+          ..layout();
+        if (tp.width > widest) widest = tp.width;
+        tp.dispose();
+      }
+      final fit = widest > box.maxWidth && widest > 0 ? box.maxWidth / widest * 0.98 : 1.0;
+      final size = (base.fontSize ?? 14) * fit;
+      return Text(text, style: base.copyWith(fontSize: size));
+    });
+  }
+}
+
+/// The sections of a tab as even tiles (icon over name), the picked one amber and raised:
+/// four a row, fewer when the longest name would not fit on one line (large text, small
+/// phones). A last row that is short is filled by its last tile. Items: (key, icon, name).
+class SectionTiles extends StatelessWidget {
+  const SectionTiles({
+    super.key,
+    required this.items,
+    required this.selected,
+    required this.onTap,
+    this.danger = const {},
+  });
+  final List<(String, IconData, String)> items;
+  final String selected;
+  final ValueChanged<String> onTap;
+
+  /// Keys drawn in red (Help): red fill when picked, red text otherwise.
+  final Set<String> danger;
+
+  static const _gap = 8.0;
+
+  /// How many tiles go in a row of [width] when the widest name needs [labelWidth].
+  static int columns(double width, double labelWidth, {int most = 4}) {
+    for (var n = most; n > 1; n--) {
+      if ((width - _gap * (n - 1)) / n - 3 >= labelWidth + 10) return n;
+    }
+    return 1;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.labelLarge;
+    final scaler = MediaQuery.textScalerOf(context);
+    return LayoutBuilder(builder: (context, box) {
+      var widest = 0.0;
+      for (final (_, _, name) in items) {
+        final tp = TextPainter(text: TextSpan(text: name, style: style), textDirection: TextDirection.ltr, textScaler: scaler)
+          ..layout();
+        if (tp.width > widest) widest = tp.width;
+        tp.dispose();
+      }
+      final cols = columns(box.maxWidth, widest);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < items.length; i += cols)
+            Padding(
+              padding: EdgeInsets.only(top: i == 0 ? 0 : _gap),
+              child: Row(
+                children: [
+                  for (var j = i; j < i + cols && j < items.length; j++) ...[
+                    if (j > i) const SizedBox(width: _gap),
+                    Expanded(
+                      // The last tile takes what is left of a short last row.
+                      flex: j == items.length - 1 ? i + cols - j : 1,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 3, right: 3),
+                        child: _SectionTile(
+                          icon: items[j].$2,
+                          label: items[j].$3,
+                          selected: items[j].$1 == selected,
+                          danger: danger.contains(items[j].$1),
+                          style: style,
+                          onTap: () => onTap(items[j].$1),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+        ],
+      );
+    });
+  }
+}
+
+class _SectionTile extends StatelessWidget {
+  const _SectionTile({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.danger,
+    required this.style,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final bool danger;
+  final TextStyle? style;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final edge = DL.edge(context);
+    final bg = selected ? (danger ? DL.stopDeep : DL.amber) : Theme.of(context).colorScheme.surfaceContainerLowest;
+    final fg = danger
+        ? (selected ? Colors.white : DL.stopText(context))
+        : (selected ? DL.ink : Theme.of(context).colorScheme.onSurface);
+    final r = BorderRadius.circular(12);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: r,
+        border: Border.all(color: edge, width: DL.stroke),
+        boxShadow: selected ? [BoxShadow(color: edge, offset: const Offset(3, 3))] : null,
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Semantics(
+          button: true,
+          selected: selected,
+          child: InkWell(
+            borderRadius: r,
+            onTap: onTap,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 56),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 7),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon, size: 20, color: fg),
+                    const SizedBox(height: 2),
+                    Text(label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: style?.copyWith(color: fg)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A row in a list card that opens something: icon, name, a line or two under it, then a large
+/// figure (the distance, or the row's own number such as free lots) and a chevron. Not a
+/// ListTile, which caps the height of what trails and cuts the figure off at 200% text.
+class PlaceRow extends StatelessWidget {
+  const PlaceRow({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.onTap,
+    this.iconColor,
+    this.subtitle,
+    this.subtitleColor,
+    this.below,
+    this.figure,
+    this.figureLabel = '',
+    this.warn = false,
+    this.starred = false,
+  });
+  final IconData icon;
+  final Color? iconColor;
+  final String title;
+  final String? subtitle;
+  final Color? subtitleColor;
+
+  /// Under the subtitle, e.g. a park's facility icons.
+  final Widget? below;
+
+  /// The large figure with its small label ("986" over "m", "12" over "free"); none when null.
+  final String? figure;
+  final String figureLabel;
+
+  /// The figure needs a look (0 lots free): it sits on an amber chip.
+  final bool warn;
+
+  /// A favourite: a small star before the name.
+  final bool starred;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final sub = subtitle ?? '';
+    final scale = MediaQuery.textScalerOf(context).scale(1);
+    return LayoutBuilder(builder: (context, box) {
+      // Large text on a small phone: the icon gives its room to the name, so words stay whole.
+      final compact = box.maxWidth / scale < 200;
+      return _row(context, t, sub, compact);
+    });
+  }
+
+  Widget _row(BuildContext context, TextTheme t, String sub, bool compact) {
+    return InkWell(
+      onTap: onTap,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 56),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+          child: Row(
+            children: [
+              if (!compact) ...[
+                Icon(icon, color: iconColor),
+                const SizedBox(width: 16),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text.rich(
+                      TextSpan(children: [
+                        if (starred)
+                          const WidgetSpan(
+                            alignment: PlaceholderAlignment.middle,
+                            child: Padding(
+                              padding: EdgeInsets.only(right: 4),
+                              child: Icon(Icons.star, size: 16, color: DL.amber),
+                            ),
+                          ),
+                        TextSpan(text: title),
+                      ]),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.titleSmall,
+                    ),
+                    if (sub.isNotEmpty)
+                      Text(sub,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: t.bodySmall?.copyWith(color: subtitleColor)),
+                    if (below != null) below!,
+                  ],
+                ),
+              ),
+              if (figure != null) ...[
+                const SizedBox(width: 8),
+                // Capped so the name keeps room at 200% text on a 320 dp phone.
+                // The figure is large already: it grows with the text setting only up to 150%.
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 96),
+                  child: MediaQuery.withClampedTextScaling(
+                    maxScaleFactor: 1.5,
+                    child: BigNumber(value: figure!, label: figureLabel, warn: warn),
+                  ),
+                ),
+              ],
+              ExcludeSemantics(child: Icon(Icons.chevron_right, color: DL.muted(context))),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

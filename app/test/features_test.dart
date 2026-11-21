@@ -40,6 +40,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'support/harness.dart';
 
 const _normal = Condition('normal');
+const _s = S();
 
 /// Live readings from the shared examples in contracts/v1 (PSI 48, rain 0.4 mm, UV 8, WBGT 30.2).
 class _ReadingsApi extends FakeApi {
@@ -255,10 +256,10 @@ void main() {
     await settle(tester);
 
     // First place in "Halal food nearby" (Nearby starts on Here = Tampines Int).
-    final halalTile = find.widgetWithIcon(ListTile, Icons.restaurant_outlined).first;
+    final halalTile = find.byWidgetPredicate((w) => w is PlaceRow && w.icon == Icons.restaurant_outlined).first;
     await tester.ensureVisible(halalTile);
     await tester.pump();
-    final name = ((tester.widget<ListTile>(halalTile).title!) as Text).data!;
+    final name = tester.widget<PlaceRow>(halalTile).title;
     await tester.tap(halalTile);
     await settle(tester);
     await tester.ensureVisible(find.text('Ate here'));
@@ -371,9 +372,9 @@ void main() {
     box.read(nearbySectionProvider.notifier).state = 'eat';
     await settle(tester);
 
-    final halalTile = find.widgetWithIcon(ListTile, Icons.restaurant_outlined).first;
+    final halalTile = find.byWidgetPredicate((w) => w is PlaceRow && w.icon == Icons.restaurant_outlined).first;
     await _scrollTo(tester, halalTile, page: NearbyPage);
-    final name = ((tester.widget<ListTile>(halalTile).title!) as Text).data!;
+    final name = tester.widget<PlaceRow>(halalTile).title;
     Future<void> openSheet() async {
       await _scrollTo(tester, halalTile, page: NearbyPage);
       await tester.tap(halalTile);
@@ -977,7 +978,9 @@ void main() {
     box.read(shellTabProvider.notifier).state = _tabs['Nearby']!;
     box.read(nearbySectionProvider.notifier).state = 'taxi';
     await settle(tester);
-    await tester.tap(find.textContaining('Taxis nearby').first);
+    // The card says the answer and what it is based on, and opens the sheet.
+    expect([for (var level = 1; level <= 4; level++) find.text(_s.taxiEaseTitle(level)).evaluate().length], contains(1));
+    await tester.tap(find.textContaining('within 500 m').first);
     await settle(tester);
 
     // 1. The answer.
@@ -1089,10 +1092,17 @@ void main() {
     await tester.tap(find.text('Toilets'));
     await settle(tester);
     expect(find.text('Toilets nearby'), findsOneWidget);
-    final rows = tester.widgetList<ListTile>(find.descendant(of: find.byType(ToiletsNearby), matching: find.byType(ListTile)));
+    final rows = tester.widgetList<PlaceRow>(find.descendant(of: find.byType(ToiletsNearby), matching: find.byType(PlaceRow)));
     // The market is a 1 min walk; the two malls are further.
-    expect([for (final r in rows) (r.title as Text).data], ['Tampines Round Market', 'Tampines Mall', 'Our Tampines Hub']);
-    expect(find.textContaining('Hawker centre · 9'), findsOneWidget);
+    expect([for (final r in rows) r.title], ['Tampines Round Market', 'Tampines Mall', 'Our Tampines Hub']);
+    expect(rows.first.subtitle, 'Hawker centre · 1 min walk');
+    expect((rows.first.figure, rows.first.figureLabel), ('92', 'm'));
+    // A row opens the toilet's sheet, where the walking directions are.
+    await tester.tap(find.text('Tampines Round Market'));
+    await settle(tester);
+    expect(find.text(_s.wayWalk), findsWidgets);
+    await tester.tapAt(const Offset(10, 10));
+    await settle(tester);
     expect(find.textContaining('© OpenStreetMap contributors'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -2350,5 +2360,86 @@ void main() {
     await settle(tester);
     expect(tester.widget<ModeRail>(find.byType(ModeRail)).selected, 'taxi');
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Nearby: the place button opens the list of places, tiles switch the section, a car park opens its sheet',
+      (tester) async {
+    const denied = Condition('denied', location: LocationPermission.deniedForever);
+    await applyCondition(tester, denied);
+    await tester.pumpWidget(appUnder(denied, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    containerOf(tester).read(shellTabProvider.notifier).state = _tabs['Nearby']!;
+    await settle(tester);
+
+    // No place yet: the button asks for one and opens the list. Home has its own tab.
+    await tester.tap(find.text(_s.nearbyChoosePlace));
+    await settle(tester);
+    expect(find.text(_s.nearbyWhere), findsOneWidget);
+    for (final name in [_s.hereNow, 'Work', 'School', 'Gym', _s.nearbySearchPlace]) {
+      expect(find.widgetWithText(ListTile, name), findsOneWidget, reason: name);
+    }
+    expect(find.widgetWithText(ListTile, 'Home'), findsNothing);
+    await tester.tap(find.widgetWithText(ListTile, 'Gym'));
+    await settle(tester);
+
+    // The place is said once, on the button; the sections are tiles, not pills.
+    expect(find.text('Gym · TAMPINES HUB'), findsOneWidget);
+    expect(find.text('TAMPINES HUB'), findsNothing);
+    final page = find.byType(NearbyPage);
+    expect(find.descendant(of: page, matching: find.byType(PillRow)), findsNothing);
+    final tiles = tester.widget<SectionTiles>(find.descendant(of: page, matching: find.byType(SectionTiles)));
+    expect(tiles.selected, 'bus');
+    // The hint about tapping a bus is said once for the three boards.
+    expect(find.text(_s.tapBusHint), findsOneWidget);
+
+    await tester.tap(find.text('Parking'));
+    await settle(tester);
+    expect(find.text(_s.parkNearby), findsOneWidget);
+    // A car park row opens that car park's sheet, not the whole list.
+    final row = find.byWidgetPredicate((w) => w is PlaceRow && w.icon == Icons.local_parking).first;
+    await tester.ensureVisible(row);
+    await tester.pump();
+    final address = tester.widget<PlaceRow>(row).title;
+    await tester.tap(row);
+    await settle(tester);
+    expect(find.text(_s.saveCarpark), findsOneWidget);
+    expect(find.text(address), findsNWidgets(2));
+    expect(find.byType(AppBar), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Section tiles: four a row, fewer when the longest name would not fit, the last one fills its row',
+      (tester) async {
+    expect(SectionTiles.columns(380, 52), 4);
+    expect(SectionTiles.columns(288, 52), 4);
+    expect(SectionTiles.columns(288, 104), 2);
+    expect(SectionTiles.columns(120, 200), 1);
+
+    // Seven sections (Prayer off): Help takes the two columns left in the second row.
+    const keys = ['bus', 'eat', 'green', 'park', 'taxi', 'toilet', 'help'];
+    String? tapped;
+    await tester.pumpWidget(MaterialApp(
+      theme: buildTheme(Brightness.light),
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: 380,
+            child: SectionTiles(
+              items: [for (final k in keys) (k, Icons.circle_outlined, k)],
+              selected: 'bus',
+              danger: const {'help'},
+              onTap: (k) => tapped = k,
+            ),
+          ),
+        ),
+      ),
+    ));
+    final bus = tester.getSize(find.ancestor(of: find.text('bus'), matching: find.byType(InkWell)));
+    final help = tester.getSize(find.ancestor(of: find.text('help'), matching: find.byType(InkWell)));
+    expect(help.width, greaterThan(bus.width * 2 - 1));
+    expect(bus.height, greaterThanOrEqualTo(kMinInteractiveDimension));
+    expect(tester.getTopLeft(find.text('taxi')).dy, greaterThan(tester.getTopLeft(find.text('park')).dy));
+    await tester.tap(find.text('help'));
+    expect(tapped, 'help');
   });
 }

@@ -1002,28 +1002,3 @@ class _AgentResult extends ConsumerWidget {
   }
 }
 
-/// A title that wraps between words and never inside one: when its longest word is wider than the
-/// line (long street names at 200% text), the whole title is set smaller until that word fits.
-class WordWrapTitle extends StatelessWidget {
-  const WordWrapTitle(this.text, {super.key, this.style});
-  final String text;
-  final TextStyle? style;
-
-  @override
-  Widget build(BuildContext context) {
-    final base = style ?? DefaultTextStyle.of(context).style;
-    final scaler = MediaQuery.textScalerOf(context);
-    return LayoutBuilder(builder: (context, box) {
-      var widest = 0.0;
-      for (final w in text.split(' ')) {
-        final tp = TextPainter(text: TextSpan(text: w, style: base), textDirection: TextDirection.ltr, textScaler: scaler)
-          ..layout();
-        if (tp.width > widest) widest = tp.width;
-        tp.dispose();
-      }
-      final fit = widest > box.maxWidth && widest > 0 ? box.maxWidth / widest * 0.98 : 1.0;
-      final size = (base.fontSize ?? 14) * fit;
-      return Text(text, style: base.copyWith(fontSize: size));
-    });
-  }
-}

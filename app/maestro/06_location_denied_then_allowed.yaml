@@ -1,4 +1,4 @@
-# Location: denied shows the message and search still works; allowed sets "My location".
+# Location: denied shows the message and search still works; allowed shows what is around.
 appId: com.tursinalabs.dailylah
 name: 06 Location denied then allowed
 ---
@@ -9,7 +9,7 @@ name: 06 Location denied then allowed
       notifications: deny
 - startRecording: 06_location
 - tapOn: "(?s)Nearby.*"
-- tapOn: "(?s)Current location"
+- tapOn: "(?s)Use my current location"
 # Android may ask again; say no.
 - runFlow:
     when:
@@ -19,7 +19,8 @@ name: 06 Location denied then allowed
 - extendedWaitUntil:
     visible: "(?s).*Location permission denied.*"
     timeout: 20000
-- tapOn: "(?s)Search"
+- tapOn: "(?s)Choose a place.*"
+- tapOn: "(?s)Search for a place.*"
 - runFlow:
     file: common/search_address.yaml
     env:
@@ -37,9 +38,9 @@ name: 06 Location denied then allowed
       location: allow
       notifications: deny
 - tapOn: "(?s)Nearby.*"
-- tapOn: "(?s)Current location"
+- tapOn: "(?s)Use my current location"
 - extendedWaitUntil:
-    visible: "(?s).*My location.*"
+    visible: "(?s).*Buses near here.*"
     timeout: 30000
 - assertNotVisible: "(?s).*Location permission denied.*"
 - stopRecording

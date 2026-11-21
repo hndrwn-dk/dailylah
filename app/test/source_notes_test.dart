@@ -141,7 +141,7 @@ void main() {
         await _tab(tester, c, 1, nearby: 'eat');
         await _showText(tester, find.text(_halal));
         expect(find.text(_halal), findsOneWidget);
-        final tile = find.widgetWithIcon(ListTile, Icons.restaurant_outlined).first;
+        final tile = find.byWidgetPredicate((w) => w is PlaceRow && w.icon == Icons.restaurant_outlined).first;
         await tester.ensureVisible(tile);
         await tester.pump();
         await tester.tap(tile);

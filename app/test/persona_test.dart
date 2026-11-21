@@ -197,6 +197,44 @@ void main() {
     });
   });
 
+  group('Office worker, lunch', () {
+    testWidgets('Looks around the office: Work from the place list, then how far the food is before tapping',
+        (tester) async {
+      await applyCondition(tester, _normal);
+      await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+      await settle(tester);
+      containerOf(tester).read(shellTabProvider.notifier).state = 1;
+      await settle(tester);
+
+      // At home in the morning: the button says Current location. Switch to the office.
+      await tester.tap(find.byTooltip(_s.nearbyChangePlace));
+      await settle(tester);
+      await tester.tap(find.widgetWithText(ListTile, 'Work'));
+      await settle(tester);
+      expect(find.text('Work · 1 RAFFLES PLACE'), findsOneWidget);
+
+      await tester.tap(find.text('Eat'));
+      await settle(tester);
+      // Every food row says how far it is in large figures and shows that it opens.
+      final rows = tester.widgetList<PlaceRow>(find.byType(PlaceRow)).toList();
+      expect(rows, isNotEmpty);
+      for (final r in rows) {
+        expect(r.figure, isNotNull, reason: r.title);
+        expect(r.figureLabel, anyOf('m', 'km'), reason: r.title);
+      }
+      expect(find.byIcon(Icons.chevron_right), findsNWidgets(rows.length));
+      await expectAccessible(tester);
+
+      final first = find.byType(PlaceRow).first;
+      await tester.ensureVisible(first);
+      await tester.pump();
+      await tester.tap(first);
+      await settle(tester);
+      expect(find.text(_s.ateHere), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   group('Student', () {
     testWidgets('School is the trip on a school day; on an MOE school holiday a banner replaces it', (tester) async {
       await applyCondition(tester, _normal);
@@ -443,10 +481,10 @@ void main() {
       box.read(shellTabProvider.notifier).state = 1;
       box.read(nearbySectionProvider.notifier).state = 'eat';
       await settle(tester);
-      final place = find.widgetWithIcon(ListTile, Icons.restaurant_outlined).first;
+      final place = find.byWidgetPredicate((w) => w is PlaceRow && w.icon == Icons.restaurant_outlined).first;
       await tester.ensureVisible(place);
       await tester.pump();
-      final name = ((tester.widget<ListTile>(place).title!) as Text).data!;
+      final name = tester.widget<PlaceRow>(place).title;
       await tester.tap(place);
       await settle(tester);
 

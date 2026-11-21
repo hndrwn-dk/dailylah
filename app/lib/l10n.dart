@@ -41,6 +41,9 @@ class S {
   String metres(double m) => m < 1000 ? '${m.round()} m' : '${(m / 1000).toStringAsFixed(1)} km';
   String walkMinutes(double m) => '${(m / 80).ceil()} min walk';
 
+  /// [metres] in two parts, for a large figure over its unit: ('986', 'm'), ('1.2', 'km').
+  (String, String) metresParts(double m) => m < 1000 ? ('${m.round()}', 'm') : ((m / 1000).toStringAsFixed(1), 'km');
+
   // ---------------------------------------------------------------- navigation
   String get tabToday => 'Today';
   String get tabNearby => 'Nearby';
@@ -566,6 +569,7 @@ class S {
   String toiletGetOff(String stop, int minutes) => 'Get off at $stop (in about $minutes min)';
   String toiletWalk(String toilet, int minutes) => '$toilet, $minutes min walk';
   String get toiletAssumed => 'Stations usually have a toilet';
+  String toiletKindWalk(String kind, int minutes) => '$kind · $minutes min walk';
   String toiletNearLine(String kind, String distance, int minutes) => '$kind · $distance · $minutes min walk';
   String get toiletsNearby => 'Toilets nearby';
   String get toiletNoneAhead => 'No toilet found near the stops ahead. Try Nearby > Toilets.';
@@ -1035,9 +1039,9 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Today: travel modes are now one row with a rough time for each. Tap a mode or drag the yellow marker to switch.",
-        "Today: everything about rain is in the weather card: the forecast, rain right now and a tip for how you travel. No more repeated rain banners.",
-        "Today: Air (PSI) is the card you can tap; UV and heat stress sit in one quiet strip.",
+        "Nearby: your place is now one button. Tap it to pick Current location, a saved place or Search.",
+        "Nearby: the sections (Bus, Eat, Parks, Parking and more) are even tiles in two rows.",
+        "Nearby: every row you can open shows an arrow, with the distance in large figures. Taxi tells you at once how easy it is to get one.",
       ];
 
   // about
@@ -1125,6 +1129,12 @@ class S {
   String get hereNow => 'Current location';
 
   // ---------------------------------------------------------------- nearby (out and about)
+  String get nearbyChoosePlace => 'Choose a place';
+  String get nearbyWhere => 'Nearby where?';
+  String get nearbyChangePlace => 'Change place';
+  String get nearbySearchPlace => 'Search for a place';
+  String taxiNearLine(int n, String? stand) =>
+      '${n == 1 ? '1 free taxi' : '$n free taxis'} within 500 m${stand == null ? '' : ' · stand $stand'}';
   String get nearbySubtitle => 'What you need around you right now.';
   String get nearbyPickPrompt => 'Use your location to see buses, food, parking and help around you.';
   String get busesNearHere => 'Buses near here';
