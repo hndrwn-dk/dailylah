@@ -55,6 +55,26 @@ def test_compact_eventfinda_reads_string_flags():
     assert [e["f"] for e in out] == [True, False]
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://www.eventfinda.sg/2026/x",
+        "intent://scan/#Intent;scheme=zxing;end",
+        "tel:+6512345678",
+        "javascript:alert(1)",
+        "https://",
+        "https://user@www.eventfinda.sg/x",
+        "https://[::1",
+        "www.eventfinda.sg/2026/x",
+        "",
+        None,
+    ],
+)
+def test_compact_eventfinda_keeps_only_https_links(url):
+    out = compact_eventfinda([{**EF_ROW, "url": url}, EF_ROW], TODAY)
+    assert [e["u"] for e in out] == ["", "https://www.eventfinda.sg/2026/x"]
+
+
 @pytest.mark.asyncio
 @respx.mock
 async def test_eventfinda_keeps_paging_without_count():

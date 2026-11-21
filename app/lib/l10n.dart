@@ -1058,9 +1058,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Home: eight sections in two even rows. Emergency and meeting points are now one section, Safety.",
-        "Home: your block's facts sit in one strip, and one card opens prices, rent and commute. Upgrading, Recycling and watched blocks are under Around your home.",
-        "Home: every row you can open shows an arrow, with the distance in large figures, the same as Nearby.",
+        "Small fixes.",
       ];
 
   // about

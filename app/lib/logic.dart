@@ -869,6 +869,15 @@ List<AddressHit> parseOneMap(Map<String, dynamic> body) {
   return out;
 }
 
+/// A link that came with data (a bundle or the API) and may be opened in the browser: `https`
+/// with a host and no user part. Anything else (http, `intent:`, `tel:`, `javascript:`, empty,
+/// malformed) is null, and the screen then shows no link.
+Uri? safeWebUrl(String url) {
+  final uri = Uri.tryParse(url.trim());
+  if (uri == null || uri.scheme != 'https' || uri.host.isEmpty || uri.userInfo.isNotEmpty) return null;
+  return uri;
+}
+
 /// Plan a trip: a query that starts with a number ("560201", "201 Ang Mo Kio") or "Blk"/"Block"
 /// and a number is an address for OneMap; anything else is a place name for place search.
 bool looksLikeAddress(String q) => RegExp(r'^\s*(\d|(blk|block)\s*\d)', caseSensitive: false).hasMatch(q);

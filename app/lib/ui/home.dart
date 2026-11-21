@@ -358,7 +358,8 @@ class NearItem {
   /// Labels shown as chips on the place sheet, e.g. park facilities.
   final List<String> chips;
 
-  /// Optional button on the place sheet, e.g. booking on ActiveSG.
+  /// Optional button on the place sheet, e.g. booking on ActiveSG. Shown only for an https link
+  /// (`safeWebUrl`): an event's link comes with the data.
   final String? linkUrl;
   final String linkLabel;
 
@@ -445,14 +446,14 @@ class _NearGroupState extends ConsumerState<NearGroup> {
                         const SizedBox(height: 12),
                       ],
                       if (widget.header case final h?) h,
-                      if (it.linkUrl != null)
+                      if (safeWebUrl(it.linkUrl ?? '') case final link?)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: FilledButton.icon(
                             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
                             icon: const Icon(Icons.open_in_new),
                             label: Text(it.linkLabel),
-                            onPressed: () => launchUrl(Uri.parse(it.linkUrl!), mode: LaunchMode.externalApplication),
+                            onPressed: () => launchUrl(link, mode: LaunchMode.externalApplication),
                           ),
                         ),
                     ],

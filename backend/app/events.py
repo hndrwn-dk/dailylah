@@ -3,6 +3,7 @@ events.json; the API key stays in CI secrets and never reaches the app."""
 
 import logging
 from datetime import date, datetime, timedelta
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -28,6 +29,17 @@ def _truthy(v: object) -> bool:
     return str(v).strip().lower() in ("1", "true", "yes")
 
 
+def _https_url(v: object) -> str:
+    """The event's link when it is https with a host, else "" (the app then shows no link)."""
+    url = str(v or "").strip()
+    try:
+        parts = urlsplit(url)
+        host = parts.hostname
+    except ValueError:
+        return ""
+    return url if parts.scheme == "https" and host and "@" not in parts.netloc else ""
+
+
 def compact_eventfinda(rows: list[dict], today: date, days: int = 30) -> list[dict]:
     """Upcoming or running events within [days], with a point: compact rows for the app."""
     until = today + timedelta(days=days)
@@ -42,7 +54,7 @@ def compact_eventfinda(rows: list[dict], today: date, days: int = 30) -> list[di
         out.append(
             {
                 "n": str(e.get("name", "")).strip(),
-                "u": str(e.get("url", "")),
+                "u": _https_url(e.get("url")),
                 "s": str(e.get("datetime_start", ""))[:16],
                 "e": str(e.get("datetime_end", ""))[:16],
                 "w": str(e.get("datetime_summary", "")),

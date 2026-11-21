@@ -2540,6 +2540,77 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Events: only an https link gets the Event details button and opens from the Weekend card',
+      (tester) async {
+    await applyCondition(tester, _normal);
+    final home = householdFavorites.places[PlaceKind.home]!;
+    // The https one starts first, so it is among the three on Today.
+    PublicEvent event(String name, String url, {int hour = 1}) => PublicEvent(
+          name: name,
+          url: url,
+          start: saturdayMorning.add(Duration(hours: hour)),
+          end: saturdayMorning.add(const Duration(hours: 8)),
+          lat: home.lat,
+          lng: home.lng,
+          source: 'Eventfinda',
+        );
+    // Three events: Today's card and the folded Home list both show three.
+    const unsafe = {
+      'Plain http fair': 'http://www.eventfinda.sg/2026/a',
+      'Intent fair': 'intent://scan/#Intent;scheme=zxing;package=com.example;end',
+    };
+    await tester.pumpWidget(ProviderScope(
+      retry: noRetry,
+      overrides: [
+        ...overridesFor(_normal, householdFavorites, saturdayMorning),
+        eventsProvider.overrideWith((ref) async => [
+              event('Https fair', 'https://www.eventfinda.sg/2026/x', hour: 0),
+              for (final e in unsafe.entries) event(e.key, e.value),
+            ]),
+      ],
+      child: const DailyLahApp(),
+    ));
+    await settle(tester);
+
+    // Today's Weekend card: a row opens the link only when it is https.
+    final tile = find.byWidgetPredicate((w) => w is ListTile && w.leading is Icon && (w.leading! as Icon).icon == Icons.event_outlined,
+        skipOffstage: false);
+    final tiles = {for (final t in tester.widgetList<ListTile>(tile)) (t.title! as Text).data!: t};
+    expect(tiles.keys.toSet(), {'Https fair', ...unsafe.keys});
+    for (final t in tiles.entries) {
+      final opens = t.key == 'Https fair';
+      expect(t.value.onTap, opens ? isNotNull : isNull, reason: t.key);
+      expect(t.value.trailing, opens ? isNotNull : isNull, reason: t.key);
+    }
+
+    // Home > Weekend: the sheet of an event has the button only for an https link.
+    final box = containerOf(tester);
+    box.read(shellTabProvider.notifier).state = _tabs['Home']!;
+    box.read(homeSectionProvider.notifier).state = 'weekend';
+    await settle(tester);
+    final page = find.byType(HomePage);
+    Future<void> openSheet(String name) async {
+      final row = find.descendant(
+          of: page, matching: find.byWidgetPredicate((w) => w is PlaceRow && w.title == name), skipOffstage: false);
+      expect(row, findsOneWidget, reason: name);
+      tester.widget<PlaceRow>(row).onTap();
+      await settle(tester);
+      expect(find.byType(BottomSheet), findsOneWidget, reason: name);
+    }
+
+    await openSheet('Https fair');
+    expect(find.text(_s.eventDetails, skipOffstage: false), findsOneWidget);
+    Navigator.of(tester.element(find.byType(BottomSheet))).pop();
+    await settle(tester);
+    for (final name in unsafe.keys) {
+      await openSheet(name);
+      expect(find.text(_s.eventDetails, skipOffstage: false), findsNothing, reason: name);
+      Navigator.of(tester.element(find.byType(BottomSheet))).pop();
+      await settle(tester);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('A list row for an e-waste point whose details hold a link shows no web address', (tester) async {
     await applyCondition(tester, _normal);
     // Every e-waste point in the bundle is checked through the rule the rows use.

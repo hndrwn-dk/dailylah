@@ -344,7 +344,9 @@ feature, screen, provider or rule moves, appears or goes away.
 - Weekend card on Today (days without a work/school trip) and Home > Weekend: places (`weekendPicks`)
   and events (`eventsNear`) from `events.json`, built daily by `backend/app/events.py` from
   Eventfinda (secrets `EVENTFINDA_USER`/`EVENTFINDA_PASSWORD`; key stays in CI). Each event links
-  to its Eventfinda page with attribution. Eventbrite was left out: it has no public event search.
+  to its Eventfinda page with attribution, only when the link is https with a host (`safeWebUrl` in
+  logic.dart; the bundle build keeps only such links too): otherwise the row and the sheet show no link. Any
+  link that comes with a bundle or the API goes through `safeWebUrl` before `launchUrl`. Eventbrite was left out: it has no public event search.
 - Parks: names spelled out on the phone (`expandPlaceName`: Pk, Pg, Jln...), facility chips from NParks
   Park Facilities attached per park in `poi.json` (`attach_facilities`, key `f`; unmapped CLASS values are
   logged in the data build and listed in `backend/data/build_report.json` as `park_facility_unknown`), shown as icons in lists (`FacilityIcons`, `facilityIcon` in widgets.dart) and

@@ -978,8 +978,11 @@ class _WeekendCard extends ConsumerWidget {
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    trailing: const Icon(Icons.open_in_new, size: 18),
-                    onTap: () => launchUrl(Uri.parse(e.url), mode: LaunchMode.externalApplication),
+                    trailing: safeWebUrl(e.url) == null ? null : const Icon(Icons.open_in_new, size: 18),
+                    onTap: switch (safeWebUrl(e.url)) {
+                      final link? => () => launchUrl(link, mode: LaunchMode.externalApplication),
+                      null => null,
+                    },
                   ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),

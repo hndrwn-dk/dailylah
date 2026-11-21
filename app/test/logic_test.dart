@@ -299,6 +299,34 @@ void main() {
     expect(back.label, '66 Marine Drive');
   });
 
+  test('safeWebUrl accepts only https links with a host', () {
+    expect(safeWebUrl('https://www.eventfinda.sg/2026/x?a=1'), Uri.parse('https://www.eventfinda.sg/2026/x?a=1'));
+    expect(safeWebUrl(' HTTPS://www.eventfinda.sg/2026/x ')?.host, 'www.eventfinda.sg');
+    for (final url in [
+      'http://www.eventfinda.sg/2026/x',
+      'intent://scan/#Intent;scheme=zxing;package=com.example;end',
+      'intent:#Intent;action=android.intent.action.VIEW;end',
+      'tel:+6512345678',
+      'javascript:alert(1)',
+      'market://details?id=com.example',
+      'file:///sdcard/x.html',
+      'dailylah://widget',
+      '',
+      '   ',
+      'https://',
+      'https:///path',
+      'https:path',
+      'https://user:pass@www.eventfinda.sg/x',
+      'www.eventfinda.sg/2026/x',
+      '//www.eventfinda.sg/2026/x',
+      'https://[::1',
+      'ht!tps://www.eventfinda.sg',
+      'https://www.eventfinda.sg:port/x',
+    ]) {
+      expect(safeWebUrl(url), isNull, reason: url);
+    }
+  });
+
   test('looksLikeAddress sends numbers and blocks to OneMap, names to place search', () {
     for (final q in ['560201', '201 Ang Mo Kio', 'Blk 201', 'blk201', 'BLOCK 5 Marine Drive', ' 18 Bencoolen']) {
       expect(looksLikeAddress(q), isTrue, reason: q);
