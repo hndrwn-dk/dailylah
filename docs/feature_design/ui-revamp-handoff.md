@@ -49,7 +49,7 @@ Nothing here is started. Each is small; ask the owner before doing any of it.
   promoted (2.13.0 and 2.14.0 were promoted).
 - Nobody has tried 2.12.0 to 2.16.0 on a real phone from these sessions. Everything was rendered in
   tests and run on CI emulators.
-- Six mockup pages are still published privately on the owner's account: three from the Today
+- Seven mockup pages are still published privately on the owner's account: three from the Today
   session (tiles, whole Today screen, mode picker) and four options pages from this one (Nearby,
   Home, History, More). The whole-Today one shows a raised/flat rule that was not shipped as drawn.
 
