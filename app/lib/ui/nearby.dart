@@ -755,7 +755,6 @@ class _GreenSection extends ConsumerWidget {
         title: s.parks,
         icon: Icons.park_outlined,
         show: 5,
-        figures: true,
         items: items,
         header: switch (ref.watch(parkTimeProvider((place.lat, place.lng)))) {
           final p? => ParkTimeBanner(time: p, text: s.parkTimeLine(p)),

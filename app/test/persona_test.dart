@@ -472,6 +472,36 @@ void main() {
     }
   });
 
+  group('Homemaker, at home', () {
+    testWidgets('Looks up where to take old electronics: My home > Recycling, a drop-off and its sheet',
+        (tester) async {
+      await applyCondition(tester, _normal);
+      await tester.pumpWidget(appUnder(_normal, _homeOnly, tuesdayMorning));
+      await settle(tester);
+      containerOf(tester).read(shellTabProvider.notifier).state = 2;
+      await settle(tester);
+
+      // Recycling is no longer a section: it is a row on My home that opens its own page.
+      final row = find.widgetWithText(PlaceRow, _s.homeTopic('recycling'));
+      await tester.scrollUntilVisible(row, 200, scrollable: find.byType(Scrollable).hitTestable().first);
+      await tester.ensureVisible(row);
+      await tester.pump();
+      await tester.tap(row);
+      await settle(tester);
+      expect(find.byType(HomeTopicPage), findsOneWidget);
+      expect(find.text(_s.ewastePoints), findsOneWidget);
+      await expectAccessible(tester);
+
+      // Each drop-off says how far it is and opens its sheet.
+      final first = find.descendant(of: find.byType(HomeTopicPage), matching: find.byType(PlaceRow)).first;
+      expect(tester.widget<PlaceRow>(first).figureLabel, anyOf('m', 'km'));
+      await tester.tap(first);
+      await settle(tester);
+      expect(find.text(_s.wayWalk), findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   group('Homemaker, meals', () {
     testWidgets('Forgot to log lunch: Ate here > Another day puts the meal on the day it was eaten', (tester) async {
       await applyCondition(tester, _normal);

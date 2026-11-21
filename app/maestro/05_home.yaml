@@ -11,27 +11,21 @@ name: 05 Home
 - extendedWaitUntil:
     visible: "(?is).*Ang Mo Kio Av.*3.*"
     timeout: 30000
-- tapOn: "(?s)Emergency"
-# The section chips are 48 dp tall, so on a small screen the call buttons start below the fold.
+- tapOn: "(?s)Safety"
+# The call buttons come first; on a small screen they may start below the fold.
 - scrollUntilVisible:
     element: "(?s).*995 Ambulance & fire.*"
     direction: DOWN
     timeout: 20000
-# Back to the top (the block name above the chips), so every chip row is on screen again.
+# Back to the top (the block name above the tiles), so every tile is on screen again.
 - scrollUntilVisible:
     element: "(?is).*Ang Mo Kio Av.*3.*"
     direction: UP
     timeout: 20000
-- tapOn: "(?s)Meeting points"
-- swipe:
-    from: "(?s)Meeting points"
-    direction: LEFT
 - tapOn: "(?s)Schools"
 - tapOn: "(?s)Health"
 # Health opened without a crash: the app and its tabs are still there. What the section lists
 # depends on live data near the block (dengue clusters, clinics), so nothing of it is asserted.
-# (The flow used to swipe the chips back to My home; that swipe did nothing in some runs and
-# failed the flow, and every flow starts the app again anyway.)
 - extendedWaitUntil:
     visible: "(?is).*Ang Mo Kio Av.*3.*"
     timeout: 20000

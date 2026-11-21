@@ -21,22 +21,20 @@ class HomePage extends ConsumerWidget {
   /// Main list scroll, owned by the shell.
   final ScrollController? controller;
 
-  static const sections = [
-    'home', 'emergency', 'shelter', 'works', 'schools', 'health', 'community', 'weekend', 'recycling', 'food', 'parking', 'blocks',
-  ];
+  /// The sections under the hero, one at a time: eight tiles in two rows, like Nearby.
+  static const sections = ['home', 'safety', 'schools', 'health', 'community', 'weekend', 'food', 'parking'];
+
+  /// What My home links to on a page of its own ([HomeTopicPage]).
+  static const topics = ['works', 'recycling', 'blocks'];
   static const _icons = {
     'home': Icons.home_outlined,
-    'emergency': Icons.emergency_outlined,
-    'shelter': Icons.shield_outlined,
-    'works': Icons.construction_outlined,
+    'safety': Icons.emergency_outlined,
     'schools': Icons.school_outlined,
     'health': Icons.health_and_safety_outlined,
     'community': Icons.groups_outlined,
     'weekend': Icons.park_outlined,
-    'recycling': Icons.recycling,
     'food': Icons.restaurant_outlined,
     'parking': Icons.local_parking,
-    'blocks': Icons.apartment_outlined,
   };
 
   @override
@@ -50,7 +48,8 @@ class HomePage extends ConsumerWidget {
     final private = home == null || block != null
         ? null
         : privateProjectFor(ref.watch(privateHomesProvider).value ?? const [], home);
-    final section = home == null ? 'blocks' : ref.watch(homeSectionProvider);
+    final picked = ref.watch(homeSectionProvider);
+    final section = sections.contains(picked) ? picked : 'home';
 
     Widget hero() {
       if (block != null) {
@@ -96,17 +95,13 @@ class HomePage extends ConsumerWidget {
             const _WatchedAndAgent(),
           ]
         : switch (section) {
-            'works' => [FullWidth(child: _Works(home: home))],
+            'safety' => [FullWidth(child: _Safety(home: home))],
             'schools' => [FullWidth(child: _Schools(home: home))],
-            'emergency' => [FullWidth(child: _Emergency(home: home))],
-            'shelter' => [FullWidth(child: _Shelters(home: home))],
             'health' => [FullWidth(child: _Dengue(home: home)), FullWidth(child: _Health(home: home))],
             'community' => [FullWidth(child: _Community(home: home))],
             'weekend' => [FullWidth(child: _Weekend(home: home))],
-            'recycling' => [FullWidth(child: _Recycling(home: home))],
             'food' => [FullWidth(child: _Food(home: home))],
             'parking' => [FullWidth(child: _Parking(home: home))],
-            'blocks' => [const FullWidth(child: _WatchedAndAgent())],
             _ => [
                 if (block != null) _MyBlock(block: block) else if (private != null) _PrivateCard(project: private)
                 else Panel(child: EmptyNote(s.notHdb, icon: Icons.home_work_outlined)),
@@ -140,10 +135,10 @@ class HomePage extends ConsumerWidget {
                 if (home != null) ...[
                   const SizedBox(height: 16),
                   // One section at a time instead of one very long page.
-                  PillRow(
+                  SectionTiles(
                     items: [for (final k in sections) (k, _icons[k]!, s.homeSection(k))],
                     selected: section,
-                    danger: const {'emergency', 'shelter'},
+                    danger: const {'safety'},
                     onTap: (k) => ref.read(homeSectionProvider.notifier).state = k,
                   ),
                 ],
@@ -157,9 +152,9 @@ class HomePage extends ConsumerWidget {
             child: CardColumns(
               children: [
                 ...body,
-                if (section == 'home' || section == 'blocks') ...[
+                if (home == null || section == 'home') ...[
                   const FullWidth(child: SizedBox(height: 12)),
-                  if (private != null && section == 'home') FullWidth(child: Text(s.privateHomesNote, style: t.bodySmall)),
+                  if (private != null && home != null) FullWidth(child: Text(s.privateHomesNote, style: t.bodySmall)),
                   FullWidth(child: Text(s.homesDisclaimer, style: t.bodySmall)),
                 ],
               ],
@@ -171,7 +166,8 @@ class HomePage extends ConsumerWidget {
   }
 }
 
-/// A few facts at a glance on the "My home" section; each opens its section.
+/// "Around your block" on My home: the nearest school, hawker and AED, each opening its
+/// section, then upgrading, recycling and watched blocks, each on a page of its own.
 class _Glance extends ConsumerWidget {
   const _Glance({required this.home});
   final Place home;
@@ -190,19 +186,26 @@ class _Glance extends ConsumerWidget {
         ? null
         : nearest(pois.of(PoiKind.primarySchool), home.lat, home.lng, latOf: (p) => p.lat, lngOf: (p) => p.lng);
     final em = ref.watch(emergencyProvider).value ?? EmergencySet.empty;
-    final aed = nearestPoints(em.of(EmergencyKind.aed), home.lat, home.lng, limit: 1);
+    final aed = nearestPoints(em.of(EmergencyKind.aed), home.lat, home.lng, limit: 1).firstOrNull;
     final hawkers = ref.watch(hawkersProvider).value ?? const <Hawker>[];
     final hawker = nearest(hawkers, home.lat, home.lng, latOf: (h) => h.lat, lngOf: (h) => h.lng);
+    final fav = ref.watch(favoritesProvider);
     void go(String k) => ref.read(homeSectionProvider.notifier).state = k;
+    void open(String topic) =>
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => HomeTopicPage(topic: topic)));
 
-    Widget tile(String key, IconData icon, String value, String caption, {bool warn = false}) => Expanded(
-          child: BentoTile(icon: icon, value: value, caption: caption, tint: warn ? DL.attention : null, onTap: () => go(key)),
+    Widget row(IconData icon, String title, String? sub, double? metres, VoidCallback onTap) => PlaceRow(
+          icon: icon,
+          title: title,
+          subtitle: sub,
+          figure: metres == null ? null : s.metresParts(metres).$1,
+          figureLabel: metres == null ? '' : s.metresParts(metres).$2,
+          onTap: onTap,
         );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: 4),
         for (final p in mine)
           AlertBanner(
             icon: Icons.elevator_outlined,
@@ -210,32 +213,55 @@ class _Glance extends ConsumerWidget {
           ),
         for (final (c, d) in near.take(1))
           AlertBanner(icon: Icons.bug_report_outlined, text: '${s.dengueHeading}: ${c.locality} · ${s.metres(d)}'),
-        // Same height side by side, like the weather tiles on Today.
-        IntrinsicHeight(
-          child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            tile('works', Icons.construction_outlined, '${works.length}', s.worksNearby(works.length)),
-            const SizedBox(width: 12),
-            tile('schools', Icons.school_outlined, school == null ? '–' : s.metres(school.$2),
-                school == null ? s.nearestPrimary : '${s.nearestPrimary} · ${school.$1.name}'),
-          ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        // Same height side by side, like the weather tiles on Today.
-        IntrinsicHeight(
-          child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            tile('emergency', Icons.monitor_heart_outlined, aed.isEmpty ? '–' : s.metres(aed.first.$2), s.nearestAed),
-            const SizedBox(width: 12),
-            tile('food', Icons.storefront_outlined, hawker == null ? '–' : s.metres(hawker.$2),
-                hawker == null ? s.nearestHawkerShort : '${s.nearestHawkerShort} · ${shortPlaceName(hawker.$1.name)}'),
-          ],
+        SectionTitle(s.aroundBlock, padding: const EdgeInsets.fromLTRB(4, 4, 4, 10)),
+        Panel(
+          child: Column(
+            children: [
+              row(Icons.school_outlined, s.nearestPrimary, school?.$1.name, school?.$2, () => go('schools')),
+              row(Icons.storefront_outlined, s.nearestHawkerShort,
+                  hawker == null ? null : shortPlaceName(hawker.$1.name), hawker?.$2, () => go('food')),
+              row(Icons.monitor_heart_outlined, s.nearestAed, aed?.$1.detail, aed?.$2, () => go('safety')),
+              row(Icons.construction_outlined, s.homeTopic('works'),
+                  works.isEmpty ? s.worksNoneShort : s.worksNearby(works.length), null, () => open('works')),
+              row(Icons.recycling, s.homeTopic('recycling'), s.recyclingHint, null, () => open('recycling')),
+              row(Icons.apartment_outlined, s.homeTopic('blocks'),
+                  s.blocksHint(fav.watchedBlocks.length, fav.compareBlocks.length), null, () => open('blocks')),
+            ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Upgrading and works, Recycling, or Watched blocks and agents, for the saved home, on a page
+/// of its own: opened from "Around your block" on My home.
+class HomeTopicPage extends ConsumerWidget {
+  const HomeTopicPage({super.key, required this.topic});
+
+  /// One of [HomePage.topics].
+  final String topic;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final home = ref.watch(favoritesProvider).places[PlaceKind.home];
+    return Scaffold(
+      appBar: AppBar(title: Text(s.homeTopic(topic))),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(14, 0, 18, 24),
+        children: [
+          switch (topic) {
+            'works' when home != null => _Works(home: home),
+            'recycling' when home != null => _Recycling(home: home),
+            _ => const _WatchedAndAgent(),
+          },
+          if (topic == 'blocks') ...[
+            const SizedBox(height: 12),
+            Text(s.homesDisclaimer, style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -336,7 +362,8 @@ class NearItem {
   final String? linkUrl;
   final String linkLabel;
 
-  /// A number to show large on the right (e.g. free car park lots), with a small label.
+  /// A number to show large on the right (e.g. free car park lots), with a small label; the
+  /// distance then moves under the name. Empty: no figure at all. Null: the distance is the figure.
   final String? big;
   final String bigLabel;
   final bool bigWarn;
@@ -374,13 +401,11 @@ class NearItem {
       ];
 }
 
-/// A titled list that shows the nearest few and expands to the rest.
+/// A titled list that shows the nearest few and expands to the rest. Each row is a [PlaceRow]:
+/// the distance (or the row's own number, with the distance under the name) large at the end,
+/// then a chevron; the sheet it opens has the phone number and links.
 class NearGroup extends ConsumerStatefulWidget {
-  const NearGroup(
-      {super.key, required this.title, required this.icon, required this.items, this.show = 3, this.header, this.figures = false});
-
-  /// Rows as [PlaceRow]s: the distance (or the row's own number) large at the end, then a chevron.
-  final bool figures;
+  const NearGroup({super.key, required this.title, required this.icon, required this.items, this.show = 3, this.header});
   final String title;
 
   /// Shown between the title and the list, e.g. the parks "good time to go?" line.
@@ -444,46 +469,19 @@ class _NearGroupState extends ConsumerState<NearGroup> {
           child: Column(
             children: [
               for (final it in shown)
-                if (widget.figures)
-                  PlaceRow(
-                    icon: widget.icon,
-                    title: it.name,
-                    // A row with its own number keeps the distance in the line under the name.
-                    subtitle: it.big == null
-                        ? it.detail
-                        : [s.metres(it.distance), if (it.detail.isNotEmpty) it.detail].join(' · '),
-                    below: it.chips.isEmpty ? null : FacilityIcons(it.chips),
-                    figure: it.big ?? s.metresParts(it.distance).$1,
-                    figureLabel: it.big != null ? it.bigLabel : s.metresParts(it.distance).$2,
-                    warn: it.bigWarn,
-                    onTap: () => open(it),
-                  )
-                else
-                  ListTile(
-                    leading: Icon(widget.icon),
-                    title: Text(it.name),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          [s.metres(it.distance), if (it.detail.isNotEmpty) it.detail].join(' · '),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (it.chips.isNotEmpty) FacilityIcons(it.chips),
-                      ],
-                    ),
-                    trailing: it.big != null
-                        ? BigNumber(value: it.big!, label: it.bigLabel, warn: it.bigWarn)
-                        : it.tel.isEmpty
-                        ? null
-                        : IconButton(
-                            tooltip: s.callLabel,
-                            icon: const Icon(Icons.call_outlined),
-                            onPressed: () => launchUrl(Uri(scheme: 'tel', path: it.tel)),
-                          ),
-                    onTap: () => open(it),
-                  ),
+                PlaceRow(
+                  icon: widget.icon,
+                  title: it.name,
+                  // A row with its own number keeps the distance in the line under the name.
+                  subtitle: it.big == null
+                      ? it.detail
+                      : [s.metres(it.distance), if (it.detail.isNotEmpty) it.detail].join(' · '),
+                  below: it.chips.isEmpty ? null : FacilityIcons(it.chips),
+                  figure: it.big == null ? s.metresParts(it.distance).$1 : (it.big!.isEmpty ? null : it.big),
+                  figureLabel: it.big != null ? it.bigLabel : s.metresParts(it.distance).$2,
+                  warn: it.bigWarn,
+                  onTap: () => open(it),
+                ),
               if (items.length > widget.show)
                 Align(
                   alignment: Alignment.centerLeft,
@@ -538,69 +536,152 @@ class _MyBlock extends ConsumerWidget {
     final watching = ref.watch(favoritesProvider).watchedBlocks.containsKey(block.key);
     final year = DateTime.now().year;
 
-    return Panel(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _Chip(Icons.calendar_today_outlined, s.builtIn(block.yearCompleted)),
-                _Chip(Icons.hourglass_bottom, s.leaseLeft(block.leaseLeft(year))),
-                if (block.floors > 0) _Chip(Icons.apartment, s.storeys(block.floors)),
-              ],
-            ),
-            if (stats.isNotEmpty) ...[
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 18,
-                runSpacing: 8,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // What only tells lies flat; the card that opens the block's page is raised.
+        _FactStrip([
+          ('${block.yearCompleted}', s.factBuilt),
+          (s.yearsShort(block.leaseLeft(year)), s.factLease),
+          if (block.floors > 0) ('${block.floors}', s.factStoreys),
+        ]),
+        const SizedBox(height: 12),
+        Panel(
+          margin: const EdgeInsets.only(bottom: 4),
+          child: InkWell(
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => BlockPage(block: block))),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+              child: Row(
                 children: [
-                  for (final st in stats.take(2))
-                    Column(
+                  Expanded(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(sgd(st.median, compact: true), style: t.displaySmall?.copyWith(fontSize: 28)),
-                        Text(s.medianFor(st.flatType), style: t.bodySmall),
+                        if (stats.isNotEmpty)
+                          Wrap(
+                            spacing: 18,
+                            runSpacing: 8,
+                            children: [
+                              for (final st in stats.take(2))
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(sgd(st.median, compact: true), style: t.displaySmall?.copyWith(fontSize: 28)),
+                                    Text(s.medianFor(st.flatType), style: t.bodySmall),
+                                  ],
+                                ),
+                            ],
+                          ),
+                        if (topRent != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            s.rentMedian(topRent.$1, sgd(topRent.$2.median),
+                                topRent.$2.quarterly ? s.wtlQuarter(topRent.$2.period) : topRent.$2.period),
+                            style: t.bodySmall,
+                          ),
+                        ],
+                        if (stats.isNotEmpty || topRent != null) const SizedBox(height: 10),
+                        Text(s.blockDetails, style: t.titleMedium),
                       ],
                     ),
+                  ),
+                  ExcludeSemantics(child: Icon(Icons.chevron_right, color: DL.muted(context))),
                 ],
               ),
-            ],
-            if (topRent != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                s.rentMedian(topRent.$1, sgd(topRent.$2.median),
-                    topRent.$2.quarterly ? s.wtlQuarter(topRent.$2.period) : topRent.$2.period),
-                style: t.bodySmall,
+            ),
+          ),
+        ),
+        // Watching is one quiet line: what it does, and the one word that changes it.
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Row(
+            children: [
+              Icon(watching ? Icons.visibility : Icons.visibility_outlined, size: 20, color: DL.muted(context)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(watching ? s.watchingBlock : s.watchBlockHint,
+                    style: t.bodyMedium?.copyWith(color: DL.muted(context))),
+              ),
+              TextButton(
+                style: TextButton.styleFrom(
+                    foregroundColor: DL.goText(context),
+                    minimumSize: const Size(kMinInteractiveDimension, kMinInteractiveDimension)),
+                onPressed: () =>
+                    ref.read(favoritesProvider.notifier).toggleWatch(block.key, resale?.countFor(block.key) ?? 0),
+                child: Text(watching ? s.watchStop : s.watchStart),
               ),
             ],
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 8,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A few facts side by side in one flat, outlined card with no shadow: each a figure over its
+/// label ("1983" over "built"). Nothing here opens anything.
+class _FactStrip extends StatelessWidget {
+  const _FactStrip(this.facts);
+  final List<(String, String)> facts;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final edge = DL.edge(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(DL.radius),
+        border: Border.all(color: edge, width: DL.stroke),
+      ),
+      child: LayoutBuilder(builder: (context, box) {
+        // Large text on a small phone: one fact a line, the figure before its label.
+        if (box.maxWidth / MediaQuery.textScalerOf(context).scale(1) < 200) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                FilledButton.icon(
-                  icon: const Icon(Icons.bar_chart),
-                  label: Text(s.blockDetails),
-                  onPressed: () =>
-                      Navigator.of(context).push(MaterialPageRoute(builder: (_) => BlockPage(block: block))),
-                ),
-                OutlinedButton.icon(
-                  icon: Icon(watching ? Icons.visibility : Icons.visibility_outlined),
-                  label: Text(watching ? s.watchingBlock : s.watchBlock),
-                  onPressed: () => ref
-                      .read(favoritesProvider.notifier)
-                      .toggleWatch(block.key, resale?.countFor(block.key) ?? 0),
-                ),
+                for (final (value, label) in facts)
+                  Text.rich(
+                    TextSpan(children: [
+                      TextSpan(text: '$value ', style: t.displaySmall?.copyWith(fontSize: 22, height: 1.3)),
+                      TextSpan(text: label, style: t.bodySmall),
+                    ]),
+                  ),
               ],
             ),
+          );
+        }
+        return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final (i, (value, label)) in facts.indexed) ...[
+              if (i > 0) VerticalDivider(width: 1.5, thickness: 1.5, color: Theme.of(context).dividerTheme.color),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // A figure never wraps: it shrinks to its cell at large text.
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: AlignmentDirectional.centerStart,
+                        child: Text(value, maxLines: 1, style: t.displaySmall?.copyWith(fontSize: 24, height: 1.1)),
+                      ),
+                      Text(label, style: t.bodySmall),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
-      ),
+        );
+      }),
     );
   }
 }
@@ -635,6 +716,7 @@ class _Works extends ConsumerWidget {
   const _Works({required this.home});
   final Place home;
 
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
@@ -652,7 +734,8 @@ class _Works extends ConsumerWidget {
 
     return CardColumns(
       children: [
-        FullWidth(child: _Heading(s.worksTitle, Icons.construction_outlined)),
+        // The page's title says what this is.
+        const SizedBox(height: 12),
         for (final p in mine)
           AlertBanner(icon: Icons.elevator_outlined, text: s.atYourBlock(line(p))),
         if (near.isEmpty)
@@ -768,34 +851,10 @@ class _Health extends ConsumerWidget {
   }
 }
 
-/// Emergency meeting points: Civil Defence public shelters, nearest first, on their own so
-/// they are one tap away when something happens.
-class _Shelters extends ConsumerWidget {
-  const _Shelters({required this.home});
-  final Place home;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final s = ref.watch(stringsProvider);
-    final em = ref.watch(emergencyProvider).value ?? EmergencySet.empty;
-    return CardColumns(
-      children: [
-        FullWidth(child: _Heading(s.meetingPoints, Icons.shield_outlined)),
-        NearGroup(
-          title: s.within2km,
-          icon: Icons.shield_outlined,
-          show: 5,
-          items: NearItem.points(em.of(EmergencyKind.shelter), home, radius: 2000),
-        ),
-        FullWidth(child: Text(s.shelterNote, style: Theme.of(context).textTheme.bodySmall)),
-      ],
-    );
-  }
-}
-
-/// Emergency: call buttons first, then A&E, AEDs, police and SCDF fire stations.
-class _Emergency extends ConsumerWidget {
-  const _Emergency({required this.home});
+/// Safety: call buttons first, then AEDs, A&E, police and SCDF fire stations, then the
+/// emergency meeting points (Civil Defence public shelters, nearest first).
+class _Safety extends ConsumerWidget {
+  const _Safety({required this.home});
   final Place home;
 
   @override
@@ -830,14 +889,22 @@ class _Emergency extends ConsumerWidget {
     return CardColumns(
       children: [
         FullWidth(child: _Heading(s.emergency, Icons.emergency_outlined)),
+        // The same colours as Nearby > Help: red for 995, amber for 999.
         call('995', s.call995, DL.stopDeep, Colors.white),
-        call('999', s.call999, DL.stopDeep, Colors.white),
+        call('999', s.call999, DL.amber, DL.ink),
         call('1777', s.call1777, DL.card, DL.ink),
-        NearGroup(title: s.aeHospitals, icon: Icons.local_hospital_outlined, items: NearItem.points(em.of(EmergencyKind.ae), home, radius: 20000, limit: 3)),
         NearGroup(title: s.aeds, icon: Icons.monitor_heart_outlined, items: NearItem.points(em.of(EmergencyKind.aed), home, radius: 1000)),
+        NearGroup(title: s.aeHospitals, icon: Icons.local_hospital_outlined, items: NearItem.points(em.of(EmergencyKind.ae), home, radius: 20000, limit: 3)),
         NearGroup(title: s.police, icon: Icons.local_police_outlined, items: NearItem.points(around.of('police'), home, radius: 5000, limit: 5)),
         NearGroup(title: s.scdfFireStations, icon: Icons.fire_truck_outlined, items: NearItem.points(em.of(EmergencyKind.fire), home, radius: 8000, limit: 2)),
         FullWidth(child: Text(s.emergencyNote, style: t.bodySmall)),
+        FullWidth(child: _Heading(s.meetingPoints, Icons.shield_outlined)),
+        NearGroup(
+          title: s.within2km,
+          icon: Icons.shield_outlined,
+          items: NearItem.points(em.of(EmergencyKind.shelter), home, radius: 2000),
+        ),
+        FullWidth(child: Text(s.shelterNote, style: t.bodySmall)),
       ],
     );
   }
@@ -884,7 +951,7 @@ class _Recycling extends ConsumerWidget {
     final around = ref.watch(aroundProvider).value ?? AroundSet.empty;
     return CardColumns(
       children: [
-        FullWidth(child: _Heading(s.recyclingTitle, Icons.recycling)),
+        const SizedBox(height: 12),
         NearGroup(title: s.ewastePoints, icon: Icons.battery_charging_full_outlined, items: NearItem.points(around.of('ewaste'), home, radius: 2000)),
         NearGroup(title: s.reuseChannels, icon: Icons.volunteer_activism_outlined, items: NearItem.points(around.of('reuse'), home, radius: 5000)),
         FullWidth(child: Text(s.recyclingNote, style: Theme.of(context).textTheme.bodySmall)),
@@ -946,7 +1013,8 @@ class _Weekend extends ConsumerWidget {
             for (final it in NearItem.points(around.of('activesg'), home, radius: 8000, limit: 5))
               NearItem(
                 name: it.name,
-                detail: it.detail,
+                // The bundle's detail starts with the booking site's address; the sheet has the button.
+                detail: it.detail.split(' · ').where((x) => !x.startsWith('http')).join(' · '),
                 lat: it.lat,
                 lng: it.lng,
                 distance: it.distance,
@@ -989,14 +1057,15 @@ class _Parking extends ConsumerWidget {
                 lat: c.lat,
                 lng: c.lng,
                 distance: d,
-                big: lots[c.id] == null ? null : '${lots[c.id]!.$2}',
+                // As on Nearby: free lots when known; a car park without a live count has no figure.
+                big: lots[c.id] == null ? '' : '${lots[c.id]!.$2}',
                 bigLabel: s.lotsFreeShort,
                 bigWarn: lots[c.id] != null && lots[c.id]!.$2 == 0,
               ),
           ],
         ),
         if (ref.watch(favoritesProvider.select((f) => f.drivesEv)))
-          EvChargers(lat: home.lat, lng: home.lng, title: s.evChargersNear(s.placeLabel('home'))),
+          EvChargers(lat: home.lat, lng: home.lng, title: s.evChargersTitle, chevron: true),
       ],
     );
   }

@@ -178,7 +178,7 @@ void main() {
         final first = halalNear(all, home.lat, home.lng, limit: 15).first.$1;
         await _showText(tester, find.text(_halal));
         expect(find.text(_halal), findsOneWidget);
-        final row = find.widgetWithText(ListTile, first.name).first;
+        final row = find.widgetWithText(PlaceRow, first.name).first;
         await tester.ensureVisible(row);
         await tester.pump();
         await tester.tap(row);
@@ -199,7 +199,7 @@ void main() {
       });
 
       testWidgets('emergency on Home: call 995 first (${c.name})', (tester) async {
-        await _tab(tester, c, 2, home: 'emergency');
+        await _tab(tester, c, 2, home: 'safety');
         await _showText(tester, find.text(_s.emergencyNote));
         expect(find.text(_s.emergencyNote), findsOneWidget);
         expect(tester.takeException(), isNull);

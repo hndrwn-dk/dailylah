@@ -272,6 +272,18 @@ void main() {
         });
       }
 
+      // What My home links to on a page of its own.
+      for (final topic in HomePage.topics) {
+        testWidgets('Home: $topic page', (tester) async {
+          await applyCondition(tester, c);
+          await tester.pumpWidget(pageUnder(c, householdFavorites, tuesdayMorning, HomeTopicPage(topic: topic)));
+          await settle(tester);
+          await expectAccessible(tester);
+          await scrollThrough(tester, accessible: true);
+          expect(tester.takeException(), isNull);
+        });
+      }
+
       testWidgets('Nearby: the list of places', (tester) async {
         await applyCondition(tester, c);
         await tester.pumpWidget(appUnder(c, householdFavorites, tuesdayMorning));

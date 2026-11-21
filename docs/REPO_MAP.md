@@ -75,7 +75,7 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 - Providers: 2 (listed below)
 
 ### `lib/ui/home.dart`
-- Types: `HomePage`, `NearItem`, `NearGroup`
+- Types: `HomePage`, `HomeTopicPage`, `NearItem`, `NearGroup`
 
 ### `lib/ui/homes.dart`
 - Types: `BlockSearchPage`, `BlockTile`, `BlockPage`, `LeaseBar`, `FlatChip`, `ComparePage`, `AgentCheckPage`
