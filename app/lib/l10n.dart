@@ -634,7 +634,7 @@ class S {
       "You've eaten at $usual $times times this month. Try $instead? Open today, $distance away.";
   String get learnHabits => 'Learn my habits';
   String get learnHabitsSub => 'Trip times and meals you log stay on this phone only.';
-  String get deleteHistory => 'Delete my history';
+  String get deleteHistory => 'Delete all my history';
   String get deleteHistoryAsk => 'Delete logged trips, meals and your parked car from this phone?';
   String get deleted => 'Deleted.';
   String get delete => 'Delete';
@@ -996,7 +996,7 @@ class S {
   String get alertHomes => 'New resale sales';
   String get alertHomesSub => 'At watched blocks';
   String get alertLunch => 'Lunch suggestion on work days';
-  String get alertLunchSub => 'An open hawker centre near work or school at lunch time. Not on holidays.';
+  String get alertLunchSub => 'An open hawker centre near work or school. Not on holidays.';
   String lunchTimeAt(String time) => 'Lunch time: $time';
   String get lunchTimeHelp => 'When to suggest lunch';
   String get extras => 'Extras';
@@ -1060,9 +1060,9 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        'History: the period is one bar (This week, This month, All time), and the totals are now the filter. Tap Trips, Parking or Meals to see only those.',
-        'History: every row shows what it cost in large figures, with "estimate" under a fare we worked out. A row with no price says Add price.',
-        'History: the spending card starts with the total. Removing entries moved under the list.',
+        "More: the lunch suggestion is now a tile like the other alerts, with its time beside it.",
+        "More: switches lie flat; a tile with a shadow and an arrow opens something, the same as on the other tabs.",
+        "History: Delete all my history moved here from More, under the list.",
       ];
 
   // about

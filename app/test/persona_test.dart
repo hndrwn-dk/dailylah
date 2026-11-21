@@ -595,6 +595,49 @@ void main() {
     });
   });
 
+  group('Homemaker, tidying up', () {
+    testWidgets('Stops learning habits in More, then deletes what was logged at the end of History', (tester) async {
+      await applyCondition(tester, _normal);
+      await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+      await settle(tester);
+      final box = containerOf(tester);
+      await box.read(habitsProvider.notifier).restore(sampleHabits(tuesdayMorning));
+      box.read(shellTabProvider.notifier).state = 4;
+      await settle(tester);
+
+      // More > Extras: the switch is a tile; switching it off deletes nothing by itself.
+      final habits = find.widgetWithText(SettingTile, _s.learnHabits);
+      await tester.scrollUntilVisible(habits, 200,
+          scrollable: find.descendant(of: find.byType(MorePage), matching: find.byType(Scrollable)).first);
+      await Scrollable.ensureVisible(tester.element(habits), alignment: 0.3);
+      await settle(tester);
+      await tester.tap(habits);
+      await settle(tester);
+      expect(box.read(favoritesProvider).learnHabits, isFalse);
+      expect(box.read(habitsProvider).trips, isNotEmpty);
+      expect(find.descendant(of: find.byType(MorePage), matching: find.text(_s.deleteHistory), skipOffstage: false), findsNothing);
+
+      // History still lists it, with the way to delete it all at the end.
+      box.read(shellTabProvider.notifier).state = 3;
+      await settle(tester);
+      final link = find.descendant(of: find.byType(HistoryPage), matching: find.text(_s.deleteHistory));
+      await tester.scrollUntilVisible(link, 300,
+          scrollable: find.descendant(of: find.byType(HistoryPage), matching: find.byType(Scrollable)).first);
+      await Scrollable.ensureVisible(tester.element(link), alignment: 0.4);
+      await settle(tester);
+      await expectAccessible(tester);
+      await tester.tap(link);
+      await settle(tester);
+      await tester.tap(find.text(_s.delete));
+      await settle(tester);
+      final after = box.read(habitsProvider);
+      expect(after.trips, isEmpty);
+      expect(after.parkings, isEmpty);
+      expect(after.meals, isEmpty);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   group('Senior', () {
     const senior = Condition('text 200%, location denied',
         textScale: 2.0, size: Size(360, 640), location: LocationPermission.deniedForever);
