@@ -638,6 +638,16 @@ void main() {
         'Tampines Round Market and Food Centre');
     expect(shortPlaceName('Maxwell Food Centre'), 'Maxwell Food Centre');
   });
+  test('withoutWebAddress: a list row never prints a link', () {
+    expect(withoutWebAddress('E-waste accepted: all regulated products at https://go.gov.sg/prod-def-sl'),
+        'E-waste accepted: all regulated products');
+    expect(withoutWebAddress('https://www.activesgcircle.gov.sg/facilities · 1 Tampines Walk 528523'),
+        '1 Tampines Walk 528523');
+    expect(withoutWebAddress('See HTTP://example.sg/a for details · Mon - Sun'), 'See for details · Mon - Sun');
+    expect(withoutWebAddress('Level 1 Lift Lobby B · Mon - Sun 00:00-23:59'), 'Level 1 Lift Lobby B · Mon - Sun 00:00-23:59');
+    expect(withoutWebAddress(''), '');
+  });
+
 
   test('home block by postal code, else nearest within 40 m', () {
     const b66 = HdbBlock(block: '66', street: 'MARINE DR', town: 'MARINE PARADE', yearCompleted: 1975, floors: 16, lat: 1.30392, lng: 103.90973, postal: '440066');

@@ -8,7 +8,7 @@ import 'dart:io';
 import 'package:dailylah/data.dart';
 import 'package:dailylah/l10n.dart';
 import 'package:dailylah/api.dart';
-import 'package:dailylah/logic.dart' show HistoryPeriod, alertsOn, offsetMetres, parseSharedPlace, rideMinutesTo;
+import 'package:dailylah/logic.dart' show HistoryPeriod, alertsOn, offsetMetres, parseSharedPlace, rideMinutesTo, withoutWebAddress;
 import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/mrt_ride.dart';
@@ -2528,6 +2528,32 @@ void main() {
       expect(r.figure, isNotNull, reason: r.title);
     }
     expect(find.descendant(of: page, matching: find.byIcon(Icons.call_outlined), skipOffstage: false), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Recycling page: an e-waste point whose details end in a link shows no web address', (tester) async {
+    await applyCondition(tester, _normal);
+    // Every e-waste point in the bundle is checked through the rule the rows use.
+    final around = AroundSet.fromBundle(jsonDecode(File('../web/data/around.json').readAsStringSync()) as Map<String, dynamic>);
+    final linked = [for (final p in around.of('ewaste')) if (p.detail.contains('http')) p];
+    expect(linked, isNotEmpty, reason: 'the bundle no longer has a linked e-waste point: pick another case');
+    for (final p in linked) {
+      expect(withoutWebAddress(p.detail), isNot(contains('http')), reason: p.name);
+    }
+    // And on the page itself, at the home of the test household.
+    await tester.pumpWidget(pageUnder(_normal, householdFavorites, tuesdayMorning, const HomeTopicPage(topic: 'recycling')));
+    await settle(tester);
+    for (final more in find.textContaining('Show all').evaluate().toList()) {
+      await tester.ensureVisible(find.byWidget(more.widget));
+      await tester.pump();
+      await tester.tap(find.byWidget(more.widget));
+      await settle(tester);
+    }
+    final rows = tester.widgetList<PlaceRow>(find.byType(PlaceRow, skipOffstage: false));
+    expect(rows, isNotEmpty);
+    for (final r in rows) {
+      expect(r.subtitle ?? '', isNot(contains('http')), reason: r.title);
+    }
     expect(tester.takeException(), isNull);
   });
 }

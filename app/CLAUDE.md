@@ -242,7 +242,7 @@ feature, screen, provider or rule moves, appears or goes away.
   walking directions). The bus hint ("Tap a bus to see where it is") is said once beside the heading, See all
   sits at the end of its heading (`SectionTitle.trailingAtEnd`), and the Taxi card says the answer
   (`taxiEase`, `S.taxiEaseTitle`) over "2 free taxis within 500 m · stand 88 m" (`S.taxiNearLine`). History
-  keeps `PillRow` until its own revamp; EV rows on a car trip have no chevron yet (`EvChargers(chevron:)`). The taxi sheet
+  and the trip planner keep `PillRow`; EV rows on a car trip have no chevron yet (`EvChargers(chevron:)`). The taxi sheet
   (`TaxiSheet` in `ui/today.dart`) answers first (`TaxiEaseCard`, `taxiEase`), then the nearest stand with
   Walk there (`taxisAround`), then `TaxiRadar` on the dark board (tap a taxi: distance and `compass8`
   direction; stands are 48 dp `TaxiStandPin`s that open the stand; for TalkBack the radar has a label
@@ -408,7 +408,7 @@ feature, screen, provider or rule moves, appears or goes away.
   meeting points. Every list (`NearGroup`) is `PlaceRow`s like Nearby: the distance large, or the row's own
   number with the distance under the name (`NearItem.big`; an empty `big` means no figure, a car park without
   a live count), then a chevron; phone numbers and links are on the sheet, and a row never shows a web
-  address. Block search is `BlockSearchPage`. HDB data is computed on the
+  address (`withoutWebAddress` in logic.dart). Block search is `BlockSearchPage`. HDB data is computed on the
   phone from bundles; only CEA lookups hit the API.
 - Share to DailyLah: OneMap search finds addresses and buildings, not shop names, so a place found in Google Maps
   is shared in (Android `SEND` text/plain filter on MainActivity, channel `dailylah/share`: `take` hands over the

@@ -783,6 +783,7 @@ class S {
   String get watchBlockHint => 'Get a note when a flat here is sold';
   String get watchStart => 'Notify me';
   String get watchStop => 'Stop';
+  String get watchStopLabel => 'Stop notifying me of new sales';
   String get evChargersTitle => 'EV chargers';
   String get psfLabel => 'median per sq ft';
   String salesCount(int n, int months) => '$n ${n == 1 ? 'sale' : 'sales'} in the last ${months == 12 ? '12 months' : '3 years'}';
@@ -810,7 +811,6 @@ class S {
         '${period.isEmpty ? '' : ' ($period median)'}';
   }
   String get propertyAgents => 'Property agents';
-  String get worksTitle => 'Upgrading and construction';
   String get worksNone => 'No upgrading or construction listed within 1 km.';
   String atYourBlock(String what) => 'At your block: $what';
   String projectKind(String k) => switch (k) {
@@ -864,7 +864,6 @@ class S {
   String eventNearby(String name, String distance) => '$name · $distance';
   String get studentCare => 'Student care';
   String get familyServices => 'Family services';
-  String get recyclingTitle => 'Recycling';
   String get ewastePoints => 'E-waste drop-off';
   String get reuseChannels => 'Donate, resell or repair';
   String get recyclingNote => 'Blue recycling bins are at every HDB block and collected by your public waste collector; collection days are not published as open data.';

@@ -14,7 +14,7 @@ import 'theme.dart';
 import 'widgets.dart';
 
 /// Home tab: everything about and around the user's own home, one section at a time
-/// (chips under the hero). Other blocks are one tap away (search).
+/// (tiles under the hero). Other blocks are one tap away (search).
 class HomePage extends ConsumerWidget {
   const HomePage({super.key, this.controller});
 
@@ -166,7 +166,7 @@ class HomePage extends ConsumerWidget {
   }
 }
 
-/// "Around your block" on My home: the nearest school, hawker and AED, each opening its
+/// "Around your home" on My home: the nearest school, hawker and AED, each opening its
 /// section, then upgrading, recycling and watched blocks, each on a page of its own.
 class _Glance extends ConsumerWidget {
   const _Glance({required this.home});
@@ -235,7 +235,7 @@ class _Glance extends ConsumerWidget {
 }
 
 /// Upgrading and works, Recycling, or Watched blocks and agents, for the saved home, on a page
-/// of its own: opened from "Around your block" on My home.
+/// of its own: opened from "Around your home" on My home.
 class HomeTopicPage extends ConsumerWidget {
   const HomeTopicPage({super.key, required this.topic});
 
@@ -473,9 +473,11 @@ class _NearGroupState extends ConsumerState<NearGroup> {
                   icon: widget.icon,
                   title: it.name,
                   // A row with its own number keeps the distance in the line under the name.
-                  subtitle: it.big == null
-                      ? it.detail
-                      : [s.metres(it.distance), if (it.detail.isNotEmpty) it.detail].join(' · '),
+                  // A row never prints a web address (some bundles put one in the details).
+                  subtitle: [
+                    if (it.big != null) s.metres(it.distance),
+                    if (withoutWebAddress(it.detail) case final d when d.isNotEmpty) d,
+                  ].join(' · '),
                   below: it.chips.isEmpty ? null : FacilityIcons(it.chips),
                   figure: it.big == null ? s.metresParts(it.distance).$1 : (it.big!.isEmpty ? null : it.big),
                   figureLabel: it.big != null ? it.bigLabel : s.metresParts(it.distance).$2,
@@ -498,7 +500,6 @@ class _NearGroupState extends ConsumerState<NearGroup> {
   }
 }
 
-/// Large figure at the end of a row, amber when it needs a look (e.g. 0 lots free).
 /// Section heading for the Home page.
 class _Heading extends StatelessWidget {
   const _Heading(this.text, this.icon);
@@ -609,7 +610,9 @@ class _MyBlock extends ConsumerWidget {
                     minimumSize: const Size(kMinInteractiveDimension, kMinInteractiveDimension)),
                 onPressed: () =>
                     ref.read(favoritesProvider.notifier).toggleWatch(block.key, resale?.countFor(block.key) ?? 0),
-                child: Text(watching ? s.watchStop : s.watchStart),
+                // The word alone says too little to a screen reader.
+                child: Text(watching ? s.watchStop : s.watchStart,
+                    semanticsLabel: watching ? s.watchStopLabel : s.watchBlock),
               ),
             ],
           ),
@@ -661,7 +664,9 @@ class _FactStrip extends StatelessWidget {
             for (final (i, (value, label)) in facts.indexed) ...[
               if (i > 0) VerticalDivider(width: 1.5, thickness: 1.5, color: Theme.of(context).dividerTheme.color),
               Expanded(
-                child: Padding(
+                // One stop for TalkBack: "1983 built".
+                child: MergeSemantics(
+                  child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -675,6 +680,7 @@ class _FactStrip extends StatelessWidget {
                       Text(label, style: t.bodySmall),
                     ],
                   ),
+                ),
                 ),
               ),
             ],
@@ -1013,8 +1019,7 @@ class _Weekend extends ConsumerWidget {
             for (final it in NearItem.points(around.of('activesg'), home, radius: 8000, limit: 5))
               NearItem(
                 name: it.name,
-                // The bundle's detail starts with the booking site's address; the sheet has the button.
-                detail: it.detail.split(' · ').where((x) => !x.startsWith('http')).join(' · '),
+                detail: it.detail,
                 lat: it.lat,
                 lng: it.lng,
                 distance: it.distance,

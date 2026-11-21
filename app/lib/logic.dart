@@ -1585,6 +1585,15 @@ List<(BusEta, int?)> groupEtas(List<BusEta> list) {
 
 /// Short name for a long NEA label: "Tampines St 11 Blk 137 (Tampines Round Market)"
 /// becomes "Tampines Round Market".
+/// A line of details without web addresses, for a list row: "accepted at https://go.gov.sg/x"
+/// reads "accepted", and a part that is only a link goes ("632 m · https://… · 1 Walk" keeps
+/// two parts). The link itself, when it matters, is a button on the place's sheet.
+String withoutWebAddress(String detail) => detail
+    .split(' · ')
+    .map((part) => part.replaceAll(RegExp(r'\s*(\bat\s+)?https?://\S+', caseSensitive: false), '').trim())
+    .where((part) => part.isNotEmpty)
+    .join(' · ');
+
 String shortPlaceName(String name) {
   final m = RegExp(r'\(([^)]+)\)\s*$').firstMatch(name);
   return m == null ? name : m.group(1)!;
