@@ -7,7 +7,6 @@ import '../l10n.dart';
 import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
-import 'more.dart' show TileGrid;
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -34,9 +33,10 @@ class HistoryPage extends ConsumerWidget {
     final now = ref.watch(clockProvider).value ?? DateTime.now();
     final period = ref.watch(historyPeriodProvider);
     final kind = ref.watch(historyKindProvider);
-    final entries =
-        historyOfKinds(historyEntries(habits, since: historySince(period, now)), {if (kind != null) kind});
-    final sum = historySummary(entries);
+    // The totals are the filter: they count the whole period, whatever kind is shown.
+    final all = historyEntries(habits, since: historySince(period, now));
+    final total = historySummary(all);
+    final entries = historyOfKinds(all, {if (kind != null) kind});
     final bars = historySpendBars(entries, period, now);
     final hawkers = {for (final h in ref.watch(hawkersProvider).value ?? const <Hawker>[]) h.id: h.name};
 
@@ -52,25 +52,20 @@ class HistoryPage extends ConsumerWidget {
                 const SizedBox(height: 8),
                 PageTitle(s.historyTitle, subtitle: s.historySubtitle),
                 const SizedBox(height: 14),
-                PillRow(
-                  items: [
-                    for (final p in HistoryPeriod.values) (p.name, Icons.calendar_today_outlined, s.historyPeriod(p.name)),
-                  ],
-                  selected: period.name,
-                  onTap: (k) => ref.read(historyPeriodProvider.notifier).state = HistoryPeriod.values.byName(k),
+                _PeriodRail(
+                  period: period,
+                  onPick: (p) => ref.read(historyPeriodProvider.notifier).state = p,
                 ),
-                const SizedBox(height: 10),
-                PillRow(
-                  items: [
-                    ('all', Icons.list, s.historyAll),
-                    ('trip', Icons.route_outlined, s.historyTrips),
-                    ('parking', Icons.local_parking, s.historyParking),
-                    ('meal', Icons.ramen_dining_outlined, s.historyMeals),
-                  ],
-                  selected: kind?.name ?? 'all',
-                  onTap: (k) =>
-                      ref.read(historyKindProvider.notifier).state = k == 'all' ? null : HistoryKind.values.byName(k),
-                ),
+                // Nothing logged in the period: no row of zeros, the note below says what to do.
+                if (all.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  _KindTiles(
+                    total: total,
+                    entries: all.length,
+                    kind: kind,
+                    onPick: (k) => ref.read(historyKindProvider.notifier).state = k,
+                  ),
+                ],
               ],
             ),
           ),
@@ -93,35 +88,12 @@ class HistoryPage extends ConsumerWidget {
                     ),
                   ),
                   ),
-                // Totals for the period: tiles of one size, two a row (one at large text, all in
-                // one row on a wide screen).
-                FullWidth(
-                  child: TileGrid(
-                    wideMinWidth: 170,
-                    // "12 parkings" in the large figures needs more room than a word on More.
-                    minTileWidth: 150,
-                    children: [
-                      for (final (icon, value, caption) in [
-                        (Icons.route_outlined, s.tripsCount(sum.trips), s.durationShort(sum.tripMinutes)),
-                        (Icons.local_parking, s.parkingsCount(sum.parkings), s.durationShort(sum.parkMinutes)),
-                        // Meal spending when any meal has a price; meals without one are not counted.
-                        (
-                          Icons.ramen_dining_outlined,
-                          s.mealsCount(sum.meals),
-                          sum.mealsPriced == 0 ? s.historyMeals : s.mealsPriced(sum.mealsPriced, sum.meals, sum.mealCents),
-                        ),
-                        if (sum.costCents > 0) (Icons.payments_outlined, s.money(sum.costCents), s.historySpent),
-                      ])
-                        BentoTile(icon: icon, value: value, caption: caption, fitValue: true),
-                    ],
-                  ),
-                ),
                 // Where the money went: a bar per day (per month for "all"), split by kind.
                 // "All" draws the last 12 months: older costs alone make no chart.
                 if (bars.any((b) => b.cents > 0))
                   FullWidth(
                     child: Padding(
-                      padding: const EdgeInsets.only(top: 12),
+                      padding: const EdgeInsets.only(bottom: 4),
                       child: _SpendChart(
                         // A new period or filter starts without a picked bar.
                         key: ValueKey((period, kind)),
@@ -133,12 +105,34 @@ class HistoryPage extends ConsumerWidget {
                       ),
                     ),
                   ),
-                // Clean up many at once, e.g. meals logged by mistake.
+                if (on && entries.isEmpty) ...[
+                  FullWidth(child: Panel(child: EmptyNote(s.historyEmpty, icon: Icons.history))),
+                ],
+                for (final (day, list) in historyByDay(entries)) ...[
+                  SectionTitle(_dayLabel(s, day, now)),
+                  Panel(
+                    child: Column(
+                      children: [
+                        for (final e in list) _EntryTile(entry: e, hawkers: hawkers),
+                      ],
+                    ),
+                  ),
+                ],
+                // Removing comes after the list: one row by a swipe (said once here), or all that
+                // is shown, e.g. meals logged by mistake.
+                if (entries.isNotEmpty)
+                  FullWidth(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 0, 4, 0),
+                      child: Text(s.historySwipeHint, style: t.bodySmall),
+                    ),
+                  ),
                 if (entries.isNotEmpty)
                   FullWidth(
                     child: Align(
                     alignment: Alignment.centerLeft,
                     child: TextButton.icon(
+                      style: TextButton.styleFrom(foregroundColor: DL.stopText(context)),
                       icon: const Icon(Icons.delete_sweep_outlined),
                       label: Text(s.historyRemoveShown(entries.length)),
                       onPressed: () async {
@@ -167,28 +161,15 @@ class HistoryPage extends ConsumerWidget {
                     ),
                   ),
                   ),
-                if (on && entries.isEmpty) ...[
-                  const FullWidth(child: SizedBox(height: 16)),
-                  FullWidth(child: Panel(child: EmptyNote(s.historyEmpty, icon: Icons.history))),
-                ],
-                for (final (day, list) in historyByDay(entries)) ...[
-                  SectionTitle(_dayLabel(s, day, now)),
-                  Panel(
-                    child: Column(
-                      children: [
-                        for (final e in list) _EntryTile(entry: e, hawkers: hawkers),
-                      ],
-                    ),
-                  ),
-                ],
                 // How the costs are made, after the list like the notes on Nearby: above the
                 // chart it pushed the numbers down the page.
-                FullWidth(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
-                    child: Text(s.historyCostNote, style: t.bodySmall),
+                if (entries.isNotEmpty)
+                  FullWidth(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+                      child: Text(s.historyCostNote, style: t.bodySmall),
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -197,6 +178,213 @@ class HistoryPage extends ConsumerWidget {
     );
   }
 
+}
+
+/// The period as one rail: this week, this month, all time. The pick is amber.
+class _PeriodRail extends ConsumerWidget {
+  const _PeriodRail({required this.period, required this.onPick});
+  final HistoryPeriod period;
+  final ValueChanged<HistoryPeriod> onPick;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final edge = DL.edge(context);
+    final base = Theme.of(context).textTheme.labelLarge;
+    final scaler = MediaQuery.textScalerOf(context);
+    return LayoutBuilder(builder: (context, box) {
+      // One size for the three names: when the longest does not fit its third of the rail
+      // (large text), all three are drawn smaller together.
+      var widest = 0.0;
+      for (final p in HistoryPeriod.values) {
+        final tp = TextPainter(
+            text: TextSpan(text: s.historyPeriod(p.name), style: base), textDirection: TextDirection.ltr, textScaler: scaler)
+          ..layout();
+        if (tp.width > widest) widest = tp.width;
+        tp.dispose();
+      }
+      // Less the padding of a segment (8) and the border of the picked one (2 a side), with 2 to spare.
+      final room = (box.maxWidth - 11) / HistoryPeriod.values.length - 14;
+      final fit = widest > room && widest > 0 ? room / widest : 1.0;
+      final style = base?.copyWith(fontSize: (base.fontSize ?? 14) * fit);
+      return _rail(context, s, edge, style);
+    });
+  }
+
+  Widget _rail(BuildContext context, S s, Color edge, TextStyle? style) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: edge, width: DL.stroke),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(3),
+        child: Row(
+          children: [
+            for (final p in HistoryPeriod.values)
+              Expanded(
+                child: Semantics(
+                  button: true,
+                  selected: p == period,
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(9),
+                      onTap: () => onPick(p),
+                      child: Ink(
+                        decoration: p == period
+                            ? BoxDecoration(
+                                color: DL.amber,
+                                borderRadius: BorderRadius.circular(9),
+                                border: Border.all(color: edge, width: 2),
+                              )
+                            : null,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: Text(s.historyPeriod(p.name),
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  style: style?.copyWith(
+                                      color: p == period ? DL.ink : Theme.of(context).colorScheme.onSurface)),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The totals of the period as the filter: All (what was spent), Trips, Parking and Meals, each
+/// a tile with its figure. Four in a row, two when that is too narrow for the figures.
+class _KindTiles extends ConsumerWidget {
+  const _KindTiles({required this.total, required this.entries, required this.kind, required this.onPick});
+  final HistorySummary total;
+  final int entries;
+  final HistoryKind? kind;
+  final ValueChanged<HistoryKind?> onPick;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final tiles = <(HistoryKind?, String, String, String)>[
+      (null, s.money(total.costCents), s.historyAll, s.historyEntriesCount(entries)),
+      (HistoryKind.trip, '${total.trips}', s.historyTrips, total.trips == 0 ? '' : s.durationShort(total.tripMinutes)),
+      (HistoryKind.parking, '${total.parkings}', s.historyParking, total.parkings == 0 ? '' : s.durationShort(total.parkMinutes)),
+      (HistoryKind.meal, '${total.meals}', s.historyMeals, total.mealsPriced == 0 ? '' : s.money(total.mealCents)),
+    ];
+    return LayoutBuilder(builder: (context, box) {
+      final cols = box.maxWidth / MediaQuery.textScalerOf(context).scale(1) < 300 ? 2 : 4;
+      return Column(
+        children: [
+          for (var i = 0; i < tiles.length; i += cols)
+            Padding(
+              padding: EdgeInsets.only(top: i == 0 ? 0 : 8),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var j = i; j < i + cols; j++) ...[
+                      if (j > i) const SizedBox(width: 8),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 3, right: 3),
+                          child: _KindTile(
+                            figure: tiles[j].$2,
+                            name: tiles[j].$3,
+                            caption: tiles[j].$4,
+                            selected: tiles[j].$1 == kind,
+                            onTap: () => onPick(tiles[j].$1),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+        ],
+      );
+    });
+  }
+}
+
+class _KindTile extends StatelessWidget {
+  const _KindTile({
+    required this.figure,
+    required this.name,
+    required this.caption,
+    required this.selected,
+    required this.onTap,
+  });
+  final String figure;
+  final String name;
+  final String caption;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final edge = DL.edge(context);
+    final fg = selected ? DL.ink : Theme.of(context).colorScheme.onSurface;
+    final r = BorderRadius.circular(12);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: selected ? DL.amber : Theme.of(context).colorScheme.surfaceContainerLowest,
+        borderRadius: r,
+        border: Border.all(color: edge, width: DL.stroke),
+        boxShadow: selected ? [BoxShadow(color: edge, offset: const Offset(3, 3))] : null,
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Semantics(
+          button: true,
+          selected: selected,
+          child: InkWell(
+            borderRadius: r,
+            onTap: onTap,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 56),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 7, 6, 7),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // A long sum is drawn smaller, never cut.
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Text(figure,
+                          maxLines: 1, style: t.displaySmall?.copyWith(fontSize: 22, height: 1.1, color: fg)),
+                    ),
+                    // One word: drawn smaller rather than broken on a narrow phone.
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Text(name, maxLines: 1, style: t.labelLarge?.copyWith(color: fg)),
+                    ),
+                    if (caption.isNotEmpty)
+                      Text(caption, style: t.bodySmall?.copyWith(color: selected ? DL.ink : null)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// "Today", "Yesterday" or "Wed 18/11".
@@ -223,6 +411,7 @@ class _SpendChart extends StatefulWidget {
 
 class _SpendChartState extends State<_SpendChart> {
   static const _height = 120.0;
+  static const _maxBar = 56.0;
   int? _picked;
 
   bool get _byMonth => widget.period == HistoryPeriod.all;
@@ -261,11 +450,13 @@ class _SpendChartState extends State<_SpendChart> {
       meals += b.mealCents;
     }
     final picked = _picked != null && _picked! < bars.length ? bars[_picked!] : null;
-    final lines = [
-      if (ins.averageCents > 0)
-        _byMonth
+    // The total leads the card, with the average beside what it covers.
+    final average = ins.averageCents <= 0
+        ? null
+        : _byMonth
             ? (bars.length > 1 ? s.spendAverageMonth(s.money(ins.averageCents)) : null)
-            : s.spendAverageDay(s.money(ins.averageCents)),
+            : s.spendAverageDay(s.money(ins.averageCents));
+    final lines = [
       if (ins.top case final b?)
         _byMonth ? s.spendTopMonth(_when(s, b), s.money(b.cents)) : s.spendTop(_when(s, b), s.money(b.cents)),
       if (ins.previousCents case final p? when p > 0)
@@ -274,22 +465,21 @@ class _SpendChartState extends State<_SpendChart> {
             : s.spendVsLast(s.money((ins.cents - p).abs()), more: ins.cents > p, week: week),
     ].whereType<String>().toList();
 
-    return Panel(
-      margin: EdgeInsets.zero,
+    // Flat: the card opens nothing (only its bars can be tapped, to read them).
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(DL.radius),
+        border: Border.all(color: DL.edge(context), width: DL.stroke),
+      ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Wrap(
-              spacing: 6,
-              crossAxisAlignment: WrapCrossAlignment.end,
-              children: [
-                Text(s.spendTitle, style: t.titleMedium),
-                Text(_byMonth ? s.spendPerMonth : s.spendPerDay, style: t.bodySmall),
-              ],
-            ),
-            const SizedBox(height: 2),
+            Text(s.money(trips + parkings + meals), style: t.displaySmall?.copyWith(fontSize: 28, height: 1.1)),
+            Text([s.spentIn(widget.period.name), if (average != null) average].join(' · '), style: t.bodySmall),
+            const SizedBox(height: 8),
             Text(
               picked == null
                   ? (_byMonth ? s.spendTapHintMonth : s.spendTapHint)
@@ -306,7 +496,8 @@ class _SpendChartState extends State<_SpendChart> {
               child: ExcludeSemantics(
                 child: LayoutBuilder(
                   builder: (context, box) {
-                    final w = box.maxWidth / bars.length;
+                    // A lone month (or two) keeps the width of a bar, not of the card.
+                    final w = (box.maxWidth / bars.length).clamp(0.0, _maxBar);
                     final gap = w > 16 ? 3.0 : 1.0;
                     Widget part(Color c, int cents, {bool top = false}) => Container(
                           height: _height * cents / max,
@@ -320,16 +511,19 @@ class _SpendChartState extends State<_SpendChart> {
                         GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onTapUp: (d) => setState(() {
-                            final i = (d.localPosition.dx / w).floor().clamp(0, bars.length - 1);
-                            _picked = _picked == i ? null : i;
+                            final i = (d.localPosition.dx / w).floor();
+                            // Beside the last bar there is nothing to pick.
+                            _picked = i < 0 || i >= bars.length || _picked == i ? null : i;
                           }),
                           child: SizedBox(
                             height: _height,
+                            width: box.maxWidth,
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 for (final (i, b) in bars.indexed)
-                                  Expanded(
+                                  SizedBox(
+                                    width: w,
                                     child: Opacity(
                                       opacity: picked == null || _picked == i ? 1 : 0.4,
                                       child: Padding(
@@ -432,7 +626,7 @@ class _EntryTile extends ConsumerWidget {
           [s.durationShort(t.minutes), if (t.rainy) s.rainyTag].join(' · '),
         ),
       final ParkLog p => (Icons.local_parking, p.name.isEmpty ? s.historyParking : p.name, s.durationShort(p.minutes)),
-      final MealLog m => (Icons.ramen_dining_outlined, hawkers[m.hawkerId] ?? m.name ?? s.historyMeals, s.historyMeals),
+      final MealLog m => (Icons.ramen_dining_outlined, hawkers[m.hawkerId] ?? m.name ?? s.historyMeals, ''),
       _ => (Icons.history, '', ''),
     };
     return Dismissible(
@@ -450,20 +644,16 @@ class _EntryTile extends ConsumerWidget {
         await notifier.forget(e);
         showActionSnackBar(messenger, s.historyDeleted, actionLabel: s.undo, onAction: () => notifier.restore(before));
       },
-      child: ListTile(
-        leading: Icon(icon),
-        title: Text(title),
-        subtitle: Text(detail),
-        trailing: Text(
-          [
-            clockLabel(e.at),
-            if (e.costCents case final c?) e.estimated ? '≈ ${s.money(c)}' : s.money(c),
-          ].join('\n'),
-          textAlign: TextAlign.end,
-          style: Theme.of(context).textTheme.labelMedium,
-        ),
-        // Trips and parkings: tap to set what it cost. Meals: tap to set the price or when you
-        // ate (for a meal logged later than it was eaten).
+      child: PlaceRow(
+        icon: icon,
+        title: title,
+        // When it was, then how long it took.
+        subtitle: [clockLabel(e.at), if (detail.isNotEmpty) detail].join(' · '),
+        // What it cost, large; an estimate says so in words. With no cost yet the row offers
+        // to add one.
+        figure: e.costCents == null ? null : s.money(e.costCents!),
+        figureLabel: e.estimated ? s.historyEstimate : '',
+        action: e.source is MealLog ? s.historyAddPrice : s.historyAddCost,
         onTap: () => showModalBottomSheet<void>(
               context: context,
               isScrollControlled: true,

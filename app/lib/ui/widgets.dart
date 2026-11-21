@@ -1563,7 +1563,16 @@ class BigNumber extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text(value, style: t.displaySmall?.copyWith(fontSize: 26, height: 1, color: warn ? DL.ink : null)),
+          // One line always: a figure too wide for its room ("$123.45" at large text) is drawn
+          // smaller, never broken between digits.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.centerEnd,
+            child: Text(value,
+                maxLines: 1,
+                softWrap: false,
+                style: t.displaySmall?.copyWith(fontSize: 26, height: 1, color: warn ? DL.ink : null)),
+          ),
           if (label.isNotEmpty)
             Text(label, textAlign: TextAlign.end, style: t.labelSmall?.copyWith(color: warn ? DL.ink : null)),
         ],
@@ -2096,10 +2105,15 @@ class PlaceRow extends StatelessWidget {
     this.figureLabel = '',
     this.warn = false,
     this.starred = false,
+    this.action,
   });
   final IconData icon;
   final Color? iconColor;
   final String title;
+
+  /// A few words where the figure would be when there is none yet ("Add price"), in the
+  /// colour of things to tap. The whole row is still the tap target.
+  final String? action;
   final String? subtitle;
   final Color? subtitleColor;
 
@@ -2181,6 +2195,14 @@ class PlaceRow extends StatelessWidget {
                     maxScaleFactor: 1.5,
                     child: BigNumber(value: figure!, label: figureLabel, warn: warn),
                   ),
+                ),
+              ],
+              if (figure == null && action != null) ...[
+                const SizedBox(width: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 96),
+                  child: Text(action!,
+                      textAlign: TextAlign.end, style: t.labelLarge?.copyWith(color: DL.goText(context))),
                 ),
               ],
               ExcludeSemantics(child: Icon(Icons.chevron_right, color: DL.muted(context))),

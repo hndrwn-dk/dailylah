@@ -57,21 +57,26 @@ class S {
   String historyPeriod(String p) => switch (p) {
         'week' => 'This week',
         'month' => 'This month',
-        _ => 'All',
+        _ => 'All time',
       };
   String get historyOff => 'Turn on "Learn my habits" to keep a history of your trips, parking and meals. '
       'It stays on this phone and is never sent anywhere.';
   String get historyTurnOn => 'Turn on';
   String get historyEmpty => 'Nothing yet. Tap "I\'m leaving" on a trip, "I parked here" in Nearby, or "Ate here" at a hawker centre.';
-  String tripsCount(int n) => n == 1 ? '1 trip' : '$n trips';
-  String parkingsCount(int n) => n == 1 ? '1 parking' : '$n parkings';
-  String mealsCount(int n) => n == 1 ? '1 meal' : '$n meals';
   String get historyTrips => 'Trips';
   String get historyParking => 'Parking';
   String get historyMeals => 'Meals';
-  String get historySpent => 'Spent';
-  String get historyCostNote => '≈ is an estimate (adult card fare, HDB parking rates). Meals count only when they have a price. Tap a trip or parking to enter what you paid, or a meal to set its price, date or time.';
-  String mealsPriced(int priced, int meals, int cents) => '${money(cents)} · $priced of $meals priced';
+  String get historyCostNote => 'An estimate uses the adult card fare or HDB parking rates. Meals count only when they have a price. Tap a trip or parking to enter what you paid, or a meal to set its price, date or time.';
+  String get historyEstimate => 'estimate';
+  String get historyAddPrice => 'Add price';
+  String get historyAddCost => 'Add cost';
+  String historyEntriesCount(int n) => n == 1 ? '1 entry' : '$n entries';
+  String get historySwipeHint => 'Swipe a row left to remove it.';
+  String spentIn(String period) => switch (period) {
+        'week' => 'spent this week',
+        'month' => 'spent this month',
+        _ => 'spent in the last 12 months',
+      };
   String get historyAll => 'All';
   String historyRemoveShown(int n) => n == 1 ? 'Remove this entry' : 'Remove these $n entries';
   String historyRemoveAsk(int n) => n == 1 ? 'Remove this entry from History?' : 'Remove these $n entries from History?';
@@ -104,9 +109,6 @@ class S {
   String get mealAnotherDay => 'Another day';
   List<String> get monthShort =>
       const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  String get spendTitle => 'Spending';
-  String get spendPerDay => 'per day';
-  String get spendPerMonth => 'per month';
   String get spendTransport => 'Transport';
   String get spendTapHint => 'Tap a bar to see that day.';
   String get spendTapHintMonth => 'Tap a bar to see that month.';
@@ -1058,9 +1060,9 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Home: eight sections in two even rows. Emergency and meeting points are now one section, Safety.",
-        "Home: your block's facts sit in one strip, and one card opens prices, rent and commute. Upgrading, Recycling and watched blocks are under Around your home.",
-        "Home: every row you can open shows an arrow, with the distance in large figures, the same as Nearby.",
+        'History: the period is one bar (This week, This month, All time), and the totals are now the filter. Tap Trips, Parking or Meals to see only those.',
+        'History: every row shows what it cost in large figures, with "estimate" under a fare we worked out. A row with no price says Add price.',
+        'History: the spending card starts with the total. Removing entries moved under the list.',
       ];
 
   // about

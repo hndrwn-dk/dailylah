@@ -14,6 +14,7 @@ import 'package:dailylah/logic.dart';
 import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
+import 'package:dailylah/ui/history.dart';
 import 'package:dailylah/ui/home.dart';
 import 'package:dailylah/ui/more.dart';
 import 'package:dailylah/ui/today.dart';
@@ -231,6 +232,44 @@ void main() {
       await tester.tap(first);
       await settle(tester);
       expect(find.text(_s.ateHere), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('Office worker, spending', () {
+    testWidgets('Checks the week: the totals filter the list, and a fare he paid replaces the estimate',
+        (tester) async {
+      await applyCondition(tester, _normal);
+      await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+      await settle(tester);
+      final box = containerOf(tester);
+      await box.read(habitsProvider.notifier).restore(sampleHabits(tuesdayMorning));
+      box.read(shellTabProvider.notifier).state = 3;
+      await settle(tester);
+      final page = find.byType(HistoryPage);
+
+      // Trips only: the parking and the meal leave the list, the tiles still count them.
+      await tester.tap(find.descendant(of: page, matching: find.text(_s.historyTrips)));
+      await settle(tester);
+      final trips = find.descendant(of: page, matching: find.byType(PlaceRow));
+      expect(trips, findsNWidgets(2));
+      expect(find.descendant(of: page, matching: find.text(_s.historyMeals)), findsOneWidget);
+      await expectAccessible(tester);
+
+      // The morning trip has an estimated fare; he enters what the card was charged.
+      final estimated = find.descendant(
+          of: page, matching: find.byWidgetPredicate((w) => w is PlaceRow && w.figureLabel == _s.historyEstimate));
+      expect(estimated, findsOneWidget);
+      await tester.ensureVisible(estimated);
+      await tester.pump();
+      await tester.tap(estimated);
+      await settle(tester);
+      await tester.enterText(find.byType(TextField), '2.19');
+      await tester.tap(find.text(_s.save));
+      await settle(tester);
+      expect(find.descendant(of: page, matching: find.byWidgetPredicate((w) => w is PlaceRow && w.figureLabel == _s.historyEstimate)),
+          findsNothing);
+      expect(box.read(habitsProvider).trips.where((t) => t.costCents == 219), hasLength(2));
       expect(tester.takeException(), isNull);
     });
   });

@@ -1514,7 +1514,6 @@ void main() {
     final sum = historySummary(week);
     expect((sum.meals, sum.mealsPriced, sum.mealCents), (5, 3, 1750));
     expect(sum.costCents, 200 + 1750);
-    expect(const S().mealsPriced(sum.mealsPriced, sum.meals, sum.mealCents), r'$17.50 · 3 of 5 priced');
     // A meal's row shows its own price, never as an estimate.
     final row = week.firstWhere((e) => e.kind == HistoryKind.meal);
     expect((row.costCents, row.estimated), (800, false));

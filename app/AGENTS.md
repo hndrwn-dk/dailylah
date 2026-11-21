@@ -241,8 +241,8 @@ feature, screen, provider or rule moves, appears or goes away.
   Every such row opens that place's own sheet (an HDB car park: `_showCarpark`; a toilet: the place sheet with
   walking directions). The bus hint ("Tap a bus to see where it is") is said once beside the heading, See all
   sits at the end of its heading (`SectionTitle.trailingAtEnd`), and the Taxi card says the answer
-  (`taxiEase`, `S.taxiEaseTitle`) over "2 free taxis within 500 m · stand 88 m" (`S.taxiNearLine`). History
-  and the trip planner keep `PillRow`; EV rows on a car trip have no chevron yet (`EvChargers(chevron:)`). The taxi sheet
+  (`taxiEase`, `S.taxiEaseTitle`) over "2 free taxis within 500 m · stand 88 m" (`S.taxiNearLine`). The trip
+  planner keeps `PillRow`; EV rows on a car trip have no chevron yet (`EvChargers(chevron:)`). The taxi sheet
   (`TaxiSheet` in `ui/today.dart`) answers first (`TaxiEaseCard`, `taxiEase`), then the nearest stand with
   Walk there (`taxisAround`), then `TaxiRadar` on the dark board (tap a taxi: distance and `compass8`
   direction; stands are 48 dp `TaxiStandPin`s that open the stand; for TalkBack the radar has a label
@@ -304,8 +304,14 @@ feature, screen, provider or rule moves, appears or goes away.
   the estimate note and "Powered by Geoapify · © OpenStreetMap contributors". Tests use `harnessToilets`.
 - History tab (`ui/history.dart`): logged trips, finished parkings (`ParkLog`, written by
   `clearParked`) and meals by day for this week/month/all (`historyEntries`, `historySummary`,
-  `historyByDay`); filter by kind, swipe to remove with Undo, or remove all shown. Costs: an
-  entered `costCents` wins, else an estimate shown with ≈ — bus/MRT `adultCardFare` (PTC table, incl.
+  `historyByDay`). The period is one rail (`_PeriodRail`: This week, This month, All time; the three names
+  shrink together at large text) and the totals of the period are the filter (`_KindTiles`: All with what was
+  spent, Trips, Parking and Meals, each a tile with its figure; four in a row, two at large text; they count the
+  whole period whatever kind is shown, and are hidden with nothing logged, when only the note shows). A row is
+  a `PlaceRow` in a `Dismissible`: the time and duration under the name, the cost large with "estimate" under
+  an estimated one, or "Add price" / "Add cost" (`PlaceRow.action`) where there is none; swipe to remove with
+  Undo. Under the list: the swipe hint once, "Remove these N entries" in red, then the cost note. Costs: an
+  entered `costCents` wins, else an estimate — bus/MRT `adultCardFare` (PTC table, incl.
   the 26 Dec 2026 change) on straight-line km × 1.3 (`tripFareEstimate`), and HDB EPS rates for
   parkings at HDB car parks (`hdbParkingCost`, Central Area list `hdbCentralCarparks`). Tap a trip
   or parking to enter what it cost. "Ate here" is on the hawker and halal place sheets (not the list
@@ -317,14 +323,15 @@ feature, screen, provider or rule moves, appears or goes away.
   through `askMealPrice`/`parseMealCents`, max `mealPriceMaxCents` $200); "Ate here" preselects the price
   of a meal it corrects (logged in the last 30 min) or else the last price at that place, by name
   for halal places (`mealPriceToOffer`, `lastMealPrice`), and still logs with one tap. `historySummary` adds priced meals
-  to `costCents` and counts them (`mealsPriced`, `mealCents`); the Meals tile says "$x · n of m
-  priced" (the totals are a `TileGrid`: tiles of one size, two a row) and each meal row shows its price.
+  to `costCents` and counts them (`mealsPriced`, `mealCents`); the Meals tile says what the priced meals cost,
+  and each meal row shows its price.
   "Ate here" can log a meal eaten earlier: "Another day" asks for the day and then the time (`_AteHereButton`);
   such a meal is only added (`ateAt(backdated: true)`), never merged with one within 30 min.
-  Spending chart (`_SpendChart`, shown when the period has any cost): stacked bars drawn with plain
-  widgets (no chart package), meals / transport / parking, one bar per day for week and month and per
-  month for "all" (`historySpendBars`, last 12 months); tap a bar to read it. Under it the totals per
-  kind and the lines from `historySpendInsight` (average per day so far, the day that cost most) and
+  Spending card (`_SpendChart`, shown when the period has any cost; flat, since only its bars can be tapped):
+  the total first with "spent this week" and the average per day so far (`S.spentIn`), then stacked bars drawn
+  with plain widgets (no chart package), meals / transport / parking, one bar per day for week and month and per
+  month for "all" (`historySpendBars`, last 12 months; a bar is at most 56 dp wide); tap a bar to read it. Under
+  it the totals per kind and the lines from `historySpendInsight` (the day that cost most) and
   `historyPreviousCents` (last week or month up to the same point; none when a full log no longer reaches back that far). It follows the kind filter.
   Every trip card (commute and "Go somewhere") has I'm leaving; the running trip shows in `TripBanner`
   above the tabs (inline on the planner page, which hides the tabs) with Arrived / Stop timing. Commute
