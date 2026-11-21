@@ -2096,10 +2096,15 @@ class PlaceRow extends StatelessWidget {
     this.figureLabel = '',
     this.warn = false,
     this.starred = false,
+    this.action,
   });
   final IconData icon;
   final Color? iconColor;
   final String title;
+
+  /// A few words where the figure would be when there is none yet ("Add price"), in the
+  /// colour of things to tap. The whole row is still the tap target.
+  final String? action;
   final String? subtitle;
   final Color? subtitleColor;
 
@@ -2181,6 +2186,14 @@ class PlaceRow extends StatelessWidget {
                     maxScaleFactor: 1.5,
                     child: BigNumber(value: figure!, label: figureLabel, warn: warn),
                   ),
+                ),
+              ],
+              if (figure == null && action != null) ...[
+                const SizedBox(width: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 96),
+                  child: Text(action!,
+                      textAlign: TextAlign.end, style: t.labelLarge?.copyWith(color: DL.goText(context))),
                 ),
               ],
               ExcludeSemantics(child: Icon(Icons.chevron_right, color: DL.muted(context))),

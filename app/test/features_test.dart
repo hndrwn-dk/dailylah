@@ -8,7 +8,7 @@ import 'dart:io';
 import 'package:dailylah/data.dart';
 import 'package:dailylah/l10n.dart';
 import 'package:dailylah/api.dart';
-import 'package:dailylah/logic.dart' show HistoryPeriod, alertsOn, offsetMetres, parseSharedPlace, rideMinutesTo, withoutWebAddress;
+import 'package:dailylah/logic.dart' show HistoryKind, HistoryPeriod, alertsOn, offsetMetres, parseSharedPlace, rideMinutesTo, withoutWebAddress;
 import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/mrt_ride.dart';
@@ -337,7 +337,7 @@ void main() {
     await settle(tester);
 
     // The chart: one meal, so only Meals in the legend.
-    await _scrollTo(tester, find.text(s.spendTitle), page: HistoryPage);
+    await _scrollTo(tester, find.textContaining(s.spentIn('all')), page: HistoryPage);
     expect(find.text('${s.historyMeals} ${s.money(2000)}'), findsOneWidget);
     expect(find.textContaining(s.spendTransport), findsNothing);
 
@@ -407,7 +407,7 @@ void main() {
 
     box.read(shellTabProvider.notifier).state = _tabs['History']!;
     await settle(tester);
-    await _scrollTo(tester, find.text(s.mealsPriced(1, 1, 600)), page: HistoryPage);
+    await _scrollTo(tester, find.descendant(of: find.byType(HistoryPage), matching: find.text(s.money(600))).first, page: HistoryPage);
     await _scrollTo(tester, find.descendant(of: find.byType(HistoryPage), matching: find.text(name)), page: HistoryPage);
     expect(find.text(r'$6.00'), findsWidgets);
     await scrollThrough(tester);
@@ -427,7 +427,7 @@ void main() {
     ]));
     box.read(shellTabProvider.notifier).state = _tabs['History']!;
     await settle(tester);
-    await _scrollTo(tester, find.text(s.mealsPriced(1, 2, 400)), page: HistoryPage);
+    await _scrollTo(tester, find.descendant(of: find.byType(HistoryPage), matching: find.text(s.money(400))).first, page: HistoryPage);
 
     final row = find.text('Test Kitchen');
     await _scrollTo(tester, row, page: HistoryPage);
@@ -468,7 +468,7 @@ void main() {
     final meals = box.read(habitsProvider).meals;
     expect(meals.map((m) => m.priceCents), [550, 400]);
     expect(meals.first.at, DateTime(2026, 10, 20, 6, 30), reason: 'the time stays');
-    await _scrollTo(tester, find.text(s.mealsPriced(2, 2, 950)), page: HistoryPage);
+    await _scrollTo(tester, find.descendant(of: find.byType(HistoryPage), matching: find.text(s.money(950))).first, page: HistoryPage);
     expect(tester.takeException(), isNull);
   });
 
@@ -2120,25 +2120,74 @@ void main() {
     expect(tileColumns(288, 1.0, 150), 1);
   });
 
-  testWidgets('History: the totals are tiles of one size', (tester) async {
+  testWidgets('History: the totals are the filter, four tiles of one size that keep their figures', (tester) async {
     await applyCondition(tester, _normal);
     await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
     await settle(tester);
     final box = containerOf(tester);
     await box.read(habitsProvider.notifier).restore(Habits(
       trips: [TripLog(route: 'home>work', start: tuesdayMorning.subtract(const Duration(hours: 2)), minutes: 40, mode: 'transit', km: 12)],
-      meals: [MealLog(hawkerId: 'h1', at: tuesdayMorning.subtract(const Duration(hours: 1)), priceCents: 4390)],
+      meals: [
+        MealLog(hawkerId: 'h1', at: tuesdayMorning.subtract(const Duration(hours: 1)), priceCents: 4390),
+        MealLog(hawkerId: 'h2', at: tuesdayMorning.subtract(const Duration(hours: 3)), name: 'No Price Kitchen'),
+      ],
     ));
     box.read(shellTabProvider.notifier).state = _tabs['History']!;
     await settle(tester);
-    final tiles = find.descendant(of: find.byType(HistoryPage), matching: find.byType(BentoTile));
-    expect(tiles, findsNWidgets(4));
-    final sizes = {for (final e in tiles.evaluate()) tester.getSize(find.byWidget(e.widget)).width.round()};
-    expect(sizes.length, 1, reason: '$sizes');
-    // Two a row on a phone: the rows line up.
-    expect(tester.getTopLeft(tiles.at(0)).dx, tester.getTopLeft(tiles.at(2)).dx);
-    expect(tester.getTopLeft(tiles.at(1)).dx, tester.getTopLeft(tiles.at(3)).dx);
-    expect(tester.getSize(tiles.at(2)).height, tester.getSize(tiles.at(3)).height);
+    final page = find.byType(HistoryPage);
+    expect(find.descendant(of: page, matching: find.byType(PillRow)), findsNothing);
+    expect(find.descendant(of: page, matching: find.byType(BentoTile)), findsNothing);
+
+    Finder tile(String name) =>
+        find.ancestor(of: find.descendant(of: page, matching: find.text(name)), matching: find.byType(InkWell)).first;
+    final names = [_s.historyAll, _s.historyTrips, _s.historyParking, _s.historyMeals];
+    final rects = [for (final n in names) tester.getRect(tile(n))];
+    expect({for (final r in rects) r.width.round()}, hasLength(1), reason: '$rects');
+    expect({for (final r in rects) r.top.round()}, hasLength(1), reason: 'one row on a phone');
+    expect({for (final r in rects) r.height.round()}, hasLength(1));
+    expect(rects.first.height, greaterThanOrEqualTo(kMinInteractiveDimension));
+    // The period is one rail, and its last choice says what it is.
+    expect(find.text(_s.historyPeriod('all')), findsOneWidget);
+    expect(_s.historyPeriod('all'), 'All time');
+
+    // Picking Meals filters the list; the tiles keep counting the whole week.
+    expect(find.descendant(of: tile(_s.historyTrips), matching: find.text('1')), findsOneWidget);
+    await tester.tap(tile(_s.historyMeals));
+    await settle(tester);
+    expect(box.read(historyKindProvider), HistoryKind.meal);
+    expect(find.descendant(of: tile(_s.historyTrips), matching: find.text('1')), findsOneWidget);
+    expect(find.descendant(of: tile(_s.historyMeals), matching: find.text('2')), findsOneWidget);
+    expect(find.descendant(of: page, matching: find.text('Home → Work')), findsNothing);
+
+    // A meal with no price offers to add one where the figure would be; the priced one shows it.
+    final rows = tester.widgetList<PlaceRow>(find.descendant(of: page, matching: find.byType(PlaceRow))).toList();
+    expect(rows, hasLength(2));
+    final unpriced = rows.firstWhere((r) => r.title == 'No Price Kitchen');
+    expect((unpriced.figure, unpriced.action), (null, _s.historyAddPrice));
+    expect(rows.firstWhere((r) => r.title != 'No Price Kitchen').figure, _s.money(4390));
+    expect(find.text(_s.historySwipeHint), findsOneWidget);
+
+    await tester.tap(tile(_s.historyAll));
+    await settle(tester);
+    expect(box.read(historyKindProvider), isNull);
+    // An estimated fare says so in a word.
+    final trip = tester.widget<PlaceRow>(find.descendant(of: page, matching: find.widgetWithText(PlaceRow, 'Home → Work')));
+    expect(trip.figureLabel, _s.historyEstimate);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('History with nothing logged: the note, and no tiles of zeros', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    containerOf(tester).read(shellTabProvider.notifier).state = _tabs['History']!;
+    await settle(tester);
+    final page = find.byType(HistoryPage);
+    expect(find.text(_s.historyEmpty), findsOneWidget);
+    expect(find.descendant(of: page, matching: find.text(_s.historyTrips)), findsNothing);
+    expect(find.descendant(of: page, matching: find.text(_s.historyCostNote)), findsNothing);
+    expect(find.text(_s.historyPeriod('week')), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('A place shared from Google Maps opens the planner with it as the destination', (tester) async {
