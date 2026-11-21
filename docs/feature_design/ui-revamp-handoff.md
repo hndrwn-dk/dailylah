@@ -76,11 +76,16 @@ Nothing here is started. Each is small; ask the owner before doing any of it.
   The owner's private security notes repo is not named anywhere a cloud session can read, so nothing
   was saved there for any of the five PRs. Tell the owner this each time.
 
-**Open Dependabot pull requests** (checked 21 Nov, all with green CI on an old base; see the session
-for what the owner decided): #184 Gradle wrapper 9.9.1 (the checksum is the `-all.zip` one), #185
-playwright-core 1.65.0, #186 flutter_riverpod 3.5.0 (adds four transitive packages to the lockfile),
-#187 fastapi 0.162.5, pytest-asyncio and ruff (the lockfile line for uvicorn is written differently
-from what `uv pip compile` writes).
+**Dependabot pull requests closed without merging** (21 Nov, at the owner's choice; all four had
+green CI on a base from 16 Nov). Dependabot opens new ones when newer versions come out. What the
+check found, for when they come back:
+- #184 Gradle wrapper 9.8.2 to 9.9.1: the checksum in the PR was the `-all.zip` one, as the rule asks.
+- #185 playwright-core 1.64.1 to 1.65.0 (`web/tests/e2e`): the lockfile only.
+- #186 flutter_riverpod 3.4.3 to 3.5.0: adds four transitive packages to `pubspec.lock`
+  (`cupertino_ui`, `material_ui`, `intl`, `flutter_localizations`). Worth its own look.
+- #187 fastapi 0.162.0 to 0.162.5, pytest-asyncio, ruff: Dependabot wrote the lockfile line as
+  `uvicorn[standard]==0.54.0` where `uv pip compile` writes `uvicorn==0.54.0`. Regenerate the
+  lockfile with the command in `backend/requirements.in` rather than taking Dependabot's.
 
 ## How the owner likes to work
 
