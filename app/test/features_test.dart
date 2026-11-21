@@ -863,24 +863,44 @@ void main() {
     final toggle = find.widgetWithText(SettingTile, 'My car is electric');
     await tester.ensureVisible(toggle);
     await tester.pump();
+    // The tile stays the same node when its plug row comes and goes, so TalkBack keeps its place.
+    final nodeOff = tester.getSemantics(find.text('My car is electric')).id;
     await tester.tap(toggle);
     await settle(tester);
     expect(box.read(favoritesProvider).evPlug, 'any');
-    // One row for the plug, the choices in a sheet (room for more plugs later).
-    final plugRow = find.widgetWithText(ListTile, 'My plug');
-    await tester.ensureVisible(plugRow);
+    expect(tester.getSemantics(find.text('My car is electric')).id, nodeOff);
+    // The plug is a row inside the same tile (not a row of its own under the grid); the
+    // choices are in a sheet (room for more plugs later).
+    Finder plugRow(String plug) => find.descendant(
+        of: toggle, matching: find.textContaining('Charger plug · $plug', findRichText: true));
+    expect(find.text('My plug'), findsNothing);
+    expect(find.byType(ListTile), findsNothing);
+    await tester.ensureVisible(plugRow('Any plug'));
     await tester.pump();
-    expect(find.descendant(of: plugRow, matching: find.text('Any plug')), findsOneWidget);
     expect(find.byType(ChoiceChip), findsNothing);
-    await tester.tap(plugRow);
+    // Two things to TalkBack: the switch, and a button for the plug at least 48 dp tall.
+    expect(tester.getSemantics(find.text('My car is electric')),
+        isSemantics(isToggled: true, hasToggledState: true, hasTapAction: true,
+            label: 'My car is electric\nEV chargers with live free spots'));
+    expect(tester.getSemantics(plugRow('Any plug')),
+        isSemantics(isButton: true, hasTapAction: true, label: 'Charger plug · Any plug'));
+    expect(tester.getSize(find.ancestor(of: plugRow('Any plug'), matching: find.byType(InkWell)).first).height,
+        greaterThanOrEqualTo(kMinInteractiveDimension));
+    await tester.tap(plugRow('Any plug'));
     await settle(tester);
+    expect(box.read(favoritesProvider).evPlug, 'any', reason: 'the plug row does not flip the switch');
     expect(find.text('Which plug does your car use?'), findsOneWidget);
     expect(find.text('DC fast charging, on most newer cars'), findsOneWidget);
     await tester.tap(find.widgetWithText(ListTile, 'CCS2'));
     await settle(tester);
     expect(find.text('Which plug does your car use?'), findsNothing);
-    expect(find.descendant(of: plugRow, matching: find.text('CCS2')), findsOneWidget);
+    expect(plugRow('CCS2'), findsOneWidget);
     expect(box.read(favoritesProvider).evPlug, 'CCS2');
+    // Off again: the plug row goes with it.
+    await tester.tap(find.text('My car is electric'));
+    await settle(tester);
+    expect(box.read(favoritesProvider).evPlug, '');
+    expect(find.textContaining('Charger plug', findRichText: true), findsNothing);
   });
 
   testWidgets('A trip from the planner is timed with the banner and lands in History with its cost', (tester) async {

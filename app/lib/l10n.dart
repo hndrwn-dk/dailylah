@@ -135,7 +135,7 @@ class S {
   String get evAsk => 'Electric car? Show EV chargers';
   String get evToggle => 'My car is electric';
   String get evToggleSub => 'EV chargers with live free spots';
-  String get evPlugTitle => 'My plug';
+  String get evPlugTitle => 'Charger plug';
   String get evPlugAsk => 'Which plug does your car use?';
   String evPlugHint(String plug) => switch (plug) {
         'any' => 'Show every charger',
@@ -1061,9 +1061,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "More: the lunch suggestion is now a tile like the other alerts, with its time beside it.",
-        "More: switches lie flat; a tile with a shadow and an arrow opens something, the same as on the other tabs.",
-        "History: Delete all my history moved here from More, under the list.",
+        "More: the plug of your electric car is now inside the My car is electric tile, as Charger plug.",
       ];
 
   // about

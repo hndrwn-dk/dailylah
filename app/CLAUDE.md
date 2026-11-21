@@ -128,7 +128,7 @@ feature, screen, provider or rule moves, appears or goes away.
   beside it is too narrow for whole words (`_BoardRowLayout`, large text, small screens). Maestro: `maestro/09_plan_trip.yaml`. Driving uses `/v1/trip-extras`
   (parking) and `/v1/traffic-incidents`.
 - EV charging (opt-in, `Favorites.evPlug`: '' none, 'any', 'Type 2', 'CCS2', 'CHAdeMO'; More > Extras
-  "My car is electric" with plug chips, or "Electric car? Show EV chargers" in Nearby > Park): `EvChargers`
+  "My car is electric", a full-width tile that holds its "Charger plug" row, which opens the plug list, or "Electric car? Show EV chargers" in Nearby > Park): `EvChargers`
   (`ui/ev.dart`) in Nearby > Park, Home > Parking and car trips (`_DriveBlock`). Locations, plugs, kW and
   price come from the daily `ev.json` bundle (LTA `EVCBatch`, `compact_ev_sites`; `evSitesProvider`,
   `evNear`, `evPlugMatches`); free chargers live from `/v1/ev/{postal}` (LTA `EVChargingPoints`,
@@ -157,8 +157,10 @@ feature, screen, provider or rule moves, appears or goes away.
   `toggled` for TalkBack), without one it opens something (raised, a chevron, a button for TalkBack): on More too a shadow
   means the tile opens something. Your setup and The app are link tiles, Alerts
   and Extras switch tiles; Alerts shows "8 of 9 on" beside its title (`alertsOn`, `alertKinds`). Lunch is the ninth
-  alert tile, and while it is on the tile beside it is the link "Lunch time: 12.00" (the time picker). My plug stays a
-  full-width `Panel` row under Extras. "Show me an example" is a text link under the alerts. "Delete all my history"
+  alert tile, and while it is on the tile beside it is the link "Lunch time: 12.00" (the time picker). Extras is two tiles
+  side by side, then Learn my habits and My car is electric at full width (three would leave a hole); while the car
+  is electric that tile holds its plug as a row of its own under a line (`SettingTile.below`, with `holdsRow` so the tile is the same widgets on and off, `_PlugRow`: "Charger
+  plug · Type 2" and a chevron, its own button for TalkBack, 48 dp), which opens `showEvPlugPicker`. "Show me an example" is a text link under the alerts. "Delete all my history"
   is not on More: it is at the end of the History tab (`S.deleteHistory`, shown while anything is logged or a car is parked).
 - Appearance: More > Appearance picks follow the phone / light / dark (`Favorites.theme`: '', 'light',
   'dark'; `themeModeFor` in theme.dart). Dark mode keeps sticker surfaces (mint, sky, amber) with ink text.

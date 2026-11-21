@@ -1,7 +1,7 @@
 name: dailylah
 description: DailyLah — know before you go lah.
 publish_to: "none"
-version: 2.16.0+49
+version: 2.16.1+50
 
 environment:
   sdk: ">=3.5.0 <4.0.0"

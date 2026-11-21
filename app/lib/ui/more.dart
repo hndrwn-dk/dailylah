@@ -150,25 +150,36 @@ class MorePage extends ConsumerWidget {
                             sub: s.showPrayerSub),
                         toggle(Icons.restaurant_menu, s.showHalal, fav.showHalal, (f, v) => f.copyWith(showHalal: v),
                             sub: s.showHalalSub),
-                        toggle(Icons.bolt_outlined, s.evToggle, fav.drivesEv,
-                            (f, v) => f.copyWith(evPlug: v ? 'any' : ''), sub: s.evToggleSub),
-                        toggle(Icons.insights, s.learnHabits, fav.learnHabits, (f, v) => f.copyWith(learnHabits: v),
-                            sub: s.learnHabitsSub),
                       ],
                     ),
-                    if (fav.drivesEv)
-                      Panel(
-                        child: ListTile(
-                          leading: const Icon(Icons.power_outlined),
-                          title: Text(s.evPlugTitle),
-                          subtitle: Text(s.evPlugName(fav.evPlug)),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () async {
-                            final plug = await showEvPlugPicker(context, s, fav.evPlug);
-                            if (plug != null) notifier.update((f) => f.copyWith(evPlug: plug));
-                          },
-                        ),
+                    // Three switches would leave a hole in the grid, so the last two take the
+                    // whole width; the electric car one holds its own plug choice.
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: toggle(Icons.insights, s.learnHabits, fav.learnHabits, (f, v) => f.copyWith(learnHabits: v),
+                          sub: s.learnHabitsSub),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: SettingTile(
+                        icon: Icons.bolt_outlined,
+                        title: s.evToggle,
+                        subtitle: s.evToggleSub,
+                        value: fav.drivesEv,
+                        holdsRow: true,
+                        onTap: () => notifier.update((f) => f.copyWith(evPlug: fav.drivesEv ? '' : 'any')),
+                        below: fav.drivesEv
+                            ? _PlugRow(
+                                label: s.evPlugTitle,
+                                value: s.evPlugName(fav.evPlug),
+                                onTap: () async {
+                                  final plug = await showEvPlugPicker(context, s, fav.evPlug);
+                                  if (plug != null) notifier.update((f) => f.copyWith(evPlug: plug));
+                                },
+                              )
+                            : null,
                       ),
+                    ),
                   ],
                 ),
                 SectionTitle(s.theApp),
@@ -268,7 +279,8 @@ int tileColumns(double width, double textScale, [double minWidth = tileMinWidth]
 /// One setting on More as a sticker tile. With [value] it is a switch: mint with a solid outline
 /// when on, a dashed outline when off, flat either way, and "On" / "Off" in words so colour is
 /// not the only sign. Without [value] it opens something: raised, with a chevron. So here, as
-/// on the other tabs, a shadow means the tile opens something.
+/// on the other tabs, a shadow means the tile opens something. [below] is a row of its own inside
+/// the same outline, under a line (the plug of "My car is electric"), with its own tap.
 class SettingTile extends ConsumerWidget {
   const SettingTile({
     super.key,
@@ -277,12 +289,20 @@ class SettingTile extends ConsumerWidget {
     this.subtitle,
     this.value,
     required this.onTap,
+    this.below,
+    this.holdsRow = false,
   });
   final IconData icon;
   final String title;
   final String? subtitle;
   final bool? value;
   final VoidCallback onTap;
+  final Widget? below;
+
+  /// True for a tile that can have a [below] row, whether it has one now or not: its tree then
+  /// keeps one shape, so switching the row in or out keeps the ripple, the colour change and
+  /// TalkBack's focus on the tile.
+  final bool holdsRow;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -326,12 +346,42 @@ class SettingTile extends ConsumerWidget {
             child: Icon(icon, size: 20, color: DL.ink),
           );
 
-    return MergeSemantics(
-      child: Semantics(
-        toggled: value,
-        // A link tile is a button to TalkBack; a switch tile is announced as a switch.
-        button: value == null ? true : null,
+    final tap = InkWell(
+      borderRadius: below == null ? r : const BorderRadius.vertical(top: Radius.circular(DL.radius)),
+      onTap: () {
+        if (isSwitch) HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 108),
         child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  lead,
+                  const Spacer(),
+                  if (isSwitch) badge else Icon(Icons.chevron_right, color: DL.muted(context)),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(title, style: t.titleSmall?.copyWith(color: fg)),
+              if (subtitle != null) ...[
+                const SizedBox(height: 2),
+                Text(subtitle!, style: t.bodySmall?.copyWith(color: subColor)),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+    // One node for TalkBack: a link tile is a button, a switch tile is announced as a switch.
+    Widget node(Widget child) => MergeSemantics(
+          child: Semantics(toggled: value, button: value == null ? true : null, child: child),
+        );
+    Widget sticker(Widget child) => Padding(
           padding: const EdgeInsets.only(right: 4, bottom: 4),
           child: CustomPaint(
             foregroundPainter: off ? _DashedOutline(DL.muted(context)) : null,
@@ -346,44 +396,69 @@ class SettingTile extends ConsumerWidget {
                 border: Border.all(color: off ? Colors.transparent : DL.edge(context), width: DL.stroke),
                 boxShadow: isSwitch ? const [] : DL.hard(context),
               ),
-              child: Material(
-                type: MaterialType.transparency,
-                child: InkWell(
-                  borderRadius: r,
-                  onTap: () {
-                    if (isSwitch) HapticFeedback.selectionClick();
-                    onTap();
-                  },
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(minHeight: 108),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              lead,
-                              const Spacer(),
-                              if (isSwitch) badge else Icon(Icons.chevron_right, color: DL.muted(context)),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Text(title, style: t.titleSmall?.copyWith(color: fg)),
-                          if (subtitle != null) ...[
-                            const SizedBox(height: 2),
-                            Text(subtitle!, style: t.bodySmall?.copyWith(color: subColor)),
-                          ],
-                        ],
+              child: Material(type: MaterialType.transparency, child: child),
+            ),
+          ),
+        );
+
+    // With a row below, the tile and that row are two things to TalkBack inside one outline.
+    return !holdsRow && below == null
+        ? node(sticker(tap))
+        : sticker(Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [node(tap), if (below != null) below!],
+          ));
+  }
+}
+
+/// The plug choice inside the "My car is electric" tile: a line, then "Charger plug · Any plug"
+/// and a chevron, 48 dp tall. It sits on mint, so its text is ink in light and dark.
+class _PlugRow extends StatelessWidget {
+  const _PlugRow({required this.label, required this.value, required this.onTap});
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(height: 2, margin: const EdgeInsets.symmetric(horizontal: 12), color: DL.ink.withValues(alpha: 0.25)),
+        Semantics(
+          container: true,
+          button: true,
+          child: InkWell(
+            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(DL.radius - DL.stroke)),
+            onTap: onTap,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.power_outlined, size: 22, color: DL.ink),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text.rich(
+                        TextSpan(
+                          text: label,
+                          style: t.titleSmall?.copyWith(color: DL.ink),
+                          children: [TextSpan(text: ' · $value', style: t.bodyMedium?.copyWith(color: DL.ink))],
+                        ),
                       ),
                     ),
-                  ),
+                    const Icon(Icons.chevron_right, color: DL.ink),
+                  ],
                 ),
               ),
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 }
