@@ -203,7 +203,8 @@ class _PeriodRail extends ConsumerWidget {
         if (tp.width > widest) widest = tp.width;
         tp.dispose();
       }
-      final room = (box.maxWidth - 11) / HistoryPeriod.values.length - 10;
+      // Less the padding of a segment (8) and the border of the picked one (2 a side), with 2 to spare.
+      final room = (box.maxWidth - 11) / HistoryPeriod.values.length - 14;
       final fit = widest > room && widest > 0 ? room / widest : 1.0;
       final style = base?.copyWith(fontSize: (base.fontSize ?? 14) * fit);
       return _rail(context, s, edge, style);
@@ -367,7 +368,12 @@ class _KindTile extends StatelessWidget {
                       child: Text(figure,
                           maxLines: 1, style: t.displaySmall?.copyWith(fontSize: 22, height: 1.1, color: fg)),
                     ),
-                    Text(name, style: t.labelLarge?.copyWith(color: fg)),
+                    // One word: drawn smaller rather than broken on a narrow phone.
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Text(name, maxLines: 1, style: t.labelLarge?.copyWith(color: fg)),
+                    ),
                     if (caption.isNotEmpty)
                       Text(caption, style: t.bodySmall?.copyWith(color: selected ? DL.ink : null)),
                   ],

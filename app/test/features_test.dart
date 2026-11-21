@@ -2176,6 +2176,48 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  for (final scale in [1.0, 1.3, 2.0]) {
+    testWidgets('History at ${(scale * 100).round()}% text: a large cost and the names stay on one line', (tester) async {
+      final c = Condition('h', textScale: scale, size: scale > 1 ? const Size(320, 780) : const Size(360, 780));
+      await applyCondition(tester, c);
+      await tester.pumpWidget(appUnder(c, householdFavorites, tuesdayMorning));
+      await settle(tester);
+      final box = containerOf(tester);
+      await box.read(habitsProvider.notifier).restore(Habits(
+        parkings: [ParkLog(name: 'Mall', start: tuesdayMorning.subtract(const Duration(hours: 3)), minutes: 300, costCents: 12345)],
+      ));
+      box.read(shellTabProvider.notifier).state = _tabs['History']!;
+      await settle(tester);
+      final page = find.byType(HistoryPage);
+
+      // No taller than one line of its own style: not broken between digits or letters.
+      void oneLine(Finder text, String what) {
+        final w = tester.widget<Text>(text);
+        final style = w.style!;
+        final scaler = MediaQuery.textScalerOf(tester.element(text));
+        final line = scaler.scale(style.fontSize!) * (style.height ?? 1.5);
+        expect(tester.getSize(text).height, lessThanOrEqualTo(line + 1), reason: '$what at $scale');
+      }
+
+      for (final p in ['week', 'month', 'all']) {
+        oneLine(find.descendant(of: page, matching: find.text(_s.historyPeriod(p))), _s.historyPeriod(p));
+        // A name is never wider than its third of the rail, also when it is the picked one.
+        box.read(historyPeriodProvider.notifier).state = HistoryPeriod.values.byName(p);
+        await settle(tester);
+        final name = find.descendant(of: page, matching: find.text(_s.historyPeriod(p)));
+        final segment = find.ancestor(of: name, matching: find.byType(InkWell)).first;
+        expect(tester.getSize(name).width, lessThanOrEqualTo(tester.getSize(segment).width - 12), reason: '$p at $scale');
+      }
+      for (final name in [_s.historyAll, _s.historyTrips, _s.historyParking, _s.historyMeals]) {
+        oneLine(find.descendant(of: page, matching: find.text(name)), name);
+      }
+      final row = find.descendant(of: page, matching: find.byType(PlaceRow));
+      await _scrollTo(tester, row, page: HistoryPage);
+      oneLine(find.descendant(of: row, matching: find.text(_s.money(12345))), 'the cost');
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('History with nothing logged: the note, and no tiles of zeros', (tester) async {
     await applyCondition(tester, _normal);
     await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));

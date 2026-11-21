@@ -1563,7 +1563,16 @@ class BigNumber extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text(value, style: t.displaySmall?.copyWith(fontSize: 26, height: 1, color: warn ? DL.ink : null)),
+          // One line always: a figure too wide for its room ("$123.45" at large text) is drawn
+          // smaller, never broken between digits.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.centerEnd,
+            child: Text(value,
+                maxLines: 1,
+                softWrap: false,
+                style: t.displaySmall?.copyWith(fontSize: 26, height: 1, color: warn ? DL.ink : null)),
+          ),
           if (label.isNotEmpty)
             Text(label, textAlign: TextAlign.end, style: t.labelSmall?.copyWith(color: warn ? DL.ink : null)),
         ],
