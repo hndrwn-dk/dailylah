@@ -2510,7 +2510,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Home lists: a row shows its distance large and no web address; the call button is on the sheet',
+  testWidgets('Home lists: a row shows its distance large, no web address and no call button; nor does the ActiveSG sheet',
       (tester) async {
     await applyCondition(tester, _normal);
     await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));

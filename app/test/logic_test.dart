@@ -650,6 +650,18 @@ void main() {
     expect(withoutWebAddress('Products under First Schedule at https://go.gov.sg/prod-def-sl, Large Household Appliances'),
         'Products under First Schedule, Large Household Appliances');
     expect(withoutWebAddress('Book online (https://x.sg/book). Walk-ins welcome'), 'Book online. Walk-ins welcome');
+    // The whole link goes, whatever is in it; nothing of it is left on the row.
+    expect(withoutWebAddress('Map https://a.sg/x?ll=1.35,103.94 more'), 'Map more');
+    expect(withoutWebAddress('See https://a.sg/p(1) today'), 'See today');
+    expect(withoutWebAddress('https://x.sg/a,https://y.sg/b · Blk 1'), 'Blk 1');
+    expect(withoutWebAddress('Open daily · https://x.sg. · Blk 1'), 'Open daily · Blk 1');
+    expect(withoutWebAddress('(https://x.sg/book).'), '');
+    expect(withoutWebAddress('http://'), '');
+    expect(withoutWebAddress('See (map at https://a.sg/x).'), 'See (map).');
+    for (final odd in ['https://a.sg/x?ll=1,2', 'a https://b.sg/c) d', 'HTTPS://X.SG', 'x · http:// · y']) {
+      expect(withoutWebAddress(odd), isNot(contains('http')), reason: odd);
+      expect(withoutWebAddress(odd).toLowerCase(), isNot(contains('.sg')), reason: odd);
+    }
     // Ordinary text is left alone: words with "at", times.
     expect(withoutWebAddress('Batteries at the lobby · 8:30 - 17:00'), 'Batteries at the lobby · 8:30 - 17:00');
   });

@@ -1585,16 +1585,24 @@ List<(BusEta, int?)> groupEtas(List<BusEta> list) {
 
 /// A line of details without web addresses, for a list row: "accepted at https://go.gov.sg/x"
 /// reads "accepted", and a part that is only a link goes ("632 m · https://… · 1 Walk" keeps
-/// two parts). Punctuation after a link stays ("at https://x, large appliances" reads
-/// ", large appliances" joined to what came before); brackets left empty go too.
+/// two parts). The whole link goes, whatever is in it; sentence punctuation right after it
+/// stays ("at https://x, large appliances" reads ", large appliances" joined to what came
+/// before), brackets left empty go, and so does a part left with no letter or digit.
 String withoutWebAddress(String detail) => detail
     .split(' · ')
-    .map((part) => part
-        .replaceAll(RegExp(r'\s*(\bat\s+)?https?://[^\s,;)]*[^\s,;).]', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\s*\(\s*\)'), '')
-        .trim())
-    .where((part) => part.isNotEmpty)
+    .map(_withoutLinks)
+    .where((part) => RegExp(r'[A-Za-z0-9]').hasMatch(part))
     .join(' · ');
+
+String _withoutLinks(String part) => part
+    .replaceAllMapped(RegExp(r'\s*(\bat\s+)?https?://\S*', caseSensitive: false), (m) {
+      final tail = RegExp(r'[).,;]*$').stringMatch(m[0]!) ?? '';
+      // A closing bracket is kept only when the link sat inside brackets.
+      final before = part.substring(0, m.start);
+      return before.lastIndexOf('(') > before.lastIndexOf(')') ? tail : tail.replaceAll(')', '');
+    })
+    .replaceAll(RegExp(r'\s*\(\s*\)'), '')
+    .trim();
 
 /// Short name for a long NEA label: "Tampines St 11 Blk 137 (Tampines Round Market)"
 /// becomes "Tampines Round Market".
