@@ -159,7 +159,7 @@ feature, screen, provider or rule moves, appears or goes away.
   and Extras switch tiles; Alerts shows "8 of 9 on" beside its title (`alertsOn`, `alertKinds`). Lunch is the ninth
   alert tile, and while it is on the tile beside it is the link "Lunch time: 12.00" (the time picker). Extras is two tiles
   side by side, then Learn my habits and My car is electric at full width (three would leave a hole); while the car
-  is electric that tile holds its plug as a row of its own under a line (`SettingTile.below`, `_PlugRow`: "Charger
+  is electric that tile holds its plug as a row of its own under a line (`SettingTile.below`, with `holdsRow` so the tile is the same widgets on and off, `_PlugRow`: "Charger
   plug · Type 2" and a chevron, its own button for TalkBack, 48 dp), which opens `showEvPlugPicker`. "Show me an example" is a text link under the alerts. "Delete all my history"
   is not on More: it is at the end of the History tab (`S.deleteHistory`, shown while anything is logged or a car is parked).
 - Appearance: More > Appearance picks follow the phone / light / dark (`Favorites.theme`: '', 'light',

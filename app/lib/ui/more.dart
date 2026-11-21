@@ -166,6 +166,7 @@ class MorePage extends ConsumerWidget {
                         title: s.evToggle,
                         subtitle: s.evToggleSub,
                         value: fav.drivesEv,
+                        holdsRow: true,
                         onTap: () => notifier.update((f) => f.copyWith(evPlug: fav.drivesEv ? '' : 'any')),
                         below: fav.drivesEv
                             ? _PlugRow(
@@ -289,6 +290,7 @@ class SettingTile extends ConsumerWidget {
     this.value,
     required this.onTap,
     this.below,
+    this.holdsRow = false,
   });
   final IconData icon;
   final String title;
@@ -296,6 +298,11 @@ class SettingTile extends ConsumerWidget {
   final bool? value;
   final VoidCallback onTap;
   final Widget? below;
+
+  /// True for a tile that can have a [below] row, whether it has one now or not: its tree then
+  /// keeps one shape, so switching the row in or out keeps the ripple, the colour change and
+  /// TalkBack's focus on the tile.
+  final bool holdsRow;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -395,12 +402,12 @@ class SettingTile extends ConsumerWidget {
         );
 
     // With a row below, the tile and that row are two things to TalkBack inside one outline.
-    return below == null
+    return !holdsRow && below == null
         ? node(sticker(tap))
         : sticker(Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [node(tap), below!],
+            children: [node(tap), if (below != null) below!],
           ));
   }
 }

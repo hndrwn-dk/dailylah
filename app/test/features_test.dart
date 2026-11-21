@@ -863,9 +863,12 @@ void main() {
     final toggle = find.widgetWithText(SettingTile, 'My car is electric');
     await tester.ensureVisible(toggle);
     await tester.pump();
+    // The tile stays the same node when its plug row comes and goes, so TalkBack keeps its place.
+    final nodeOff = tester.getSemantics(find.text('My car is electric')).id;
     await tester.tap(toggle);
     await settle(tester);
     expect(box.read(favoritesProvider).evPlug, 'any');
+    expect(tester.getSemantics(find.text('My car is electric')).id, nodeOff);
     // The plug is a row inside the same tile (not a row of its own under the grid); the
     // choices are in a sheet (room for more plugs later).
     Finder plugRow(String plug) => find.descendant(
