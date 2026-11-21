@@ -12,7 +12,10 @@ import 'widgets.dart';
 /// locations with the user's plug from the ev.json bundle, each with its free chargers asked
 /// live from /v1/ev/{postal}. Used in Nearby > Park, Home > Parking and car trips.
 class EvChargers extends ConsumerWidget {
-  const EvChargers({super.key, required this.lat, required this.lng, required this.title});
+  const EvChargers({super.key, required this.lat, required this.lng, required this.title, this.chevron = false});
+
+  /// A chevron at the end of each row, which opens the location's sheet.
+  final bool chevron;
   final double lat;
   final double lng;
   final String title;
@@ -37,7 +40,7 @@ class EvChargers extends ConsumerWidget {
                 EmptyNote(s.evNoData, icon: Icons.ev_station_outlined)
               else if (near.isEmpty)
                 EmptyNote(s.evNone, icon: Icons.ev_station_outlined),
-              for (final (site, d) in near) _EvRow(site: site, distance: d, plug: plug),
+              for (final (site, d) in near) _EvRow(site: site, distance: d, plug: plug, chevron: chevron),
             ],
           ),
         ),
@@ -47,7 +50,8 @@ class EvChargers extends ConsumerWidget {
 }
 
 class _EvRow extends ConsumerWidget {
-  const _EvRow({required this.site, required this.distance, required this.plug});
+  const _EvRow({required this.site, required this.distance, required this.plug, this.chevron = false});
+  final bool chevron;
   final EvSite site;
   final double distance;
   final String plug;
@@ -73,7 +77,7 @@ class _EvRow extends ConsumerWidget {
         extra: [_EvDetail(site: site)],
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: EdgeInsets.fromLTRB(16, 10, chevron ? 8 : 16, 10),
         child: Row(
           children: [
             const Icon(Icons.ev_station_outlined),
@@ -96,6 +100,7 @@ class _EvRow extends ConsumerWidget {
                     constraints: const BoxConstraints(maxWidth: 96),
                     child: BigNumber(value: '${counts.$1}', label: s.evOfFree(counts.$2), warn: counts.$1 == 0),
                   ),
+            if (chevron) ExcludeSemantics(child: Icon(Icons.chevron_right, color: DL.muted(context))),
           ],
         ),
       ),

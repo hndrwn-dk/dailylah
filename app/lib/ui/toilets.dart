@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data.dart';
 import '../logic.dart';
+import '../models.dart';
 import '../mrt_ride.dart';
 import '../providers.dart';
 import '../wake_session.dart';
@@ -75,9 +76,33 @@ class ToiletsNearby extends ConsumerWidget {
         else if (near == null || near.isEmpty)
           Panel(child: EmptyNote(s.toiletNoneNear, icon: Icons.wc))
         else
-          ToiletRows(stops: [
-            for (final (toilet, m) in near) ToiletStop(at: '', rideMinutes: 0, toilet: toilet, metres: m),
-          ]),
+          // Near a place each row opens the toilet's sheet (walking directions are inside),
+          // like every other row of Nearby.
+          Panel(
+            child: Column(
+              children: [
+                for (final (i, (toilet, m)) in near.indexed) ...[
+                  if (i > 0) const Divider(height: 1),
+                  PlaceRow(
+                    icon: _kindIcon(toilet.kind),
+                    iconColor: DL.goText(context),
+                    title: toilet.name,
+                    subtitle: s.toiletKindWalk(s.toiletKind(toilet.kind), walkMinutesTo(m)),
+                    figure: s.metresParts(m).$1,
+                    figureLabel: s.metresParts(m).$2,
+                    onTap: () => showPlaceSheet(context,
+                        s: s,
+                        title: toilet.name,
+                        subtitle: s.toiletKind(toilet.kind),
+                        lat: toilet.lat,
+                        lng: toilet.lng,
+                        distance: m,
+                        mode: TravelMode.walk),
+                  ),
+                ],
+              ],
+            ),
+          ),
         const FullWidth(child: ToiletFooter()),
       ],
     );

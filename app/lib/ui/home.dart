@@ -376,7 +376,11 @@ class NearItem {
 
 /// A titled list that shows the nearest few and expands to the rest.
 class NearGroup extends ConsumerStatefulWidget {
-  const NearGroup({super.key, required this.title, required this.icon, required this.items, this.show = 3, this.header});
+  const NearGroup(
+      {super.key, required this.title, required this.icon, required this.items, this.show = 3, this.header, this.figures = false});
+
+  /// Rows as [PlaceRow]s: the distance (or the row's own number) large at the end, then a chevron.
+  final bool figures;
   final String title;
 
   /// Shown between the title and the list, e.g. the parks "good time to go?" line.
@@ -399,42 +403,7 @@ class _NearGroupState extends ConsumerState<NearGroup> {
     final items = widget.items;
     if (items.isEmpty) return const SizedBox.shrink();
     final shown = _all ? items : items.take(widget.show).toList();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
-          child: Text(widget.title, style: t.titleSmall),
-        ),
-        if (widget.header case final h?) h,
-        Panel(
-          child: Column(
-            children: [
-              for (final it in shown)
-                ListTile(
-                  leading: Icon(widget.icon),
-                  title: Text(it.name),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        [s.metres(it.distance), if (it.detail.isNotEmpty) it.detail].join(' · '),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (it.chips.isNotEmpty) FacilityIcons(it.chips),
-                    ],
-                  ),
-                  trailing: it.big != null
-                      ? BigNumber(value: it.big!, label: it.bigLabel, warn: it.bigWarn)
-                      : it.tel.isEmpty
-                      ? null
-                      : IconButton(
-                          tooltip: s.callLabel,
-                          icon: const Icon(Icons.call_outlined),
-                          onPressed: () => launchUrl(Uri(scheme: 'tel', path: it.tel)),
-                        ),
-                  onTap: () => showPlaceSheet(
+    void open(NearItem it) => showPlaceSheet(
                     context,
                     s: s,
                     title: it.name,
@@ -462,8 +431,59 @@ class _NearGroupState extends ConsumerState<NearGroup> {
                           ),
                         ),
                     ],
+                  );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+          child: Text(widget.title, style: t.titleSmall),
+        ),
+        if (widget.header case final h?) h,
+        Panel(
+          child: Column(
+            children: [
+              for (final it in shown)
+                if (widget.figures)
+                  PlaceRow(
+                    icon: widget.icon,
+                    title: it.name,
+                    // A row with its own number keeps the distance in the line under the name.
+                    subtitle: it.big == null
+                        ? it.detail
+                        : [s.metres(it.distance), if (it.detail.isNotEmpty) it.detail].join(' · '),
+                    below: it.chips.isEmpty ? null : FacilityIcons(it.chips),
+                    figure: it.big ?? s.metresParts(it.distance).$1,
+                    figureLabel: it.big != null ? it.bigLabel : s.metresParts(it.distance).$2,
+                    warn: it.bigWarn,
+                    onTap: () => open(it),
+                  )
+                else
+                  ListTile(
+                    leading: Icon(widget.icon),
+                    title: Text(it.name),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          [s.metres(it.distance), if (it.detail.isNotEmpty) it.detail].join(' · '),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (it.chips.isNotEmpty) FacilityIcons(it.chips),
+                      ],
+                    ),
+                    trailing: it.big != null
+                        ? BigNumber(value: it.big!, label: it.bigLabel, warn: it.bigWarn)
+                        : it.tel.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: s.callLabel,
+                            icon: const Icon(Icons.call_outlined),
+                            onPressed: () => launchUrl(Uri(scheme: 'tel', path: it.tel)),
+                          ),
+                    onTap: () => open(it),
                   ),
-                ),
               if (items.length > widget.show)
                 Align(
                   alignment: Alignment.centerLeft,

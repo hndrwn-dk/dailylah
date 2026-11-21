@@ -272,6 +272,19 @@ void main() {
         });
       }
 
+      testWidgets('Nearby: the list of places', (tester) async {
+        await applyCondition(tester, c);
+        await tester.pumpWidget(appUnder(c, householdFavorites, tuesdayMorning));
+        await settle(tester);
+        containerOf(tester).read(shellTabProvider.notifier).state = _tabs['Nearby']!;
+        await settle(tester);
+        await tester.tap(find.byTooltip(const S().nearbyChangePlace));
+        await settle(tester);
+        expect(find.text(const S().nearbyWhere), findsOneWidget);
+        await expectAccessible(tester);
+        expect(tester.takeException(), isNull);
+      });
+
       // ---------------------------------------------------------------- Home
       for (final section in HomePage.sections) {
         testWidgets('Home: $section', (tester) async {

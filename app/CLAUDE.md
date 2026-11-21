@@ -62,7 +62,7 @@ relative to `app/` unless they start with a top-level folder. File and symbol in
   or when the card switches while another tab is open (`todayBackToTop`).
 - UI: `ui/shell.dart` (tabs Today / Nearby / Home / History / More), `ui/theme.dart` (design tokens
   in `DL`, fonts Plus Jakarta Sans + Barlow Condensed in `assets/fonts/`), `ui/widgets.dart`
-  (Panel, HeroHeader, BusPlate, PillRow, ModeRail, BentoTile...). Keep the sticker style: ink outlines
+  (Panel, HeroHeader, BusPlate, PillRow, ModeRail, SectionTiles, PlaceRow, BentoTile...). Keep the sticker style: ink outlines
   and hard offset shadows (`Panel`), not soft Material cards. Signature elements (see `DL`):
   bus plates and the LED `BusBoard` for live arrivals, MRT `StationChip`/`LineChip` in official
   colours, `PaintedBlockNumber` as the Home hero, amber = look now / teal = go and nothing else. A raised card (hard shadow) is one that opens something; a reading that
@@ -227,8 +227,21 @@ feature, screen, provider or rule moves, appears or goes away.
   `test/background_rules_test.dart`, `test/dailylah_notify_test.dart`, and on emulators "every sample alert
   posts with the custom layout" in `integration_test/app_test.dart`. How the layout looks on a real shade is
   checked by eye with Show me an example.
-- Nearby (`ui/nearby.dart`) is "I am here now": starts on Here, chips for one section at a time
-  (`nearbySectionProvider`: bus, eat, green = parks, park = car parking, taxi, prayer, help). The taxi sheet
+- Nearby (`ui/nearby.dart`) is "I am here now": starts on Here. The place is said once, on the button that
+  changes it (`_PlaceButton`: "Gym · TAMPINES HUB" with a down arrow, amber once a place is picked; `_pickPlace`
+  opens the list "Nearby where?": Current location, the saved places, Search for a place), with the
+  Use my current location button beside it. The sections are `SectionTiles` (widgets.dart: even tiles, icon over
+  name, four a row or fewer when the longest name would not fit, `SectionTiles.columns`; a short last row is
+  filled by its last tile), one section at a time
+  (`nearbySectionProvider`: bus, eat, green = parks, park = car parking, taxi, toilet, prayer, help). A row that
+  opens something is a `PlaceRow` (widgets.dart): name, a line under it, a large figure and a chevron. The
+  figure is the distance (`S.metresParts`), or the row's own number (free lots, free chargers, the prayer time),
+  in which case the distance stays in the line under the name; a car park without a live count has no figure.
+  Every such row opens that place's own sheet (an HDB car park: `_showCarpark`; a toilet: the place sheet with
+  walking directions). The bus hint ("Tap a bus to see where it is") is said once beside the heading, See all
+  sits at the end of its heading (`SectionTitle.trailingAtEnd`), and the Taxi card says the answer
+  (`taxiEase`, `S.taxiEaseTitle`) over "2 free taxis within 500 m · stand 88 m" (`S.taxiNearLine`). Other tabs
+  keep `PillRow` and `ListTile` rows until their own revamp (`NearGroup(figures:)`, `EvChargers(chevron:)`). The taxi sheet
   (`TaxiSheet` in `ui/today.dart`) answers first (`TaxiEaseCard`, `taxiEase`), then the nearest stand with
   Walk there (`taxisAround`), then `TaxiRadar` on the dark board (tap a taxi: distance and `compass8`
   direction; stands are 48 dp `TaxiStandPin`s that open the stand; for TalkBack the radar has a label

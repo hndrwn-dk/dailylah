@@ -1,5 +1,5 @@
-# Nearby with location off: the saved Work place, then one section at a time; each chip opens
-# its section without a crash.
+# Nearby with location off: the saved Work place from the place list, then one section at a time;
+# each tile opens its section without a crash.
 appId: com.tursinalabs.dailylah
 name: 04 Nearby
 ---
@@ -15,7 +15,12 @@ name: 04 Nearby
 - extendedWaitUntil:
     visible: "(?s).*Use your location to see buses.*"
     timeout: 20000
-- tapOn: "(?s)Work"
+# The place button opens the list of places.
+- tapOn: "(?s)Choose a place.*"
+- extendedWaitUntil:
+    visible: "(?s).*Nearby where\\?.*"
+    timeout: 20000
+- tapOn: "(?s)Work.*"
 - extendedWaitUntil:
     visible: "(?is).*(Singapore 310201|toa payoh).*"
     timeout: 20000
@@ -26,13 +31,9 @@ name: 04 Nearby
 - tapOn: "(?s)Eat"
 - tapOn: "(?s)Parks"
 - tapOn: "(?s)Parking"
-# The chip row scrolls sideways; bring Taxi and Help into view.
-- swipe:
-    from: "(?s)Parking"
-    direction: LEFT
 - tapOn: "(?s)Taxi"
 - extendedWaitUntil:
-    visible: "(?s).*Taxis nearby.*"
+    visible: "(?s).*(within 500 m|Taxis nearby).*"
     timeout: 20000
 - tapOn: "(?s)Toilets"
 - extendedWaitUntil:

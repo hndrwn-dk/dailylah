@@ -103,6 +103,63 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
     ref.read(nearbyKeyProvider.notifier).state = 'adhoc';
   }
 
+  /// The list behind the place button: Current location, the saved places and Search.
+  Future<void> _pickPlace() async {
+    final s = ref.read(stringsProvider);
+    final fav = ref.read(favoritesProvider);
+    final key = ref.read(nearbyKeyProvider);
+    final adhoc = ref.read(adhocPlaceProvider);
+    final here = key == 'adhoc' && adhoc?.address == s.myLocation;
+    String label(String k) => s.placeLabel(k);
+    // Home has its own tab; it only shows here when another screen sent us there.
+    final rows = <(String, IconData, String, String?)>[
+      ('here', Icons.my_location, s.hereNow, null),
+      for (final p in fav.places.values)
+        if (p.kind != PlaceKind.home || key == 'home')
+          (p.kind.name, PlaceSelector.iconOf(p.kind), label(p.kind.name), p.address),
+      for (var i = 0; i < fav.extraPlaces.length; i++)
+        ('extra:$i', Icons.star_outline, placeTitle(label, fav.extraPlaces[i]), fav.extraPlaces[i].address),
+      if (adhoc != null && adhoc.address != s.myLocation) ('adhoc', Icons.place, adhoc.name ?? '', null),
+      ('search', Icons.search, s.nearbySearchPlace, null),
+    ];
+    final selected = key == 'adhoc' ? (here ? 'here' : 'adhoc') : key;
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Text(s.nearbyWhere, style: Theme.of(ctx).textTheme.titleLarge),
+              ),
+              for (final (k, icon, name, address) in rows)
+                ListTile(
+                  leading: Icon(icon),
+                  title: Text(name),
+                  subtitle: address == null || address == name ? null : Text(address),
+                  trailing: k == selected ? const Icon(Icons.check) : null,
+                  onTap: () => Navigator.of(ctx).pop(k),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    if (picked == 'here') {
+      await _useHere();
+    } else if (picked == 'search') {
+      await _search();
+    } else {
+      ref.read(nearbyKeyProvider.notifier).state = picked;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(stringsProvider);
@@ -112,23 +169,14 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
     final place = NearbyPage.resolve(key, fav, adhoc);
     String label(String k) => s.placeLabel(k);
 
-    // Home has its own tab; it only shows here when another screen sent us there.
-    final pills = <(String, IconData, String)>[
-      ('here', Icons.my_location, s.hereNow),
-      for (final p in fav.places.values)
-        if (p.kind != PlaceKind.home || key == 'home') (p.kind.name, PlaceSelector.iconOf(p.kind), label(p.kind.name)),
-      for (var i = 0; i < fav.extraPlaces.length; i++)
-        ('extra:$i', Icons.star_outline, placeTitle(label, fav.extraPlaces[i])),
-      if (adhoc != null && adhoc.address != s.myLocation) ('adhoc', Icons.place, adhoc.name ?? ''),
-      ('search', Icons.search, s.searchPlace),
-    ];
     // One section at a time, like Home: chips under the place pills.
     final sections = ['bus', 'eat', 'green', 'park', 'taxi', 'toilet', if (fav.showPrayer) 'prayer', 'help'];
     final picked = ref.watch(nearbySectionProvider);
     final section = sections.contains(picked) ? picked : 'bus';
-    final selected = key == 'adhoc'
-        ? (adhoc?.address == s.myLocation ? 'here' : 'adhoc')
-        : key;
+    final here = key == 'adhoc' && adhoc?.address == s.myLocation;
+    // The place is said once, on the control that changes it: "Gym · TAMPINES HUB".
+    final title = place == null ? s.nearbyChoosePlace : (here ? s.hereNow : placeTitle(label, place));
+    final address = place == null || here || place.address == title ? null : place.address;
 
     return Scaffold(
       body: RefreshIndicator(
@@ -149,25 +197,30 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 8),
-                  PageTitle(s.tabNearby,
-                      subtitle: place == null ? s.nearbySubtitle : (place.address ?? placeTitle(label, place))),
+                  PageTitle(s.tabNearby, subtitle: place == null ? s.nearbySubtitle : null),
                   const SizedBox(height: 14),
-                  PillRow(
-                    items: pills,
-                    selected: selected,
-                    onTap: (k) {
-                      if (k == 'here') {
-                        _useHere();
-                      } else if (k == 'search') {
-                        _search();
-                      } else {
-                        ref.read(nearbyKeyProvider.notifier).state = k;
-                      }
-                    },
+                  Row(
+                    children: [
+                      Flexible(
+                        child: _PlaceButton(
+                          icon: place == null
+                              ? Icons.place_outlined
+                              : here
+                                  ? Icons.my_location
+                                  : _placeIcon(key, place),
+                          label: address == null ? title : '$title · $address',
+                          picked: place != null,
+                          tooltip: s.nearbyChangePlace,
+                          onTap: _pickPlace,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      StickerIconButton(icon: Icons.my_location, tooltip: s.useMyLocation, onPressed: _useHere),
+                    ],
                   ),
                   if (place != null) ...[
                     const SizedBox(height: 14),
-                    PillRow(
+                    SectionTiles(
                       items: [for (final k in sections) (k, _sectionIcons[k]!, s.nearbySection(k))],
                       selected: section,
                       danger: const {'help'},
@@ -214,6 +267,77 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
   }
 }
 
+IconData _placeIcon(String key, Place place) => key == 'adhoc'
+    ? Icons.place
+    : key.startsWith('extra:')
+        ? Icons.star_outline
+        : PlaceSelector.iconOf(place.kind);
+
+/// The place Nearby is about, on the control that changes it: amber and raised once a place
+/// is picked, with a down arrow because it opens the list of places.
+class _PlaceButton extends StatelessWidget {
+  const _PlaceButton({
+    required this.icon,
+    required this.label,
+    required this.picked,
+    required this.tooltip,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final bool picked;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final edge = DL.edge(context);
+    final fg = picked ? DL.ink : Theme.of(context).colorScheme.onSurface;
+    final r = BorderRadius.circular(12);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3, right: 3),
+      child: Tooltip(
+        message: tooltip,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: picked ? DL.amber : Theme.of(context).colorScheme.surfaceContainerLowest,
+            borderRadius: r,
+            border: Border.all(color: edge, width: DL.stroke),
+            boxShadow: [BoxShadow(color: edge, offset: const Offset(3, 3))],
+          ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              borderRadius: r,
+              onTap: onTap,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 7, 6, 7),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, size: 18, color: fg),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(label,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.labelLarge?.copyWith(color: fg)),
+                      ),
+                      Icon(Icons.expand_more, color: fg),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 const _sectionIcons = <String, IconData>{
   'bus': Icons.directions_bus_outlined,
   'eat': Icons.ramen_dining_outlined,
@@ -251,7 +375,23 @@ class _BusSection extends ConsumerWidget {
     final near = within(stops, place.lat, place.lng, 500, latOf: (b) => b.lat, lngOf: (b) => b.lng, limit: 3);
     return CardColumns(
       children: [
-        FullWidth(child: SectionTitle(s.busesNearHere, padding: const EdgeInsets.fromLTRB(4, 8, 4, 10))),
+        // The hint is said once for all the boards under it: beside the heading, or under it
+        // when both do not fit on a line (large text).
+        FullWidth(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(4, 8, 4, 10),
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 2,
+              children: [
+                Text(s.busesNearHere, style: Theme.of(context).textTheme.titleMedium),
+                if (near.isNotEmpty) Text(s.tapBusHint, style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
+          ),
+        ),
         if (near.isEmpty)
           Panel(child: EmptyNote(stops.isEmpty ? s.bundlesLoading : s.noStopsNear))
         else
@@ -314,7 +454,6 @@ class _StopBoardState extends ConsumerState<_StopBoard> {
                       arrLabel: s.minutesAway(0),
                       minLabel: s.min,
                       thenLabel: s.thenIn,
-                      hint: s.tapBusHint,
                       rows: [
                         for (final (e, next) in _all ? grouped : grouped.take(5))
                           BoardRow(
@@ -408,6 +547,7 @@ class _EatSection extends ConsumerWidget {
       children: [
         FullWidth(
           child: SectionTitle(s.eat,
+              trailingAtEnd: true,
               trailing: _seeAll(s, () => _openFull(context, s.hawkers, _HawkerTab(place: place)))),
         ),
         if (fav.learnHabits)
@@ -435,15 +575,15 @@ class _EatSection extends ConsumerWidget {
             children: [
               if (list.isEmpty) EmptyNote(all.isEmpty ? s.bundlesLoading : s.notAvailable),
               for (final (h, d) in list)
-                ListTile(
-                  leading: Icon(Icons.ramen_dining_outlined,
-                      color: h.closureOn(today) != null ? const Color(0xFFB45309) : null),
-                  title: Text(h.name),
-                  subtitle: Text(
-                    h.closureOn(today) != null ? '${s.metres(d)} · ${s.closedNow}' : s.metres(d),
-                    style: h.closureOn(today) != null ? t.bodySmall?.copyWith(color: const Color(0xFFB45309)) : null,
-                  ),
-                  trailing: fav.hawkers.contains(h.id) ? const Icon(Icons.star, color: DL.amber) : null,
+                PlaceRow(
+                  icon: Icons.ramen_dining_outlined,
+                  iconColor: h.closureOn(today) != null ? DL.nearText(context) : null,
+                  title: h.name,
+                  subtitle: h.closureOn(today) != null ? s.closedNow : h.address,
+                  subtitleColor: h.closureOn(today) != null ? DL.nearText(context) : null,
+                  figure: s.metresParts(d).$1,
+                  figureLabel: s.metresParts(d).$2,
+                  starred: fav.hawkers.contains(h.id),
                   onTap: () => showPlaceSheet(
                     context,
                     s: s,
@@ -462,6 +602,7 @@ class _EatSection extends ConsumerWidget {
         ),
         if (fav.showHalal) ...[
           SectionTitle(s.halalNearby,
+              trailingAtEnd: true,
               padding: const EdgeInsets.fromLTRB(4, 4, 4, 10),
               trailing: _seeAll(s, () => _openFull(context, s.halalTab, _HalalTab(place: place)))),
           Panel(
@@ -469,11 +610,13 @@ class _EatSection extends ConsumerWidget {
               children: [
                 if (halalList.isEmpty) EmptyNote(halal.isEmpty ? s.bundlesLoading : s.halalNone),
                 for (final (p, d) in halalList)
-                  ListTile(
-                    leading: const Icon(Icons.restaurant_outlined),
-                    title: Text(p.name),
-                    subtitle: Text('${s.metres(d)} · ${p.address}', maxLines: 2, overflow: TextOverflow.ellipsis),
-                    trailing: fav.halalPlaces.contains(halalPlaceId(p)) ? const Icon(Icons.star, color: DL.amber) : null,
+                  PlaceRow(
+                    icon: Icons.restaurant_outlined,
+                    title: p.name,
+                    subtitle: p.address,
+                    figure: s.metresParts(d).$1,
+                    figureLabel: s.metresParts(d).$2,
+                    starred: fav.halalPlaces.contains(halalPlaceId(p)),
                     onTap: () => showPlaceSheet(context,
                         s: s,
                         title: p.name,
@@ -612,6 +755,7 @@ class _GreenSection extends ConsumerWidget {
         title: s.parks,
         icon: Icons.park_outlined,
         show: 5,
+        figures: true,
         items: items,
         header: switch (ref.watch(parkTimeProvider((place.lat, place.lng)))) {
           final p? => ParkTimeBanner(time: p, text: s.parkTimeLine(p)),
@@ -632,22 +776,12 @@ class _ParkSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final t = Theme.of(context).textTheme;
     final lots = ref.watch(carparkLiveProvider).value ?? const <String, (int, int)>{};
     final all = ref.watch(carparkInfoProvider).value ?? const [];
     final list = within(all, place.lat, place.lng, 800, latOf: (c) => c.lat, lngOf: (c) => c.lng, limit: 3);
     // In town there are few HDB car parks: use LTA's live list (malls, URA, HDB) as well.
     final live = parkingNear(ref.watch(parkingLiveProvider).value ?? const <ParkingLot>[],
         place.lat, place.lng, 'C', radius: 800, limit: 3);
-    Widget bigNumber(int? n) => Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(n == null ? '–' : '$n',
-                style: t.titleLarge?.copyWith(fontFamily: DL.display, color: n == 0 ? DL.attention : null)),
-            if (n != null) Text(s.freeLots, style: t.labelSmall),
-          ],
-        );
     // Name and spot for "I parked here": the nearest car park, else the place itself.
     final (parkName, parkLat, parkLng) = list.isNotEmpty
         ? (list.first.$1.address, list.first.$1.lat, list.first.$1.lng)
@@ -664,44 +798,41 @@ class _ParkSection extends ConsumerWidget {
           central: list.isNotEmpty && hdbCentralCarparks.contains(list.first.$1.id),
         ),
         SectionTitle(s.parkNearby,
+            trailingAtEnd: true,
             trailing: _seeAll(
                 s, () => _openFull(context, s.parking, _ParkingTab(lat: place.lat, lng: place.lng)))),
         Panel(
           child: Column(
             children: [
               if (list.isEmpty && live.isEmpty) EmptyNote(all.isEmpty ? s.bundlesLoading : s.notAvailable),
+              // A car park with a live count shows it large; without one the row has no figure.
               if (list.isEmpty)
                 for (final (p, d) in live)
-                  ListTile(
-                    leading: const Icon(Icons.local_parking),
-                    title: Text(p.name, maxLines: 2, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(s.metres(d)),
-                    trailing: bigNumber(p.available),
+                  PlaceRow(
+                    icon: Icons.local_parking,
+                    title: p.name,
+                    subtitle: s.metres(d),
+                    figure: '${p.available}',
+                    figureLabel: s.freeLots,
+                    warn: p.available == 0,
                     onTap: () => showPlaceSheet(context,
                         s: s, title: p.name, subtitle: s.lotsFree(p.available), lat: p.lat, lng: p.lng, distance: d),
                   ),
               for (final (c, d) in list)
-                ListTile(
-                  leading: const Icon(Icons.local_parking),
-                  title: Text(c.address, maxLines: 2, overflow: TextOverflow.ellipsis),
-                  subtitle: Text('${s.metres(d)} · ${c.type.toLowerCase()}'),
-                  trailing: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(lots[c.id] == null ? '–' : '${lots[c.id]!.$2}',
-                          style: t.titleLarge?.copyWith(
-                              fontFamily: DL.display, color: (lots[c.id]?.$2 ?? 1) == 0 ? DL.attention : null)),
-                      if (lots[c.id] != null) Text(s.freeLots, style: t.labelSmall),
-                    ],
-                  ),
-                  onTap: () => _openFull(context, s.parking, _ParkingTab(lat: place.lat, lng: place.lng)),
+                PlaceRow(
+                  icon: Icons.local_parking,
+                  title: c.address,
+                  subtitle: '${s.metres(d)} · ${c.type.toLowerCase()}',
+                  figure: lots[c.id] == null ? null : '${lots[c.id]!.$2}',
+                  figureLabel: s.freeLots,
+                  warn: lots[c.id]?.$2 == 0,
+                  onTap: () => _showCarpark(context, s, c, d, lots[c.id]?.$2),
                 ),
             ],
           ),
         ),
         if (ref.watch(favoritesProvider.select((f) => f.drivesEv)))
-          EvChargers(lat: place.lat, lng: place.lng, title: s.evChargers)
+          EvChargers(lat: place.lat, lng: place.lng, title: s.evChargers, chevron: true)
         else
           Align(
             alignment: Alignment.centerLeft,
@@ -858,24 +989,60 @@ class _TaxiSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final taxis = ref.watch(taxiProvider).value;
-    final n = taxis == null ? null : taxisWithin(taxis, place.lat, place.lng);
+    final t = Theme.of(context).textTheme;
+    final body = ref.watch(taxiProvider).value;
+    final pts = body == null ? const <(double, double)>[] : taxiPoints(body);
+    final (_, n500, n1k) = taxiBands(pts, place.lat, place.lng);
+    final stand = nearestPoints(ref.watch(taxiStandsProvider).value ?? const <EPoint>[], place.lat, place.lng,
+            limit: 1, radius: 1500)
+        .firstOrNull;
+    final level = taxiEase(n500, n1k);
     return CardColumns(
       children: [
         SectionTitle(s.taxiNearby),
-        BentoTile(
-          icon: Icons.local_taxi_outlined,
-          value: n == null ? '–' : '$n',
-          caption: '${s.taxisNearby} · 500 m',
-          tint: n == 0 ? DL.attention : null,
-          onTap: () => showModalBottomSheet<void>(
-            context: context,
-            isScrollControlled: true,
-            showDragHandle: true,
-            builder: (_) => TaxiSheet(origin: place),
+        // The answer first ("Easy to get one"), then what it is based on; the sheet has the rest.
+        Panel(
+          child: InkWell(
+            onTap: () => showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              showDragHandle: true,
+              builder: (_) => TaxiSheet(origin: place),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: body != null && level < 3 ? DL.amber : DL.mint,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: DL.edge(context), width: 2),
+                    ),
+                    child: const Icon(Icons.local_taxi_outlined, size: 20, color: DL.ink),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(body == null ? s.taxisNearby : s.taxiEaseTitle(level), style: t.titleMedium),
+                        Text(
+                          body == null
+                              ? '–'
+                              : s.taxiNearLine(n500, stand == null ? null : s.metres(stand.$2)),
+                          style: t.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                  ExcludeSemantics(child: Icon(Icons.chevron_right, color: DL.muted(context))),
+                ],
+              ),
+            ),
           ),
         ),
-        const SizedBox(height: 16),
       ],
     );
   }
@@ -889,7 +1056,6 @@ class _PrayerSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final t = Theme.of(context).textTheme;
     final now = ref.watch(clockProvider).value ?? DateTime.now();
     final prayer = ref.watch(prayerProvider).value;
     final times = prayer?.on(dayKey(now));
@@ -904,13 +1070,12 @@ class _PrayerSection extends ConsumerWidget {
     };
     return CardColumns(
       children: [
-        SectionTitle(s.prayerTimes,
-            trailing: _seeAll(s, () => _openFull(context, s.prayerTab, const _PrayerTab()))),
+        SectionTitle(s.prayerTimes),
         Panel(
-          child: ListTile(
-            leading: const Icon(Icons.mosque_outlined),
-            title: Text(label),
-            trailing: at == null ? null : Text(at, style: t.titleLarge?.copyWith(fontFamily: DL.display)),
+          child: PlaceRow(
+            icon: Icons.mosque_outlined,
+            title: label,
+            figure: at,
             onTap: () => _openFull(context, s.prayerTab, const _PrayerTab()),
           ),
         ),
@@ -940,6 +1105,7 @@ class _HelpSection extends ConsumerWidget {
     return CardColumns(
       children: [
         SectionTitle(s.helpNearby,
+            trailingAtEnd: true,
             trailing: _seeAll(s, () => _openFull(context, s.emergency, _EmergencyTab(place: place)))),
         Panel(
           color: DL.stopDeep,
@@ -955,6 +1121,7 @@ class _HelpSection extends ConsumerWidget {
                     child: Text(s.call995,
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white)),
                   ),
+                  const Icon(Icons.chevron_right, color: Colors.white),
                 ],
               ),
             ),
@@ -971,6 +1138,7 @@ class _HelpSection extends ConsumerWidget {
                   const Icon(Icons.call, color: DL.ink),
                   const SizedBox(width: 12),
                   Expanded(child: Text(s.call999, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: DL.ink))),
+                  const Icon(Icons.chevron_right, color: DL.ink),
                 ],
               ),
             ),
@@ -981,11 +1149,12 @@ class _HelpSection extends ConsumerWidget {
             children: [
               for (final (icon, points, n, label) in rows)
                 for (final (p, d) in nearestPoints(points, place.lat, place.lng, limit: n))
-                  ListTile(
-                    leading: Icon(icon),
-                    title: Text('$label: ${p.name}'),
-                    subtitle: Text([s.metres(d), if (p.detail.isNotEmpty) p.detail].join(' · '),
-                        maxLines: 2, overflow: TextOverflow.ellipsis),
+                  PlaceRow(
+                    icon: icon,
+                    title: '$label: ${p.name}',
+                    subtitle: p.detail,
+                    figure: s.metresParts(d).$1,
+                    figureLabel: s.metresParts(d).$2,
                     onTap: () => showPlaceSheet(
                       context,
                       s: s,
@@ -1006,11 +1175,13 @@ class _HelpSection extends ConsumerWidget {
             children: [
               if (shelters.isEmpty) EmptyNote(em.of(EmergencyKind.shelter).isEmpty ? s.bundlesLoading : s.notAvailable),
               for (final (p, d) in shelters)
-                ListTile(
-                  leading: Icon(Icons.shield_outlined, color: DL.stopText(context)),
-                  title: Text(p.name),
-                  subtitle: Text([s.metres(d), if (p.address.isNotEmpty) p.address].join(' · '),
-                      maxLines: 2, overflow: TextOverflow.ellipsis),
+                PlaceRow(
+                  icon: Icons.shield_outlined,
+                  iconColor: DL.stopText(context),
+                  title: p.name,
+                  subtitle: p.address,
+                  figure: s.metresParts(d).$1,
+                  figureLabel: s.metresParts(d).$2,
                   onTap: () => showPlaceSheet(
                     context,
                     s: s,
@@ -1233,6 +1404,43 @@ class _HawkerTabState extends ConsumerState<_HawkerTab> {
 
 // ---------------------------------------------------------------- parking
 
+/// The sheet of one HDB car park: type, free and night parking, free lots now, and Save.
+void _showCarpark(BuildContext context, S s, Carpark c, double d, int? free) => showPlaceSheet(
+      context,
+      s: s,
+      title: c.address,
+      subtitle: [
+        c.type.toLowerCase(),
+        if (c.freeParking.isNotEmpty && c.freeParking != 'NO') '${s.freeParking}: ${c.freeParking.toLowerCase()}',
+        if (c.nightParking.isNotEmpty) '${s.nightParking}: ${c.nightParking.toLowerCase()}',
+      ].join(' · '),
+      lat: c.lat,
+      lng: c.lng,
+      distance: d,
+      extra: [
+        if (free != null)
+          AlertBanner(
+            icon: Icons.local_parking,
+            tone: free == 0 ? AlertTone.warning : AlertTone.info,
+            text: s.lotsFree(free),
+          ),
+        Consumer(
+          builder: (context, ref, _) {
+            final saved = ref.watch(favoritesProvider).carparks.contains(c.id);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                icon: Icon(saved ? Icons.bookmark : Icons.bookmark_border),
+                label: Text(saved ? s.savedCarpark : s.saveCarpark),
+                onPressed: () => ref.read(favoritesProvider.notifier).toggleCarpark(c.id),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+
 /// HDB car parks around a point with live free lots. Also used for any address.
 class _ParkingTab extends ConsumerWidget {
   const _ParkingTab({required this.lat, required this.lng, this.showOtherAddress = true});
@@ -1282,41 +1490,7 @@ class _ParkingTab extends ConsumerWidget {
           for (final (c, d) in list)
             Panel(
               child: InkWell(
-                onTap: () => showPlaceSheet(
-                  context,
-                  s: s,
-                  title: c.address,
-                  subtitle: [
-                    c.type.toLowerCase(),
-                    if (c.freeParking.isNotEmpty && c.freeParking != 'NO') '${s.freeParking}: ${c.freeParking.toLowerCase()}',
-                    if (c.nightParking.isNotEmpty) '${s.nightParking}: ${c.nightParking.toLowerCase()}',
-                  ].join(' · '),
-                  lat: c.lat,
-                  lng: c.lng,
-                  distance: d,
-                  extra: [
-                    if (lots[c.id] != null)
-                      AlertBanner(
-                        icon: Icons.local_parking,
-                        tone: lots[c.id]!.$2 == 0 ? AlertTone.warning : AlertTone.info,
-                        text: s.lotsFree(lots[c.id]!.$2),
-                      ),
-                    Consumer(
-                      builder: (context, ref, _) {
-                        final saved = ref.watch(favoritesProvider).carparks.contains(c.id);
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                            icon: Icon(saved ? Icons.bookmark : Icons.bookmark_border),
-                            label: Text(saved ? s.savedCarpark : s.saveCarpark),
-                            onPressed: () => ref.read(favoritesProvider.notifier).toggleCarpark(c.id),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
+                onTap: () => _showCarpark(context, s, c, d, lots[c.id]?.$2),
                 child: Padding(
                   padding: const EdgeInsets.all(14),
                   child: Row(
