@@ -636,7 +636,7 @@ class S {
   String get learnHabitsSub => 'Trip times and meals you log stay on this phone only.';
   String get deleteHistory => 'Delete all my history';
   String get deleteHistoryAsk =>
-      'Delete all logged trips, parking and meals, with what they cost, and your parked car from this phone? This cannot be undone.';
+      'Delete all logged trips, parking and meals, with what they cost, your parked car and any trip being timed from this phone? This cannot be undone.';
   String get deleted => 'Deleted.';
   String get delete => 'Delete';
 

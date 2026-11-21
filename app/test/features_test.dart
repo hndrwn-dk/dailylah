@@ -2722,7 +2722,10 @@ void main() {
       trips: [TripLog(route: 'home>work', start: tuesdayMorning.subtract(const Duration(days: 60)), minutes: 40, mode: 'transit', km: 12)],
       parkings: [ParkLog(name: 'Mall', start: tuesdayMorning.subtract(const Duration(days: 70)), minutes: 90, costCents: 360)],
       parked: ParkedCar(name: 'Blk 156', lat: 1.3516, lng: 103.945, at: tuesdayMorning.subtract(const Duration(hours: 1))),
+      tripRoute: 'home>work',
+      tripStart: tuesdayMorning.subtract(const Duration(minutes: 5)),
     ));
+    expect((await SharedPreferences.getInstance()).getString('habits.v1'), isNotNull);
     box.read(shellTabProvider.notifier).state = _tabs['History']!;
     await settle(tester);
     final link = find.descendant(of: find.byType(HistoryPage), matching: find.text(_s.deleteHistory));
@@ -2736,6 +2739,8 @@ void main() {
     await tester.tap(find.text(_s.cancel));
     await settle(tester);
     expect(box.read(habitsProvider).trips, hasLength(1));
+    expect(box.read(habitsProvider).parkings, hasLength(1));
+    expect(box.read(habitsProvider).parked, isNotNull);
 
     await tester.tap(link);
     await settle(tester);
@@ -2745,6 +2750,13 @@ void main() {
     expect(after.trips, isEmpty);
     expect(after.parkings, isEmpty);
     expect(after.parked, isNull);
+    expect(after.tripStart, isNull, reason: 'the trip being timed goes too, as the question says');
+    // Gone from the phone's storage as well, not only from memory: nothing comes back after a restart.
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('habits.v1'), isNull);
+    final reloaded = await HabitsStore().load();
+    expect(reloaded.trips, isEmpty);
+    expect(reloaded.parked, isNull);
     // Gone for good: the note offers no Undo, and the question said so.
     expect(find.text(_s.undo), findsNothing);
     expect(_s.deleteHistoryAsk, contains('cannot be undone'));

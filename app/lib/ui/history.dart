@@ -164,7 +164,7 @@ class HistoryPage extends ConsumerWidget {
                 // Everything logged, in any period, and the parked car: asked before it goes. No
                 // Undo here, unlike the two removals above: this is the delete the privacy policy
                 // promises, so what it deletes is gone, and the question says so.
-                if (historyEntries(habits).isNotEmpty || habits.parked != null)
+                if (historyEntries(habits).isNotEmpty || habits.parked != null || habits.tripStart != null)
                   FullWidth(
                     child: Align(
                       alignment: Alignment.centerLeft,
