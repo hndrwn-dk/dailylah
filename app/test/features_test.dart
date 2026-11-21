@@ -2206,7 +2206,15 @@ void main() {
         await settle(tester);
         final name = find.descendant(of: page, matching: find.text(_s.historyPeriod(p)));
         final segment = find.ancestor(of: name, matching: find.byType(InkWell)).first;
-        expect(tester.getSize(name).width, lessThanOrEqualTo(tester.getSize(segment).width - 12), reason: '$p at $scale');
+        // Measured as drawn (its own style and the text setting), not as laid out: a name laid
+        // out too wide is clipped to its box and would still "fit".
+        final painter = TextPainter(
+          text: TextSpan(text: _s.historyPeriod(p), style: tester.widget<Text>(name).style),
+          textDirection: TextDirection.ltr,
+          textScaler: MediaQuery.textScalerOf(tester.element(name)),
+        )..layout();
+        expect(painter.width, lessThanOrEqualTo(tester.getSize(segment).width - 12), reason: '$p at $scale');
+        painter.dispose();
       }
       for (final name in [_s.historyAll, _s.historyTrips, _s.historyParking, _s.historyMeals]) {
         oneLine(find.descendant(of: page, matching: find.text(name)), name);
