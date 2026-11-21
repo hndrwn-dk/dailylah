@@ -161,6 +161,41 @@ class HistoryPage extends ConsumerWidget {
                     ),
                   ),
                   ),
+                // Everything logged, in any period, and the parked car: asked before it goes. No
+                // Undo here, unlike the two removals above: this is the delete the privacy policy
+                // promises, so what it deletes is gone, and the question says so.
+                if (historyEntries(habits).isNotEmpty || habits.parked != null || habits.tripStart != null)
+                  FullWidth(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        style: TextButton.styleFrom(foregroundColor: DL.stopText(context)),
+                        icon: const Icon(Icons.delete_outline),
+                        label: Text(s.deleteHistory),
+                        onPressed: () async {
+                          final notifier = ref.read(habitsProvider.notifier);
+                          final messenger = ScaffoldMessenger.of(context);
+                          final ok = await showDialog<bool>(
+                            context: context,
+                            builder: (d) => AlertDialog(
+                              content: Text(s.deleteHistoryAsk),
+                              actions: [
+                                DialogButtons(
+                                  cancelLabel: s.cancel,
+                                  confirmLabel: s.delete,
+                                  onCancel: () => Navigator.of(d).pop(false),
+                                  onConfirm: () => Navigator.of(d).pop(true),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (ok != true) return;
+                          await notifier.clearAll();
+                          messenger.showSnackBar(SnackBar(content: Text(s.deleted)));
+                        },
+                      ),
+                    ),
+                  ),
                 // How the costs are made, after the list like the notes on Nearby: above the
                 // chart it pushed the numbers down the page.
                 if (entries.isNotEmpty)

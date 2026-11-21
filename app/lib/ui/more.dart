@@ -104,36 +104,26 @@ class MorePage extends ConsumerWidget {
                             (f, v) => f.copyWith(hawkerAlerts: v), sub: s.alertHawkerSub),
                         toggle(Icons.calendar_today_outlined, s.alertDigest, fav.digestAlerts,
                             (f, v) => f.copyWith(digestAlerts: v), sub: s.alertDigestSub),
-                      ],
-                    ),
-                    // Lunch has a time to set, so it stays a full-width row with its switch.
-                    Panel(
-                      child: Column(
-                        children: [
-                          SwitchListTile(
-                            secondary: const Icon(Icons.ramen_dining_outlined),
-                            title: Text(s.alertLunch, style: t.bodyMedium),
-                            subtitle: Text(s.alertLunchSub),
-                            value: fav.lunchAlerts,
-                            onChanged: (v) => notifier.update((f) => f.copyWith(lunchAlerts: v)),
+                        // Lunch is a tile like the others; while it is on, its time is the link
+                        // tile beside it.
+                        toggle(Icons.ramen_dining_outlined, s.alertLunch, fav.lunchAlerts,
+                            (f, v) => f.copyWith(lunchAlerts: v), sub: s.alertLunchSub),
+                        if (fav.lunchAlerts)
+                          SettingTile(
+                            icon: Icons.schedule,
+                            title: s.lunchTimeAt(fav.lunchAt.format()),
+                            subtitle: s.lunchTimeHelp,
+                            onTap: () async {
+                              final picked = await showTimePicker(
+                                context: context,
+                                helpText: s.lunchTimeHelp,
+                                initialTime: TimeOfDay(hour: fav.lunchAt.hour, minute: fav.lunchAt.minute),
+                              );
+                              if (picked == null) return;
+                              notifier.update((f) => f.copyWith(lunchAt: TimeOfDayHM(picked.hour, picked.minute)));
+                            },
                           ),
-                          if (fav.lunchAlerts)
-                            ListTile(
-                              leading: const Icon(Icons.schedule),
-                              title: Text(s.lunchTimeAt(fav.lunchAt.format()), style: t.bodyMedium),
-                              trailing: const Icon(Icons.chevron_right),
-                              onTap: () async {
-                                final picked = await showTimePicker(
-                                  context: context,
-                                  helpText: s.lunchTimeHelp,
-                                  initialTime: TimeOfDay(hour: fav.lunchAt.hour, minute: fav.lunchAt.minute),
-                                );
-                                if (picked == null) return;
-                                notifier.update((f) => f.copyWith(lunchAt: TimeOfDayHM(picked.hour, picked.minute)));
-                              },
-                            ),
-                        ],
-                      ),
+                      ],
                     ),
                     Center(
                       child: TextButton.icon(
@@ -179,33 +169,6 @@ class MorePage extends ConsumerWidget {
                           },
                         ),
                       ),
-                    Center(
-                      child: TextButton.icon(
-                        style: _linkStyle(DL.stopText(context)),
-                        icon: const Icon(Icons.delete_outline, size: 20),
-                        label: Text(s.deleteHistory),
-                        onPressed: () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          final ok = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              content: Text(s.deleteHistoryAsk),
-                              actions: [
-                                DialogButtons(
-                                  cancelLabel: s.cancel,
-                                  confirmLabel: s.delete,
-                                  onCancel: () => Navigator.of(ctx).pop(false),
-                                  onConfirm: () => Navigator.of(ctx).pop(true),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (ok != true) return;
-                          await ref.read(habitsProvider.notifier).clearAll();
-                          messenger.showSnackBar(SnackBar(content: Text(s.deleted)));
-                        },
-                      ),
-                    ),
                   ],
                 ),
                 SectionTitle(s.theApp),
@@ -238,7 +201,7 @@ class MorePage extends ConsumerWidget {
   }
 }
 
-/// A text link under a grid of tiles ("Show me an example", "Delete my history"): 48 dp tall.
+/// A text link under a grid of tiles ("Show me an example"): 48 dp tall.
 ButtonStyle _linkStyle(Color color) => TextButton.styleFrom(
       foregroundColor: color,
       minimumSize: const Size(kMinInteractiveDimension, kMinInteractiveDimension),
@@ -302,9 +265,10 @@ const tileMinWidth = 120.0;
 int tileColumns(double width, double textScale, [double minWidth = tileMinWidth]) =>
     (width - _tileGap) / 2 >= minWidth * textScale ? 2 : 1;
 
-/// One setting on More as a sticker tile. With [value] it is a switch: raised and mint when on,
-/// flat with a dashed outline when off, and "On" / "Off" in words so colour is not the only
-/// sign. Without [value] it opens something and shows a chevron.
+/// One setting on More as a sticker tile. With [value] it is a switch: mint with a solid outline
+/// when on, a dashed outline when off, flat either way, and "On" / "Off" in words so colour is
+/// not the only sign. Without [value] it opens something: raised, with a chevron. So here, as
+/// on the other tabs, a shadow means the tile opens something.
 class SettingTile extends ConsumerWidget {
   const SettingTile({
     super.key,
@@ -380,7 +344,7 @@ class SettingTile extends ConsumerWidget {
                     : (isSwitch ? DL.mint : Theme.of(context).colorScheme.surfaceContainerLowest),
                 borderRadius: r,
                 border: Border.all(color: off ? Colors.transparent : DL.edge(context), width: DL.stroke),
-                boxShadow: off ? const [] : DL.hard(context),
+                boxShadow: isSwitch ? const [] : DL.hard(context),
               ),
               child: Material(
                 type: MaterialType.transparency,

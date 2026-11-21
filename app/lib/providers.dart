@@ -266,7 +266,8 @@ class HabitsNotifier extends Notifier<Habits> {
     return _set(state.copyWith(meals: meals.length > Habits.maxMeals ? meals.sublist(meals.length - Habits.maxMeals) : meals));
   }
 
-  /// Deletes logged trips and meals and the parked car.
+  /// Deletes everything in [Habits] from memory and from the phone's storage: logged trips,
+  /// parkings and meals with their costs, the parked car and a trip being timed.
   Future<void> clearAll() async {
     state = Habits.empty;
     await _store.clear();

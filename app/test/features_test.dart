@@ -2671,4 +2671,117 @@ void main() {
     expect(find.textContaining('http'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('More: switches lie flat and link tiles are raised; lunch is a tile with its time beside it', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    box.read(shellTabProvider.notifier).state = _tabs['More']!;
+    await settle(tester);
+    final page = find.byType(MorePage);
+    await scrollThrough(tester);
+
+    // Every tile: a shadow only when it opens something (no value), never on a switch.
+    final tiles = find.descendant(of: page, matching: find.byType(SettingTile), skipOffstage: false);
+    expect(tiles, findsWidgets);
+    for (final e in tiles.evaluate()) {
+      final tile = e.widget as SettingTile;
+      final box = tester.widget<AnimatedContainer>(
+          find.descendant(of: find.byWidget(tile, skipOffstage: false), matching: find.byType(AnimatedContainer), skipOffstage: false));
+      final shadow = (box.decoration! as BoxDecoration).boxShadow ?? const [];
+      expect(shadow.isNotEmpty, tile.value == null, reason: tile.title);
+    }
+    // No sliding switch and no Delete link on More.
+    expect(find.descendant(of: page, matching: find.byType(Switch), skipOffstage: false), findsNothing);
+    expect(find.descendant(of: page, matching: find.text(_s.deleteHistory), skipOffstage: false), findsNothing);
+
+    // Lunch: a switch tile; its time appears as a link tile only while it is on.
+    Finder titled(String t) => find.descendant(of: page, matching: find.widgetWithText(SettingTile, t), skipOffstage: false);
+    expect(tester.widget<SettingTile>(titled(_s.alertLunch)).value, isFalse);
+    expect(titled(_s.lunchTimeAt('12.00')), findsNothing);
+    box.read(favoritesProvider.notifier).update((f) => f.copyWith(lunchAlerts: true));
+    await settle(tester);
+    expect(tester.widget<SettingTile>(titled(_s.alertLunch)).value, isTrue);
+    expect(tester.widget<SettingTile>(titled(_s.lunchTimeAt('12.00'))).value, isNull);
+    // Opened through the tile's own action: after the scroll it may sit under the tab bar.
+    tester.widget<SettingTile>(titled(_s.lunchTimeAt('12.00'))).onTap();
+    await settle(tester);
+    expect(find.text(_s.lunchTimeHelp), findsWidgets);
+    expect(find.byType(TimePickerDialog), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('History: Delete all my history asks first, then clears every period and the parked car', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    // Only an old trip: nothing this week, so the link must show without a list above it.
+    await box.read(habitsProvider.notifier).restore(Habits(
+      trips: [TripLog(route: 'home>work', start: tuesdayMorning.subtract(const Duration(days: 60)), minutes: 40, mode: 'transit', km: 12)],
+      parkings: [ParkLog(name: 'Mall', start: tuesdayMorning.subtract(const Duration(days: 70)), minutes: 90, costCents: 360)],
+      parked: ParkedCar(name: 'Blk 156', lat: 1.3516, lng: 103.945, at: tuesdayMorning.subtract(const Duration(hours: 1))),
+      tripRoute: 'home>work',
+      tripStart: tuesdayMorning.subtract(const Duration(minutes: 5)),
+    ));
+    expect((await SharedPreferences.getInstance()).getString('habits.v1'), isNotNull);
+    box.read(shellTabProvider.notifier).state = _tabs['History']!;
+    await settle(tester);
+    final link = find.descendant(of: find.byType(HistoryPage), matching: find.text(_s.deleteHistory));
+    await _scrollTo(tester, link, page: HistoryPage);
+    expect(find.text(_s.historyEmpty), findsOneWidget);
+
+    // Cancel keeps everything.
+    await tester.tap(link);
+    await settle(tester);
+    expect(find.text(_s.deleteHistoryAsk), findsOneWidget);
+    await tester.tap(find.text(_s.cancel));
+    await settle(tester);
+    expect(box.read(habitsProvider).trips, hasLength(1));
+    expect(box.read(habitsProvider).parkings, hasLength(1));
+    expect(box.read(habitsProvider).parked, isNotNull);
+
+    await tester.tap(link);
+    await settle(tester);
+    await tester.tap(find.text(_s.delete));
+    await settle(tester);
+    final after = box.read(habitsProvider);
+    expect(after.trips, isEmpty);
+    expect(after.parkings, isEmpty);
+    expect(after.parked, isNull);
+    expect(after.tripStart, isNull, reason: 'the trip being timed goes too, as the question says');
+    // Gone from the phone's storage as well, not only from memory: nothing comes back after a restart.
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('habits.v1'), isNull);
+    final reloaded = await HabitsStore().load();
+    expect(reloaded.trips, isEmpty);
+    expect(reloaded.parked, isNull);
+    // Gone for good: the note offers no Undo, and the question said so.
+    expect(find.text(_s.undo), findsNothing);
+    expect(_s.deleteHistoryAsk, contains('cannot be undone'));
+    expect(find.descendant(of: find.byType(HistoryPage), matching: find.text(_s.deleteHistory)), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('History: with only a parked car and nothing logged, Delete all my history still shows and clears it',
+      (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    await box.read(habitsProvider.notifier).restore(Habits(
+      parked: ParkedCar(name: 'Blk 156', lat: 1.3516, lng: 103.945, at: tuesdayMorning.subtract(const Duration(hours: 1))),
+    ));
+    box.read(shellTabProvider.notifier).state = _tabs['History']!;
+    await settle(tester);
+    final link = find.descendant(of: find.byType(HistoryPage), matching: find.text(_s.deleteHistory));
+    await _scrollTo(tester, link, page: HistoryPage);
+    await tester.tap(link);
+    await settle(tester);
+    await tester.tap(find.text(_s.delete));
+    await settle(tester);
+    expect(box.read(habitsProvider).parked, isNull);
+    expect(tester.takeException(), isNull);
+  });
 }

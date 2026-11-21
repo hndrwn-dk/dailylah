@@ -153,11 +153,13 @@ feature, screen, provider or rule moves, appears or goes away.
   links to the Terms of Service).
   Tests: `test/about_test.dart`, `test/source_notes_test.dart`.
 - More (`ui/more.dart`) is sticker tiles in a `TileGrid` (two columns; one when a tile would be narrower than `tileMinWidth` times the text scale, `tileColumns`): a
-  `SettingTile` with a `value` is a switch (mint and raised when on, dashed and flat when off, "On"/"Off" in words,
-  `toggled` for TalkBack), without one it opens something (chevron, a button for TalkBack). Your setup and The app are link tiles, Alerts
-  and Extras switch tiles; Alerts shows "8 of 9 on" beside its title (`alertsOn`, `alertKinds`). What needs a
-  second control stays a full-width `Panel` row under its grid: lunch (switch and time) and My plug. "Show me an
-  example" and "Delete my history" are text links under their grids.
+  `SettingTile` with a `value` is a switch (mint with a solid outline when on, dashed when off, flat either way, "On"/"Off" in words,
+  `toggled` for TalkBack), without one it opens something (raised, a chevron, a button for TalkBack): on More too a shadow
+  means the tile opens something. Your setup and The app are link tiles, Alerts
+  and Extras switch tiles; Alerts shows "8 of 9 on" beside its title (`alertsOn`, `alertKinds`). Lunch is the ninth
+  alert tile, and while it is on the tile beside it is the link "Lunch time: 12.00" (the time picker). My plug stays a
+  full-width `Panel` row under Extras. "Show me an example" is a text link under the alerts. "Delete all my history"
+  is not on More: it is at the end of the History tab (`S.deleteHistory`, shown while anything is logged or a car is parked).
 - Appearance: More > Appearance picks follow the phone / light / dark (`Favorites.theme`: '', 'light',
   'dark'; `themeModeFor` in theme.dart). Dark mode keeps sticker surfaces (mint, sky, amber) with ink text.
 - What's new: after an update, Today shows `WhatsNewCard` with `S.whatsNewNotes` until closed
@@ -310,7 +312,8 @@ feature, screen, provider or rule moves, appears or goes away.
   whole period whatever kind is shown, and are hidden with nothing logged, when only the note shows). A row is
   a `PlaceRow` in a `Dismissible`: the time and duration under the name, the cost large with "estimate" under
   an estimated one, or "Add price" / "Add cost" (`PlaceRow.action`) where there is none; swipe to remove with
-  Undo. Under the list: the swipe hint once, "Remove these N entries" in red, then the cost note. Costs: an
+  Undo. Under the list: the swipe hint once, "Remove these N entries" in red, "Delete all my history" (everything
+  logged in any period and the parked car, after a question), then the cost note. Costs: an
   entered `costCents` wins, else an estimate — bus/MRT `adultCardFare` (PTC table, incl.
   the 26 Dec 2026 change) on straight-line km × 1.3 (`tripFareEstimate`), and HDB EPS rates for
   parkings at HDB car parks (`hdbParkingCost`, Central Area list `hdbCentralCarparks`). Tap a trip
