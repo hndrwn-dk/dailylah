@@ -1,6 +1,6 @@
 # DailyLah Privacy Policy
 
-**Last updated: 20 November 2026**
+**Last updated: 21 November 2026**
 App: DailyLah (Android, package `com.tursinalabs.dailylah`)
 Published at: https://www.tursinalabs.com/dailylah/privacy
 
