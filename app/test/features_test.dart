@@ -2528,10 +2528,19 @@ void main() {
       expect(r.figure, isNotNull, reason: r.title);
     }
     expect(find.descendant(of: page, matching: find.byIcon(Icons.call_outlined), skipOffstage: false), findsNothing);
+
+    // The ActiveSG sheet has the booking button, so it does not print the site's address either.
+    final sport = find.descendant(of: page, matching: find.byWidgetPredicate((w) => w is PlaceRow && w.icon == Icons.sports_tennis_outlined)).first;
+    // Opened through the row's own action: after the scroll the row may sit under the tab bar.
+    tester.widget<PlaceRow>(sport).onTap();
+    await settle(tester);
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.text(_s.bookOnActiveSg, skipOffstage: false), findsOneWidget);
+    expect(find.textContaining('http', skipOffstage: false), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Recycling page: an e-waste point whose details end in a link shows no web address', (tester) async {
+  testWidgets('A list row for an e-waste point whose details hold a link shows no web address', (tester) async {
     await applyCondition(tester, _normal);
     // Every e-waste point in the bundle is checked through the rule the rows use.
     final around = AroundSet.fromBundle(jsonDecode(File('../web/data/around.json').readAsStringSync()) as Map<String, dynamic>);
@@ -2540,20 +2549,27 @@ void main() {
     for (final p in linked) {
       expect(withoutWebAddress(p.detail), isNot(contains('http')), reason: p.name);
     }
-    // And on the page itself, at the home of the test household.
-    await tester.pumpWidget(pageUnder(_normal, householdFavorites, tuesdayMorning, const HomeTopicPage(topic: 'recycling')));
+    // And in a row: the list shows the details without the link, with the distance large.
+    final p = linked.first;
+    await tester.pumpWidget(pageUnder(
+      _normal,
+      householdFavorites,
+      tuesdayMorning,
+      Scaffold(
+        body: ListView(children: [
+          NearGroup(title: 'E-waste drop-off', icon: Icons.recycling, items: [
+            NearItem(name: p.name, detail: p.detail, lat: p.lat, lng: p.lng, distance: 120),
+          ]),
+        ]),
+      ),
+    ));
     await settle(tester);
-    for (final more in find.textContaining('Show all').evaluate().toList()) {
-      await tester.ensureVisible(find.byWidget(more.widget));
-      await tester.pump();
-      await tester.tap(find.byWidget(more.widget));
-      await settle(tester);
-    }
-    final rows = tester.widgetList<PlaceRow>(find.byType(PlaceRow, skipOffstage: false));
-    expect(rows, isNotEmpty);
-    for (final r in rows) {
-      expect(r.subtitle ?? '', isNot(contains('http')), reason: r.title);
-    }
+    final row = tester.widget<PlaceRow>(find.byType(PlaceRow));
+    expect(p.detail, contains('http'));
+    expect(row.subtitle, withoutWebAddress(p.detail));
+    expect(row.subtitle, isNot(contains('http')));
+    expect((row.figure, row.figureLabel), ('120', 'm'));
+    expect(find.textContaining('http'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

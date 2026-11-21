@@ -1019,7 +1019,9 @@ class _Weekend extends ConsumerWidget {
             for (final it in NearItem.points(around.of('activesg'), home, radius: 8000, limit: 5))
               NearItem(
                 name: it.name,
-                detail: it.detail,
+                // The bundle's detail starts with the booking site's address: not on the row and
+                // not on the sheet, where it is the Book on ActiveSG button.
+                detail: withoutWebAddress(it.detail),
                 lat: it.lat,
                 lng: it.lng,
                 distance: it.distance,

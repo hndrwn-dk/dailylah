@@ -646,6 +646,12 @@ void main() {
     expect(withoutWebAddress('See HTTP://example.sg/a for details · Mon - Sun'), 'See for details · Mon - Sun');
     expect(withoutWebAddress('Level 1 Lift Lobby B · Mon - Sun 00:00-23:59'), 'Level 1 Lift Lobby B · Mon - Sun 00:00-23:59');
     expect(withoutWebAddress(''), '');
+    // Punctuation after a link stays with the sentence; brackets left empty go.
+    expect(withoutWebAddress('Products under First Schedule at https://go.gov.sg/prod-def-sl, Large Household Appliances'),
+        'Products under First Schedule, Large Household Appliances');
+    expect(withoutWebAddress('Book online (https://x.sg/book). Walk-ins welcome'), 'Book online. Walk-ins welcome');
+    // Ordinary text is left alone: words with "at", times.
+    expect(withoutWebAddress('Batteries at the lobby · 8:30 - 17:00'), 'Batteries at the lobby · 8:30 - 17:00');
   });
 
 

@@ -1583,17 +1583,21 @@ List<(BusEta, int?)> groupEtas(List<BusEta> list) {
   return out.values.toList();
 }
 
-/// Short name for a long NEA label: "Tampines St 11 Blk 137 (Tampines Round Market)"
-/// becomes "Tampines Round Market".
 /// A line of details without web addresses, for a list row: "accepted at https://go.gov.sg/x"
 /// reads "accepted", and a part that is only a link goes ("632 m · https://… · 1 Walk" keeps
-/// two parts). The link itself, when it matters, is a button on the place's sheet.
+/// two parts). Punctuation after a link stays ("at https://x, large appliances" reads
+/// ", large appliances" joined to what came before); brackets left empty go too.
 String withoutWebAddress(String detail) => detail
     .split(' · ')
-    .map((part) => part.replaceAll(RegExp(r'\s*(\bat\s+)?https?://\S+', caseSensitive: false), '').trim())
+    .map((part) => part
+        .replaceAll(RegExp(r'\s*(\bat\s+)?https?://[^\s,;)]*[^\s,;).]', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*\(\s*\)'), '')
+        .trim())
     .where((part) => part.isNotEmpty)
     .join(' · ');
 
+/// Short name for a long NEA label: "Tampines St 11 Blk 137 (Tampines Round Market)"
+/// becomes "Tampines Round Market".
 String shortPlaceName(String name) {
   final m = RegExp(r'\(([^)]+)\)\s*$').firstMatch(name);
   return m == null ? name : m.group(1)!;
