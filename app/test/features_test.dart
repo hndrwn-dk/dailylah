@@ -2720,6 +2720,8 @@ void main() {
     // Only an old trip: nothing this week, so the link must show without a list above it.
     await box.read(habitsProvider.notifier).restore(Habits(
       trips: [TripLog(route: 'home>work', start: tuesdayMorning.subtract(const Duration(days: 60)), minutes: 40, mode: 'transit', km: 12)],
+      parkings: [ParkLog(name: 'Mall', start: tuesdayMorning.subtract(const Duration(days: 70)), minutes: 90, costCents: 360)],
+      parked: ParkedCar(name: 'Blk 156', lat: 1.3516, lng: 103.945, at: tuesdayMorning.subtract(const Duration(hours: 1))),
     ));
     box.read(shellTabProvider.notifier).state = _tabs['History']!;
     await settle(tester);
@@ -2739,8 +2741,35 @@ void main() {
     await settle(tester);
     await tester.tap(find.text(_s.delete));
     await settle(tester);
-    expect(box.read(habitsProvider).trips, isEmpty);
+    final after = box.read(habitsProvider);
+    expect(after.trips, isEmpty);
+    expect(after.parkings, isEmpty);
+    expect(after.parked, isNull);
+    // Gone for good: the note offers no Undo, and the question said so.
+    expect(find.text(_s.undo), findsNothing);
+    expect(_s.deleteHistoryAsk, contains('cannot be undone'));
     expect(find.descendant(of: find.byType(HistoryPage), matching: find.text(_s.deleteHistory)), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('History: with only a parked car and nothing logged, Delete all my history still shows and clears it',
+      (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    await box.read(habitsProvider.notifier).restore(Habits(
+      parked: ParkedCar(name: 'Blk 156', lat: 1.3516, lng: 103.945, at: tuesdayMorning.subtract(const Duration(hours: 1))),
+    ));
+    box.read(shellTabProvider.notifier).state = _tabs['History']!;
+    await settle(tester);
+    final link = find.descendant(of: find.byType(HistoryPage), matching: find.text(_s.deleteHistory));
+    await _scrollTo(tester, link, page: HistoryPage);
+    await tester.tap(link);
+    await settle(tester);
+    await tester.tap(find.text(_s.delete));
+    await settle(tester);
+    expect(box.read(habitsProvider).parked, isNull);
     expect(tester.takeException(), isNull);
   });
 }
