@@ -448,7 +448,10 @@ class _NearGroupState extends ConsumerState<NearGroup> {
                   PlaceRow(
                     icon: widget.icon,
                     title: it.name,
-                    subtitle: it.detail,
+                    // A row with its own number keeps the distance in the line under the name.
+                    subtitle: it.big == null
+                        ? it.detail
+                        : [s.metres(it.distance), if (it.detail.isNotEmpty) it.detail].join(' · '),
                     below: it.chips.isEmpty ? null : FacilityIcons(it.chips),
                     figure: it.big ?? s.metresParts(it.distance).$1,
                     figureLabel: it.big != null ? it.bigLabel : s.metresParts(it.distance).$2,
