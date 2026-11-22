@@ -1123,9 +1123,13 @@ class BoardRow {
     this.onTap,
     this.dim = false,
     this.tag,
+    this.bell,
   });
   final String service;
   final int minutes;
+
+  /// "Alert me when this bus is arriving", at the end of the row in place of the chevron.
+  final BoardBell? bell;
 
   /// Drawn in the dim LED colour, for a bus the rider cannot catch.
   final bool dim;
@@ -1144,6 +1148,16 @@ class BoardRow {
 
   /// Opens "Where's my bus?"; the row shows a chevron when set.
   final VoidCallback? onTap;
+}
+
+/// The bell of a board row: [on] while that bus is watched, with [label] ("Alerting") beside
+/// its time; [tooltip] names what a tap does.
+class BoardBell {
+  const BoardBell({required this.on, required this.tooltip, required this.onTap, this.label});
+  final bool on;
+  final String tooltip;
+  final String? label;
+  final VoidCallback onTap;
 }
 
 /// Bus load as 1–3 bars: teal for seats or standing, amber when packed. [onDark] for the LED board.
@@ -1250,6 +1264,11 @@ class BusBoard extends StatelessWidget {
                             ),
                             child: Text(tag, style: small),
                           ),
+                        if (r.bell?.label case final label?)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(label, style: small?.copyWith(color: DL.led)),
+                          ),
                       ],
                     ),
                     details: [
@@ -1287,12 +1306,22 @@ class BusBoard extends StatelessWidget {
                         ),
                       if (r.note.isNotEmpty) Text(r.note, style: small),
                     ],
-                    chevron: r.onTap == null
-                        ? null
-                        : const Padding(
-                            padding: EdgeInsets.only(top: 4),
-                            child: Icon(Icons.chevron_right, size: 20, color: DL.ledDim),
-                          ),
+                    trailingWidth: r.bell == null ? 24 : kMinInteractiveDimension,
+                    chevron: switch (r.bell) {
+                      final bell? => IconButton(
+                          tooltip: bell.tooltip,
+                          constraints: const BoxConstraints(
+                              minWidth: kMinInteractiveDimension, minHeight: kMinInteractiveDimension),
+                          icon: Icon(bell.on ? Icons.notifications_active : Icons.notifications_none,
+                              color: bell.on ? DL.led : DL.ledDim),
+                          onPressed: bell.onTap,
+                        ),
+                      null when r.onTap != null => const Padding(
+                          padding: EdgeInsets.only(top: 4),
+                          child: Icon(Icons.chevron_right, size: 20, color: DL.ledDim),
+                        ),
+                      null => null,
+                    },
                   ),
                 ),
               ),
@@ -1314,7 +1343,16 @@ class BusBoard extends StatelessWidget {
 /// number and time at full width, so "Wheelchair" or a stop name moves down whole instead of
 /// breaking inside the word.
 class _BoardRowLayout extends StatelessWidget {
-  const _BoardRowLayout({required this.service, required this.time, required this.details, this.chevron});
+  const _BoardRowLayout({
+    required this.service,
+    required this.time,
+    required this.details,
+    this.chevron,
+    this.trailingWidth = 24,
+  });
+
+  /// What [chevron] takes of the row: about 24 dp for the chevron, 48 for a bell.
+  final double trailingWidth;
   final Widget service;
   final Widget time;
   final List<Widget> details;
@@ -1326,7 +1364,7 @@ class _BoardRowLayout extends StatelessWidget {
     return LayoutBuilder(builder: (context, box) {
       // The number takes 62 dp at normal text (more only at large text), the gap 10 and the chevron
       // about 24: beside it on phones from 320 dp at 100% text, as before.
-      final beside = box.maxWidth - 62 - 10 - 24 >= 150 * scale;
+      final beside = box.maxWidth - 62 - 10 - trailingWidth >= 150 * scale;
       final top = Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

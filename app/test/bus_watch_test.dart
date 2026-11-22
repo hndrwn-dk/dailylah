@@ -1,5 +1,8 @@
 // Bus arriving: the rule that follows one bus of a running trip (busWatchStep) and what its
 // notifications say.
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:dailylah/l10n.dart';
 import 'package:dailylah/logic.dart';
 import 'package:dailylah/models.dart';
@@ -198,6 +201,56 @@ void main() {
       expect(alertKinds, 10);
       final off = const Favorites().copyWith(busAlerts: false);
       expect(alertsOn(const Favorites()) - alertsOn(off), 1);
+    });
+  });
+
+  group('tripLeave: what I\'m leaving remembers and watches', () {
+    // Service 10 along Marine Parade Road (web/data): Siglap Sth CC to St. Patrick's Green is six
+    // stops, to Goodwill Ct one stop (no quicker than walking).
+    const siglap = Place(kind: PlaceKind.other, name: 'Siglap Sth CC', addrLat: 1.313904, addrLng: 103.931711);
+    const goodwill = Place(kind: PlaceKind.other, name: 'Goodwill Ct', addrLat: 1.312958, addrLng: 103.927906);
+    const stPatricks =
+        Place(kind: PlaceKind.other, name: "St. Patrick's Green", addrLat: 1.309281, addrLng: 103.914345);
+    Object? bundle(String name) => jsonDecode(File('../web/data/$name.json').readAsStringSync());
+    final routes = BusRoutes.fromBundle(bundle('bus_routes') as Map<String, dynamic>);
+    final all = [for (final r in bundle('bus_stops') as List) BusStop.fromBundle(r as Map<String, dynamic>)];
+    List<BusStop> stopsFor(Place from, Place to) => tripStops(const [], all, routes, from, to).stops;
+    final etas = [_eta('10', 6), _eta('10', 15), _eta('858A', 3)];
+
+    test('the first stop and the bus to leave for', () {
+      final stops = stopsFor(siglap, stPatricks);
+      final l = tripLeave(from: siglap, to: stPatricks, stops: stops, routes: routes, all: all, etas: etas);
+      expect(l?.stop.code, stops.first.code);
+      expect(l?.service, '10');
+      expect(l?.minutes, 6);
+      expect(l?.alight, isNotNull);
+    });
+
+    test('no arrivals yet: the stop is remembered, no bus', () {
+      final stops = stopsFor(siglap, stPatricks);
+      final l = tripLeave(from: siglap, to: stPatricks, stops: stops, routes: routes, all: all, etas: null);
+      expect(l?.stop.code, stops.first.code);
+      expect(l?.service, isNull);
+      expect(l?.minutes, isNull);
+    });
+
+    test('1.5 km or more from the stop: no bus to leave for', () {
+      const far = Place(kind: PlaceKind.other, name: 'Far', addrLat: 1.333904, addrLng: 103.931711);
+      final l = tripLeave(
+          from: far, to: stPatricks, stops: stopsFor(siglap, stPatricks), routes: routes, all: all, etas: etas);
+      expect(l?.stop, isNotNull);
+      expect(l?.service, isNull);
+    });
+
+    test('a bus no quicker than walking is not watched', () {
+      final stops = stopsFor(siglap, goodwill);
+      final l = tripLeave(from: siglap, to: goodwill, stops: stops, routes: routes, all: all, etas: etas);
+      expect(l?.stop.code, stops.first.code);
+      expect(l?.service, isNull);
+    });
+
+    test('no bus stop card: nothing', () {
+      expect(tripLeave(from: siglap, to: stPatricks, stops: const [], routes: routes, all: all, etas: etas), isNull);
     });
   });
 }

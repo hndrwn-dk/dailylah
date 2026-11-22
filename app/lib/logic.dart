@@ -2451,6 +2451,84 @@ LeaveBy? leaveBy(List<(BusEta, int?)> grouped, Set<String>? services, int walk) 
   return best;
 }
 
+/// What one stop card of a trip works out from the live arrivals: the direct buses and the
+/// rest, the walk to the stop in minutes (null when the start is 1.5 km or more away, 0 at the
+/// stop), the bus to leave for with its ride and alighting stop, and whether that bus is no
+/// quicker than walking all the way ([busNotFaster]).
+typedef StopPlan = ({
+  List<(BusEta, int?)> direct,
+  List<(BusEta, int?)> others,
+  int? walk,
+  LeaveBy? lb,
+  DirectRide? ride,
+  BusStop? alight,
+  bool slow,
+});
+
+StopPlan stopPlan({
+  required BusStop stop,
+  required Place? from,
+  required Place to,
+  required Map<String, DirectRide> rides,
+  required List<BusEta> etas,
+  required Map<String, BusStop> byCode,
+}) {
+  final grouped = groupEtas(etas);
+  final direct = grouped.where((e) => rides.containsKey(e.$1.service)).toList();
+  final others = grouped.where((e) => !rides.containsKey(e.$1.service)).toList();
+  final walkM = from == null ? null : distanceMeters(from.lat, from.lng, stop.lat, stop.lng);
+  // At the stop already (within atStopMetres): no walk, so the bus there now can be caught.
+  final walk = walkM == null || walkM >= 1500 ? null : (walkM < atStopMetres ? 0 : walkMinutesTo(walkM));
+  final lb = walk == null ? null : leaveBy(direct, null, walk);
+  final ride = lb == null ? null : rides[lb.service];
+  final alight = ride == null ? null : byCode[ride.alightAt];
+  final slow = from != null &&
+      lb != null &&
+      ride != null &&
+      alight != null &&
+      busNotFaster(
+        stops: ride.stops,
+        doorToDoor: busDoorToDoor(
+          walkToStop: lb.walk,
+          busIn: lb.leaveIn + lb.walk,
+          stops: ride.stops,
+          alightMetres: distanceMeters(alight.lat, alight.lng, to.lat, to.lng),
+        ),
+        straightMetres: distanceMeters(from.lat, from.lng, to.lat, to.lng),
+      );
+  return (direct: direct, others: others, walk: walk, lb: lb, ride: ride, alight: alight, slow: slow);
+}
+
+/// What I'm leaving remembers and watches for a bus trip: the trip's first stop card
+/// ([stops], as shown), and the bus to leave for there with the minutes until it comes, when
+/// there is one worth taking ([etas]: that stop's arrivals, null while they load). Null when the
+/// trip has no bus stop card.
+typedef TripLeave = ({BusStop stop, String? service, int? minutes, BusStop? alight});
+
+TripLeave? tripLeave({
+  required Place from,
+  required Place to,
+  required List<BusStop> stops,
+  required BusRoutes routes,
+  required List<BusStop> all,
+  required List<BusEta>? etas,
+}) {
+  if (stops.isEmpty) return null;
+  final stop = stops.first;
+  if (etas == null || routes.routes.isEmpty) return (stop: stop, service: null, minutes: null, alight: null);
+  final plan = stopPlan(
+    stop: stop,
+    from: from,
+    to: to,
+    rides: tripRides(routes, stop, to, destinationStops(to, all)),
+    etas: etas,
+    byCode: {for (final x in all) x.code: x},
+  );
+  final lb = plan.lb;
+  if (lb == null || plan.slow) return (stop: stop, service: null, minutes: null, alight: null);
+  return (stop: stop, service: lb.service, minutes: lb.leaveIn + lb.walk, alight: plan.alight);
+}
+
 // ---- Bus arriving: one bus of a running trip is watched at the boarding stop (bus_watch.dart).
 
 /// The watched bus is this close: the first alert.

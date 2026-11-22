@@ -567,6 +567,9 @@ class S {
   String busUpdatedPill(String clock) => 'Updated $clock';
   String busGetOffPill(String stop) => 'Get off at $stop';
   String busTimetableBody(String body) => '$body · Timetable estimate';
+  String get busAlertMe => 'Alert me when this bus is arriving';
+  String get busAlerting => 'Alerting';
+  String get busAlertStop => 'Stop alerting';
   String get wakeNow => 'Your stop is next. Get ready to alight.';
   String wakeNowAt(String stop) => 'Next stop: $stop. Get ready to alight.';
   String wakePassed(String stop) => 'You may have passed $stop. Check where you are.';

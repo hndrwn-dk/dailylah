@@ -17,6 +17,7 @@ import 'bus_sheet.dart';
 import 'ev.dart';
 import 'mrt_ride.dart';
 import '../mrt_ride.dart';
+import '../bus_watch.dart';
 import 'widgets.dart';
 
 IconData modeIcon(TravelMode m) => switch (m) {
@@ -126,6 +127,8 @@ class TripSection extends ConsumerWidget {
       from: from,
       to: to,
       mode: mode,
+      toLabel: toLabel,
+      endsHere: endsHere,
     );
     // From and To at the same spot (e.g. a searched start that is the destination): nothing to plan,
     // no "0 min walk · 0 m" or buses. A trip being timed still shows, with Arrived.
@@ -319,11 +322,60 @@ class _ThereNote extends StatelessWidget {
 /// for the fare estimate); [TripBanner] shows it on every tab until Arrived, and it lands
 /// in History. After a few trips the card says how long this trip usually takes.
 class _TripTimer extends ConsumerWidget {
-  const _TripTimer({required this.route, required this.from, required this.to, required this.mode});
+  const _TripTimer({
+    required this.route,
+    required this.from,
+    required this.to,
+    required this.mode,
+    required this.toLabel,
+    this.endsHere = false,
+  });
   final String route;
   final Place from;
   final Place to;
   final TravelMode mode;
+  final String toLabel;
+
+  /// The destination is the phone's position: it is not kept, so the trip has no board later.
+  final bool endsHere;
+
+  /// Starts timing. A bus trip also remembers where it goes and its first stop, and the bus to
+  /// leave for there is watched ("Bus arriving"), without asking for any permission.
+  Future<void> _leave(WidgetRef ref, {required bool rainy}) async {
+    final all = ref.read(busStopsProvider).value ?? const <BusStop>[];
+    final routes = ref.read(busRoutesProvider).value ?? BusRoutes.empty;
+    final bus = mode == TravelMode.transit && !endsHere;
+    final stops = bus ? tripStops(usableStops(from), all, routes, from, to).stops : const <BusStop>[];
+    final leave = stops.isEmpty
+        ? null
+        : tripLeave(
+            from: from,
+            to: to,
+            stops: stops,
+            routes: routes,
+            all: all,
+            etas: ref.read(busArrivalProvider(stops.first.code)).value,
+          );
+    await ref.read(habitsProvider.notifier).startTrip(
+          route,
+          DateTime.now(),
+          rainy: rainy,
+          mode: mode.name,
+          km: distanceMeters(from.lat, from.lng, to.lat, to.lng) / 1000,
+          to: bus ? to : null,
+          stop: leave?.stop.code,
+          bus: leave?.service,
+        );
+    if (leave == null || leave.service == null) return;
+    await ref.read(busWatchProvider.notifier).start(
+          stop: leave.stop,
+          service: leave.service!,
+          minutes: leave.minutes ?? 0,
+          alight: leave.alight,
+          toLabel: toLabel,
+          ask: false,
+        );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -363,13 +415,7 @@ class _TripTimer extends ConsumerWidget {
           ],
           OutlinedButton.icon(
             icon: const Icon(Icons.timer_outlined),
-            onPressed: () => ref.read(habitsProvider.notifier).startTrip(
-                  route,
-                  DateTime.now(),
-                  rainy: rainy,
-                  mode: mode.name,
-                  km: distanceMeters(from.lat, from.lng, to.lat, to.lng) / 1000,
-                ),
+            onPressed: () => _leave(ref, rainy: rainy),
             label: Text(s.imLeaving),
           ),
           // How it works, small and under the button, until this trip has been learned.
@@ -990,35 +1036,56 @@ class TripBusCard extends ConsumerWidget {
                               ),
                           ]);
                   }
-                  final grouped = groupEtas(list);
-                  final direct = grouped.where((e) => rides.containsKey(e.$1.service)).toList();
-                  final others = grouped.where((e) => !rides.containsKey(e.$1.service)).toList();
                   // The bus to leave for comes first and stands out; buses that come before
-                  // the walk to the stop is done are dimmed as "Too soon", at the end.
-                  final walkM = from == null ? null : distanceMeters(from!.lat, from!.lng, stop.lat, stop.lng);
-                  // At the stop already (within atStopMetres): no walk, so the bus there now can be caught.
-                  final walk = walkM == null || walkM >= 1500 ? null : (walkM < atStopMetres ? 0 : walkMinutesTo(walkM));
-                  final lb = walk == null ? null : leaveBy(direct, null, walk);
-                  // Honest comparison with walking all the way: the bus to leave for, door to door.
-                  // When it is no quicker, there is no "Leave now" card and the buses fold into one line.
+                  // the walk to the stop is done are dimmed as "Too soon", at the end. Honest
+                  // comparison with walking all the way: when the bus is no quicker, there is no
+                  // "Leave now" card and the buses fold into one line (stopPlan).
                   final byStop = {for (final x in all) x.code: x};
+                  final plan = stopPlan(stop: stop, from: from, to: to, rides: rides, etas: list, byCode: byStop);
+                  final direct = plan.direct;
+                  final others = plan.others;
+                  final walk = plan.walk;
+                  final lb = plan.lb;
+                  final ride = plan.ride;
+                  final slow = plan.slow;
                   final straight = from == null ? 0.0 : distanceMeters(from!.lat, from!.lng, to.lat, to.lng);
-                  final ride = lb == null ? null : rides[lb.service];
-                  final alight = ride == null ? null : byStop[ride.alightAt];
-                  final slow = from != null &&
-                      lb != null &&
-                      ride != null &&
-                      alight != null &&
-                      busNotFaster(
-                        stops: ride.stops,
-                        doorToDoor: busDoorToDoor(
-                          walkToStop: lb.walk,
-                          busIn: lb.leaveIn + lb.walk,
-                          stops: ride.stops,
-                          alightMetres: distanceMeters(alight.lat, alight.lng, to.lat, to.lng),
-                        ),
-                        straightMetres: straight,
-                      );
+                  // Bus arriving: while the trip to this place runs, each direct bus has a bell.
+                  final habits = ref.watch(habitsProvider);
+                  final watch = ref.watch(busWatchProvider);
+                  final tripTo = habits.tripTo;
+                  final bells = habits.tripStart != null &&
+                      tripTo != null &&
+                      ref.watch(favoritesProvider.select((f) => f.busAlerts)) &&
+                      distanceMeters(tripTo.lat, tripTo.lng, to.lat, to.lng) < samePlaceMetres;
+                  BoardBell? bellFor(TripBoardRow r) {
+                    if (!bells || r.tooSoon) return null;
+                    final on = watch != null &&
+                        !watch.done &&
+                        watch.stop.code == stop.code &&
+                        watch.service == r.eta.service;
+                    return BoardBell(
+                      on: on,
+                      tooltip: on ? s.busAlertStop : s.busAlertMe,
+                      label: on ? s.busAlerting : null,
+                      onTap: () async {
+                        final notifier = ref.read(busWatchProvider.notifier);
+                        if (on) {
+                          notifier.stop();
+                          await ref.read(habitsProvider.notifier).setTripBus(stop.code, null);
+                          return;
+                        }
+                        await notifier.start(
+                          stop: stop,
+                          service: r.eta.service,
+                          minutes: r.eta.minutes,
+                          alight: byStop[rides[r.eta.service]?.alightAt],
+                          toLabel: toLabel,
+                          ask: true,
+                        );
+                      },
+                    );
+                  }
+
                   final board = direct.isEmpty
                       ? null
                       : BusBoard(
@@ -1036,6 +1103,7 @@ class TripBusCard extends ConsumerWidget {
                               load: r.eta.load,
                               dim: r.tooSoon,
                               tag: r.tooSoon ? s.tooSoon : null,
+                              bell: bellFor(r),
                               info: [s.loadLabel(r.eta.load), s.busExtras(r.eta)].where((x) => x.isNotEmpty).join(' · '),
                               note: s.rideInfo(
                                 rides[r.eta.service]!.stops,
@@ -1122,7 +1190,7 @@ class TripBusCard extends ConsumerWidget {
                           padding: const EdgeInsets.only(bottom: 6),
                           child: _WalkCard(to: to, straight: straight),
                         ),
-                      if (board != null && slow)
+                      if (board != null && slow && lb != null && ride != null)
                         Theme(
                           data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                           child: ExpansionTile(
@@ -1923,21 +1991,25 @@ class TripBanner extends ConsumerWidget {
       color: DL.mint,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 8, 6, 8),
-        child: Row(
-          children: [
-            const Icon(Icons.timer_outlined, color: DL.ink),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(s.routeLabel(s.routeEnd(ends.$1), s.routeEnd(ends.$2)),
-                      style: t.titleSmall?.copyWith(color: DL.ink), maxLines: 2, overflow: TextOverflow.ellipsis),
-                  Text(s.onTheWay(clockLabel(start), s.durationShort(now.difference(start).inMinutes)),
-                      style: t.bodySmall?.copyWith(color: DL.ink)),
-                ],
+        child: LayoutBuilder(builder: (context, box) {
+          final about = Row(
+            children: [
+              const Icon(Icons.timer_outlined, color: DL.ink),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(s.routeLabel(s.routeEnd(ends.$1), s.routeEnd(ends.$2)),
+                        style: t.titleSmall?.copyWith(color: DL.ink), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    Text(s.onTheWay(clockLabel(start), s.durationShort(now.difference(start).inMinutes)),
+                        style: t.bodySmall?.copyWith(color: DL.ink)),
+                  ],
+                ),
               ),
-            ),
+            ],
+          );
+          final actions = [
             IconButton(
               tooltip: s.tripCancel,
               icon: const Icon(Icons.close, color: DL.ink),
@@ -1952,8 +2024,25 @@ class TripBanner extends ConsumerWidget {
               },
               child: Text(s.arrived),
             ),
-          ],
-        ),
+          ];
+          // Beside the text while that leaves it room for whole words; under it at large text
+          // or on a narrow phone, where the buttons would otherwise push past the edge.
+          final scale = MediaQuery.textScalerOf(context).scale(16) / 16;
+          if (box.maxWidth - 48 - 96 * scale >= 150 * scale) {
+            return Row(children: [Expanded(child: about), ...actions]);
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              about,
+              Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: actions,
+              ),
+            ],
+          );
+        }),
       ),
     );
   }
