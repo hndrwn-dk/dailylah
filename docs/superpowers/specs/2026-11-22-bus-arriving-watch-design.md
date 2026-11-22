@@ -76,11 +76,23 @@ A `Notifier<BusWatchState?>` shaped like `WakeNotifier`.
   alerts were sent, an error.
 - `start(stop, service, alight, toLabel)`: asks for location and notification permission the way
   `WakeNotifier.start` does, then opens `Geolocator.getPositionStream` with a
-  `ForegroundNotificationConfig` (wake lock on). The position itself is not read: low accuracy and
-  a large distance filter, fixes ignored. A `Timer.periodic(busRefreshEvery)` fetches the stop's
-  arrivals and updates the state.
-- Location denied: the watch still runs while the app is open (banner and board count down) and the
-  banner says once that alerts need location for the screen-off case. No background alert.
+  `ForegroundNotificationConfig` (wake lock on). A `Timer.periodic(busRefreshEvery)` fetches the
+  stop's arrivals and updates the state.
+- The position is used, on the phone only and never stored or sent (balanced accuracy, 50 m
+  filter): the metres to the boarding stop. It gives the ongoing notification "at the stop" or
+  "350 m to the stop", and it ends the watch when the rider, having been within `atStopMetres`,
+  is more than `busLeftStopMetres` (300) from the stop after the bus was near: they are on the bus
+  (or gave up), and Wake me is offered. So the location service does location work, as its type says.
+- Permission: I'm leaving never raises a system prompt. Location already allowed: the watch starts
+  with the service. Not allowed: the watch runs while the app is open only (banner and board count
+  down) and the banner says once that a bell tap turns on alerts with the screen off. A bell tap is
+  the rider asking: it prompts for location and notifications the way `WakeNotifier.start` does;
+  still denied, it stays in-app only.
+- Which bus: a service's arrivals are not identified (`BusEta` has no vehicle id), so the watch
+  follows one arrival by its expected time. It starts from the arrival picked (`leaveBy`'s bus, or
+  the row tapped; a row's first arrival) and at each poll takes the arrival of that service nearest
+  to the tracked time, within `busTrackToleranceMinutes` (4). A bus of the same service that comes
+  earlier ("Too soon" while the rider walks) is ignored: no alert for it and no "gone".
 - Ongoing notification: `busWatchNote` in logic.dart (id `locationServiceNoteId`), pills: the
   service (board tone), minutes ("3 min" / "Arriving"), "2 stops away" when known. Rewritten only
   when the pills change, like `wakeWatchNote`.
@@ -90,8 +102,8 @@ A `Notifier<BusWatchState?>` shaped like `WakeNotifier`.
   used by any other alert. A tap opens the running trip page (below).
 - The rule that decides what to do with each poll is a pure function in logic.dart (`busWatchStep`:
   previous state + new etas -> near / arriving / gone / nothing), so it is tested without timers.
-  "Gone": after "arriving" was sent, or after the bus was at most 2 min away, the first arrival
-  for that service jumps later by more than `busGoneJumpMinutes` (4), or the service has no arrival.
+  "Gone": after the tracked bus was at most 2 min away, no arrival of that service is within the
+  tolerance of the tracked time any more (the next one is later, or there is none).
 - Ends when: the bus is gone (state keeps `done` so the banner can offer Wake me, service stops),
   Arrived or Stop timing ends the trip, the rider stops it, Wake me or I'm on the train starts (one
   watcher at a time; starting the bus watch likewise replaces neither of them: while one of those
@@ -105,10 +117,12 @@ A `Notifier<BusWatchState?>` shaped like `WakeNotifier`.
 
 ### Choosing the bus
 
-- I'm leaving (`_TripTimer`) on a transit trip: when the first stop card of the trip has a bus to
-  leave for (`leaveBy`, the mint card), the watch starts for that stop and bus. The builder decides
-  how `_TripTimer` learns it (the same inputs `TripBusCard` uses). No such bus: no watch; the
-  rider can still pick one.
+- I'm leaving (`_TripTimer`) on a transit trip whose first part is a bus (not a trip started with
+  "I'm on the train"): `tripStop` is the trip's first stop card, always. When that card has a bus to
+  leave for (`leaveBy`, the mint card), `tripBus` is that bus and the watch starts. The builder
+  decides how `_TripTimer` learns it (the same inputs `TripBusCard` uses). No such bus (far from the
+  stop, arrivals not loaded, "not faster than walking"): `tripBus` stays empty and no watch starts;
+  the banner still opens the board, where a bell picks one.
 - While a trip runs, every direct row of a trip board has a bell button (48 dp, tooltip "Alert me
   when this bus is arriving"); the watched row shows it filled and says "Alerting". A tap on
   another bell switches the watch to that stop and bus; a tap on the filled one stops the watch.
@@ -120,7 +134,8 @@ A `Notifier<BusWatchState?>` shaped like `WakeNotifier`.
 `Habits` gains, next to `tripRoute`/`tripStart` and cleared with them (`clearTrip`):
 
 - `tripTo`: the destination as a `Place` (name and point). Not written when the destination is
-  "Here" (the phone's position is never kept).
+  "Here" (the phone's position is never kept); such a trip has no board, bells or watch, and its
+  banner stays as it is today.
 - `tripStop` (bus stop code) and `tripBus` (service): the watched stop and bus, updated on a switch.
 
 After the app restarts with a trip running, the banner and Today rebuild from these and the bundles.
@@ -156,15 +171,15 @@ end opens the planner. Nothing else.
 - `docs/legal/privacy.md`: the destination and the bus stop of a trip being timed are kept on the
   phone until the trip ends; "Bus arriving" joins Wake me and I'm on the train as a case where the
   location service runs (ongoing notification, ends with the bus or the trip, at most 45 min), the
-  position is not read, stored or sent, and the server gets the bus stop code every 30 s as it does
+  position is compared with the bus stop on the phone and never stored or sent, and the server gets the bus stop code every 30 s as it does
   while the board is open. Landing page "Privacy and safety" answers checked against this.
 - `app/CLAUDE.md` feature map, `docs/REPO_MAP.md`, `AGENTS.md` (`scripts/repo_map.py`).
 - Play listing / What's new note for the release; version bump as the repo does for a feature.
 
 ### Tests
 
-- logic: `busWatchStep` (near once, arriving once, gone by jump and by no arrival, stale reading,
-  timetable estimate), `busWatchNote`/`busNearNote`/`busArrivingNote` pills, unique ids (the
+- logic: `busWatchStep` (near once, arriving once, a too-soon bus ignored, gone, left the stop,
+  stale reading, timetable estimate), `busWatchNote`/`busNearNote`/`busArrivingNote` pills, unique ids (the
   existing sample test), `alertsOn` with ten kinds.
 - models: `Habits` round trip with the new fields, cleared by `clearTrip`, old JSON still loads.
 - widgets: banner line and tap, bells on a running trip only, Today placement (running, planned,
@@ -175,11 +190,23 @@ end opens the planner. Nothing else.
 ## Calls made by the writer (not decided by the owner)
 
 - The watch starts by itself at I'm leaving, with an off switch in More > Alerts.
-- Alerts at 2 min and at arriving; 45 min limit; 30 s polling; "gone" after a 4 min jump.
+- Alerts at 2 min and at arriving; 45 min limit; 30 s polling; the bus is followed by its expected
+  time (4 min tolerance), so a too-soon bus of the same service is ignored.
+- The phone's position is read (on the phone only) for the distance to the stop and to end the
+  watch once the rider has left the stop.
+- I'm leaving never shows a permission prompt; only a bell tap does.
+- With no bus to leave for, the stop is still remembered so the banner opens its board.
 - The destination and stop of the running trip are stored on the phone until it ends.
 - A separate small page for the banner tap instead of reopening the planner.
 - Wake me is offered, not started, when the bus is gone.
 - With location denied the watch is in-app only.
+
+## For the owner to check
+
+- Play Console, App content > Foreground service permissions: the declaration for the location
+  type today describes Wake me at my stop and I'm on the train. "Bus arriving" is a third use of
+  the same service (rider-started trip, ongoing notification, position compared with a bus stop on
+  the phone). The declaration text and its video may need to mention it before the release.
 
 ## Left to the builder
 
