@@ -361,7 +361,7 @@ feature, screen, provider or rule moves, appears or goes away.
   bus has gone the bar offers Wake me before its stop. Today (`todayTripSlot`): the same card sits right under
   the weather tiles while such a trip runs and is not the commute card already shown; a destination picked in
   the planner but not left for (`plannerPlace`) moves `PlanTripCard` up there as "To <place> · See buses and
-  leave". Tests: `test/bus_watch_test.dart`, `test/bus_watch_session_test.dart`, `test/bus_watch_ui_test.dart`. Commute
+  leave", until I'm leaving is tapped for it (`goLeftForProvider`; a new pick offers it again). Tests: `test/bus_watch_test.dart`, `test/bus_watch_session_test.dart`, `test/bus_watch_ui_test.dart`. Commute
   keys stay "home>work"; planned trips keep the names shown (`tripRouteKey`, `S.routeEnd`), and an end at the phone's position is named on the phone (`hereName`: the saved place it is at, else "Near <station> station" or "Near <bus stop>" within `hereNameMetres`, else "Current location"; the position is not kept).
 - Habits (`Habits` in models.dart, `HabitsStore` in store.dart, `habitsProvider`): parked car, trips
   logged with I'm leaving/Arrived (`tripStats`), "Ate here" meals (`mealNudge`). On the phone only,

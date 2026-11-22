@@ -499,6 +499,10 @@ final goKeyProvider = StateProvider<String?>((ref) => null);
 /// never undoes one (memory only).
 final goPicksProvider = StateProvider<int>((ref) => 0);
 
+/// [goPicksProvider] when I'm leaving was tapped on a planned trip: while no pick has been made
+/// since, Today does not offer that trip as one to plan (memory only).
+final goLeftForProvider = StateProvider<int?>((ref) => null);
+
 /// The phone's location for a "Here" end of a "Go somewhere" trip, null until known (memory only).
 final goFromHereProvider = StateProvider<Place?>((ref) => null);
 

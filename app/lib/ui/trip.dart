@@ -366,6 +366,9 @@ class _TripTimer extends ConsumerWidget {
           stop: leave?.stop.code,
           bus: leave?.service,
         );
+    // The planned trip has been left for: Today no longer offers it as a trip to plan (the planner
+    // keeps its ends; a new pick there offers it again).
+    ref.read(goLeftForProvider.notifier).state = ref.read(goPicksProvider);
     if (leave == null || leave.service == null) return;
     await ref.read(busWatchProvider.notifier).start(
           stop: leave.stop,
@@ -2115,8 +2118,16 @@ class RunningTripPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // The trip ended: this page goes, also when another page (the planner) is on top of it.
     ref.listen(habitsProvider.select((h) => h.tripStart), (_, start) {
-      if (start == null) Navigator.of(context).maybePop();
+      if (start != null) return;
+      final route = ModalRoute.of(context);
+      if (route == null) return;
+      if (route.isCurrent) {
+        Navigator.of(context).maybePop();
+      } else {
+        Navigator.of(context).removeRoute(route);
+      }
     });
     final s = ref.watch(stringsProvider);
     final h = ref.watch(habitsProvider);

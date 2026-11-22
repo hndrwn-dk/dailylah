@@ -184,7 +184,9 @@ class TodayPage extends ConsumerWidget {
     // destination picked but not left for. The commute card is not shown twice.
     final habits = ref.watch(habitsProvider);
     final commuteCard = commute && origin != null && dest != null && resting == null;
-    final plannedKey = ref.watch(goKeyProvider);
+    // A trip already left for is not offered again until a new pick in the planner.
+    final plannedKey =
+        ref.watch(goLeftForProvider) == ref.watch(goPicksProvider) ? null : ref.watch(goKeyProvider);
     final tripSlot = todayTripSlot(
       h: habits,
       commuteShown: commuteCard,

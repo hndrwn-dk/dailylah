@@ -248,7 +248,11 @@ void main() {
 
       await _tap(tester, find.text(_s.openPlanner));
       expect(find.byType(TripPlannerPage), findsOneWidget);
+      // The trip ends from the planner: this page goes, the planner stays.
       await _end(tester, box);
+      await settle(tester);
+      expect(find.byType(TripPlannerPage), findsOneWidget);
+      expect(find.byType(RunningTripPage, skipOffstage: false), findsNothing);
     });
 
     testWidgets('the page closes when the trip ends', (tester) async {
@@ -351,6 +355,20 @@ void main() {
       expect(top(tester, card), lessThan(before));
       await _tap(tester, find.text(_s.planTripTo('Fullerton')));
       expect(find.byType(TripPlannerPage), findsOneWidget);
+    });
+
+    testWidgets('after leaving and Arrived, the planned trip is not offered again', (tester) async {
+      final box = await _plan(tester);
+      await _tap(tester, find.text(_s.imLeaving));
+      Navigator.of(tester.element(find.byType(TripPlannerPage))).pop();
+      await settle(tester);
+      await tester.runAsync(() async {
+        box.read(busWatchProvider.notifier).stop();
+        await box.read(habitsProvider.notifier).finishTrip(tuesdayMorning.add(const Duration(minutes: 30)));
+      });
+      await settle(tester);
+      expect(find.text(_s.planTripTo("St. Patrick's Green"), skipOffstage: false), findsNothing);
+      expect(find.text(_s.planTrip, skipOffstage: false), findsOneWidget);
     });
 
     testWidgets('the commute card is not doubled when the commute is the running trip', (tester) async {

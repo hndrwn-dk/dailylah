@@ -44,7 +44,7 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 ### `lib/providers.dart`
 - Types: `FavoritesNotifier`, `HabitsNotifier`, `ExtrasQuery (typedef)`
 - Functions: `noRetry`, `nowOf`
-- Providers: 78 (listed below)
+- Providers: 79 (listed below)
 
 ### `lib/share_intake.dart`
 - Functions: `sharedPlaces`
@@ -138,7 +138,7 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 - Types: `WakeState`, `WakeNotifier`
 - Providers: 2 (listed below)
 
-## Riverpod providers (85)
+## Riverpod providers (86)
 
 | Provider | Kind | File |
 | --- | --- | --- |
@@ -194,6 +194,7 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 | `modeOverrideProvider` | `StateProvider` | `lib/providers.dart` |
 | `goKeyProvider` | `StateProvider` | `lib/providers.dart` |
 | `goPicksProvider` | `StateProvider` | `lib/providers.dart` |
+| `goLeftForProvider` | `StateProvider` | `lib/providers.dart` |
 | `goFromHereProvider` | `StateProvider` | `lib/providers.dart` |
 | `taxiStandsProvider` | `FutureProvider` | `lib/providers.dart` |
 | `emergencyProvider` | `FutureProvider` | `lib/providers.dart` |
