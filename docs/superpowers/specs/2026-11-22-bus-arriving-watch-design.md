@@ -1,6 +1,6 @@
 # Bus arriving: watch the bus of a running trip
 
-Date: 2026-11-22. Status: draft, waiting for the owner's approval.
+Date: 2026-11-22. Status: approved by the owner on 2026-11-22.
 
 ## Why
 
@@ -99,7 +99,8 @@ A `Notifier<BusWatchState?>` shaped like `WakeNotifier`.
 - Alerts, each once per watched bus, as a `RichNote` through `showNote` with a haptic:
   `busNearNote` when the watched bus is at most `busNearMinutes` (2) away and `busArrivingNote`
   when it shows 0 min. One new notification id shared by both (the second replaces the first), not
-  used by any other alert. A tap opens the running trip page (below).
+  used by any other alert. A tap opens Today (`dailylah://today`, as the other alerts do), where the
+  running trip's board is on top.
 - The rule that decides what to do with each poll is a pure function in logic.dart (`busWatchStep`:
   previous state + new etas -> near / arriving / gone / nothing), so it is tested without timers.
   "Gone": after the tracked bus was at most 2 min away, no arrival of that service is within the
