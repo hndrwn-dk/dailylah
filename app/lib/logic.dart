@@ -2450,6 +2450,107 @@ LeaveBy? leaveBy(List<(BusEta, int?)> grouped, Set<String>? services, int walk) 
   return best;
 }
 
+// ---- Bus arriving: one bus of a running trip is watched at the boarding stop (bus_watch.dart).
+
+/// The watched bus is this close: the first alert.
+const busNearMinutes = 2;
+
+/// An arrival is the watched bus while its expected time is within this of the last one known.
+const busTrackToleranceMinutes = 4;
+
+/// A reading older than this is not acted on (a failed poll keeps the last one).
+const busStaleAfter = Duration(seconds: 90);
+
+/// This far from the boarding stop after the bus was near: the rider is on the bus, or gave up.
+const busLeftStopMetres = 300.0;
+
+/// A wait never lasts this long; the watch ends so the location service cannot run on.
+const busWatchLimit = Duration(minutes: 45);
+
+/// What one look at the arrivals means for the watch.
+enum BusWatchEvent { none, near, arriving, gone, left, stale }
+
+/// The one arrival being followed. LTA does not name a vehicle, so a bus is followed by when
+/// it is [due] at the stop; an earlier bus of the same service is then not mistaken for it.
+class BusTrack {
+  const BusTrack({
+    required this.service,
+    required this.due,
+    this.nearSent = false,
+    this.arrivingSent = false,
+    this.wasAtStop = false,
+  });
+  final String service;
+  final DateTime due;
+
+  /// The two alerts, each sent once for this bus.
+  final bool nearSent;
+  final bool arrivingSent;
+
+  /// The rider has been within [atStopMetres] of the stop.
+  final bool wasAtStop;
+
+  BusTrack copyWith({DateTime? due, bool? nearSent, bool? arrivingSent, bool? wasAtStop}) => BusTrack(
+        service: service,
+        due: due ?? this.due,
+        nearSent: nearSent ?? this.nearSent,
+        arrivingSent: arrivingSent ?? this.arrivingSent,
+        wasAtStop: wasAtStop ?? this.wasAtStop,
+      );
+}
+
+/// The track after a look, what to do about it, and the arrival followed (null when none).
+typedef BusWatchResult = ({BusTrack track, BusWatchEvent event, BusEta? eta});
+
+/// One look at the stop's arrivals ([etas]: every arrival, read at [fetchedAt]) and at how far
+/// the rider is from the stop ([metresToStop], null without location). In order: the rider has
+/// left the stop after the bus was near; the reading is too old to act on; the arrival of the
+/// service nearest to the tracked time is followed and alerts once at [busNearMinutes] and once
+/// on arriving; with none near that time the bus is gone when it had been near, and otherwise
+/// the next one of the service is followed.
+BusWatchResult busWatchStep(
+  BusTrack t,
+  List<BusEta> etas,
+  DateTime now, {
+  required DateTime? fetchedAt,
+  double? metresToStop,
+}) {
+  var track = t;
+  if (metresToStop != null) {
+    if (metresToStop < atStopMetres && !track.wasAtStop) track = track.copyWith(wasAtStop: true);
+    if (track.wasAtStop && track.nearSent && metresToStop > busLeftStopMetres) {
+      return (track: track, event: BusWatchEvent.left, eta: null);
+    }
+  }
+  if (fetchedAt == null || now.difference(fetchedAt) > busStaleAfter) {
+    return (track: track, event: BusWatchEvent.stale, eta: null);
+  }
+  DateTime dueOf(BusEta e) => fetchedAt.add(Duration(minutes: e.minutes));
+  final mine = [for (final e in etas) if (e.service == t.service) e];
+  BusEta? found;
+  for (final e in mine) {
+    final off = dueOf(e).difference(t.due).abs();
+    if (off > const Duration(minutes: busTrackToleranceMinutes)) continue;
+    if (found == null || off < dueOf(found).difference(t.due).abs()) found = e;
+  }
+  if (found == null) {
+    if (track.nearSent) return (track: track, event: BusWatchEvent.gone, eta: null);
+    BusEta? next;
+    for (final e in mine) {
+      if (dueOf(e).isAfter(t.due) && (next == null || e.minutes < next.minutes)) next = e;
+    }
+    return (track: next == null ? track : track.copyWith(due: dueOf(next)), event: BusWatchEvent.none, eta: next);
+  }
+  track = track.copyWith(due: dueOf(found));
+  if (found.minutes <= 0 && !track.arrivingSent) {
+    return (track: track.copyWith(nearSent: true, arrivingSent: true), event: BusWatchEvent.arriving, eta: found);
+  }
+  if (found.minutes <= busNearMinutes && !track.nearSent) {
+    return (track: track.copyWith(nearSent: true), event: BusWatchEvent.near, eta: found);
+  }
+  return (track: track, event: BusWatchEvent.none, eta: found);
+}
+
 /// One direct bus on a trip card. [tooSoon]: it comes before the walk to the stop is done.
 typedef TripBoardRow = ({BusEta eta, int? next, bool tooSoon});
 
