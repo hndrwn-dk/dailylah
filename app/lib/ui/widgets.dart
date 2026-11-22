@@ -1811,10 +1811,11 @@ abstract interface class OpensWithHeading {
 /// always had. On a wide window they keep their order: each run of cards between two
 /// [FullWidth] children is split once, where the two columns come out closest in height, and
 /// reads down the left column and then down the right one. A [SectionTitle], a [KeepWithNext]
-/// child or an empty `SizedBox` spacer stays in the column of the card after it. A heading (a
-/// [SectionTitle], or a child that [OpensWithHeading]) at the top of the right column is moved
-/// up by the space above it, so it lines up with the card at the top of the left column instead
-/// of floating below it; with a heading on top of both columns the two line up.
+/// child or an empty `SizedBox` spacer stays in the column of the card after it. Where a run
+/// splits into two columns, a heading (a [SectionTitle], or a child that [OpensWithHeading]) on
+/// top of one column is moved up by the extra space above it, so both columns start at the same
+/// line: a heading lines up with the card beside it instead of floating below it, and two
+/// headings line up with each other.
 ///
 /// Both layouts are the same widgets, so folding, unfolding and turning the phone keep the
 /// state of the cards (an opened list, a typed text).
@@ -1951,13 +1952,14 @@ class _RenderColumns extends RenderBox
       }
       final heights = [for (var n = i; n < end; n++) heightOf(boxes[n], column)];
       final k = splitColumns(heights, _leads.sublist(i, end));
-      var left = 0.0;
-      // A heading on top of the right column goes up to the top of the left column's first card
-      // (or to the left column's heading, when that column opens with one too).
-      // A child that shows nothing (an empty card) is not lifted.
-      double gap(int n) => heights[n] > _gaps[i + n] ? _gaps[i + n] : 0.0;
-      final rightGap = k < heights.length ? gap(k) : 0.0;
-      var right = rightGap > 0 ? gap(0) - rightGap : 0.0;
+      // Where the run has two columns, the one whose top child has more space above its heading
+      // goes up by the difference, so both columns start at the same line: a heading beside a
+      // card goes up to the card's top; two headings stay where they are. A child that shows
+      // nothing (an empty card) is not lifted.
+      double gap(int n) => k < heights.length && heights[n] > _gaps[i + n] ? _gaps[i + n] : 0.0;
+      final both = k < heights.length ? (gap(0) < gap(k) ? gap(0) : gap(k)) : 0.0;
+      var left = both - gap(0);
+      var right = k < heights.length ? both - gap(k) : 0.0;
       for (var n = 0; n < heights.length; n++) {
         if (n < k) {
           place?.call(boxes[i + n], Offset(0, y + left));

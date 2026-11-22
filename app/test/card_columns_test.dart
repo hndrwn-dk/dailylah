@@ -148,8 +148,20 @@ void main() {
       _card('b', 280),
     ]);
     expect(_rect(tester, 'right').top, _rect(tester, 'left').top);
+    // Already level: neither is lifted.
+    expect(_rect(tester, 'left').top, 0);
     await _pump(tester, 880, [_card('a', 300), const _Headed(key: Key('empty'), height: 0), _card('b', 260)]);
     expect(_rect(tester, 'b').top, _rect(tester, 'a').top);
+  });
+
+  testWidgets('880 dp: a heading on top of the left column lines up with the card on the right', (tester) async {
+    await _pump(tester, 880, [
+      const SectionTitle('Help', key: Key('title')),
+      _card('a', 200),
+      _card('b', 260),
+    ]);
+    expect(_rect(tester, 'b').left, greaterThan(440));
+    expect(_rect(tester, 'title').top, _rect(tester, 'b').top - 20);
   });
 
   testWidgets('880 dp: a heading marked KeepWithNext stays above its card', (tester) async {
@@ -208,6 +220,24 @@ void main() {
       expect(find.text('kept'), findsOneWidget);
       expect(tester.state(find.byType(TextField)), same(state));
     }
+  });
+
+  testWidgets('Nearby > Eat on a fold: hawkers left, halal right, the two headings level', (tester) async {
+    const c = Condition('fold', size: Size(880, 600));
+    await applyCondition(tester, c);
+    await tester.pumpWidget(appUnder(c, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    containerOf(tester)
+      ..read(shellTabProvider.notifier).state = 1
+      ..read(nearbySectionProvider.notifier).state = 'eat';
+    await settle(tester);
+    final strings = containerOf(tester).read(stringsProvider);
+    final eat = tester.getRect(find.widgetWithText(SectionTitle, strings.eat));
+    final halal = tester.getRect(find.widgetWithText(SectionTitle, strings.halalNearby));
+    expect(eat.right, lessThan(440));
+    expect(halal.left, greaterThan(440));
+    Finder title(String t) => find.descendant(of: find.byType(SectionTitle), matching: find.text(t));
+    expect(tester.getCenter(title(strings.eat)).dy, tester.getCenter(title(strings.halalNearby)).dy);
   });
 
   testWidgets('the tabs fade under the status bar as under the tab bar, and taps go through', (tester) async {

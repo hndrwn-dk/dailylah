@@ -40,9 +40,11 @@ relative to `app/` unless they start with a top-level folder. File and symbol in
   are closest, `splitColumns`). A child wrapped in `FullWidth` spans both columns (banners, a row of
   tiles, a section's heading, notes; also a section widget that has its own `CardColumns`); a
   `SectionTitle`, a child wrapped in `KeepWithNext` (any other heading) or an empty `SizedBox` stays with
-  the card after it; a heading on top of the right column (a `SectionTitle`, or a card that `OpensWithHeading`
-  such as Today's weekend card) is lifted by the space above it so it lines up with the left column's first
-  card; a `CardColumns` inside one of
+  the card after it; where a run splits, the column whose top heading (a `SectionTitle`, or a card that
+  `OpensWithHeading` such as Today's weekend card) has more space above it is lifted by the difference, so
+  both columns start level (a heading beside a card, or two headings); a section whose two lists each have a
+  heading keeps each heading with its list when wide (Nearby > Eat puts its notes above both); a
+  `CardColumns` inside one of
   the two columns just stacks. One and two columns are the same widgets, so fold, unfold and
   rotation keep scroll position and card state. A new tab section puts its cards in a `CardColumns`.
   When the window changes width (fold, unfold, turn) `FoldBlur` blurs the app for a moment and clears in

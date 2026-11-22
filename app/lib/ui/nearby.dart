@@ -9,6 +9,7 @@ import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
 import 'address_picker.dart';
+import 'app_frame.dart' show isWide;
 import 'bus_sheet.dart';
 import 'ev.dart';
 import 'home.dart' show NearGroup, NearItem;
@@ -543,13 +544,15 @@ class _EatSection extends ConsumerWidget {
           ],
         );
 
+    final eatTitle = SectionTitle(s.eat,
+        trailingAtEnd: true, trailing: _seeAll(s, () => _openFull(context, s.hawkers, _HawkerTab(place: place))));
+    // On a phone the notes sit between the heading and the hawkers. On a wide window they go above
+    // both columns, and each heading stays with its own list (hawkers left, halal right), so the
+    // two headings line up instead of one spanning the page and the other starting lower.
+    final wide = isWide(context);
     return CardColumns(
       children: [
-        FullWidth(
-          child: SectionTitle(s.eat,
-              trailingAtEnd: true,
-              trailing: _seeAll(s, () => _openFull(context, s.hawkers, _HawkerTab(place: place)))),
-        ),
+        if (!wide) eatTitle,
         if (fav.learnHabits)
           if (mealNudge(ref.watch(habitsProvider).meals, all, DateTime.now(), place.lat, place.lng) case final n?)
             FullWidth(
@@ -570,6 +573,7 @@ class _EatSection extends ConsumerWidget {
           ),
           ),
         ],
+        if (wide) eatTitle,
         Panel(
           child: Column(
             children: [

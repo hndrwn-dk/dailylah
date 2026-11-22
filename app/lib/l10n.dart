@@ -1096,7 +1096,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        'Foldables: opening or closing the phone softly blurs the screen until the new layout is in place, the weekend heading lines up with the cards beside it, and cards fade under the status bar as they do above the tab bar.',
+        'Foldables: opening or closing the phone softly blurs the screen until the new layout is in place, headings on Today and Nearby line up with the cards beside them, and cards fade under the status bar as they do above the tab bar.',
       ];
 
   // about
