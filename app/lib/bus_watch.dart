@@ -27,6 +27,7 @@ class BusWatchState {
     this.stopsAway,
     this.metresToStop,
     this.background = false,
+    this.asked = false,
     this.done = false,
     this.stale = false,
   });
@@ -56,6 +57,9 @@ class BusWatchState {
   /// The location service runs, so the watch goes on with the screen off.
   final bool background;
 
+  /// The rider was asked for location for this watch (a bell tap), whatever the answer.
+  final bool asked;
+
   /// The bus has come and gone, or the rider has left the stop: nothing is watched any more.
   final bool done;
 
@@ -65,6 +69,7 @@ class BusWatchState {
   BusWatchState copyWith({
     BusTrack? track,
     BusEta? eta,
+    bool clearEta = false,
     DateTime? fetchedAt,
     int? stopsAway,
     bool clearStopsAway = false,
@@ -80,11 +85,12 @@ class BusWatchState {
         alight: alight,
         started: started,
         track: track ?? this.track,
-        eta: eta ?? this.eta,
+        eta: clearEta ? null : (eta ?? this.eta),
         fetchedAt: fetchedAt ?? this.fetchedAt,
         stopsAway: clearStopsAway ? null : (stopsAway ?? this.stopsAway),
         metresToStop: metresToStop ?? this.metresToStop,
         background: background ?? this.background,
+        asked: asked,
         done: done ?? this.done,
         stale: stale ?? this.stale,
       );
@@ -100,6 +106,10 @@ class BusWatchNotifier extends Notifier<BusWatchState?> {
 
   /// What the ongoing notification shows now, so it is only rewritten when that changes.
   String? _watchShown;
+
+  /// Counts starts and stops: a start that waited (for the store, a permission prompt) goes on
+  /// only while it is still the latest, so an older one never leaves a timer or a stream behind.
+  int _run = 0;
 
   @override
   BusWatchState? build() {
@@ -118,6 +128,7 @@ class BusWatchNotifier extends Notifier<BusWatchState?> {
   }
 
   void _cancel() {
+    _run++;
     _sub?.cancel();
     _sub = null;
     _tick?.cancel();
@@ -142,6 +153,7 @@ class BusWatchNotifier extends Notifier<BusWatchState?> {
     if (!ref.read(favoritesProvider).busAlerts) return;
     if (ref.read(wakeProvider) != null || ref.read(rideProvider) != null) return;
     _cancel();
+    final run = _run;
     _etas = const [];
     final at = now ?? DateTime.now();
     state = BusWatchState(
@@ -150,16 +162,25 @@ class BusWatchNotifier extends Notifier<BusWatchState?> {
       alight: alight,
       toLabel: toLabel,
       started: at,
+      asked: ask,
       track: BusTrack(service: service, due: at.add(Duration(minutes: minutes))),
     );
-    await ref.read(habitsProvider.notifier).setTripBus(stop.code, service);
     _limit = Timer(busWatchLimit, this.stop);
     _tick = Timer.periodic(busRefreshEvery, (_) => pollAt(DateTime.now()));
+    await ref.read(habitsProvider.notifier).setTripBus(stop.code, service);
+    if (run != _run) return;
     try {
       var perm = await Geolocator.checkPermission();
-      if (ask && perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
+      if (run != _run) return;
+      if (ask && perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+        if (run != _run) return;
+      }
       if (perm == LocationPermission.always || perm == LocationPermission.whileInUse) {
-        if (ask) await requestNotificationPermission();
+        if (ask) {
+          await requestNotificationPermission();
+          if (run != _run) return;
+        }
         final s = ref.read(stringsProvider);
         _sub = Geolocator.getPositionStream(
           locationSettings: AndroidSettings(
@@ -173,11 +194,12 @@ class BusWatchNotifier extends Notifier<BusWatchState?> {
             ),
           ),
         ).listen(_onFix, onError: (_) {});
-        if (state?.service == service) state = state?.copyWith(background: true);
+        state = state?.copyWith(background: true);
       }
     } on Object {
       // No location: the countdown still runs while the app is open.
     }
+    if (run != _run) return;
     await pollAt(at);
   }
 
@@ -229,6 +251,8 @@ class BusWatchNotifier extends Notifier<BusWatchState?> {
         state = st.copyWith(
           track: r.track,
           eta: eta,
+          // Not among the arrivals at this look: no minutes are shown rather than old ones.
+          clearEta: eta == null,
           stale: false,
           stopsAway: where?.stopsAway,
           clearStopsAway: where?.stopsAway == null,

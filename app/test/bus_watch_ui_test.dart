@@ -12,6 +12,7 @@ import 'package:dailylah/wake_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:geolocator/geolocator.dart';
 
 import 'support/harness.dart';
 
@@ -116,6 +117,22 @@ void main() {
       await _end(tester, box);
     });
 
+    testWidgets('without location the filled bell first asks, and only the next tap stops', (tester) async {
+      const denied = Condition('location denied', location: LocationPermission.denied);
+      final box = await _plan(tester, c: denied);
+      await _tap(tester, find.text(_s.imLeaving));
+      expect(box.read(busWatchProvider)?.background, isFalse);
+      expect(find.text(_s.busAlertsNeedLocation), findsOneWidget);
+      // The hint says to tap a bell: on the watched row that tap asks, it does not switch off.
+      await _tap(tester, find.byTooltip(_s.busAlertAsk));
+      expect(box.read(busWatchProvider)?.service, '10', reason: 'still watching');
+      expect(box.read(busWatchProvider)?.asked, isTrue);
+      expect(find.text(_s.busAlertsNeedLocation), findsNothing, reason: 'asked once; not offered again');
+      await _tap(tester, find.byTooltip(_s.busAlertStop));
+      expect(box.read(busWatchProvider), isNull);
+      await _end(tester, box);
+    });
+
     testWidgets('a trip to the current location keeps no destination and has no bells', (tester) async {
       final box = await _plan(tester, toHere: true);
       await _tap(tester, find.text(_s.imLeaving));
@@ -210,6 +227,9 @@ void main() {
       final box = await running(tester);
       expect(find.byTooltip(_s.tripCancel), findsOneWidget);
       expect(find.text(_s.arrived), findsOneWidget);
+      // What opens something shows it: a chevron beside the trip.
+      expect(find.descendant(of: find.byType(TripBanner), matching: find.byIcon(Icons.chevron_right)),
+          findsOneWidget);
       await tester.tap(find.text('Home → Fullerton'));
       await settle(tester);
       expect(find.byType(RunningTripPage), findsOneWidget);
@@ -240,6 +260,8 @@ void main() {
       await tester.tap(find.text('Home → Fullerton'));
       await settle(tester);
       expect(find.byType(RunningTripPage), findsNothing);
+      expect(find.descendant(of: find.byType(TripBanner), matching: find.byIcon(Icons.chevron_right)),
+          findsNothing);
       expect(find.textContaining('On the way since'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await _end(tester, box);

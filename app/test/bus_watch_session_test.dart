@@ -1,5 +1,7 @@
 // Bus arriving: the session that watches one bus of the running trip (busWatchProvider),
 // driven poll by poll the way the timer drives it.
+import 'dart:async';
+
 import 'package:dailylah/bus_watch.dart';
 import 'package:dailylah/logic.dart';
 import 'package:dailylah/models.dart';
@@ -52,6 +54,18 @@ class _Geo extends FakeGeolocator {
   int asked = 0;
   int streams = 0;
 
+  /// Position streams being listened to now: each one keeps the location service running.
+  int listening = 0;
+
+  /// When set, the permission check waits for it (a prompt that is still open).
+  Completer<void>? prompt;
+
+  @override
+  Future<LocationPermission> checkPermission() async {
+    if (prompt case final g?) await g.future;
+    return permission;
+  }
+
   @override
   Future<LocationPermission> requestPermission() async {
     asked++;
@@ -61,7 +75,18 @@ class _Geo extends FakeGeolocator {
   @override
   Stream<Position> getPositionStream({LocationSettings? locationSettings}) {
     streams++;
-    return super.getPositionStream(locationSettings: locationSettings);
+    if (permission != LocationPermission.always && permission != LocationPermission.whileInUse) {
+      return super.getPositionStream(locationSettings: locationSettings);
+    }
+    late final StreamController<Position> out;
+    out = StreamController<Position>(
+      onListen: () async {
+        listening++;
+        out.add(await getCurrentPosition());
+      },
+      onCancel: () => listening--,
+    );
+    return out.stream;
   }
 }
 
@@ -132,8 +157,10 @@ void main() {
     expect(box.read(habitsProvider).tripBus, '197');
     await poll(20);
     expect(shown, isEmpty);
-    expect(ongoing, hasLength(1), reason: 'the same pills are written once');
-    expect(pills(ongoing.single).take(2), ['197', '5 min']);
+    final written = ongoing.length;
+    await poll(40);
+    expect(ongoing, hasLength(written), reason: 'the same pills are not written again');
+    expect(pills(ongoing.last), ['197', '5 min', 'At the stop']);
 
     api.arrivals = {'197': [2]};
     await poll(180);
@@ -188,11 +215,14 @@ void main() {
     api.arrivals = {'197': [2]};
     await watch('197', 2);
     api.arrivals = {'197': [14]};
-    await poll(240);
+    await poll(60);
+    expect(state()?.done, isFalse, reason: 'one reading without it is not enough');
+    await poll(90);
     expect(state()?.done, isTrue);
     expect(state()?.service, '197');
+    expect(geo.listening, 0, reason: 'the location service is released');
     final calls = api.calls;
-    await poll(270);
+    await poll(120);
     expect(api.calls, calls);
   });
 
@@ -229,6 +259,45 @@ void main() {
     await watch('197', 5, ask: true);
     expect(geo.asked, 1, reason: 'a bell tap may ask');
     expect(state()?.background, isFalse);
+  });
+
+  test('no arrival for the bus: the minutes go, they do not freeze', () async {
+    await open();
+    await watch('197', 5);
+    expect(state()?.eta?.minutes, 5);
+    api.arrivals = {'48': [3]};
+    await poll(30);
+    expect(state()?.eta, isNull);
+    expect(state()?.stale, isFalse);
+    expect(pills(ongoing.last).take(2), ['197', 'No arrival time']);
+  });
+
+  test('a second pick while the first is still starting leaves one stream, and stop ends it', () async {
+    await open();
+    geo.prompt = Completer<void>();
+    final first = watch('197', 5);
+    final second = watch('48', 9);
+    geo.prompt!.complete();
+    await Future.wait([first, second]);
+    await Future<void>.delayed(Duration.zero);
+    expect(state()?.service, '48');
+    expect(geo.listening, 1);
+    box.read(busWatchProvider.notifier).stop();
+    await Future<void>.delayed(Duration.zero);
+    expect(geo.listening, 0, reason: 'nothing keeps the location service running');
+  });
+
+  test('stopped while the permission prompt is open: nothing starts afterwards', () async {
+    await open();
+    geo.prompt = Completer<void>();
+    final starting = watch('197', 5, ask: true);
+    await Future<void>.delayed(Duration.zero);
+    box.read(busWatchProvider.notifier).stop();
+    geo.prompt!.complete();
+    await starting;
+    await Future<void>.delayed(Duration.zero);
+    expect(state(), isNull);
+    expect(geo.listening, 0);
   });
 
   test('switch off: nothing is watched', () async {

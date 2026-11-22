@@ -9,6 +9,7 @@
 //   Senior             the largest text, every permission denied
 //
 // A new feature adds its case to the persona it matters to.
+import 'package:dailylah/bus_watch.dart';
 import 'package:dailylah/l10n.dart';
 import 'package:dailylah/logic.dart';
 import 'package:dailylah/main.dart';
@@ -509,6 +510,56 @@ void main() {
         }
       });
     }
+  });
+
+  group('Homemaker, a day out', () {
+    testWidgets('Plans a bus trip on a Saturday, leaves, and checks her bus from Today without the planner',
+        (tester) async {
+      // Service 10 along Marine Parade Road (web/data/bus_routes.json), six stops.
+      const from = Place(kind: PlaceKind.other, name: 'Siglap Sth CC', addrLat: 1.313904, addrLng: 103.931711);
+      const to = Place(kind: PlaceKind.other, name: "St. Patrick's Green", addrLat: 1.309281, addrLng: 103.914345);
+      await applyCondition(tester, _normal);
+      await tester.pumpWidget(appUnder(_normal, householdFavorites, saturdayMorning));
+      await settle(tester);
+      final box = containerOf(tester);
+      final nav = Navigator.of(tester.element(find.byType(TodayPage)));
+      nav.push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+      await settle(tester);
+      box.read(goPicksProvider.notifier).state++;
+      box.read(goAdhocFromProvider.notifier).state = from;
+      box.read(goAdhocDestProvider.notifier).state = to;
+      box.read(goFromKeyProvider.notifier).state = 'adhoc';
+      box.read(goKeyProvider.notifier).state = 'adhoc';
+      await settle(tester);
+      final leaving = find.text(_s.imLeaving);
+      await Scrollable.ensureVisible(tester.element(leaving), alignment: 0.5);
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(leaving);
+      await settle(tester);
+      expect(box.read(busWatchProvider)?.service, '10', reason: 'her bus is watched from I\'m leaving');
+
+      // Back on Today: the bus is in the trip bar and its board is under the weather.
+      nav.pop();
+      await settle(tester);
+      final bar = find.byType(TripBanner);
+      expect(find.descendant(of: bar, matching: find.textContaining(RegExp(r'^10 (in \d+ min|arriving)'))),
+          findsOneWidget);
+      expect(find.byType(TripBusCard, skipOffstage: false), findsOneWidget);
+
+      // One tap on the bar: the buses again, with no From and To to scroll past.
+      await tester.tap(find.descendant(of: bar, matching: find.textContaining("St. Patrick's Green")));
+      await settle(tester);
+      expect(find.byType(RunningTripPage), findsOneWidget);
+      expect(find.byTooltip(_s.busAlertStop), findsOneWidget);
+      expect(find.text(_s.swapEnds), findsNothing);
+
+      // Stop timing ends the watch with the trip, and the page closes.
+      await tester.tap(find.byTooltip(_s.tripCancel).first);
+      await settle(tester);
+      expect(box.read(busWatchProvider), isNull);
+      expect(find.byType(RunningTripPage), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   group('Homemaker, at home', () {

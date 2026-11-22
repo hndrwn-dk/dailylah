@@ -2587,12 +2587,21 @@ class BusTrack {
   const BusTrack({
     required this.service,
     required this.due,
+    this.ahead,
+    this.misses = 0,
     this.nearSent = false,
     this.arrivingSent = false,
     this.wasAtStop = false,
   });
   final String service;
   final DateTime due;
+
+  /// When the bus of the same service just ahead of the watched one is due, null when there is
+  /// none (or it has left). It keeps the two apart when both times move.
+  final DateTime? ahead;
+
+  /// Looks in a row at which the watched bus was not among the arrivals.
+  final int misses;
 
   /// The two alerts, each sent once for this bus.
   final bool nearSent;
@@ -2601,9 +2610,20 @@ class BusTrack {
   /// The rider has been within [atStopMetres] of the stop.
   final bool wasAtStop;
 
-  BusTrack copyWith({DateTime? due, bool? nearSent, bool? arrivingSent, bool? wasAtStop}) => BusTrack(
+  BusTrack copyWith({
+    DateTime? due,
+    DateTime? ahead,
+    bool clearAhead = false,
+    int? misses,
+    bool? nearSent,
+    bool? arrivingSent,
+    bool? wasAtStop,
+  }) =>
+      BusTrack(
         service: service,
         due: due ?? this.due,
+        ahead: clearAhead ? null : (ahead ?? this.ahead),
+        misses: misses ?? this.misses,
         nearSent: nearSent ?? this.nearSent,
         arrivingSent: arrivingSent ?? this.arrivingSent,
         wasAtStop: wasAtStop ?? this.wasAtStop,
@@ -2616,9 +2636,11 @@ typedef BusWatchResult = ({BusTrack track, BusWatchEvent event, BusEta? eta});
 /// One look at the stop's arrivals ([etas]: every arrival, read at [fetchedAt]) and at how far
 /// the rider is from the stop ([metresToStop], null without location). In order: the rider has
 /// left the stop after the bus was near; the reading is too old to act on; the arrival of the
-/// service nearest to the tracked time is followed and alerts once at [busNearMinutes] and once
-/// on arriving; with none near that time the bus is gone when it had been near, and otherwise
-/// the next one of the service is followed.
+/// service nearest to the tracked time (behind the bus ahead, while that one is still coming) is
+/// followed and alerts once at [busNearMinutes] and once on arriving; with none near that time
+/// the bus is gone once it had been near and is missing twice in a row or well past its time,
+/// and otherwise the next one of the service is followed. [eta] is null when the watched bus is
+/// not among the arrivals.
 BusWatchResult busWatchStep(
   BusTrack t,
   List<BusEta> etas,
@@ -2637,22 +2659,64 @@ BusWatchResult busWatchStep(
     return (track: track, event: BusWatchEvent.stale, eta: null);
   }
   DateTime dueOf(BusEta e) => fetchedAt.add(Duration(minutes: e.minutes));
-  final mine = [for (final e in etas) if (e.service == t.service) e];
-  BusEta? found;
-  for (final e in mine) {
-    final off = dueOf(e).difference(t.due).abs();
-    if (off > const Duration(minutes: busTrackToleranceMinutes)) continue;
-    if (found == null || off < dueOf(found).difference(t.due).abs()) found = e;
+  const tolerance = Duration(minutes: busTrackToleranceMinutes);
+  final mine = [for (final e in etas) if (e.service == t.service) e]..sort((a, b) => a.minutes.compareTo(b.minutes));
+  Duration off(BusEta e, DateTime at) => dueOf(e).difference(at).abs();
+
+  // The bus just ahead, while it is still coming: the watched bus is then one after it, so the
+  // two are not swapped when both times move. Once it is well past its time it has left.
+  var from = 0;
+  final ahead = t.ahead;
+  if (ahead != null && !now.isAfter(ahead.add(const Duration(minutes: 1)))) {
+    int? at;
+    for (var i = 0; i < mine.length - 1; i++) {
+      if (off(mine[i], ahead) > tolerance) continue;
+      if (at == null || off(mine[i], ahead) < off(mine[at], ahead)) at = i;
+    }
+    // Only when a bus behind it can still be the watched one; else the first is the watched one.
+    if (at != null && mine.skip(at + 1).any((e) => off(e, t.due) <= tolerance)) from = at + 1;
   }
+  BusEta? found;
+  var index = -1;
+  for (var i = from; i < mine.length; i++) {
+    if (off(mine[i], t.due) > tolerance) continue;
+    if (found == null || off(mine[i], t.due) < off(found, t.due)) {
+      found = mine[i];
+      index = i;
+    }
+  }
+  // Once it was arriving, a bus still minutes away is the next one, not this one.
+  if (found != null && track.arrivingSent && found.minutes > busNearMinutes) found = null;
   if (found == null) {
-    if (track.nearSent) return (track: track, event: BusWatchEvent.gone, eta: null);
+    if (track.nearSent) {
+      // It was near and is not in the list: gone when that is so twice in a row (LTA drops a
+      // service for one reading now and then) or it is well past its time.
+      final misses = track.misses + 1;
+      final late = now.isAfter(t.due.add(const Duration(minutes: 1)));
+      final gone = misses >= 2 || late;
+      return (
+        track: track.copyWith(misses: misses),
+        event: gone ? BusWatchEvent.gone : BusWatchEvent.none,
+        eta: null,
+      );
+    }
+    // Not near yet: follow the next bus of the service after the time it was due.
     BusEta? next;
     for (final e in mine) {
-      if (dueOf(e).isAfter(t.due) && (next == null || e.minutes < next.minutes)) next = e;
+      if (dueOf(e).isAfter(t.due)) {
+        next = e;
+        break;
+      }
     }
-    return (track: next == null ? track : track.copyWith(due: dueOf(next)), event: BusWatchEvent.none, eta: next);
+    return (
+      track: next == null ? track : track.copyWith(due: dueOf(next), clearAhead: true, misses: 0),
+      event: BusWatchEvent.none,
+      eta: next,
+    );
   }
-  track = track.copyWith(due: dueOf(found));
+  track = index > 0
+      ? track.copyWith(due: dueOf(found), ahead: dueOf(mine[index - 1]), misses: 0)
+      : track.copyWith(due: dueOf(found), clearAhead: true, misses: 0);
   if (found.minutes <= 0 && !track.arrivingSent) {
     return (track: track.copyWith(nearSent: true, arrivingSent: true), event: BusWatchEvent.arriving, eta: found);
   }
@@ -4561,7 +4625,9 @@ RichNote busWatchNote(
         if (staleSince != null)
           NotePill(s.busUpdatedPill(clockLabel(staleSince)), PillTone.amber)
         else if (minutes != null)
-          NotePill(minutes <= 0 ? s.busArrivingPill : s.busMinPill(minutes), PillTone.teal),
+          NotePill(minutes <= 0 ? s.busArrivingPill : s.busMinPill(minutes), PillTone.teal)
+        else
+          NotePill(s.busNoTimePill, PillTone.amber),
         if (stopsAway != null)
           NotePill(s.busStopsAwayPill(stopsAway), PillTone.sky)
         else if (metresToStop != null)

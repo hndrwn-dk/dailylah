@@ -1063,13 +1063,16 @@ class TripBusCard extends ConsumerWidget {
                         !watch.done &&
                         watch.stop.code == stop.code &&
                         watch.service == r.eta.service;
+                    // Watched in the app only and never asked: this bell first asks for what the
+                    // screen-off alert needs; it stops the watch only after that.
+                    final canAsk = on && !watch.background && !watch.asked;
                     return BoardBell(
                       on: on,
-                      tooltip: on ? s.busAlertStop : s.busAlertMe,
+                      tooltip: canAsk ? s.busAlertAsk : (on ? s.busAlertStop : s.busAlertMe),
                       label: on ? s.busAlerting : null,
                       onTap: () async {
                         final notifier = ref.read(busWatchProvider.notifier);
-                        if (on) {
+                        if (on && !canAsk) {
                           notifier.stop();
                           await ref.read(habitsProvider.notifier).setTripBus(stop.code, null);
                           return;
@@ -1204,7 +1207,7 @@ class TripBusCard extends ConsumerWidget {
                         if (lb != null) _LeaveCard(lb: lb),
                         board,
                         // Bus arriving without the location service: only while the app is open.
-                        if (bells && watch != null && !watch.done && !watch.background)
+                        if (bells && watch != null && !watch.done && !watch.background && !watch.asked)
                           Padding(
                             padding: const EdgeInsets.fromLTRB(4, 0, 8, 6),
                             child: Text(s.busAlertsNeedLocation, style: t.bodySmall),
@@ -1992,9 +1995,12 @@ class TripBanner extends ConsumerWidget {
     // Bus arriving: the watched bus takes the second line; once it has gone, Wake me is offered.
     final watch = ref.watch(busWatchProvider);
     final eta = watch == null || watch.done ? null : watch.eta;
-    final busLine = watch == null || eta == null
+    final busLine = watch == null || watch.done
         ? null
-        : watch.stale
+        : eta == null
+            // Watched, but not among the arrivals now (or none read yet).
+            ? (watch.fetchedAt == null ? null : s.busBannerNoTime(watch.service))
+            : watch.stale
             ? s.busBannerUpdated(watch.service, clockLabel(watch.fetchedAt ?? watch.started))
             : [
                 eta.minutes <= 0 ? s.busBannerArriving(watch.service) : s.busBannerIn(watch.service, eta.minutes),
@@ -2019,18 +2025,22 @@ class TripBanner extends ConsumerWidget {
                   children: [
                     Text(s.routeLabel(s.routeEnd(ends.$1), s.routeEnd(ends.$2)),
                         style: t.titleSmall?.copyWith(color: DL.ink), maxLines: 2, overflow: TextOverflow.ellipsis),
-                    Text(busLine ?? s.onTheWay(clockLabel(start), s.durationShort(now.difference(start).inMinutes)),
-                        style: t.bodySmall?.copyWith(color: DL.ink)),
+                    // The Wake me offer takes this line's place once the bus has gone.
+                    if (wakeAt == null)
+                      Text(busLine ?? s.onTheWay(clockLabel(start), s.durationShort(now.difference(start).inMinutes)),
+                          style: t.bodySmall?.copyWith(color: DL.ink)),
                   ],
                 ),
               ),
+              // What opens something shows it.
+              if (canOpen) const Icon(Icons.chevron_right, color: DL.ink),
             ],
           );
           final opener = !canOpen
               ? text
               : Semantics(
                   button: true,
-                  hint: s.openTrip,
+                  label: s.openTrip,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(8),
                     onTap: () => Navigator.of(context)

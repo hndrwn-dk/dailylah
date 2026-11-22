@@ -12,9 +12,11 @@ final _now = DateTime(2026, 11, 22, 12, 10);
 
 BusEta _eta(String service, int minutes) => BusEta(service: service, minutes: minutes, load: 'SEA');
 
-BusTrack _track(int dueIn, {bool nearSent = false, bool arrivingSent = false, bool wasAtStop = false}) => BusTrack(
+BusTrack _track(int dueIn, {bool nearSent = false, bool arrivingSent = false, bool wasAtStop = false, int? ahead}) =>
+    BusTrack(
       service: '197',
       due: _now.add(Duration(minutes: dueIn)),
+      ahead: ahead == null ? null : _now.add(Duration(minutes: ahead)),
       nearSent: nearSent,
       arrivingSent: arrivingSent,
       wasAtStop: wasAtStop,
@@ -61,9 +63,44 @@ void main() {
       expect(r.track.due, _now.add(const Duration(minutes: 8)));
     });
 
-    test('gone', () {
-      expect(_step(_track(1, nearSent: true), [_eta('197', 14)]).event, BusWatchEvent.gone);
-      expect(_step(_track(1, nearSent: true), [_eta('48', 3)]).event, BusWatchEvent.gone);
+    test('gone: after two looks without it, not after one', () {
+      // LTA drops a service for one reading now and then: that must not end the watch.
+      final first = _step(_track(1, nearSent: true), const []);
+      expect(first.event, BusWatchEvent.none);
+      expect(first.eta, isNull);
+      expect(_step(first.track, [_eta('197', 14)]).event, BusWatchEvent.gone);
+      // It comes back at the next look: still watched, and the count starts again.
+      final back = _step(first.track, [_eta('197', 1)]);
+      expect(back.event, BusWatchEvent.none);
+      expect(back.eta?.minutes, 1);
+      expect(_step(back.track, [_eta('48', 3)]).event, BusWatchEvent.none);
+    });
+
+    test('gone at once when it is well past its time', () {
+      expect(_step(_track(-2, nearSent: true), [_eta('197', 14)]).event, BusWatchEvent.gone);
+    });
+
+    test('slipping: the bus ahead stays the bus ahead when both times move', () {
+      // Buses at 4 and 6 min, the 6 is watched; the next reading says 3 and 8.
+      final learned = _step(_track(6), [_eta('197', 4), _eta('197', 6)]);
+      expect(learned.eta?.minutes, 6);
+      expect(learned.track.ahead, _now.add(const Duration(minutes: 4)));
+      final r = _step(learned.track, [_eta('197', 3), _eta('197', 8)]);
+      expect(r.eta?.minutes, 8, reason: 'not the earlier bus');
+      expect(r.event, BusWatchEvent.none);
+    });
+
+    test('the bus ahead has left: the watched one is now the first', () {
+      final r = _step(_track(5, ahead: 0), [_eta('197', 5), _eta('197', 14)]);
+      expect(r.eta?.minutes, 5);
+      expect(r.track.ahead, isNull);
+    });
+
+    test('after arriving, the next bus is not taken for it', () {
+      final r = _step(_track(0, nearSent: true, arrivingSent: true), [_eta('197', 3)]);
+      expect(r.eta, isNull);
+      expect(r.event, BusWatchEvent.none);
+      expect(_step(r.track, [_eta('197', 3)]).event, BusWatchEvent.gone);
     });
 
     test('re-anchors before near', () {
@@ -149,6 +186,7 @@ void main() {
       expect(texts(busWatchNote(s, service: '197', stop: stop, minutes: 5, metresToStop: 40))[2], 'At the stop');
       expect(texts(busWatchNote(s, service: '197', stop: stop, minutes: 5, metresToStop: 340))[2], '350 m to the stop');
       expect(texts(busWatchNote(s, service: '197', stop: stop, minutes: 5)), ['197', '5 min']);
+      expect(texts(busWatchNote(s, service: '197', stop: stop)), ['197', 'No arrival time']);
     });
   });
 

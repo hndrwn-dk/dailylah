@@ -570,6 +570,9 @@ class S {
   String get busAlertMe => 'Alert me when this bus is arriving';
   String get busAlerting => 'Alerting';
   String get busAlertStop => 'Stop alerting';
+  String get busAlertAsk => 'Alert me with the screen off';
+  String get busNoTimePill => 'No arrival time';
+  String busBannerNoTime(String service) => '$service · no arrival time';
   String busBannerIn(String service, int minutes) => '$service in $minutes min';
   String busBannerArriving(String service) => '$service arriving';
   String busBannerUpdated(String service, String clock) => '$service · Updated $clock';

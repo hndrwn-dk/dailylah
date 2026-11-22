@@ -349,14 +349,14 @@ feature, screen, provider or rule moves, appears or goes away.
   bus without asking for any permission: with location already allowed on geolocator's foreground service,
   else only while the app is open. It polls the stop every `busRefreshEvery` and follows one arrival by its
   expected time (`busWatchStep`, `BusTrack`, `busTrackToleranceMinutes`: an earlier bus of the same service is
-  ignored), alerts once at `busNearMinutes` and once on arriving (`busNearNote`, `busArrivingNote`, both ID 24),
+  ignored, and `BusTrack.ahead`, the bus just ahead, keeps the two apart when both times move), alerts once at `busNearMinutes` and once on arriving (`busNearNote`, `busArrivingNote`, both ID 24),
   keeps the ongoing notification as pills (`busWatchNote`: bus, minutes or "Updated HH:mm" once the reading is
-  older than `busStaleAfter`, stops away or metres to the stop), and ends when the bus is gone, the rider has
+  older than `busStaleAfter`, stops away or metres to the stop), and ends when the bus is gone (missing from two readings in a row after it was near, or well past its time), the rider has
   left the stop after it was near (`busLeftStopMetres`; the position is only compared with the stop, in
   memory), the trip ends, Wake me or I'm on the train starts, or after `busWatchLimit`. While the trip runs,
   each direct row of its board has a bell in place of the chevron (`BoardRow.bell`, `BoardBell`; "Alerting" on
   the watched one): a tap picks that bus (and may ask for location and notifications), a tap on the filled one
-  stops. The bar's second line is the watched bus ("197 in 5 min · 4 stops away"), a tap on its text opens
+  stops; a bus watched in the app only (no location yet) first asks on that tap (`BusWatchState.asked`). The bar's second line is the watched bus ("197 in 5 min · 4 stops away"), a tap on its text opens
   `RunningTripPage` (the bar, the `TripBusCard` of the remembered stop and "Change this trip"), and once the
   bus has gone the bar offers Wake me before its stop. Today (`todayTripSlot`): the same card sits right under
   the weather tiles while such a trip runs and is not the commute card already shown; a destination picked in
