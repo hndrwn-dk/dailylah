@@ -27,6 +27,18 @@ Future<void> _pump(WidgetTester tester, double width, List<Widget> children) asy
   ));
 }
 
+/// A card with its own heading and 20 dp of space above it, like Today's weekend card.
+class _Headed extends StatelessWidget implements OpensWithHeading {
+  const _Headed({super.key, required this.height});
+  final double height;
+
+  @override
+  double get headingGap => 20;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(height: height);
+}
+
 Rect _rect(WidgetTester tester, String name) => tester.getRect(find.byKey(Key(name)));
 
 void main() {
@@ -110,6 +122,36 @@ void main() {
     expect(tester.getRect(find.text('One')).left, lessThan(448));
   });
 
+  testWidgets('880 dp: a heading on top of the right column lines up with the card on the left', (tester) async {
+    await _pump(tester, 880, [
+      _card('a', 300),
+      const SectionTitle('Weekend', key: Key('title')),
+      _card('b', 260),
+    ]);
+    // Without the lift the title's 20 dp of space above it would leave it floating below a's top.
+    expect(_rect(tester, 'title').left, greaterThan(440));
+    expect(_rect(tester, 'title').top, _rect(tester, 'a').top - 20);
+    expect(_rect(tester, 'b').top, _rect(tester, 'title').bottom);
+  });
+
+  testWidgets('880 dp: a card that opens with its own heading is lifted the same way', (tester) async {
+    await _pump(tester, 880, [_card('a', 300), const _Headed(key: Key('headed'), height: 260)]);
+    expect(_rect(tester, 'headed').left, greaterThan(440));
+    expect(_rect(tester, 'headed').top, _rect(tester, 'a').top - 20);
+  });
+
+  testWidgets('880 dp: headings on top of both columns line up, an empty card is not lifted', (tester) async {
+    await _pump(tester, 880, [
+      const SectionTitle('Left', key: Key('left')),
+      _card('a', 280),
+      const SectionTitle('Right', key: Key('right')),
+      _card('b', 280),
+    ]);
+    expect(_rect(tester, 'right').top, _rect(tester, 'left').top);
+    await _pump(tester, 880, [_card('a', 300), const _Headed(key: Key('empty'), height: 0), _card('b', 260)]);
+    expect(_rect(tester, 'b').top, _rect(tester, 'a').top);
+  });
+
   testWidgets('880 dp: a heading marked KeepWithNext stays above its card', (tester) async {
     // Without the mark the split falls after the heading: 110 | 85 beats 48 | 147.
     await _pump(tester, 880, [
@@ -166,6 +208,20 @@ void main() {
       expect(find.text('kept'), findsOneWidget);
       expect(tester.state(find.byType(TextField)), same(state));
     }
+  });
+
+  testWidgets('the tabs fade under the status bar as under the tab bar, and taps go through', (tester) async {
+    const c = Condition('fold', size: Size(880, 600));
+    await applyCondition(tester, c);
+    tester.view.padding = const FakeViewPadding(top: 24 * 3);
+    tester.view.viewPadding = const FakeViewPadding(top: 24 * 3);
+    await tester.pumpWidget(appUnder(c, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final fade = find.descendant(of: find.byType(StatusBarFade), matching: find.byType(DecoratedBox));
+    expect(tester.getRect(fade), Rect.fromLTWH(0, 0, 880, 24 + StatusBarFade.reach));
+    expect(find.descendant(of: find.byType(StatusBarFade), matching: find.byType(IgnorePointer)), findsOneWidget);
+    // Nothing on the page at the top is under the fade.
+    expect(tester.getTopLeft(find.byType(StickerIconButton).first).dy, greaterThanOrEqualTo(24 + StatusBarFade.reach));
   });
 
   testWidgets('the tabs keep their place through fold and unfold, and tap-again goes to the top', (tester) async {

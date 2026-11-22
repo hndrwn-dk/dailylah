@@ -194,14 +194,20 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     return Scaffold(
       // Content scrolls behind the floating pill instead of stopping at a hard edge.
       extendBody: true,
-      body: IndexedStack(
-        index: index,
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          TodayPage(controller: _scroll[0]),
-          NearbyPage(controller: _scroll[1]),
-          HomePage(controller: _scroll[2]),
-          HistoryPage(controller: _scroll[3]),
-          MorePage(controller: _scroll[4]),
+          IndexedStack(
+            index: index,
+            children: [
+              TodayPage(controller: _scroll[0]),
+              NearbyPage(controller: _scroll[1]),
+              HomePage(controller: _scroll[2]),
+              HistoryPage(controller: _scroll[3]),
+              MorePage(controller: _scroll[4]),
+            ],
+          ),
+          const StatusBarFade(),
         ],
       ),
       bottomNavigationBar: DecoratedBox(

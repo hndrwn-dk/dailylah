@@ -40,9 +40,14 @@ relative to `app/` unless they start with a top-level folder. File and symbol in
   are closest, `splitColumns`). A child wrapped in `FullWidth` spans both columns (banners, a row of
   tiles, a section's heading, notes; also a section widget that has its own `CardColumns`); a
   `SectionTitle`, a child wrapped in `KeepWithNext` (any other heading) or an empty `SizedBox` stays with
-  the card after it; a `CardColumns` inside one of
+  the card after it; a heading on top of the right column (a `SectionTitle`, or a card that `OpensWithHeading`
+  such as Today's weekend card) is lifted by the space above it so it lines up with the left column's first
+  card; a `CardColumns` inside one of
   the two columns just stacks. One and two columns are the same widgets, so fold, unfold and
   rotation keep scroll position and card state. A new tab section puts its cards in a `CardColumns`.
+  When the window changes width (fold, unfold, turn) `FoldBlur` blurs the app for a moment and clears in
+  `kFoldBlurClear`, waiting while the hinge reports half open (at most `kFoldBlurHold`); none with animations
+  off. The tabs fade under the status bar (`StatusBarFade` in the shell) as they do above the tab bar.
   Every pushed page is laid out for a phone: `ColumnPageTransitionsBuilder` (the theme's page
   transition) puts each `MaterialPageRoute` except the first in a `PhoneColumn` (600 dp, centred,
   its own `MediaQuery`), first-run Setup gets one in `main.dart`, and sheets are limited to 600 dp

@@ -948,9 +948,14 @@ class _ReadingCell extends StatelessWidget {
 
 /// On days without a trip to work or school: a few weekend ideas near home, indoor ones
 /// first when it rains or the air is unhealthy.
-class _WeekendCard extends ConsumerWidget {
+class _WeekendCard extends ConsumerWidget implements OpensWithHeading {
   const _WeekendCard({required this.home});
   final Place home;
+
+  static const _title = EdgeInsets.fromLTRB(4, 20, 4, 10);
+
+  @override
+  double get headingGap => _title.top;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -979,6 +984,8 @@ class _WeekendCard extends ConsumerWidget {
       children: [
         SectionTitle(
           s.weekendCard,
+          padding: _title,
+          trailingAtEnd: true,
           trailing: TextButton(
             onPressed: () {
               ref.read(homeSectionProvider.notifier).state = 'weekend';

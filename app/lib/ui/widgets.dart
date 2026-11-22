@@ -387,6 +387,43 @@ class HeroHeader extends StatelessWidget {
   }
 }
 
+/// The page colour fading in under the status bar, so cards scrolled up go soft under the clock
+/// and icons, as they do under the tab bar at the bottom, instead of running into them. Only
+/// where the app is drawn under the status bar (a top inset); taps go through.
+class StatusBarFade extends StatelessWidget {
+  const StatusBarFade({super.key});
+
+  /// How far below the status bar the fade reaches: no further than the header's own top padding,
+  /// so nothing is faded with the page at the top.
+  static const double reach = 10;
+
+  @override
+  Widget build(BuildContext context) {
+    final top = MediaQuery.paddingOf(context).top;
+    if (top <= 0) return const SizedBox.shrink();
+    final paper = Theme.of(context).scaffoldBackgroundColor;
+    final solid = top / (top + reach);
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      height: top + reach,
+      child: IgnorePointer(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [paper.withValues(alpha: 0.92), paper.withValues(alpha: 0.92), paper.withValues(alpha: 0)],
+              stops: [0, solid * 0.6, 1],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Small square sticker button (search, back) used in headers.
 class StickerIconButton extends StatelessWidget {
   const StickerIconButton({super.key, required this.icon, required this.onPressed, required this.tooltip});
@@ -1762,13 +1799,22 @@ class KeepWithNext extends StatelessWidget {
   Widget build(BuildContext context) => child;
 }
 
+/// A child of [CardColumns] that opens with its own [SectionTitle] (a card with a heading and a
+/// See all link above its panel). [headingGap] is the empty space above that heading.
+abstract interface class OpensWithHeading {
+  double get headingGap;
+}
+
 /// The cards of a tab: one column on a phone, two on a wide window ([isWide]).
 ///
 /// On a phone the children are stacked and stretched to the width, like the `Column` the tabs
 /// always had. On a wide window they keep their order: each run of cards between two
 /// [FullWidth] children is split once, where the two columns come out closest in height, and
 /// reads down the left column and then down the right one. A [SectionTitle], a [KeepWithNext]
-/// child or an empty `SizedBox` spacer stays in the column of the card after it.
+/// child or an empty `SizedBox` spacer stays in the column of the card after it. A heading (a
+/// [SectionTitle], or a child that [OpensWithHeading]) at the top of the right column is moved
+/// up by the space above it, so it lines up with the card at the top of the left column instead
+/// of floating below it; with a heading on top of both columns the two line up.
 ///
 /// Both layouts are the same widgets, so folding, unfolding and turning the phone keep the
 /// state of the cards (an opened list, a typed text).
@@ -1787,6 +1833,14 @@ class CardColumns extends StatelessWidget {
       leads: [
         for (final c in children) c is SectionTitle || c is KeepWithNext || (c is SizedBox && c.child == null),
       ],
+      gaps: [
+        for (final c in children)
+          switch (c) {
+            SectionTitle(:final padding) => padding.top,
+            OpensWithHeading(:final headingGap) => headingGap,
+            _ => 0.0,
+          },
+      ],
       // Still inside a column when this list only stacks there: a list below must not split either.
       children: [for (final c in children) c is FullWidth ? c : _Cell(inColumn: two || inside, child: c)],
     );
@@ -1803,7 +1857,8 @@ class _Cell extends InheritedWidget {
 }
 
 class _Columns extends MultiChildRenderObjectWidget {
-  const _Columns({required this.two, required this.spans, required this.leads, required super.children});
+  const _Columns(
+      {required this.two, required this.spans, required this.leads, required this.gaps, required super.children});
 
   /// Two columns, or one.
   final bool two;
@@ -1814,12 +1869,15 @@ class _Columns extends MultiChildRenderObjectWidget {
   /// Per child: belongs to the child after it (a heading, a spacer).
   final List<bool> leads;
 
+  /// Per child: the space above its heading, 0 when it opens with none.
+  final List<double> gaps;
+
   @override
-  RenderObject createRenderObject(BuildContext context) => _RenderColumns(two, spans, leads);
+  RenderObject createRenderObject(BuildContext context) => _RenderColumns(two, spans, leads, gaps);
 
   @override
   void updateRenderObject(BuildContext context, covariant _RenderColumns renderObject) =>
-      renderObject.update(two, spans, leads);
+      renderObject.update(two, spans, leads, gaps);
 }
 
 class _ColumnsParentData extends ContainerBoxParentData<RenderBox> {}
@@ -1849,16 +1907,18 @@ class _RenderColumns extends RenderBox
     with
         ContainerRenderObjectMixin<RenderBox, _ColumnsParentData>,
         RenderBoxContainerDefaultsMixin<RenderBox, _ColumnsParentData> {
-  _RenderColumns(this._two, this._spans, this._leads);
+  _RenderColumns(this._two, this._spans, this._leads, this._gaps);
 
   bool _two;
   List<bool> _spans;
   List<bool> _leads;
+  List<double> _gaps;
 
-  void update(bool two, List<bool> spans, List<bool> leads) {
+  void update(bool two, List<bool> spans, List<bool> leads, List<double> gaps) {
     _two = two;
     _spans = spans;
     _leads = leads;
+    _gaps = gaps;
     markNeedsLayout();
   }
 
@@ -1892,7 +1952,12 @@ class _RenderColumns extends RenderBox
       final heights = [for (var n = i; n < end; n++) heightOf(boxes[n], column)];
       final k = splitColumns(heights, _leads.sublist(i, end));
       var left = 0.0;
-      var right = 0.0;
+      // A heading on top of the right column goes up to the top of the left column's first card
+      // (or to the left column's heading, when that column opens with one too).
+      // A child that shows nothing (an empty card) is not lifted.
+      double gap(int n) => heights[n] > _gaps[i + n] ? _gaps[i + n] : 0.0;
+      final rightGap = k < heights.length ? gap(k) : 0.0;
+      var right = rightGap > 0 ? gap(0) - rightGap : 0.0;
       for (var n = 0; n < heights.length; n++) {
         if (n < k) {
           place?.call(boxes[i + n], Offset(0, y + left));
