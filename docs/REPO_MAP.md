@@ -5,13 +5,17 @@ after adding, moving, renaming or removing a file, a public class or function, a
 or an endpoint. CI (`docs` workflow) fails when this file is out of date. What each
 feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 
-## App: `app/lib` (35 files)
+## App: `app/lib` (36 files)
 
 ### `lib/api.dart`
 - Types: `DailyLahApi`, `OneMapApi`, `PlacesApi`, `BundleRepository`, `BusStopRepository`, `MapsLinks`
 
 ### `lib/background.dart`
 - Functions: `initNotifications`, `showNote`, `showOngoingNote`, `showExampleAlerts`, `requestNotificationPermission`, `registerBackgroundWork`, `callbackDispatcher`, `runChecks`, `updateWidget`, `resetWidgetCache`
+
+### `lib/bus_watch.dart`
+- Types: `BusWatchState`, `BusWatchNotifier`
+- Providers: 1 (listed below)
 
 ### `lib/data.dart`
 - Types: `Closure`, `Hawker`, `DengueCluster`, `Poi`, `PoiKind (enum)`, `PoiSet`, `Carpark`, `HdbBlock`, `ResaleStat`, `ResaleData`, `RentData`, `PrayerTimes`, `EPoint`, `EvPlug`, `EvSite`, `EvLive`, `EmergencyKind (enum)`, `EmergencySet`, `MrtStation`, `Project`, `AroundSet`, `PrivateProject`, `PublicEvent`, `QuarterMedian`, `TownCommute`, `WtlArea`, `WtlTown`, `WhereToLive`, `ToiletKind (enum)`, `Toilet`
@@ -22,8 +26,8 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 - Functions: `noOrphan`
 
 ### `lib/logic.dart`
-- Types: `AreaForecast`, `WakeEvent (enum)`, `LineStatus`, `CardKind (enum)`, `BlockScore`, `ShareChoice`, `ShareImport`, `AlertKind (enum)`, `TodayAlert`, `AirQuality`, `BusRoutes`, `DirectRide`, `BusStrip`, `ParkingLot`, `ExtraSpot`, `TripExtras`, `TripStops`, `MrtPlan`, `MrtRide`, `ToiletStop`, `FeederBus`, `MrtChoice`, `LunchPick`, `LeaveBy`, `TripBoardRow (typedef)`, `HistoryKind (enum)`, `HistoryEntry`, `HistoryPeriod (enum)`, `HistorySummary`, `SpendBar`, `SpendInsight`, `MealNudge`, `Holiday`, `SchoolHoliday`, `DaysOff`, `SharedPlace`, `WtlMode (enum)`, `WtlChoice`, `WtlGroup (enum)`, `WtlReason (enum)`, `WtlRow`, `WtlLineKey (enum)`, `WtlCellKind (enum)`, `WtlCell`, `WtlLine`, `TownRent (typedef)`, `WtlSort (enum)`
-- Functions: `distanceMeters`, `nearestStops`, `searchStops`, `forecastNear`, `isRainyForecast`, `liveStaleSince`, `wakeEvent`, `parseBusArrival`, `lineStatuses`, `highCrowdShare`, `commutePlace`, `cardFor`, `todayBackToTop`, `isCommuteDay`, `watchedLines`, `extrasForToday`, `originFor`, `destinationFor`, `savedPlaceAt`, `restingAt`, `arrivalLogMinutes`, `isQuietHour`, `inRainWindow`, `dayKey`, `dateOnly`, `shortDate`, `sgd`, `monthLabel`, `taxisWithin`, `heatStressNear`, `isHighHeat`, `lightningNear`, `preferIndoor`, `nextPrayerIndex`, `scoreBlock`, `searchBlocks`, `encodeShareCode`, `readShareCode`, `shareConflicts`, `applyShare`, `decodeShareCode`, `todayAlerts`, `parseOneMap`, `looksLikeAddress`, `parsePlaces`, `blockForAddress`, `isPostalCode`, `uvIndex`, `psiLevel`, `pm25Level`, `airNear`, `taxiEase`, `taxisAround`, `compass8`, `directRides`, `busWhere`, `busPick`, `busStrip`, `tripRides`, `usableStops`, `destinationStops`, `parseParking`, `extrasCoord`, `parseTripExtras`, `localTripExtras`, `distanceToSegment`, `tripStops`, `withoutWebAddress`, `shortPlaceName`, `routeMetres`, `walkIsDefault`, `defaultTripMode`, `plannedModeKey`, `tripModes`, `modeMinutes`, `busDoorToDoor`, `busNotFaster`, `lineOfCode`, `mrtPlan`, `mrtPlanBetween`, `mrtLeg`, `mrtRide`, `toiletRank`, `toiletsAheadBus`, `toiletsAheadMrt`, `stationOnLine`, `feederBus`, `usualMrtChoice`, `lineMrtChoice`, `mrtChoices`, `stationCrowd`, `rideMinutesTo`, `rideIndexAt`, `rideEta`, `rideFixIndex`, `rideLineAt`, `rideAlertDue`, `homeBlock`, `projectEnded`, `distanceToProject`, `upgradingAtHome`, `titleCase`, `privateProjectFor`, `lunchPick`, `alertsOn`, `lunchPlace`, `inLunchWindow`, `lunchCardDue`, `orderInReason`, `isParkNight`, `parkTime`, `transitResting`, `mrtPlanLines`, `walkMinutesTo`, `leaveBy`, `tripBoard`, `inLeaveWindow`, `stopBefore`, `wakeRadius`, `tripRouteKey`, `tripMinutes`, `mealPlaceId`, `halalPlaceId`, `mealTimeOn`, `mealOnDay`, `mealFirstDay`, `addMeal`, `mealPriceToOffer`, `parseMealCents`, `lastMealPrice`, `parkMinutes`, `adultCardFare`, `tripFareEstimate`, `hdbParkingCost`, `parkingEstimate`, `historyOfKinds`, `parseCents`, `historySince`, `historyEntries`, `historySummary`, `historySpendBars`, `historySpendInsight`, `historyPreviousCents`, `mealNudge`, `parkReminderDue`, `weeklyDigest`, `inDigestWindow`, `tripAdvice`, `clockLabel`, `sinceLabel`, `servicesToPlaces`, `schoolHolidayOn`, `isSchoolDay`, `extrasDueNow`, `shortAddress`, `daysToWeekendEnd`, `whatsNewDue`, `evPlugMatches`, `evLiveFor`, `shortForecast`, `weatherKind`, `widgetTrip`, `widgetData`, `tabForWidgetUri`, `nearbySectionForUri`, `mapsLinkIn`, `isMapsLinkHost`, `parseSharedPlace`, `mapsLinkPlace`, `wtlFlatTypes`, `wtlBudgetLimit`, `wtlChecked`, `wtlChangeMode`, `wtlAnchorPlace`, `wtlRank`, `wtlCompareIds`, `wtlToggleCompare`, `wtlTownFor`, `townRents`, `wtlSorted`, `wtlBlockLines`, `withRecentBlock`, `compareCandidates`, `rainNote`, `hazeNote`, `leaveNote`, `mrtNote`, `wakeNote`, `hawkerNote`, `lunchNote`, `heatNote`, `digestNote`, `parkNote`, `dengueNote`, `lightningNote`, `homesNote`, `holidayRichNote`, `rideNextNote`, `rideDisruptedNote`, `wakeWatchNote`, `rideWatchNote`, `sampleNotes`
+- Types: `AreaForecast`, `WakeEvent (enum)`, `LineStatus`, `CardKind (enum)`, `BlockScore`, `ShareChoice`, `ShareImport`, `AlertKind (enum)`, `TodayAlert`, `AirQuality`, `BusRoutes`, `DirectRide`, `BusStrip`, `ParkingLot`, `ExtraSpot`, `TripExtras`, `TripStops`, `MrtPlan`, `MrtRide`, `ToiletStop`, `FeederBus`, `MrtChoice`, `LunchPick`, `LeaveBy`, `StopPlan (typedef)`, `TripLeave (typedef)`, `TodayTripSlot (enum)`, `BusWatchEvent (enum)`, `BusTrack`, `BusWatchResult (typedef)`, `TripBoardRow (typedef)`, `HistoryKind (enum)`, `HistoryEntry`, `HistoryPeriod (enum)`, `HistorySummary`, `SpendBar`, `SpendInsight`, `MealNudge`, `Holiday`, `SchoolHoliday`, `DaysOff`, `SharedPlace`, `WtlMode (enum)`, `WtlChoice`, `WtlGroup (enum)`, `WtlReason (enum)`, `WtlRow`, `WtlLineKey (enum)`, `WtlCellKind (enum)`, `WtlCell`, `WtlLine`, `TownRent (typedef)`, `WtlSort (enum)`
+- Functions: `distanceMeters`, `nearestStops`, `searchStops`, `forecastNear`, `isRainyForecast`, `liveStaleSince`, `wakeEvent`, `parseBusArrival`, `lineStatuses`, `highCrowdShare`, `commutePlace`, `cardFor`, `todayBackToTop`, `isCommuteDay`, `watchedLines`, `extrasForToday`, `originFor`, `destinationFor`, `savedPlaceAt`, `restingAt`, `arrivalLogMinutes`, `isQuietHour`, `inRainWindow`, `dayKey`, `dateOnly`, `shortDate`, `sgd`, `monthLabel`, `taxisWithin`, `heatStressNear`, `isHighHeat`, `lightningNear`, `preferIndoor`, `nextPrayerIndex`, `scoreBlock`, `searchBlocks`, `encodeShareCode`, `readShareCode`, `shareConflicts`, `applyShare`, `decodeShareCode`, `todayAlerts`, `parseOneMap`, `looksLikeAddress`, `parsePlaces`, `blockForAddress`, `isPostalCode`, `uvIndex`, `psiLevel`, `pm25Level`, `airNear`, `taxiEase`, `taxisAround`, `compass8`, `directRides`, `busWhere`, `busPick`, `busStrip`, `tripRides`, `usableStops`, `destinationStops`, `parseParking`, `extrasCoord`, `parseTripExtras`, `localTripExtras`, `distanceToSegment`, `tripStops`, `withoutWebAddress`, `shortPlaceName`, `routeMetres`, `walkIsDefault`, `defaultTripMode`, `plannedModeKey`, `tripModes`, `modeMinutes`, `busDoorToDoor`, `busNotFaster`, `lineOfCode`, `mrtPlan`, `mrtPlanBetween`, `mrtLeg`, `mrtRide`, `toiletRank`, `toiletsAheadBus`, `toiletsAheadMrt`, `stationOnLine`, `feederBus`, `usualMrtChoice`, `lineMrtChoice`, `mrtChoices`, `stationCrowd`, `rideMinutesTo`, `rideIndexAt`, `rideEta`, `rideFixIndex`, `rideLineAt`, `rideAlertDue`, `homeBlock`, `projectEnded`, `distanceToProject`, `upgradingAtHome`, `titleCase`, `privateProjectFor`, `lunchPick`, `alertsOn`, `lunchPlace`, `inLunchWindow`, `lunchCardDue`, `orderInReason`, `isParkNight`, `parkTime`, `transitResting`, `mrtPlanLines`, `walkMinutesTo`, `leaveBy`, `stopPlan`, `tripLeave`, `todayTripSlot`, `plannerPlace`, `busWatchStep`, `tripBoard`, `inLeaveWindow`, `stopBefore`, `wakeRadius`, `tripRouteKey`, `tripMinutes`, `mealPlaceId`, `halalPlaceId`, `mealTimeOn`, `mealOnDay`, `mealFirstDay`, `addMeal`, `mealPriceToOffer`, `parseMealCents`, `lastMealPrice`, `parkMinutes`, `adultCardFare`, `tripFareEstimate`, `hdbParkingCost`, `parkingEstimate`, `historyOfKinds`, `parseCents`, `historySince`, `historyEntries`, `historySummary`, `historySpendBars`, `historySpendInsight`, `historyPreviousCents`, `mealNudge`, `parkReminderDue`, `weeklyDigest`, `inDigestWindow`, `tripAdvice`, `clockLabel`, `sinceLabel`, `servicesToPlaces`, `schoolHolidayOn`, `isSchoolDay`, `extrasDueNow`, `shortAddress`, `daysToWeekendEnd`, `whatsNewDue`, `evPlugMatches`, `evLiveFor`, `shortForecast`, `weatherKind`, `widgetTrip`, `widgetData`, `tabForWidgetUri`, `nearbySectionForUri`, `mapsLinkIn`, `isMapsLinkHost`, `parseSharedPlace`, `mapsLinkPlace`, `wtlFlatTypes`, `wtlBudgetLimit`, `wtlChecked`, `wtlChangeMode`, `wtlAnchorPlace`, `wtlRank`, `wtlCompareIds`, `wtlToggleCompare`, `wtlTownFor`, `townRents`, `wtlSorted`, `wtlBlockLines`, `withRecentBlock`, `compareCandidates`, `rainNote`, `hazeNote`, `leaveNote`, `mrtNote`, `wakeNote`, `hawkerNote`, `lunchNote`, `heatNote`, `digestNote`, `parkNote`, `dengueNote`, `lightningNote`, `homesNote`, `holidayRichNote`, `rideNextNote`, `rideDisruptedNote`, `wakeWatchNote`, `busWatchNote`, `busNearNote`, `busArrivingNote`, `rideWatchNote`, `sampleNotes`
 
 ### `lib/main.dart`
 - Types: `DailyLahApp`
@@ -120,24 +124,25 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 - Functions: `showToiletSheet`
 
 ### `lib/ui/trip.dart`
-- Types: `TripSection`, `MrtLineSheet`, `TripBusCard`, `GoSomewhere`, `TripPlannerPage`, `PlanTripCard`, `TripBanner`
+- Types: `TripSection`, `MrtLineSheet`, `TripBusCard`, `GoSomewhere`, `TripPlannerPage`, `PlanTripCard`, `TripBanner`, `RunningTripPage`
 - Functions: `modeIcon`, `mrtRouteKey`, `showMrtLineSheet`
 
 ### `lib/ui/wake.dart`
 - Types: `WakeMePage`, `WakeBanner`
 
 ### `lib/ui/widgets.dart`
-- Types: `BusPlate`, `LoadMeter`, `LineChip`, `Panel`, `SectionTitle`, `AlertTone (enum)`, `AlertBanner`, `EmptyNote`, `Stat`, `PlaceSelector`, `HeroHeader`, `StickerIconButton`, `PageTitle`, `BentoTile`, `ModeRail`, `PillRow`, `Pulse`, `PillNav`, `StationChip`, `PaintedBlockNumber`, `BoardRow`, `LoadBars`, `BusBoard`, `ParkTimeBanner`, `InfoChips`, `FacilityIcons`, `DialogButtons`, `BigNumber`, `CrowdPeople`, `MealPricePicker`, `FullWidth`, `KeepWithNext`, `CardColumns`, `WordWrapTitle`, `SectionTiles`, `PlaceRow`
+- Types: `BusPlate`, `LoadMeter`, `LineChip`, `Panel`, `SectionTitle`, `AlertTone (enum)`, `AlertBanner`, `EmptyNote`, `Stat`, `PlaceSelector`, `HeroHeader`, `StickerIconButton`, `PageTitle`, `BentoTile`, `ModeRail`, `PillRow`, `Pulse`, `PillNav`, `StationChip`, `PaintedBlockNumber`, `BoardRow`, `BoardBell`, `LoadBars`, `BusBoard`, `ParkTimeBanner`, `InfoChips`, `FacilityIcons`, `DialogButtons`, `BigNumber`, `CrowdPeople`, `MealPricePicker`, `FullWidth`, `KeepWithNext`, `CardColumns`, `WordWrapTitle`, `SectionTiles`, `PlaceRow`
 - Functions: `placeTitle`, `facilityIcon`, `showActionSnackBar`, `popAfterKeyboard`, `askMealPrice`, `splitColumns`
 
 ### `lib/wake_session.dart`
 - Types: `WakeState`, `WakeNotifier`
 - Providers: 2 (listed below)
 
-## Riverpod providers (84)
+## Riverpod providers (85)
 
 | Provider | Kind | File |
 | --- | --- | --- |
+| `busWatchProvider` | `NotifierProvider` | `lib/bus_watch.dart` |
 | `rideProvider` | `NotifierProvider` | `lib/mrt_ride.dart` |
 | `trainToiletsProvider` | `Provider.autoDispose` | `lib/mrt_ride.dart` |
 | `apiProvider` | `Provider` | `lib/providers.dart` |

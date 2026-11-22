@@ -1093,7 +1093,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "More: the plug of your electric car is now inside the My car is electric tile, as Charger plug.",
+        "Trips: after I'm leaving, DailyLah watches your bus and tells you when it is 2 minutes away and when it arrives. Tap the trip bar to see the buses again; the bell on a bus picks another one.",
       ];
 
   // about

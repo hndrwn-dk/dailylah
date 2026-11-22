@@ -156,8 +156,9 @@ feature, screen, provider or rule moves, appears or goes away.
   `SettingTile` with a `value` is a switch (mint with a solid outline when on, dashed when off, flat either way, "On"/"Off" in words,
   `toggled` for TalkBack), without one it opens something (raised, a chevron, a button for TalkBack): on More too a shadow
   means the tile opens something. Your setup and The app are link tiles, Alerts
-  and Extras switch tiles; Alerts shows "8 of 9 on" beside its title (`alertsOn`, `alertKinds`). Lunch is the ninth
-  alert tile, and while it is on the tile beside it is the link "Lunch time: 12.00" (the time picker). Extras is two tiles
+  and Extras switch tiles; Alerts shows "9 of 10 on" beside its title (`alertsOn`, `alertKinds`). Lunch is the ninth
+  alert tile, and while it is on the tile beside it is the link "Lunch time: 12.00" (the time picker); Bus arriving
+  (`Favorites.busAlerts`, on by default) is the tenth and last, so Lunch keeps its time beside it. Extras is two tiles
   side by side, then Learn my habits and My car is electric at full width (three would leave a hole); while the car
   is electric that tile holds its plug as a row of its own under a line (`SettingTile.below`, with `holdsRow` so the tile is the same widgets on and off, `_PlugRow`: "Charger
   plug · Type 2" and a chevron, its own button for TalkBack, 48 dp), which opens `showEvPlugPicker`. "Show me an example" is a text link under the alerts. "Delete all my history"
@@ -203,7 +204,7 @@ feature, screen, provider or rule moves, appears or goes away.
   green to 50, amber to 100 and red above, so the marker agrees with the pill),
   only `LinearLayout`/`TextView`/`ImageView`, pills filled row by row by a character budget that shrinks with
   larger text, colours as resources (values-night). The other alerts have the layout too: `parkNote` (ID 11), `dengueNote` (4), `lightningNote` (6),
-  `homesNote` (7), `holidayRichNote` (20) and, for "I'm on the train", `rideNextNote` (21) and `rideDisruptedNote`
+  `homesNote` (7), `holidayRichNote` (20), Bus arriving's `busNearNote` and `busArrivingNote` (24) and, for "I'm on the train", `rideNextNote` (21) and `rideDisruptedNote`
   (22; the ride used 11 and 12 before, which replaced the parking reminder and the digest). The ongoing
   "Watching for your stop" / "Riding to" notification belongs to geolocator's foreground service, which takes
   only a title and a text: the app replaces its content with the pill layout (`wakeWatchNote`: the bus and
@@ -224,7 +225,7 @@ feature, screen, provider or rule moves, appears or goes away.
   Halal places are not suggested in the note (no room for `S.halalDisclaimer`); Nearby > Eat lists them.
   The note always has its picture (`NoteArt.lunch`, a bowl) and a pill: with no hawker centre to name, "Where to eat".
   A new alert is a new `...Note` builder; no two alerts share an ID (a test checks the samples). More > Alerts > "Show me an
-  example" (`showExampleAlerts`, `sampleNotes`) posts every alert (16) with sample values, titled "Example: ..." and
+  example" (`showExampleAlerts`, `sampleNotes`) posts every alert (17) with sample values, titled "Example: ..." and
   under their own IDs (the alert's + 100), so a sample never replaces a real alert, and never touches
   `AlertLog`. The MRT note's line pill is the trip's line the plan B bus goes around (`planBBus`), not just the
   first disrupted one. The body gives way to the pills: 9 lines with none (a long digest), two fewer per row. Tests: "rich notes" in `test/logic_test.dart`, "alerts with pills" in
@@ -339,7 +340,28 @@ feature, screen, provider or rule moves, appears or goes away.
   it the totals per kind and the lines from `historySpendInsight` (the day that cost most) and
   `historyPreviousCents` (last week or month up to the same point; none when a full log no longer reaches back that far). It follows the kind filter.
   Every trip card (commute and "Go somewhere") has I'm leaving; the running trip shows in `TripBanner`
-  above the tabs (inline on the planner page, which hides the tabs) with Arrived / Stop timing. Commute
+  above the tabs (inline on the planner page, which hides the tabs) with Arrived / Stop timing; its buttons
+  go under the text when they would not fit beside it (large text, 320 dp).
+  Bus arriving (`lib/bus_watch.dart`, `busWatchProvider`, like the wake session; `Favorites.busAlerts`): on a
+  bus trip I'm leaving (`_TripTimer._leave`) remembers on the phone where the trip goes, the stop of its first
+  stop card and the bus to leave for (`tripLeave`, from `stopPlan`, the rule `TripBusCard` also uses;
+  `Habits.tripTo`, `tripStop`, `tripBus`, cleared with the trip; never a "Here" destination) and watches that
+  bus without asking for any permission: with location already allowed on geolocator's foreground service,
+  else only while the app is open. It polls the stop every `busRefreshEvery` and follows one arrival by its
+  expected time (`busWatchStep`, `BusTrack`, `busTrackToleranceMinutes`: an earlier bus of the same service is
+  ignored), alerts once at `busNearMinutes` and once on arriving (`busNearNote`, `busArrivingNote`, both ID 24),
+  keeps the ongoing notification as pills (`busWatchNote`: bus, minutes or "Updated HH:mm" once the reading is
+  older than `busStaleAfter`, stops away or metres to the stop), and ends when the bus is gone, the rider has
+  left the stop after it was near (`busLeftStopMetres`; the position is only compared with the stop, in
+  memory), the trip ends, Wake me or I'm on the train starts, or after `busWatchLimit`. While the trip runs,
+  each direct row of its board has a bell in place of the chevron (`BoardRow.bell`, `BoardBell`; "Alerting" on
+  the watched one): a tap picks that bus (and may ask for location and notifications), a tap on the filled one
+  stops. The bar's second line is the watched bus ("197 in 5 min · 4 stops away"), a tap on its text opens
+  `RunningTripPage` (the bar, the `TripBusCard` of the remembered stop and "Change this trip"), and once the
+  bus has gone the bar offers Wake me before its stop. Today (`todayTripSlot`): the same card sits right under
+  the weather tiles while such a trip runs and is not the commute card already shown; a destination picked in
+  the planner but not left for (`plannerPlace`) moves `PlanTripCard` up there as "To <place> · See buses and
+  leave". Tests: `test/bus_watch_test.dart`, `test/bus_watch_session_test.dart`, `test/bus_watch_ui_test.dart`. Commute
   keys stay "home>work"; planned trips keep the names shown (`tripRouteKey`, `S.routeEnd`), and an end at the phone's position is named on the phone (`hereName`: the saved place it is at, else "Near <station> station" or "Near <bus stop>" within `hereNameMetres`, else "Current location"; the position is not kept).
 - Habits (`Habits` in models.dart, `HabitsStore` in store.dart, `habitsProvider`): parked car, trips
   logged with I'm leaving/Arrived (`tripStats`), "Ate here" meals (`mealNudge`). On the phone only,
