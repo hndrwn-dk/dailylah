@@ -115,6 +115,25 @@ A `Notifier<BusWatchState?>` shaped like `WakeNotifier`.
   `alertKinds` 10, a sample in "Show me an example"). Off: I'm leaving starts no watch and the bell
   on the board is hidden.
 
+### Notifications: the existing rich layout
+
+All three notifications are `RichNote`s built in logic.dart and drawn by the existing
+`dailylah_notify` layout (`dl_note.xml`), with the plain notification as the fallback
+(`showNote`, `showOngoingNote`). No new layout, picture, channel or Kotlin; wording in `l10n.dart`.
+
+- `busWatchNote` (ongoing, on the location service's notification like `wakeWatchNote`): title
+  "Bus arriving", body the stop ("At Marine Pde Stn Exit 6"), pills: `197` (`PillTone.board`),
+  "5 min" (teal), then "4 stops away" or "350 m to the stop" (sky).
+- `busNearNote`: title "197 in 2 min", body "At Marine Pde Stn Exit 6 · to Bugis Junction", pills:
+  `197` (board), "2 min" (amber), "Seats free" / "Standing" / "Full" from LTA's load when known
+  (mint), `NoteArt.phone`.
+- `busArrivingNote`: title "197 is arriving", same body, pills: `197` (board), "Arriving" (amber),
+  "Get off at Bugis Stn" (sky), `NoteArt.phone`.
+- A pill whose value is not known is left out, as in the other notes. A timetable estimate adds
+  nothing to the pills; the body says "Timetable estimate".
+- Both alerts appear in More > Alerts > "Show me an example" and in the notification tests
+  (`test/dailylah_notify_test.dart`, the sample list with unique ids).
+
 ### Choosing the bus
 
 - I'm leaving (`_TripTimer`) on a transit trip whose first part is a bus (not a trip started with
