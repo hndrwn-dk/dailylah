@@ -180,6 +180,25 @@ class TodayPage extends ConsumerWidget {
     final modeEnd = kind == CardKind.morning ? dest : origin;
     final tripMode = modeEnd == null ? null : ref.watch(modeOverrideProvider)[modeEnd.kind.name] ?? modeEnd.mode;
 
+    // Under the weather: the board of a trip being timed (any day), or the planner card naming a
+    // destination picked but not left for. The commute card is not shown twice.
+    final habits = ref.watch(habitsProvider);
+    final commuteCard = commute && origin != null && dest != null && resting == null;
+    // A trip already left for is not offered again until a new pick in the planner.
+    final plannedKey =
+        ref.watch(goLeftForProvider) == ref.watch(goPicksProvider) ? null : ref.watch(goKeyProvider);
+    final tripSlot = todayTripSlot(
+      h: habits,
+      commuteShown: commuteCard,
+      commuteRoute: commuteCard ? tripRouteKey(origin.kind.name, dest.kind.name) : null,
+      plannedKey: plannedKey,
+    );
+    final tripStop = ref.watch(busStopsByCodeProvider)[habits.tripStop];
+    final planned = tripSlot != TodayTripSlot.planned
+        ? null
+        : plannerPlace(plannedKey, fav,
+            here: ref.watch(goFromHereProvider), adhoc: ref.watch(goAdhocDestProvider));
+
     final dests = <Widget>[
       // What's new and the alerts span both columns on a wide window; the cards share them.
       if (whatsNewDue(fav, ref.watch(releaseVersionProvider))) const FullWidth(child: WhatsNewCard()),
@@ -198,6 +217,15 @@ class TodayPage extends ConsumerWidget {
               icon: Icons.beach_access_outlined, tone: AlertTone.info, text: s.schoolHolidayToday(schoolHoliday.name)),
         ),
       if (origin != null) _WeatherTiles(origin: origin),
+      if (tripSlot == TodayTripSlot.running && tripStop != null && habits.tripTo != null)
+        TripBusCard(
+          stop: tripStop,
+          fromKey: null,
+          to: habits.tripTo!,
+          toLabel: placeTitle(s.placeLabel, habits.tripTo!),
+          walkCard: false,
+        ),
+      if (planned != null) PlanTripCard(toName: placeTitle(s.placeLabel, planned)),
       if (lunchHere == null && lunchSpot != null && phoneAt != PlaceKind.home) const LunchCard(),
       if (commute && origin != null && dest != null && resting != null)
         AtPlaceCard(kind: resting, leaveAt: commuteTimes(fav, now).$2, lunch: lunchHere)
@@ -214,7 +242,7 @@ class TodayPage extends ConsumerWidget {
       if (resting == null && (!commute || (tripMode ?? TravelMode.transit) == TravelMode.transit))
         _MrtCard(showCrowd: kind == CardKind.evening),
       if (!commute && fav.places[PlaceKind.home] != null) _WeekendCard(home: fav.places[PlaceKind.home]!),
-      const PlanTripCard(),
+      if (planned == null) const PlanTripCard(),
       if (fav.carparks.isNotEmpty) const _SavedParking(),
       const FullWidth(child: SizedBox(height: 8)),
       FullWidth(child: Text(s.pullToRefresh, style: t.bodySmall, textAlign: TextAlign.center)),

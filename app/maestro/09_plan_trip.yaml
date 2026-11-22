@@ -46,6 +46,16 @@ name: 09 Plan a trip
     direction: UP
     centerElement: true
 - assertVisible: "(?s)I'm leaving.*"
+# I'm leaving starts the trip bar (and, with a bus to leave for, watches that bus); Stop timing
+# puts the page back as it was for the steps below.
+- tapOn: "(?s)I'm leaving.*"
+- extendedWaitUntil:
+    visible: "(?s).*Arrived.*"
+    timeout: 20000
+- tapOn: "Stop timing"
+- extendedWaitUntil:
+    visible: "(?s)I'm leaving.*"
+    timeout: 20000
 - scrollUntilVisible:
     element: "Swap From and To"
     direction: UP

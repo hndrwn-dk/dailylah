@@ -3006,7 +3006,7 @@ void main() {
     test('sampleNotes has every alert under its own id', () {
       final notes = sampleNotes(s);
       // Their own ids (the alert's id + 100), so a sample never replaces a real alert in the shade.
-      expect([for (final n in notes) n.id], [102, 108, 109, 101, 110, 103, 105, 112, 106, 104, 111, 107, 120, 121, 122, 123]);
+      expect([for (final n in notes) n.id], [102, 108, 109, 101, 110, 103, 105, 112, 106, 104, 111, 107, 120, 121, 122, 123, 124]);
       expect(notes.every((n) => n.pills.isNotEmpty && n.pills.length <= 3), isTrue);
       // A sample must not read like a real disruption or haze warning.
       expect(notes.every((n) => n.title.startsWith('Example: ')), isTrue);
@@ -3161,11 +3161,11 @@ void main() {
       expect(old.lunchAt.minutes, 12 * 60);
     });
 
-    test('alertsOn counts the nine alerts More can switch', () {
+    test('alertsOn counts the ten alerts More can switch', () {
       expect(alertsOn(const Favorites()), lessThanOrEqualTo(alertKinds));
       final all = const Favorites().copyWith(
           mrtAlerts: true, rainAlerts: true, leaveAlerts: true, heatAlerts: true, dengueAlerts: true,
-          homesAlerts: true, hawkerAlerts: true, digestAlerts: true, lunchAlerts: true);
+          homesAlerts: true, hawkerAlerts: true, digestAlerts: true, lunchAlerts: true, busAlerts: true);
       expect(alertsOn(all), alertKinds);
       expect(alertsOn(all.copyWith(lunchAlerts: false, rainAlerts: false)), alertKinds - 2);
     });

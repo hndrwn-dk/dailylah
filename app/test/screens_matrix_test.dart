@@ -77,6 +77,7 @@ final Map<String, Widget Function()> _pages = {
   'Address search (shared, no address)': () =>
       AddressPickerPage(title: 'Search', note: const S().sharedNoAddress('Putra Minang Restaurant Bencoolen')),
   'Wake me': () => const WakeMePage(service: '10', alight: fullertonSq),
+  'Running trip': () => const _RunningTrip(),
   'Need a toilet? (bus)': () => const _ToiletSheetOnBus(),
   'Block search': () => const BlockSearchPage(),
   'Block page': () => const BlockPage(block: _block156),
@@ -135,6 +136,30 @@ class _ToiletSheetOnBusState extends ConsumerState<_ToiletSheetOnBus> {
 
   @override
   Widget build(BuildContext context) => const Scaffold(body: ToiletSheet(ride: ToiletRide.bus));
+}
+
+/// The board of a trip being timed from Tampines Int to Fullerton, one tap from the trip bar.
+class _RunningTrip extends ConsumerStatefulWidget {
+  const _RunningTrip();
+
+  @override
+  ConsumerState<_RunningTrip> createState() => _RunningTripState();
+}
+
+class _RunningTripState extends ConsumerState<_RunningTrip> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => ref.read(habitsProvider.notifier).startTrip(
+          'Home>Fullerton',
+          tuesdayMorning.subtract(const Duration(minutes: 9)),
+          to: const Place(kind: PlaceKind.other, name: 'Fullerton', addrLat: 1.285618, addrLng: 103.853422),
+          stop: tampinesInt.code,
+        ));
+  }
+
+  @override
+  Widget build(BuildContext context) => const RunningTripPage();
 }
 
 /// "I'm on the train" from Tampines to Raffles Place: the ride page, or its "Need a toilet?" sheet.

@@ -190,8 +190,36 @@ class HabitsNotifier extends Notifier<Habits> {
     ));
   }
 
-  Future<void> startTrip(String route, DateTime now, {bool rainy = false, String? mode, double? km}) =>
-      _set(state.copyWith(tripRoute: route, tripStart: now, tripRainy: rainy, tripMode: mode, tripKm: km));
+  /// [to], [stop] and [bus]: where a bus trip goes, the stop it starts at and the bus watched
+  /// there, kept until the trip ends so its board can be shown again (never the phone's position).
+  Future<void> startTrip(
+    String route,
+    DateTime now, {
+    bool rainy = false,
+    String? mode,
+    double? km,
+    Place? to,
+    String? stop,
+    String? bus,
+  }) =>
+      // A trip started over another one must not keep the earlier trip's destination or bus.
+      _set(state.copyWith(clearTrip: true).copyWith(
+          tripRoute: route,
+          tripStart: now,
+          tripRainy: rainy,
+          tripMode: mode,
+          tripKm: km,
+          tripTo: to,
+          tripStop: stop,
+          tripBus: bus == null || bus.isEmpty ? null : bus));
+
+  /// The bus watched on the running trip changed ([bus] null: none is watched now).
+  Future<void> setTripBus(String stop, String? bus) async {
+    if (state.tripStart == null) return;
+    await _set(bus == null || bus.isEmpty
+        ? state.copyWith(tripStop: stop, clearTripBus: true)
+        : state.copyWith(tripStop: stop, tripBus: bus));
+  }
 
   /// The phone was found at the saved place [at]: a running trip that ends there is over. It is
   /// logged when the time can be trusted ([arrivalLogMinutes]), dropped otherwise.
@@ -470,6 +498,10 @@ final goKeyProvider = StateProvider<String?>((ref) => null);
 /// Counts the planner picks made by the user (ends, swap, search), so the location arriving late
 /// never undoes one (memory only).
 final goPicksProvider = StateProvider<int>((ref) => 0);
+
+/// [goPicksProvider] when I'm leaving was tapped on a planned trip: while no pick has been made
+/// since, Today does not offer that trip as one to plan (memory only).
+final goLeftForProvider = StateProvider<int?>((ref) => null);
 
 /// The phone's location for a "Here" end of a "Go somewhere" trip, null until known (memory only).
 final goFromHereProvider = StateProvider<Place?>((ref) => null);

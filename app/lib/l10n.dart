@@ -546,6 +546,41 @@ class S {
       'It keeps watching if you leave this screen; stop it here or from the banner above the tabs. '
       'Your location is checked only while this runs and is not saved.';
   String get wakeRunning => 'Watching for your stop';
+
+  // Bus arriving: the bus of a running trip, watched at the boarding stop.
+  String get busAlertTitle => 'Bus arriving';
+  String get alertBus => 'Bus arriving';
+  String get alertBusSub => "After I'm leaving, when your bus is 2 min away";
+  String busAtStop(String stop) => 'At $stop';
+  String busAtStopTo(String stop, String to) => 'At $stop · to $to';
+  String busInTitle(String service, int minutes) => '$service in $minutes min';
+  String busArrivingTitle(String service) => '$service is arriving';
+  String busMinPill(int minutes) => '$minutes min';
+  String get busArrivingPill => 'Arriving';
+  String busStopsAwayPill(int stops) => switch (stops) {
+        0 => 'Next stop',
+        1 => '1 stop away',
+        _ => '$stops stops away',
+      };
+  String busToStopPill(String distance) => '$distance to the stop';
+  String get busAtStopPill => 'At the stop';
+  String busUpdatedPill(String clock) => 'Updated $clock';
+  String busGetOffPill(String stop) => 'Get off at $stop';
+  String busTimetableBody(String body) => '$body · Timetable estimate';
+  String get busAlertMe => 'Alert me when this bus is arriving';
+  String get busAlerting => 'Alerting';
+  String get busAlertStop => 'Stop alerting';
+  String get busAlertAsk => 'Alert me with the screen off';
+  String get busNoTimePill => 'No arrival time';
+  String busBannerNoTime(String service) => '$service · no arrival time';
+  String busBannerIn(String service, int minutes) => '$service in $minutes min';
+  String busBannerArriving(String service) => '$service arriving';
+  String busBannerUpdated(String service, String clock) => '$service · Updated $clock';
+  String get openTrip => 'Open trip';
+  String get busAlertsNeedLocation => 'Tap a bell to get alerts with the screen off';
+  String get openPlanner => 'Change this trip';
+  String planTripTo(String name) => 'To $name';
+  String get planTripSee => 'See buses and leave';
   String get wakeNow => 'Your stop is next. Get ready to alight.';
   String wakeNowAt(String stop) => 'Next stop: $stop. Get ready to alight.';
   String wakePassed(String stop) => 'You may have passed $stop. Check where you are.';
@@ -1061,7 +1096,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "More: the plug of your electric car is now inside the My car is electric tile, as Charger plug.",
+        "Trips: after I'm leaving, DailyLah watches your bus and tells you when it is 2 minutes away and when it arrives. Tap the trip bar to see the buses again; the bell on a bus picks another one.",
       ];
 
   // about

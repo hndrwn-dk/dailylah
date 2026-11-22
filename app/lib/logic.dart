@@ -2319,7 +2319,7 @@ LunchPick? lunchPick(List<Hawker> all, Set<String> starred, double lat, double l
 }
 
 /// The alerts More > Alerts can switch, and how many are on (the "8 of 9 on" beside the title).
-const alertKinds = 9;
+const alertKinds = 10;
 int alertsOn(Favorites f) => [
       f.mrtAlerts,
       f.rainAlerts,
@@ -2330,6 +2330,7 @@ int alertsOn(Favorites f) => [
       f.hawkerAlerts,
       f.digestAlerts,
       f.lunchAlerts,
+      f.busAlerts,
     ].where((on) => on).length;
 
 /// The place to suggest lunch near today: work or school on a day the user goes there (not on a
@@ -2448,6 +2449,281 @@ LeaveBy? leaveBy(List<(BusEta, int?)> grouped, Set<String>? services, int walk) 
     }
   }
   return best;
+}
+
+/// What one stop card of a trip works out from the live arrivals: the direct buses and the
+/// rest, the walk to the stop in minutes (null when the start is 1.5 km or more away, 0 at the
+/// stop), the bus to leave for with its ride and alighting stop, and whether that bus is no
+/// quicker than walking all the way ([busNotFaster]).
+typedef StopPlan = ({
+  List<(BusEta, int?)> direct,
+  List<(BusEta, int?)> others,
+  int? walk,
+  LeaveBy? lb,
+  DirectRide? ride,
+  BusStop? alight,
+  bool slow,
+});
+
+StopPlan stopPlan({
+  required BusStop stop,
+  required Place? from,
+  required Place to,
+  required Map<String, DirectRide> rides,
+  required List<BusEta> etas,
+  required Map<String, BusStop> byCode,
+}) {
+  final grouped = groupEtas(etas);
+  final direct = grouped.where((e) => rides.containsKey(e.$1.service)).toList();
+  final others = grouped.where((e) => !rides.containsKey(e.$1.service)).toList();
+  final walkM = from == null ? null : distanceMeters(from.lat, from.lng, stop.lat, stop.lng);
+  // At the stop already (within atStopMetres): no walk, so the bus there now can be caught.
+  final walk = walkM == null || walkM >= 1500 ? null : (walkM < atStopMetres ? 0 : walkMinutesTo(walkM));
+  final lb = walk == null ? null : leaveBy(direct, null, walk);
+  final ride = lb == null ? null : rides[lb.service];
+  final alight = ride == null ? null : byCode[ride.alightAt];
+  final slow = from != null &&
+      lb != null &&
+      ride != null &&
+      alight != null &&
+      busNotFaster(
+        stops: ride.stops,
+        doorToDoor: busDoorToDoor(
+          walkToStop: lb.walk,
+          busIn: lb.leaveIn + lb.walk,
+          stops: ride.stops,
+          alightMetres: distanceMeters(alight.lat, alight.lng, to.lat, to.lng),
+        ),
+        straightMetres: distanceMeters(from.lat, from.lng, to.lat, to.lng),
+      );
+  return (direct: direct, others: others, walk: walk, lb: lb, ride: ride, alight: alight, slow: slow);
+}
+
+/// What I'm leaving remembers and watches for a bus trip: the trip's first stop card
+/// ([stops], as shown), and the bus to leave for there with the minutes until it comes, when
+/// there is one worth taking ([etas]: that stop's arrivals, null while they load). Null when the
+/// trip has no bus stop card.
+typedef TripLeave = ({BusStop stop, String? service, int? minutes, BusStop? alight});
+
+TripLeave? tripLeave({
+  required Place from,
+  required Place to,
+  required List<BusStop> stops,
+  required BusRoutes routes,
+  required List<BusStop> all,
+  required List<BusEta>? etas,
+}) {
+  if (stops.isEmpty) return null;
+  final stop = stops.first;
+  if (etas == null || routes.routes.isEmpty) return (stop: stop, service: null, minutes: null, alight: null);
+  final plan = stopPlan(
+    stop: stop,
+    from: from,
+    to: to,
+    rides: tripRides(routes, stop, to, destinationStops(to, all)),
+    etas: etas,
+    byCode: {for (final x in all) x.code: x},
+  );
+  final lb = plan.lb;
+  if (lb == null || plan.slow) return (stop: stop, service: null, minutes: null, alight: null);
+  return (stop: stop, service: lb.service, minutes: lb.leaveIn + lb.walk, alight: plan.alight);
+}
+
+/// What Today shows right under the weather: the running trip's bus board, the planner card
+/// naming a destination picked but not left for, or nothing.
+enum TodayTripSlot { none, running, planned }
+
+/// [commuteShown] and [commuteRoute]: Today already shows that trip as its commute card;
+/// [plannedKey]: the destination picked in the planner (memory only), null when none.
+TodayTripSlot todayTripSlot({
+  required Habits h,
+  required bool commuteShown,
+  required String? commuteRoute,
+  required String? plannedKey,
+}) {
+  if (h.tripStart != null) {
+    final board = h.tripStop != null && h.tripTo != null && !(commuteShown && h.tripRoute == commuteRoute);
+    return board ? TodayTripSlot.running : TodayTripSlot.none;
+  }
+  return plannedKey == null ? TodayTripSlot.none : TodayTripSlot.planned;
+}
+
+/// The place behind a trip planner key ("here", "home", "work", "school", "extra:<i>", "adhoc"):
+/// [here] is the phone's position when known, [adhoc] the searched address of that end.
+Place? plannerPlace(String? key, Favorites fav, {Place? here, Place? adhoc}) {
+  if (key == null) return null;
+  if (key == 'here') return here;
+  if (key == 'adhoc') return adhoc;
+  if (key.startsWith('extra:')) {
+    final i = int.tryParse(key.substring(6)) ?? -1;
+    return i >= 0 && i < fav.extraPlaces.length ? fav.extraPlaces[i] : null;
+  }
+  return fav.places[PlaceKind.values.asNameMap()[key]];
+}
+
+// ---- Bus arriving: one bus of a running trip is watched at the boarding stop (bus_watch.dart).
+
+/// The watched bus is this close: the first alert.
+const busNearMinutes = 2;
+
+/// An arrival is the watched bus while its expected time is within this of the last one known.
+const busTrackToleranceMinutes = 4;
+
+/// A reading older than this is not acted on (a failed poll keeps the last one).
+const busStaleAfter = Duration(seconds: 90);
+
+/// This far from the boarding stop after the bus was near: the rider is on the bus, or gave up.
+const busLeftStopMetres = 300.0;
+
+/// A wait never lasts this long; the watch ends so the location service cannot run on.
+const busWatchLimit = Duration(minutes: 45);
+
+/// What one look at the arrivals means for the watch.
+enum BusWatchEvent { none, near, arriving, gone, left, stale }
+
+/// The one arrival being followed. LTA does not name a vehicle, so a bus is followed by when
+/// it is [due] at the stop; an earlier bus of the same service is then not mistaken for it.
+class BusTrack {
+  const BusTrack({
+    required this.service,
+    required this.due,
+    this.ahead,
+    this.misses = 0,
+    this.nearSent = false,
+    this.arrivingSent = false,
+    this.wasAtStop = false,
+  });
+  final String service;
+  final DateTime due;
+
+  /// When the bus of the same service just ahead of the watched one is due, null when there is
+  /// none (or it has left). It keeps the two apart when both times move.
+  final DateTime? ahead;
+
+  /// Looks in a row at which the watched bus was not among the arrivals.
+  final int misses;
+
+  /// The two alerts, each sent once for this bus.
+  final bool nearSent;
+  final bool arrivingSent;
+
+  /// The rider has been within [atStopMetres] of the stop.
+  final bool wasAtStop;
+
+  BusTrack copyWith({
+    DateTime? due,
+    DateTime? ahead,
+    bool clearAhead = false,
+    int? misses,
+    bool? nearSent,
+    bool? arrivingSent,
+    bool? wasAtStop,
+  }) =>
+      BusTrack(
+        service: service,
+        due: due ?? this.due,
+        ahead: clearAhead ? null : (ahead ?? this.ahead),
+        misses: misses ?? this.misses,
+        nearSent: nearSent ?? this.nearSent,
+        arrivingSent: arrivingSent ?? this.arrivingSent,
+        wasAtStop: wasAtStop ?? this.wasAtStop,
+      );
+}
+
+/// The track after a look, what to do about it, and the arrival followed (null when none).
+typedef BusWatchResult = ({BusTrack track, BusWatchEvent event, BusEta? eta});
+
+/// One look at the stop's arrivals ([etas]: every arrival, read at [fetchedAt]) and at how far
+/// the rider is from the stop ([metresToStop], null without location). In order: the rider has
+/// left the stop after the bus was near; the reading is too old to act on; the arrival of the
+/// service nearest to the tracked time (behind the bus ahead, while that one is still coming) is
+/// followed and alerts once at [busNearMinutes] and once on arriving; with none near that time
+/// the bus is gone once it had been near and is missing twice in a row or well past its time,
+/// and otherwise the next one of the service is followed. [eta] is null when the watched bus is
+/// not among the arrivals.
+BusWatchResult busWatchStep(
+  BusTrack t,
+  List<BusEta> etas,
+  DateTime now, {
+  required DateTime? fetchedAt,
+  double? metresToStop,
+}) {
+  var track = t;
+  if (metresToStop != null) {
+    if (metresToStop < atStopMetres && !track.wasAtStop) track = track.copyWith(wasAtStop: true);
+    if (track.wasAtStop && track.nearSent && metresToStop > busLeftStopMetres) {
+      return (track: track, event: BusWatchEvent.left, eta: null);
+    }
+  }
+  if (fetchedAt == null || now.difference(fetchedAt) > busStaleAfter) {
+    return (track: track, event: BusWatchEvent.stale, eta: null);
+  }
+  DateTime dueOf(BusEta e) => fetchedAt.add(Duration(minutes: e.minutes));
+  const tolerance = Duration(minutes: busTrackToleranceMinutes);
+  final mine = [for (final e in etas) if (e.service == t.service) e]..sort((a, b) => a.minutes.compareTo(b.minutes));
+  Duration off(BusEta e, DateTime at) => dueOf(e).difference(at).abs();
+
+  // The bus just ahead, while it is still coming: the watched bus is then one after it, so the
+  // two are not swapped when both times move. Once it is well past its time it has left.
+  var from = 0;
+  final ahead = t.ahead;
+  if (ahead != null && !now.isAfter(ahead.add(const Duration(minutes: 1)))) {
+    int? at;
+    for (var i = 0; i < mine.length - 1; i++) {
+      if (off(mine[i], ahead) > tolerance) continue;
+      if (at == null || off(mine[i], ahead) < off(mine[at], ahead)) at = i;
+    }
+    // Only when a bus behind it can still be the watched one; else the first is the watched one.
+    if (at != null && mine.skip(at + 1).any((e) => off(e, t.due) <= tolerance)) from = at + 1;
+  }
+  BusEta? found;
+  var index = -1;
+  for (var i = from; i < mine.length; i++) {
+    if (off(mine[i], t.due) > tolerance) continue;
+    if (found == null || off(mine[i], t.due) < off(found, t.due)) {
+      found = mine[i];
+      index = i;
+    }
+  }
+  // Once it was arriving, a bus still minutes away is the next one, not this one.
+  if (found != null && track.arrivingSent && found.minutes > busNearMinutes) found = null;
+  if (found == null) {
+    if (track.nearSent) {
+      // It was near and is not in the list: gone when that is so twice in a row (LTA drops a
+      // service for one reading now and then) or it is well past its time.
+      final misses = track.misses + 1;
+      final late = now.isAfter(t.due.add(const Duration(minutes: 1)));
+      final gone = misses >= 2 || late;
+      return (
+        track: track.copyWith(misses: misses),
+        event: gone ? BusWatchEvent.gone : BusWatchEvent.none,
+        eta: null,
+      );
+    }
+    // Not near yet: follow the next bus of the service after the time it was due.
+    BusEta? next;
+    for (final e in mine) {
+      if (dueOf(e).isAfter(t.due)) {
+        next = e;
+        break;
+      }
+    }
+    return (
+      track: next == null ? track : track.copyWith(due: dueOf(next), clearAhead: true, misses: 0),
+      event: BusWatchEvent.none,
+      eta: next,
+    );
+  }
+  track = index > 0
+      ? track.copyWith(due: dueOf(found), ahead: dueOf(mine[index - 1]), misses: 0)
+      : track.copyWith(due: dueOf(found), clearAhead: true, misses: 0);
+  if (found.minutes <= 0 && !track.arrivingSent) {
+    return (track: track.copyWith(nearSent: true, arrivingSent: true), event: BusWatchEvent.arriving, eta: found);
+  }
+  if (found.minutes <= busNearMinutes && !track.nearSent) {
+    return (track: track.copyWith(nearSent: true), event: BusWatchEvent.near, eta: found);
+  }
+  return (track: track, event: BusWatchEvent.none, eta: found);
 }
 
 /// One direct bus on a trip card. [tooSoon]: it comes before the walk to the stop is done.
@@ -4325,6 +4601,93 @@ RichNote wakeWatchNote(S s, {required String service, required String stop, doub
       ],
     );
 
+/// The id of the two bus alerts ([busNearNote], then [busArrivingNote], which replaces it).
+const busAlertNoteId = 24;
+
+/// Ongoing, while a bus of the running trip is watched: the bus, its minutes (or when the
+/// reading is from, once it is old), and how many stops away it is; without the bus's position,
+/// how far the rider is from the stop.
+RichNote busWatchNote(
+  S s, {
+  required String service,
+  required String stop,
+  int? minutes,
+  DateTime? staleSince,
+  int? stopsAway,
+  double? metresToStop,
+}) =>
+    RichNote(
+      id: locationServiceNoteId,
+      title: s.busAlertTitle,
+      body: s.busAtStop(stop),
+      pills: [
+        NotePill(service, PillTone.board),
+        if (staleSince != null)
+          NotePill(s.busUpdatedPill(clockLabel(staleSince)), PillTone.amber)
+        else if (minutes != null)
+          NotePill(minutes <= 0 ? s.busArrivingPill : s.busMinPill(minutes), PillTone.teal)
+        else
+          NotePill(s.busNoTimePill, PillTone.amber),
+        if (stopsAway != null)
+          NotePill(s.busStopsAwayPill(stopsAway), PillTone.sky)
+        else if (metresToStop != null)
+          NotePill(
+            metresToStop < atStopMetres ? s.busAtStopPill : s.busToStopPill(_roundedLeft(s, metresToStop)),
+            PillTone.sky,
+          ),
+      ],
+    );
+
+/// The watched bus is [busNearMinutes] away. [load] is LTA's code ('' when not known).
+RichNote busNearNote(
+  S s, {
+  required String service,
+  required String stop,
+  required String to,
+  required int minutes,
+  String load = '',
+  bool monitored = true,
+}) {
+  final body = s.busAtStopTo(stop, to);
+  final seats = s.loadLabel(load);
+  return RichNote(
+    id: busAlertNoteId,
+    title: s.busInTitle(service, minutes),
+    body: monitored ? body : s.busTimetableBody(body),
+    pills: [
+      NotePill(service, PillTone.board),
+      NotePill(s.busMinPill(minutes), PillTone.amber),
+      if (seats.isNotEmpty) NotePill(seats, PillTone.mint),
+    ],
+    art: NoteArt.phone,
+    link: _todayLink,
+  );
+}
+
+/// The watched bus is at the stop. [alight]: the stop to get off at, when known.
+RichNote busArrivingNote(
+  S s, {
+  required String service,
+  required String stop,
+  required String to,
+  String? alight,
+  bool monitored = true,
+}) {
+  final body = s.busAtStopTo(stop, to);
+  return RichNote(
+    id: busAlertNoteId,
+    title: s.busArrivingTitle(service),
+    body: monitored ? body : s.busTimetableBody(body),
+    pills: [
+      NotePill(service, PillTone.board),
+      NotePill(s.busArrivingPill, PillTone.amber),
+      if (alight != null && alight.isNotEmpty) NotePill(s.busGetOffPill(alight), PillTone.sky),
+    ],
+    art: NoteArt.phone,
+    link: _todayLink,
+  );
+}
+
 /// Ongoing, while I'm on the train runs: the line being ridden and the stops to go.
 RichNote rideWatchNote(S s, {required String station, required String? line, required int stopsLeft}) => RichNote(
       id: locationServiceNoteId,
@@ -4372,6 +4735,7 @@ List<RichNote> sampleNotes(S s) => [
         lunchNote(s,
             place: s.placeLabel('work'),
             pick: LunchPick(Hawker(id: '', name: s.sampleHawkerAlt, address: '', lat: 0, lng: 0), 250, starred: true)),
+        busNearNote(s, service: '197', stop: s.sampleStop, to: s.placeLabel('work'), minutes: 2, load: 'SEA'),
       ])
         n.asSample(s.exampleTitle(n.title)),
     ];
