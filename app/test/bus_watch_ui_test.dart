@@ -9,6 +9,8 @@ import 'package:dailylah/ui/today.dart';
 import 'package:dailylah/ui/trip.dart';
 import 'package:dailylah/ui/wake.dart';
 import 'package:dailylah/wake_session.dart';
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -84,6 +86,11 @@ void main() {
 
       // The watched row says so, and its bell stops the watch.
       expect(find.byTooltip(_s.busAlertStop), findsOneWidget);
+      // TalkBack hears the bell as a switch that is on.
+      final semantics = tester.ensureSemantics();
+      final bell = tester.getSemantics(find.byTooltip(_s.busAlertStop));
+      expect(bell.flagsCollection.isToggled, Tristate.isTrue);
+      semantics.dispose();
       expect(find.text(_s.busAlerting), findsOneWidget);
       await _tap(tester, find.byTooltip(_s.busAlertStop));
       expect(box.read(busWatchProvider), isNull);

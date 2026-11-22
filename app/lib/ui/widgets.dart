@@ -1308,13 +1308,19 @@ class BusBoard extends StatelessWidget {
                     ],
                     trailingWidth: r.bell == null ? 24 : kMinInteractiveDimension,
                     chevron: switch (r.bell) {
-                      final bell? => IconButton(
-                          tooltip: bell.tooltip,
-                          constraints: const BoxConstraints(
-                              minWidth: kMinInteractiveDimension, minHeight: kMinInteractiveDimension),
-                          icon: Icon(bell.on ? Icons.notifications_active : Icons.notifications_none,
-                              color: bell.on ? DL.led : DL.ledDim),
-                          onPressed: bell.onTap,
+                      // A switch for TalkBack: on while this bus is watched.
+                      final bell? => MergeSemantics(
+                          child: Semantics(
+                            toggled: bell.on,
+                            child: IconButton(
+                              tooltip: bell.tooltip,
+                              constraints: const BoxConstraints(
+                                  minWidth: kMinInteractiveDimension, minHeight: kMinInteractiveDimension),
+                              icon: Icon(bell.on ? Icons.notifications_active : Icons.notifications_none,
+                                  color: bell.on ? DL.led : DL.ledDim),
+                              onPressed: bell.onTap,
+                            ),
+                          ),
                         ),
                       null when r.onTap != null => const Padding(
                           padding: EdgeInsets.only(top: 4),
