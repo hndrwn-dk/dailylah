@@ -795,7 +795,7 @@ void main() {
       allowed = true;
       await openMore(tester);
       expect(rich.map((n) => n['id']).toSet(),
-          {102, 108, 109, 101, 110, 103, 105, 112, 106, 104, 111, 107, 120, 121, 122, 123});
+          {102, 108, 109, 101, 110, 103, 105, 112, 106, 104, 111, 107, 120, 121, 122, 123, 124});
       expect(rich.every((n) => (n['pills'] as List).isNotEmpty), isTrue);
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getStringList('alerts.sent'), isNull, reason: 'a sample must not stop the real alert');
