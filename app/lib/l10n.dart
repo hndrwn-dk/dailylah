@@ -570,6 +570,12 @@ class S {
   String get busAlertMe => 'Alert me when this bus is arriving';
   String get busAlerting => 'Alerting';
   String get busAlertStop => 'Stop alerting';
+  String busBannerIn(String service, int minutes) => '$service in $minutes min';
+  String busBannerArriving(String service) => '$service arriving';
+  String busBannerUpdated(String service, String clock) => '$service · Updated $clock';
+  String get openTrip => 'Open trip';
+  String get busAlertsNeedLocation => 'Tap a bell to get alerts with the screen off';
+  String get openPlanner => 'Change this trip';
   String get wakeNow => 'Your stop is next. Get ready to alight.';
   String wakeNowAt(String stop) => 'Next stop: $stop. Get ready to alight.';
   String wakePassed(String stop) => 'You may have passed $stop. Check where you are.';

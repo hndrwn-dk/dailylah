@@ -1203,6 +1203,12 @@ class TripBusCard extends ConsumerWidget {
                       else if (board != null) ...[
                         if (lb != null) _LeaveCard(lb: lb),
                         board,
+                        // Bus arriving without the location service: only while the app is open.
+                        if (bells && watch != null && !watch.done && !watch.background)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(4, 0, 8, 6),
+                            child: Text(s.busAlertsNeedLocation, style: t.bodySmall),
+                          ),
                         if (wake != null) wake,
                       ],
                       if (others.isNotEmpty)
@@ -1974,7 +1980,10 @@ class _Label extends StatelessWidget {
 /// The trip being timed, above the tabs on every screen (like [WakeBanner]): where to, since
 /// when, Arrived (logs it to History) and Stop timing.
 class TripBanner extends ConsumerWidget {
-  const TripBanner({super.key});
+  const TripBanner({super.key, this.opens = true});
+
+  /// A tap on the trip opens its bus board ([RunningTripPage]); false on that page itself.
+  final bool opens;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1986,15 +1995,29 @@ class TripBanner extends ConsumerWidget {
     final t = Theme.of(context).textTheme;
     final now = ref.watch(clockProvider).value ?? DateTime.now();
     final notifier = ref.read(habitsProvider.notifier);
+    // Bus arriving: the watched bus takes the second line; once it has gone, Wake me is offered.
+    final watch = ref.watch(busWatchProvider);
+    final eta = watch == null || watch.done ? null : watch.eta;
+    final busLine = watch == null || eta == null
+        ? null
+        : watch.stale
+            ? s.busBannerUpdated(watch.service, clockLabel(watch.fetchedAt ?? watch.started))
+            : [
+                eta.minutes <= 0 ? s.busBannerArriving(watch.service) : s.busBannerIn(watch.service, eta.minutes),
+                if (eta.minutes > 0 && watch.stopsAway != null) s.busStopsAwayPill(watch.stopsAway!),
+              ].join(' · ');
+    final wakeAt = watch != null && watch.done ? watch.alight : null;
+    // The board can be shown again when the trip's stop and destination are remembered.
+    final canOpen = opens && h.tripTo != null && ref.watch(busStopsByCodeProvider).containsKey(h.tripStop);
     return Panel(
       margin: const EdgeInsets.only(bottom: 10),
       color: DL.mint,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 8, 6, 8),
         child: LayoutBuilder(builder: (context, box) {
-          final about = Row(
+          final text = Row(
             children: [
-              const Icon(Icons.timer_outlined, color: DL.ink),
+              Icon(busLine == null ? Icons.timer_outlined : Icons.directions_bus_outlined, color: DL.ink),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -2002,13 +2025,44 @@ class TripBanner extends ConsumerWidget {
                   children: [
                     Text(s.routeLabel(s.routeEnd(ends.$1), s.routeEnd(ends.$2)),
                         style: t.titleSmall?.copyWith(color: DL.ink), maxLines: 2, overflow: TextOverflow.ellipsis),
-                    Text(s.onTheWay(clockLabel(start), s.durationShort(now.difference(start).inMinutes)),
+                    Text(busLine ?? s.onTheWay(clockLabel(start), s.durationShort(now.difference(start).inMinutes)),
                         style: t.bodySmall?.copyWith(color: DL.ink)),
                   ],
                 ),
               ),
             ],
           );
+          final opener = !canOpen
+              ? text
+              : Semantics(
+                  button: true,
+                  hint: s.openTrip,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => Navigator.of(context)
+                        .push(MaterialPageRoute<void>(builder: (_) => const RunningTripPage())),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
+                      child: text,
+                    ),
+                  ),
+                );
+          final about = wakeAt == null || watch == null
+              ? opener
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    opener,
+                    TextButton.icon(
+                      style: TextButton.styleFrom(foregroundColor: DL.ink),
+                      icon: const Icon(Icons.notifications_active_outlined),
+                      label: Text(s.wakeMeAt(wakeAt.name)),
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                        builder: (_) => WakeMePage(service: watch.service, alight: wakeAt, from: watch.stop),
+                      )),
+                    ),
+                  ],
+                );
           final actions = [
             IconButton(
               tooltip: s.tripCancel,
@@ -2043,6 +2097,53 @@ class TripBanner extends ConsumerWidget {
             ],
           );
         }),
+      ),
+    );
+  }
+}
+
+/// The running trip's bus board, one tap from the trip bar: the bar itself (this page hides the
+/// tabs), the buses at the stop the trip starts at with their bells, and a way to the planner.
+/// Built from what the phone remembers of the trip ([Habits.tripTo], [Habits.tripStop]), so it
+/// also opens after the app was closed. Closes when the trip ends.
+class RunningTripPage extends ConsumerWidget {
+  const RunningTripPage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen(habitsProvider.select((h) => h.tripStart), (_, start) {
+      if (start == null) Navigator.of(context).maybePop();
+    });
+    final s = ref.watch(stringsProvider);
+    final h = ref.watch(habitsProvider);
+    final ends = h.tripRoute == null ? null : tripRouteEnds(h.tripRoute!);
+    final to = h.tripTo;
+    final stop = ref.watch(busStopsByCodeProvider)[h.tripStop];
+    return Scaffold(
+      appBar: AppBar(title: Text(ends == null ? s.planTrip : s.routeLabel(s.routeEnd(ends.$1), s.routeEnd(ends.$2)))),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+        children: [
+          const TripBanner(opens: false),
+          if (to != null && stop != null)
+            TripBusCard(
+              stop: stop,
+              fromKey: null,
+              to: to,
+              toLabel: placeTitle(s.placeLabel, to),
+              suggestedMetres: null,
+              walkCard: false,
+            ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              icon: const Icon(Icons.alt_route),
+              label: Text(s.openPlanner),
+              onPressed: () =>
+                  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage())),
+            ),
+          ),
+        ],
       ),
     );
   }

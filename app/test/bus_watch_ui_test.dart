@@ -2,10 +2,13 @@
 // banner shows it and opens its board, and Today keeps the trip near the top.
 import 'package:dailylah/bus_watch.dart';
 import 'package:dailylah/l10n.dart';
+import 'package:dailylah/logic.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/today.dart';
 import 'package:dailylah/ui/trip.dart';
+import 'package:dailylah/ui/wake.dart';
+import 'package:dailylah/wake_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -132,6 +135,140 @@ void main() {
       final bell = tester.getSize(find.byTooltip(_s.busAlertStop));
       expect(bell.width, greaterThanOrEqualTo(48));
       expect(bell.height, greaterThanOrEqualTo(48));
+      await _end(tester, box);
+    });
+  });
+
+  group('the trip bar', () {
+    const fullerton =
+        Place(kind: PlaceKind.other, name: 'Fullerton', addrLat: 1.285618, addrLng: 103.853422);
+    final start = DateTime(2026, 10, 20, 6, 51);
+
+    /// Today with a trip to Fullerton running from Tampines Int ([stop] as remembered).
+    Future<ProviderContainer> running(WidgetTester tester,
+        {Condition c = _normal, String? stop = '75009', Place? to = fullerton}) async {
+      await applyCondition(tester, c);
+      await tester.pumpWidget(appUnder(c, householdFavorites, tuesdayMorning));
+      await settle(tester);
+      final box = containerOf(tester);
+      await tester.runAsync(() =>
+          box.read(habitsProvider.notifier).startTrip('Home>Fullerton', start, to: to, stop: stop, bus: '10'));
+      await settle(tester);
+      return box;
+    }
+
+    /// Puts the watch in a known state, as a poll would.
+    Future<void> watching(WidgetTester tester, ProviderContainer box,
+        {int minutes = 5, int? stopsAway = 4, bool stale = false, bool done = false, bool background = true}) async {
+      // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+      box.read(busWatchProvider.notifier).state = BusWatchState(
+        stop: tampinesInt,
+        service: '10',
+        alight: fullertonSq,
+        toLabel: 'Fullerton',
+        started: start,
+        track: BusTrack(service: '10', due: start),
+        eta: BusEta(service: '10', minutes: minutes, load: 'SEA'),
+        fetchedAt: DateTime(2026, 10, 20, 6, 58),
+        stopsAway: stopsAway,
+        stale: stale,
+        done: done,
+        background: background,
+      );
+      await settle(tester);
+    }
+
+    testWidgets('says the watched bus, and the time on the way without one', (tester) async {
+      final box = await running(tester);
+      expect(find.textContaining('On the way since 6:51'), findsOneWidget);
+      await watching(tester, box);
+      expect(find.text('10 in 5 min · 4 stops away'), findsOneWidget);
+      expect(find.textContaining('On the way since'), findsNothing);
+      await watching(tester, box, minutes: 0, stopsAway: null);
+      expect(find.text('10 arriving'), findsOneWidget);
+      await watching(tester, box, stale: true);
+      expect(find.text('10 · Updated 6:58'), findsOneWidget);
+      expect(find.text(_s.busAlertsNeedLocation), findsNothing);
+      await _end(tester, box);
+    });
+
+    testWidgets('without the location service the board says how to get alerts with the screen off',
+        (tester) async {
+      final box = await running(tester);
+      await watching(tester, box, background: false);
+      expect(find.text(_s.busAlertsNeedLocation), findsNothing, reason: 'the bar stays short');
+      await tester.tap(find.text('Home → Fullerton'));
+      await settle(tester);
+      expect(find.text(_s.busAlertsNeedLocation), findsOneWidget);
+      await _end(tester, box);
+    });
+
+    testWidgets('a tap opens the board of the remembered stop; Stop timing and Arrived stay', (tester) async {
+      final box = await running(tester);
+      expect(find.byTooltip(_s.tripCancel), findsOneWidget);
+      expect(find.text(_s.arrived), findsOneWidget);
+      await tester.tap(find.text('Home → Fullerton'));
+      await settle(tester);
+      expect(find.byType(RunningTripPage), findsOneWidget);
+      expect(find.byType(TripBusCard), findsOneWidget);
+      expect(find.text(_s.fromStop('Tampines Int')), findsOneWidget);
+      expect(find.byTooltip(_s.busAlertMe), findsWidgets, reason: 'the board has its bells');
+      expect(find.text(_s.arrived), findsOneWidget, reason: 'the bar is on the page too');
+      expect(tester.takeException(), isNull);
+
+      await _tap(tester, find.text(_s.openPlanner));
+      expect(find.byType(TripPlannerPage), findsOneWidget);
+      await _end(tester, box);
+    });
+
+    testWidgets('the page closes when the trip ends', (tester) async {
+      final box = await running(tester);
+      await tester.tap(find.text('Home → Fullerton'));
+      await settle(tester);
+      expect(find.byType(RunningTripPage), findsOneWidget);
+      await _end(tester, box);
+      await settle(tester);
+      expect(find.byType(RunningTripPage), findsNothing);
+    });
+
+    testWidgets('unknown stop: a stop that is no longer in the list, or no destination, opens nothing',
+        (tester) async {
+      var box = await running(tester, stop: '00000');
+      await tester.tap(find.text('Home → Fullerton'));
+      await settle(tester);
+      expect(find.byType(RunningTripPage), findsNothing);
+      expect(find.textContaining('On the way since'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await _end(tester, box);
+
+      box = await running(tester, to: null);
+      await tester.tap(find.text('Home → Fullerton'));
+      await settle(tester);
+      expect(find.byType(RunningTripPage), findsNothing);
+      expect(tester.takeException(), isNull);
+      await _end(tester, box);
+    });
+
+    testWidgets('when the bus has gone it offers Wake me at the stop to get off', (tester) async {
+      final box = await running(tester);
+      await watching(tester, box, done: true);
+      final offer = find.text(_s.wakeMeAt('Fullerton Sq'));
+      expect(offer, findsOneWidget);
+      await tester.tap(offer);
+      await settle(tester);
+      expect(find.byType(WakeMePage), findsOneWidget);
+      box.read(wakeProvider.notifier).stop();
+      await _end(tester, box);
+    });
+
+    testWidgets('fits at 200% text on a 320 dp phone', (tester) async {
+      const small = Condition('small, large text', textScale: 2.0, size: Size(320, 640));
+      final box = await running(tester, c: small);
+      await watching(tester, box);
+      expect(find.textContaining('10 in 5 min'), findsOneWidget);
+      await watching(tester, box, done: true);
+      await watching(tester, box, background: false);
+      expect(tester.takeException(), isNull);
       await _end(tester, box);
     });
   });
