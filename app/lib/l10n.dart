@@ -576,6 +576,8 @@ class S {
   String get openTrip => 'Open trip';
   String get busAlertsNeedLocation => 'Tap a bell to get alerts with the screen off';
   String get openPlanner => 'Change this trip';
+  String planTripTo(String name) => 'To $name';
+  String get planTripSee => 'See buses and leave';
   String get wakeNow => 'Your stop is next. Get ready to alight.';
   String wakeNowAt(String stop) => 'Next stop: $stop. Get ready to alight.';
   String wakePassed(String stop) => 'You may have passed $stop. Check where you are.';

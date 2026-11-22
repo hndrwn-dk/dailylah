@@ -2529,6 +2529,38 @@ TripLeave? tripLeave({
   return (stop: stop, service: lb.service, minutes: lb.leaveIn + lb.walk, alight: plan.alight);
 }
 
+/// What Today shows right under the weather: the running trip's bus board, the planner card
+/// naming a destination picked but not left for, or nothing.
+enum TodayTripSlot { none, running, planned }
+
+/// [commuteShown] and [commuteRoute]: Today already shows that trip as its commute card;
+/// [plannedKey]: the destination picked in the planner (memory only), null when none.
+TodayTripSlot todayTripSlot({
+  required Habits h,
+  required bool commuteShown,
+  required String? commuteRoute,
+  required String? plannedKey,
+}) {
+  if (h.tripStart != null) {
+    final board = h.tripStop != null && h.tripTo != null && !(commuteShown && h.tripRoute == commuteRoute);
+    return board ? TodayTripSlot.running : TodayTripSlot.none;
+  }
+  return plannedKey == null ? TodayTripSlot.none : TodayTripSlot.planned;
+}
+
+/// The place behind a trip planner key ("here", "home", "work", "school", "extra:<i>", "adhoc"):
+/// [here] is the phone's position when known, [adhoc] the searched address of that end.
+Place? plannerPlace(String? key, Favorites fav, {Place? here, Place? adhoc}) {
+  if (key == null) return null;
+  if (key == 'here') return here;
+  if (key == 'adhoc') return adhoc;
+  if (key.startsWith('extra:')) {
+    final i = int.tryParse(key.substring(6)) ?? -1;
+    return i >= 0 && i < fav.extraPlaces.length ? fav.extraPlaces[i] : null;
+  }
+  return fav.places[PlaceKind.values.asNameMap()[key]];
+}
+
 // ---- Bus arriving: one bus of a running trip is watched at the boarding stop (bus_watch.dart).
 
 /// The watched bus is this close: the first alert.

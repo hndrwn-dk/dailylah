@@ -196,10 +196,13 @@ void main() {
         (tester) async {
       final box = await running(tester);
       await watching(tester, box, background: false);
-      expect(find.text(_s.busAlertsNeedLocation), findsNothing, reason: 'the bar stays short');
+      expect(find.descendant(of: find.byType(TripBanner), matching: find.text(_s.busAlertsNeedLocation)),
+          findsNothing, reason: 'the bar stays short');
       await tester.tap(find.text('Home → Fullerton'));
       await settle(tester);
-      expect(find.text(_s.busAlertsNeedLocation), findsOneWidget);
+      expect(
+          find.descendant(of: find.byType(RunningTripPage), matching: find.text(_s.busAlertsNeedLocation)),
+          findsOneWidget);
       await _end(tester, box);
     });
 
@@ -269,6 +272,68 @@ void main() {
       await watching(tester, box, done: true);
       await watching(tester, box, background: false);
       expect(tester.takeException(), isNull);
+      await _end(tester, box);
+    });
+  });
+
+  group('Today', () {
+    const fullerton =
+        Place(kind: PlaceKind.other, name: 'Fullerton', addrLat: 1.285618, addrLng: 103.853422);
+
+    Future<ProviderContainer> today(WidgetTester tester, DateTime now) async {
+      await applyCondition(tester, _normal);
+      await tester.pumpWidget(appUnder(_normal, householdFavorites, now));
+      await settle(tester);
+      return containerOf(tester);
+    }
+
+    double top(WidgetTester tester, Finder f) => tester.getTopLeft(f).dy;
+
+    testWidgets('on a day off the running trip has its board under the weather', (tester) async {
+      final box = await today(tester, saturdayMorning);
+      expect(find.byType(TripBusCard), findsNothing);
+      final planAt = top(tester, find.byType(PlanTripCard, skipOffstage: false));
+      await tester.runAsync(() => box.read(habitsProvider.notifier).startTrip(
+          'Home>Fullerton', saturdayMorning.subtract(const Duration(minutes: 9)),
+          to: fullerton, stop: tampinesInt.code));
+      await settle(tester);
+      final board = find.byType(TripBusCard, skipOffstage: false);
+      expect(board, findsOneWidget);
+      expect(find.text(_s.fromStop('Tampines Int'), skipOffstage: false), findsOneWidget);
+      expect(top(tester, board), lessThan(planAt), reason: 'above where the planner card was');
+      expect(find.byType(PlanTripCard, skipOffstage: false), findsOneWidget, reason: 'the planner card stays');
+      expect(tester.takeException(), isNull);
+      await _end(tester, box);
+      await settle(tester);
+      expect(find.byType(TripBusCard, skipOffstage: false), findsNothing);
+    });
+
+    testWidgets('a planned trip not left for is one tap from the top', (tester) async {
+      final box = await today(tester, saturdayMorning);
+      expect(find.text(_s.planTrip, skipOffstage: false), findsOneWidget);
+      final before = top(tester, find.byType(PlanTripCard, skipOffstage: false));
+      box.read(goAdhocDestProvider.notifier).state = fullerton;
+      box.read(goKeyProvider.notifier).state = 'adhoc';
+      await settle(tester);
+      final card = find.byType(PlanTripCard, skipOffstage: false);
+      expect(card, findsOneWidget, reason: 'moved, not shown twice');
+      expect(find.text(_s.planTripTo('Fullerton'), skipOffstage: false), findsOneWidget);
+      expect(find.text(_s.planTripSee, skipOffstage: false), findsOneWidget);
+      expect(top(tester, card), lessThan(before));
+      await _tap(tester, find.text(_s.planTripTo('Fullerton')));
+      expect(find.byType(TripPlannerPage), findsOneWidget);
+    });
+
+    testWidgets('the commute card is not doubled when the commute is the running trip', (tester) async {
+      final box = await today(tester, tuesdayMorning);
+      final cards = find.byType(TripBusCard, skipOffstage: false).evaluate().length;
+      expect(cards, greaterThan(0), reason: 'the commute shows its buses');
+      final work = householdFavorites.places[PlaceKind.work]!;
+      await tester.runAsync(() => box.read(habitsProvider.notifier).startTrip(
+          'home>work', tuesdayMorning.subtract(const Duration(minutes: 2)),
+          to: work, stop: tampinesInt.code));
+      await settle(tester);
+      expect(find.byType(TripBusCard, skipOffstage: false).evaluate().length, cards);
       await _end(tester, box);
     });
   });

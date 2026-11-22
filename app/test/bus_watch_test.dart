@@ -253,4 +253,35 @@ void main() {
       expect(tripLeave(from: siglap, to: stPatricks, stops: const [], routes: routes, all: all, etas: etas), isNull);
     });
   });
+
+  group('todayTripSlot: what sits under the weather on Today', () {
+    const to = Place(kind: PlaceKind.other, name: 'Bugis Junction', addrLat: 1.2996, addrLng: 103.8554);
+    final running = Habits(
+        tripRoute: 'Home>Bugis Junction', tripStart: DateTime(2026, 11, 22, 12, 1), tripTo: to, tripStop: '92049');
+
+    test('a running bus trip shows its board', () {
+      expect(todayTripSlot(h: running, commuteShown: false, commuteRoute: null, plannedKey: 'adhoc'),
+          TodayTripSlot.running);
+    });
+
+    test('not twice: the commute card already shows that trip', () {
+      final commute = running.copyWith(tripRoute: 'home>work');
+      expect(todayTripSlot(h: commute, commuteShown: true, commuteRoute: 'home>work', plannedKey: null),
+          TodayTripSlot.none);
+      expect(todayTripSlot(h: running, commuteShown: true, commuteRoute: 'home>work', plannedKey: null),
+          TodayTripSlot.running, reason: 'another trip than the commute');
+    });
+
+    test('a trip with no stop or destination remembered has no board', () {
+      final bare = Habits(tripRoute: 'Home>Here', tripStart: DateTime(2026, 11, 22, 12, 1));
+      expect(todayTripSlot(h: bare, commuteShown: false, commuteRoute: null, plannedKey: null), TodayTripSlot.none);
+    });
+
+    test('a destination picked but not left for moves the planner card up', () {
+      expect(todayTripSlot(h: Habits.empty, commuteShown: false, commuteRoute: null, plannedKey: 'adhoc'),
+          TodayTripSlot.planned);
+      expect(todayTripSlot(h: Habits.empty, commuteShown: false, commuteRoute: null, plannedKey: null),
+          TodayTripSlot.none);
+    });
+  });
 }

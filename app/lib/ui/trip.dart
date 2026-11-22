@@ -1608,16 +1608,7 @@ class GoSomewhere extends ConsumerWidget {
         if (fav.places[k] != null) (k.name, PlaceSelector.iconOf(k), s.placeLabel(k.name)),
       for (final i in extrasForToday(fav, now)) ('extra:$i', Icons.star_outline, placeTitle(s.placeLabel, fav.extraPlaces[i])),
     ];
-    Place? placeFor(String? k, Place? adhoc) {
-      if (k == null) return null;
-      if (k == 'here') return here;
-      if (k == 'adhoc') return adhoc;
-      if (k.startsWith('extra:')) {
-        final i = int.tryParse(k.substring(6)) ?? -1;
-        return i >= 0 && i < fav.extraPlaces.length ? fav.extraPlaces[i] : null;
-      }
-      return fav.places[PlaceKind.values.asNameMap()[k]];
-    }
+    Place? placeFor(String? k, Place? adhoc) => plannerPlace(k, fav, here: here, adhoc: adhoc);
 
     final dest = placeFor(key, adhocTo);
     // No location yet (or a saved place since removed): start from the first saved place
@@ -1933,7 +1924,10 @@ class _TripPlannerPageState extends ConsumerState<TripPlannerPage> {
 
 /// Today's entry to the trip planner.
 class PlanTripCard extends ConsumerWidget {
-  const PlanTripCard({super.key});
+  const PlanTripCard({super.key, this.toName});
+
+  /// The destination already picked in the planner: the card then names the trip.
+  final String? toName;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1952,8 +1946,8 @@ class PlanTripCard extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(s.planTrip, style: t.titleMedium),
-                    Text(s.planTripSub, style: t.bodySmall),
+                    Text(toName == null ? s.planTrip : s.planTripTo(toName!), style: t.titleMedium),
+                    Text(toName == null ? s.planTripSub : s.planTripSee, style: t.bodySmall),
                   ],
                 ),
               ),
