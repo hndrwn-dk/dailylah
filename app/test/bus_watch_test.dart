@@ -1,5 +1,6 @@
 // Bus arriving: the rule that follows one bus of a running trip (busWatchStep) and what its
 // notifications say.
+import 'package:dailylah/l10n.dart';
 import 'package:dailylah/logic.dart';
 import 'package:dailylah/models.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -84,6 +85,67 @@ void main() {
           BusWatchEvent.left);
       expect(_step(_track(5, wasAtStop: true), [_eta('197', 5)], metres: 320).event, BusWatchEvent.none);
       expect(_step(_track(1, nearSent: true), [_eta('197', 1)], metres: 320).event, BusWatchEvent.none);
+    });
+  });
+
+  group('notes', () {
+    const s = S();
+    const stop = 'Marine Pde Stn Exit 6';
+    List<String> texts(RichNote n) => [for (final p in n.pills) p.text];
+    List<PillTone> tones(RichNote n) => [for (final p in n.pills) p.tone];
+
+    test('near: the bus, the minutes and the load', () {
+      final n = busNearNote(s, service: '197', stop: stop, to: 'Bugis Junction', minutes: 2, load: 'SEA');
+      expect(n.id, 24);
+      expect(n.title, '197 in 2 min');
+      expect(n.body, 'At Marine Pde Stn Exit 6 · to Bugis Junction');
+      expect(texts(n), ['197', '2 min', s.loadLabel('SEA')]);
+      expect(tones(n), [PillTone.board, PillTone.amber, PillTone.mint]);
+      expect(n.art, NoteArt.phone);
+      expect(n.link, 'dailylah://today');
+    });
+
+    test('near: a load that is not known has no pill', () {
+      final n = busNearNote(s, service: '197', stop: stop, to: 'Bugis Junction', minutes: 2);
+      expect(texts(n), ['197', '2 min']);
+    });
+
+    test('near: a timetable estimate says so in the body', () {
+      final n = busNearNote(s, service: '197', stop: stop, to: 'Bugis Junction', minutes: 2, monitored: false);
+      expect(n.body, endsWith('Timetable estimate'));
+    });
+
+    test('arriving: where to get off when known', () {
+      final n = busArrivingNote(s, service: '197', stop: stop, to: 'Bugis Junction', alight: 'Bugis Stn');
+      expect(n.id, 24);
+      expect(n.title, '197 is arriving');
+      expect(texts(n), ['197', 'Arriving', 'Get off at Bugis Stn']);
+      expect(tones(n), [PillTone.board, PillTone.amber, PillTone.sky]);
+      expect(texts(busArrivingNote(s, service: '197', stop: stop, to: 'Bugis Junction')), ['197', 'Arriving']);
+    });
+
+    test('ongoing: the countdown on the location service notification', () {
+      final n = busWatchNote(s, service: '197', stop: stop, minutes: 5, stopsAway: 4);
+      expect(n.id, locationServiceNoteId);
+      expect(n.title, 'Bus arriving');
+      expect(n.body, 'At Marine Pde Stn Exit 6');
+      expect(texts(n), ['197', '5 min', '4 stops away']);
+      expect(tones(n), [PillTone.board, PillTone.teal, PillTone.sky]);
+      expect(texts(busWatchNote(s, service: '197', stop: stop, minutes: 0))[1], 'Arriving');
+      expect(texts(busWatchNote(s, service: '197', stop: stop, minutes: 5, stopsAway: 1))[2], '1 stop away');
+      expect(texts(busWatchNote(s, service: '197', stop: stop, minutes: 5, stopsAway: 0))[2], 'Next stop');
+    });
+
+    test('ongoing: an old reading says when it is from', () {
+      final n = busWatchNote(s, service: '197', stop: stop, minutes: 5, staleSince: DateTime(2026, 11, 22, 12, 7));
+      expect(texts(n)[1], 'Updated 12:07');
+      expect(tones(n)[1], PillTone.amber);
+    });
+
+    test('ongoing: how far the rider is from the stop when the bus has no position', () {
+      expect(texts(busWatchNote(s, service: '197', stop: stop, minutes: 5, metresToStop: 40))[2], 'At the stop');
+      expect(texts(busWatchNote(s, service: '197', stop: stop, minutes: 5, metresToStop: 340))[2], '350 m to the stop');
+      expect(texts(busWatchNote(s, service: '197', stop: stop, minutes: 5)), ['197', '5 min']);
     });
   });
 }

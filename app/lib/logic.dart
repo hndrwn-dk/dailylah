@@ -4426,6 +4426,91 @@ RichNote wakeWatchNote(S s, {required String service, required String stop, doub
       ],
     );
 
+/// The id of the two bus alerts ([busNearNote], then [busArrivingNote], which replaces it).
+const busAlertNoteId = 24;
+
+/// Ongoing, while a bus of the running trip is watched: the bus, its minutes (or when the
+/// reading is from, once it is old), and how many stops away it is; without the bus's position,
+/// how far the rider is from the stop.
+RichNote busWatchNote(
+  S s, {
+  required String service,
+  required String stop,
+  int? minutes,
+  DateTime? staleSince,
+  int? stopsAway,
+  double? metresToStop,
+}) =>
+    RichNote(
+      id: locationServiceNoteId,
+      title: s.busAlertTitle,
+      body: s.busAtStop(stop),
+      pills: [
+        NotePill(service, PillTone.board),
+        if (staleSince != null)
+          NotePill(s.busUpdatedPill(clockLabel(staleSince)), PillTone.amber)
+        else if (minutes != null)
+          NotePill(minutes <= 0 ? s.busArrivingPill : s.busMinPill(minutes), PillTone.teal),
+        if (stopsAway != null)
+          NotePill(s.busStopsAwayPill(stopsAway), PillTone.sky)
+        else if (metresToStop != null)
+          NotePill(
+            metresToStop < atStopMetres ? s.busAtStopPill : s.busToStopPill(_roundedLeft(s, metresToStop)),
+            PillTone.sky,
+          ),
+      ],
+    );
+
+/// The watched bus is [busNearMinutes] away. [load] is LTA's code ('' when not known).
+RichNote busNearNote(
+  S s, {
+  required String service,
+  required String stop,
+  required String to,
+  required int minutes,
+  String load = '',
+  bool monitored = true,
+}) {
+  final body = s.busAtStopTo(stop, to);
+  final seats = s.loadLabel(load);
+  return RichNote(
+    id: busAlertNoteId,
+    title: s.busInTitle(service, minutes),
+    body: monitored ? body : s.busTimetableBody(body),
+    pills: [
+      NotePill(service, PillTone.board),
+      NotePill(s.busMinPill(minutes), PillTone.amber),
+      if (seats.isNotEmpty) NotePill(seats, PillTone.mint),
+    ],
+    art: NoteArt.phone,
+    link: _todayLink,
+  );
+}
+
+/// The watched bus is at the stop. [alight]: the stop to get off at, when known.
+RichNote busArrivingNote(
+  S s, {
+  required String service,
+  required String stop,
+  required String to,
+  String? alight,
+  bool monitored = true,
+}) {
+  final body = s.busAtStopTo(stop, to);
+  return RichNote(
+    id: busAlertNoteId,
+    title: s.busArrivingTitle(service),
+    body: monitored ? body : s.busTimetableBody(body),
+    pills: [
+      NotePill(service, PillTone.board),
+      NotePill(s.busArrivingPill, PillTone.amber),
+      if (alight != null && alight.isNotEmpty) NotePill(s.busGetOffPill(alight), PillTone.sky),
+    ],
+    art: NoteArt.phone,
+    link: _todayLink,
+  );
+}
+
 /// Ongoing, while I'm on the train runs: the line being ridden and the stops to go.
 RichNote rideWatchNote(S s, {required String station, required String? line, required int stopsLeft}) => RichNote(
       id: locationServiceNoteId,
@@ -4473,6 +4558,7 @@ List<RichNote> sampleNotes(S s) => [
         lunchNote(s,
             place: s.placeLabel('work'),
             pick: LunchPick(Hawker(id: '', name: s.sampleHawkerAlt, address: '', lat: 0, lng: 0), 250, starred: true)),
+        busNearNote(s, service: '197', stop: s.sampleStop, to: s.placeLabel('work'), minutes: 2, load: 'SEA'),
       ])
         n.asSample(s.exampleTitle(n.title)),
     ];

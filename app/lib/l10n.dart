@@ -546,6 +546,25 @@ class S {
       'It keeps watching if you leave this screen; stop it here or from the banner above the tabs. '
       'Your location is checked only while this runs and is not saved.';
   String get wakeRunning => 'Watching for your stop';
+
+  // Bus arriving: the bus of a running trip, watched at the boarding stop.
+  String get busAlertTitle => 'Bus arriving';
+  String busAtStop(String stop) => 'At $stop';
+  String busAtStopTo(String stop, String to) => 'At $stop · to $to';
+  String busInTitle(String service, int minutes) => '$service in $minutes min';
+  String busArrivingTitle(String service) => '$service is arriving';
+  String busMinPill(int minutes) => '$minutes min';
+  String get busArrivingPill => 'Arriving';
+  String busStopsAwayPill(int stops) => switch (stops) {
+        0 => 'Next stop',
+        1 => '1 stop away',
+        _ => '$stops stops away',
+      };
+  String busToStopPill(String distance) => '$distance to the stop';
+  String get busAtStopPill => 'At the stop';
+  String busUpdatedPill(String clock) => 'Updated $clock';
+  String busGetOffPill(String stop) => 'Get off at $stop';
+  String busTimetableBody(String body) => '$body · Timetable estimate';
   String get wakeNow => 'Your stop is next. Get ready to alight.';
   String wakeNowAt(String stop) => 'Next stop: $stop. Get ready to alight.';
   String wakePassed(String stop) => 'You may have passed $stop. Check where you are.';
