@@ -148,4 +148,56 @@ void main() {
       expect(texts(busWatchNote(s, service: '197', stop: stop, minutes: 5)), ['197', '5 min']);
     });
   });
+
+  group('what the phone remembers', () {
+    const to = Place(kind: PlaceKind.other, name: 'Bugis Junction', addrLat: 1.2996, addrLng: 103.8554);
+    final running = Habits(
+      tripRoute: 'Home>Bugis Junction',
+      tripStart: DateTime(2026, 11, 22, 12, 1),
+      tripTo: to,
+      tripStop: '92049',
+      tripBus: '197',
+    );
+
+    test('the running trip keeps its destination, stop and bus', () {
+      final back = Habits.fromJson(running.toJson());
+      expect(back.tripTo?.name, 'Bugis Junction');
+      expect(back.tripTo?.lat, 1.2996);
+      expect(back.tripTo?.lng, 103.8554);
+      expect(back.tripStop, '92049');
+      expect(back.tripBus, '197');
+    });
+
+    test('they go when the trip ends', () {
+      final ended = running.copyWith(clearTrip: true);
+      expect(ended.tripTo, isNull);
+      expect(ended.tripStop, isNull);
+      expect(ended.tripBus, isNull);
+      expect(ended.toJson().keys, isNot(contains('tt')));
+    });
+
+    test('the bus alone can be dropped', () {
+      final none = running.copyWith(clearTripBus: true);
+      expect(none.tripBus, isNull);
+      expect(none.tripStop, '92049');
+      expect(none.tripTo?.name, 'Bugis Junction');
+    });
+
+    test('a history saved before this loads', () {
+      final old = Habits.fromJson(const {'trips': [], 'meals': [], 'tr': 'home>work', 'ts': '2026-11-20T08:00:00.000'});
+      expect(old.tripRoute, 'home>work');
+      expect(old.tripTo, isNull);
+      expect(old.tripStop, isNull);
+      expect(old.tripBus, isNull);
+    });
+
+    test('Bus arriving is an alert that is on until switched off', () {
+      expect(const Favorites().busAlerts, isTrue);
+      expect(Favorites.fromJson(const Favorites().copyWith(busAlerts: false).toJson()).busAlerts, isFalse);
+      expect(Favorites.fromJson(const {'onboarded': true}).busAlerts, isTrue);
+      expect(alertKinds, 10);
+      final off = const Favorites().copyWith(busAlerts: false);
+      expect(alertsOn(const Favorites()) - alertsOn(off), 1);
+    });
+  });
 }

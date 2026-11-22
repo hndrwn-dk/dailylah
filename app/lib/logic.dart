@@ -2319,7 +2319,7 @@ LunchPick? lunchPick(List<Hawker> all, Set<String> starred, double lat, double l
 }
 
 /// The alerts More > Alerts can switch, and how many are on (the "8 of 9 on" beside the title).
-const alertKinds = 9;
+const alertKinds = 10;
 int alertsOn(Favorites f) => [
       f.mrtAlerts,
       f.rainAlerts,
@@ -2330,6 +2330,7 @@ int alertsOn(Favorites f) => [
       f.hawkerAlerts,
       f.digestAlerts,
       f.lunchAlerts,
+      f.busAlerts,
     ].where((on) => on).length;
 
 /// The place to suggest lunch near today: work or school on a day the user goes there (not on a

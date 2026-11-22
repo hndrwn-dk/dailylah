@@ -190,8 +190,36 @@ class HabitsNotifier extends Notifier<Habits> {
     ));
   }
 
-  Future<void> startTrip(String route, DateTime now, {bool rainy = false, String? mode, double? km}) =>
-      _set(state.copyWith(tripRoute: route, tripStart: now, tripRainy: rainy, tripMode: mode, tripKm: km));
+  /// [to], [stop] and [bus]: where a bus trip goes, the stop it starts at and the bus watched
+  /// there, kept until the trip ends so its board can be shown again (never the phone's position).
+  Future<void> startTrip(
+    String route,
+    DateTime now, {
+    bool rainy = false,
+    String? mode,
+    double? km,
+    Place? to,
+    String? stop,
+    String? bus,
+  }) =>
+      // A trip started over another one must not keep the earlier trip's destination or bus.
+      _set(state.copyWith(clearTrip: true).copyWith(
+          tripRoute: route,
+          tripStart: now,
+          tripRainy: rainy,
+          tripMode: mode,
+          tripKm: km,
+          tripTo: to,
+          tripStop: stop,
+          tripBus: bus == null || bus.isEmpty ? null : bus));
+
+  /// The bus watched on the running trip changed ([bus] null: none is watched now).
+  Future<void> setTripBus(String stop, String? bus) async {
+    if (state.tripStart == null) return;
+    await _set(bus == null || bus.isEmpty
+        ? state.copyWith(tripStop: stop, clearTripBus: true)
+        : state.copyWith(tripStop: stop, tripBus: bus));
+  }
 
   /// The phone was found at the saved place [at]: a running trip that ends there is over. It is
   /// logged when the time can be trusted ([arrivalLogMinutes]), dropped otherwise.

@@ -821,7 +821,8 @@ void main() {
     await settle(tester);
     final before = alertsOn(box.read(favoritesProvider));
     expect(box.read(favoritesProvider).dengueAlerts, isTrue);
-    expect(find.text('$before of 9 on'), findsOneWidget);
+    expect(find.text('$before of 10 on'), findsOneWidget);
+    expect(find.text('Bus arriving'), findsOneWidget);
     final tile = find.widgetWithText(SettingTile, 'New dengue cluster');
     // Clear of the floating tab bar before tapping.
     await Scrollable.ensureVisible(tester.element(tile), alignment: 0.3);
@@ -833,7 +834,7 @@ void main() {
     expect(box.read(favoritesProvider).dengueAlerts, isFalse);
     expect(find.descendant(of: tile, matching: find.text('Off')), findsOneWidget);
     expect(tester.getSemantics(tile), isSemantics(hasToggledState: true, isToggled: false, hasTapAction: true));
-    expect(find.text('${before - 1} of 9 on'), findsOneWidget);
+    expect(find.text('${before - 1} of 10 on'), findsOneWidget);
     // Two tiles side by side, one column once the text is too large for two.
     // (grid width, text scale): a 412, 360 and 320 dp phone have 380, 328 and 288 dp for the grid.
     expect(tileColumns(380, 1.0), 2);

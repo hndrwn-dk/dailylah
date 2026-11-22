@@ -123,6 +123,9 @@ class MorePage extends ConsumerWidget {
                               notifier.update((f) => f.copyWith(lunchAt: TimeOfDayHM(picked.hour, picked.minute)));
                             },
                           ),
+                        // Last, so Lunch keeps its time tile beside it.
+                        toggle(Icons.notifications_active_outlined, s.alertBus, fav.busAlerts,
+                            (f, v) => f.copyWith(busAlerts: v), sub: s.alertBusSub),
                       ],
                     ),
                     Center(

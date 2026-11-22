@@ -3161,11 +3161,11 @@ void main() {
       expect(old.lunchAt.minutes, 12 * 60);
     });
 
-    test('alertsOn counts the nine alerts More can switch', () {
+    test('alertsOn counts the ten alerts More can switch', () {
       expect(alertsOn(const Favorites()), lessThanOrEqualTo(alertKinds));
       final all = const Favorites().copyWith(
           mrtAlerts: true, rainAlerts: true, leaveAlerts: true, heatAlerts: true, dengueAlerts: true,
-          homesAlerts: true, hawkerAlerts: true, digestAlerts: true, lunchAlerts: true);
+          homesAlerts: true, hawkerAlerts: true, digestAlerts: true, lunchAlerts: true, busAlerts: true);
       expect(alertsOn(all), alertKinds);
       expect(alertsOn(all.copyWith(lunchAlerts: false, rainAlerts: false)), alertKinds - 2);
     });

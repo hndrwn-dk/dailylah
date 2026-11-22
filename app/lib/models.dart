@@ -270,6 +270,7 @@ class Favorites {
     this.heatAlerts = true,
     this.homesAlerts = true,
     this.lunchAlerts = false,
+    this.busAlerts = true,
     this.lunchAt = const TimeOfDayHM(12, 0),
     this.learnHabits = true,
     this.digestAlerts = true,
@@ -307,6 +308,9 @@ class Favorites {
 
   /// Lunch suggestion on work and school days (off until switched on), at [lunchAt].
   final bool lunchAlerts;
+
+  /// Bus arriving: after I'm leaving, watch the trip's bus and alert when it is near.
+  final bool busAlerts;
   final TimeOfDayHM lunchAt;
 
   /// Keep trip times and meals the user logs (on this phone only) for insights.
@@ -390,6 +394,7 @@ class Favorites {
     bool? heatAlerts,
     bool? homesAlerts,
     bool? lunchAlerts,
+    bool? busAlerts,
     TimeOfDayHM? lunchAt,
     bool? learnHabits,
     bool? digestAlerts,
@@ -425,6 +430,7 @@ class Favorites {
         heatAlerts: heatAlerts ?? this.heatAlerts,
         homesAlerts: homesAlerts ?? this.homesAlerts,
         lunchAlerts: lunchAlerts ?? this.lunchAlerts,
+        busAlerts: busAlerts ?? this.busAlerts,
         lunchAt: lunchAt ?? this.lunchAt,
         learnHabits: learnHabits ?? this.learnHabits,
         digestAlerts: digestAlerts ?? this.digestAlerts,
@@ -461,6 +467,7 @@ class Favorites {
         'heatAlerts': heatAlerts,
         'homesAlerts': homesAlerts,
         'lunchAlerts': lunchAlerts,
+        'busAlerts': busAlerts,
         'lunchAt': lunchAt.toString(),
         'learnHabits': learnHabits,
         'digestAlerts': digestAlerts,
@@ -505,6 +512,7 @@ class Favorites {
       heatAlerts: (j['heatAlerts'] ?? true) as bool,
       homesAlerts: (j['homesAlerts'] ?? true) as bool,
       lunchAlerts: (j['lunchAlerts'] ?? false) as bool,
+      busAlerts: (j['busAlerts'] ?? true) as bool,
       lunchAt: TimeOfDayHM.parse((j['lunchAt'] ?? '12:0') as String),
       learnHabits: (j['learnHabits'] ?? true) as bool,
       digestAlerts: (j['digestAlerts'] ?? true) as bool,
@@ -791,6 +799,9 @@ class Habits {
     this.tripRainy = false,
     this.tripMode,
     this.tripKm,
+    this.tripTo,
+    this.tripStop,
+    this.tripBus,
     this.parkings = const [],
   });
   final ParkedCar? parked;
@@ -809,6 +820,15 @@ class Habits {
   final DateTime? tripStart;
   final bool tripRainy;
 
+  /// Where the trip in progress goes, so its bus board can be shown again after the app was
+  /// closed. A saved or searched place, never the phone's own position; gone when the trip ends.
+  final Place? tripTo;
+
+  /// The bus stop the trip in progress starts at (its code), and the bus watched there
+  /// ("Bus arriving"), null when none is.
+  final String? tripStop;
+  final String? tripBus;
+
   static const empty = Habits();
   static const maxTrips = 120;
   static const maxMeals = 200;
@@ -824,6 +844,10 @@ class Habits {
     bool? tripRainy,
     String? tripMode,
     double? tripKm,
+    Place? tripTo,
+    String? tripStop,
+    String? tripBus,
+    bool clearTripBus = false,
     bool clearTrip = false,
     List<ParkLog>? parkings,
   }) =>
@@ -836,6 +860,9 @@ class Habits {
         tripRainy: clearTrip ? false : (tripRainy ?? this.tripRainy),
         tripMode: clearTrip ? null : (tripMode ?? this.tripMode),
         tripKm: clearTrip ? null : (tripKm ?? this.tripKm),
+        tripTo: clearTrip ? null : (tripTo ?? this.tripTo),
+        tripStop: clearTrip ? null : (tripStop ?? this.tripStop),
+        tripBus: clearTrip || clearTripBus ? null : (tripBus ?? this.tripBus),
         parkings: parkings ?? this.parkings,
       );
 
@@ -848,6 +875,9 @@ class Habits {
         if (tripRainy) 'tw': true,
         if (tripMode != null) 'tm': tripMode,
         if (tripKm != null) 'tk': tripKm,
+        if (tripTo != null) 'tt': tripTo!.toJson(),
+        if (tripStop != null) 'tp': tripStop,
+        if (tripBus != null) 'tb': tripBus,
         if (parkings.isNotEmpty) 'parks': [for (final p in parkings) p.toJson()],
       };
 
@@ -860,6 +890,9 @@ class Habits {
         tripRainy: j['tw'] == true,
         tripMode: j['tm'] as String?,
         tripKm: (j['tk'] as num?)?.toDouble(),
+        tripTo: j['tt'] is Map ? Place.fromJson((j['tt'] as Map).cast<String, dynamic>()) : null,
+        tripStop: j['tp'] as String?,
+        tripBus: j['tb'] as String?,
         parkings: [
           for (final p in (j['parks'] as List? ?? const [])) ParkLog.fromJson((p as Map).cast<String, dynamic>()),
         ],

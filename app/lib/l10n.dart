@@ -549,6 +549,8 @@ class S {
 
   // Bus arriving: the bus of a running trip, watched at the boarding stop.
   String get busAlertTitle => 'Bus arriving';
+  String get alertBus => 'Bus arriving';
+  String get alertBusSub => "After I'm leaving, when your bus is 2 min away";
   String busAtStop(String stop) => 'At $stop';
   String busAtStopTo(String stop, String to) => 'At $stop · to $to';
   String busInTitle(String service, int minutes) => '$service in $minutes min';
