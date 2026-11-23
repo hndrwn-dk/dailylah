@@ -174,9 +174,11 @@ class TripSection extends ConsumerWidget {
     // Bus/MRT puts the picker among its own cards, the other modes beside theirs: the key moves
     // it (and I'm leaving) with its state, so the thumb springs to the new mode instead of
     // starting over.
+    // Watched here, in this widget's build, so Riverpod keeps the subscriptions between rebuilds.
+    final advice = _advice(ref, mode, from, withRain: !weatherAbove);
     return _KeptLead(
       builder: (leadKey) => _tripColumns(context, leadKey: leadKey, lead: lead, body: body, split: split,
-          modes: modes, title: title, heading: heading, mode: mode, s: s, t: t, ref: ref),
+          modes: modes, title: title, heading: heading, mode: mode, s: s, t: t, advice: advice),
     );
   }
 
@@ -192,7 +194,7 @@ class TripSection extends ConsumerWidget {
     required TravelMode mode,
     required S s,
     required TextTheme t,
-    required WidgetRef ref,
+    required List<TripAdvice> advice,
   }) {
     final keptLead = KeyedSubtree(key: leadKey, child: lead);
     return CardColumns(
@@ -218,7 +220,7 @@ class TripSection extends ConsumerWidget {
                   : heading,
           ),
         ),
-        for (final a in _advice(ref, mode, from, withRain: !weatherAbove))
+        for (final a in advice)
           FullWidth(child: AlertBanner(icon: _adviceIcon(a), text: s.tripAdvice(a))),
         // Bus/MRT: the picker joins the bus and MRT cards, so they split into two columns together.
         if (body is _TransitBlock) FullWidth(child: body.withLead(keptLead)) else ...[keptLead, body],
