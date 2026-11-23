@@ -2211,6 +2211,7 @@ void main() {
     // The destination is kept, so the ride ends by itself when the app is opened there.
     final work = householdFavorites.places[PlaceKind.work]!;
     expect((box.read(habitsProvider).tripTo?.lat, box.read(habitsProvider).tripTo?.lng), (work.lat, work.lng));
+    expect(box.read(habitsProvider).tripTrain, isTrue);
     // A line picked for a trip from here before the chip was renamed is still found.
     final here = box.read(goFromHereProvider)!;
     expect(mrtRouteKey(s, here, householdFavorites.places[PlaceKind.work]!), 'Here>work');

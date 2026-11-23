@@ -201,6 +201,7 @@ class HabitsNotifier extends Notifier<Habits> {
     Place? to,
     String? stop,
     String? bus,
+    bool train = false,
   }) =>
       // A trip started over another one must not keep the earlier trip's destination or bus.
       _set(state.copyWith(clearTrip: true).copyWith(
@@ -211,6 +212,7 @@ class HabitsNotifier extends Notifier<Habits> {
           tripKm: km,
           tripTo: to,
           tripStop: stop,
+          tripTrain: train,
           tripBus: bus == null || bus.isEmpty ? null : bus));
 
   /// The bus watched on the running trip changed ([bus] null: none is watched now).

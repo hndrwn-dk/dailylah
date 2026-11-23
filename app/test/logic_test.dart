@@ -3131,6 +3131,11 @@ void main() {
         TripLog(route: 'a>b', start: start, minutes: 0, timed: false),
       ];
       expect(tripStats(logs, 'a>b'), (usual: 22, rainy: null, count: 3));
+      // A train trip stays one after the app is reopened.
+      final train = Habits(tripRoute: 'a>b', tripStart: start, tripTrain: true);
+      expect(Habits.fromJson(train.toJson()).tripTrain, isTrue);
+      expect(Habits.fromJson(const Habits().toJson()).tripTrain, isFalse);
+      expect(train.copyWith(clearTrip: true).tripTrain, isFalse);
       final back = TripLog.fromJson(logs.last.toJson());
       expect((back.timed, back.minutes), (false, 0));
       expect(TripLog.fromJson(logs.first.toJson()).timed, isTrue);

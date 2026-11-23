@@ -812,6 +812,7 @@ class Habits {
     this.tripTo,
     this.tripStop,
     this.tripBus,
+    this.tripTrain = false,
     this.parkings = const [],
   });
   final ParkedCar? parked;
@@ -839,6 +840,10 @@ class Habits {
   final String? tripStop;
   final String? tripBus;
 
+  /// The trip in progress was started with "I'm on the train": no bus is watched for it, also
+  /// after the ride itself has stopped or the app was reopened.
+  final bool tripTrain;
+
   static const empty = Habits();
   static const maxTrips = 120;
   static const maxMeals = 200;
@@ -858,6 +863,7 @@ class Habits {
     String? tripStop,
     String? tripBus,
     bool clearTripBus = false,
+    bool? tripTrain,
     bool clearTrip = false,
     List<ParkLog>? parkings,
   }) =>
@@ -873,6 +879,7 @@ class Habits {
         tripTo: clearTrip ? null : (tripTo ?? this.tripTo),
         tripStop: clearTrip ? null : (tripStop ?? this.tripStop),
         tripBus: clearTrip || clearTripBus ? null : (tripBus ?? this.tripBus),
+        tripTrain: clearTrip ? false : (tripTrain ?? this.tripTrain),
         parkings: parkings ?? this.parkings,
       );
 
@@ -888,6 +895,7 @@ class Habits {
         if (tripTo != null) 'tt': tripTo!.toJson(),
         if (tripStop != null) 'tp': tripStop,
         if (tripBus != null) 'tb': tripBus,
+        if (tripTrain) 'tn': true,
         if (parkings.isNotEmpty) 'parks': [for (final p in parkings) p.toJson()],
       };
 
@@ -903,6 +911,7 @@ class Habits {
         tripTo: j['tt'] is Map ? Place.fromJson((j['tt'] as Map).cast<String, dynamic>()) : null,
         tripStop: j['tp'] as String?,
         tripBus: j['tb'] as String?,
+        tripTrain: j['tn'] == true,
         parkings: [
           for (final p in (j['parks'] as List? ?? const [])) ParkLog.fromJson((p as Map).cast<String, dynamic>()),
         ],

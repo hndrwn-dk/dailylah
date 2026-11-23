@@ -816,6 +816,7 @@ class _MrtOption extends ConsumerWidget {
                           km: distanceMeters(from.lat, from.lng, to.lat, to.lng) / 1000,
                           // So it ends by itself when the app is next opened there (never "Here").
                           to: endsHere ? null : to,
+                          train: true,
                         );
                   }
                   await ref.read(rideProvider.notifier).start(ride);
@@ -1139,11 +1140,11 @@ class TripBusCard extends ConsumerWidget {
                   final habits = ref.watch(habitsProvider);
                   final watch = ref.watch(busWatchProvider);
                   final tripTo = habits.tripTo;
-                  // Only on a bus trip (no mode: one timed before modes were kept), never during
-                  // I'm on the train: every timed trip remembers where it goes.
+                  // Only on a bus trip (no mode: one timed before modes were kept), never on one
+                  // started with I'm on the train: every timed trip remembers where it goes.
                   final bells = habits.tripStart != null &&
                       (habits.tripMode ?? TravelMode.transit.name) == TravelMode.transit.name &&
-                      ref.watch(rideProvider) == null &&
+                      !habits.tripTrain &&
                       tripTo != null &&
                       ref.watch(favoritesProvider.select((f) => f.busAlerts)) &&
                       distanceMeters(tripTo.lat, tripTo.lng, to.lat, to.lng) < samePlaceMetres;

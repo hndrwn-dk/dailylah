@@ -163,20 +163,33 @@ void main() {
       await _end(tester, box);
     });
 
-    testWidgets('during I\'m on the train the bus board to the same place has no bells', (tester) async {
+    testWidgets('a trip started with I\'m on the train has no bells, also once the ride has stopped',
+        (tester) async {
       // The train ride keeps where it goes too; its bus boards must not start a bus watch.
       final box = await _plan(tester);
       final stations = (await tester.runAsync(() => box.read(mrtStationsProvider.future)))!;
       final ride = MrtRide(stations: stations.take(2).toList(), lines: {stations.first.codes.first.substring(0, 2)});
       await tester.runAsync(() async {
         await box.read(habitsProvider.notifier).startTrip(
-            'Siglap>St. Patrick', DateTime.now(), mode: TravelMode.transit.name, to: _stPatricks);
+            'Siglap>St. Patrick', DateTime.now(), mode: TravelMode.transit.name, to: _stPatricks, train: true);
         await box.read(rideProvider.notifier).start(ride);
       });
       await settle(tester);
       expect(box.read(rideProvider), isNotNull);
       expect(find.byTooltip(_s.busAlertMe), findsNothing);
+      // Stop on the ride page (or its 2 h limit, or the app reopened) leaves the trip running.
       box.read(rideProvider.notifier).stop();
+      await settle(tester);
+      expect(box.read(habitsProvider).tripStart, isNotNull);
+      expect(find.byTooltip(_s.busAlertMe), findsNothing);
+
+      // A trip that ends by itself at its destination stops the ride with it.
+      await tester.runAsync(() => box.read(rideProvider.notifier).start(ride));
+      await settle(tester);
+      expect(box.read(rideProvider), isNotNull);
+      await tester.runAsync(() => box.read(habitsProvider.notifier).cancelTrip());
+      await settle(tester);
+      expect(box.read(rideProvider), isNull);
       await _end(tester, box);
     });
 
