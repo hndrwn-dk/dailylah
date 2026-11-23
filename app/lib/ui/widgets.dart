@@ -1810,7 +1810,8 @@ abstract interface class OpensWithHeading {
 /// On a phone the children are stacked and stretched to the width, like the `Column` the tabs
 /// always had. On a wide window they keep their order: each run of cards between two
 /// [FullWidth] children is split once, where the two columns come out closest in height, and
-/// reads down the left column and then down the right one. A [SectionTitle], a [KeepWithNext]
+/// reads down the left column and then down the right one; a run that would leave the right
+/// column empty (one card) takes the whole width. A [SectionTitle], a [KeepWithNext]
 /// child or an empty `SizedBox` spacer stays in the column of the card after it. Where a run
 /// splits into two columns, a heading (a [SectionTitle], or a child that [OpensWithHeading]) on
 /// top of one column is moved up by the extra space above it, so both columns start at the same
@@ -1823,11 +1824,17 @@ class CardColumns extends StatelessWidget {
   const CardColumns({super.key, required this.children});
   final List<Widget> children;
 
+  /// Whether a [CardColumns] built here lays its cards in two columns: a wide window, and not
+  /// already inside one of two columns. A section that is one child of the page's list (Today's
+  /// trip) is wrapped in [FullWidth] there and splits its own cards.
+  static bool splitsAt(BuildContext context) =>
+      isWide(context) && !(context.dependOnInheritedWidgetOfExactType<_Cell>()?.inColumn ?? false);
+
   @override
   Widget build(BuildContext context) {
     // Already in one of two columns (a section's list inside a card of the page's list): stack.
     final inside = context.dependOnInheritedWidgetOfExactType<_Cell>()?.inColumn ?? false;
-    final two = isWide(context) && !inside;
+    final two = splitsAt(context);
     return _Columns(
       two: two,
       spans: [for (final c in children) c is FullWidth],
@@ -1952,14 +1959,24 @@ class _RenderColumns extends RenderBox
       }
       final heights = [for (var n = i; n < end; n++) heightOf(boxes[n], column)];
       final k = splitColumns(heights, _leads.sublist(i, end));
+      // Nothing would go in the right column (one card, or a heading and its card): the run
+      // takes the whole width instead of leaving half the page empty beside it.
+      if (k == heights.length) {
+        for (var n = i; n < end; n++) {
+          place?.call(boxes[n], Offset(0, y));
+          y += heightOf(boxes[n], width);
+        }
+        i = end;
+        continue;
+      }
       // Where the run has two columns, the one whose top child has more space above its heading
       // goes up by the difference, so both columns start at the same line: a heading beside a
       // card goes up to the card's top; two headings stay where they are. A child that shows
       // nothing (an empty card) is not lifted.
-      double gap(int n) => k < heights.length && heights[n] > _gaps[i + n] ? _gaps[i + n] : 0.0;
-      final both = k < heights.length ? (gap(0) < gap(k) ? gap(0) : gap(k)) : 0.0;
+      double gap(int n) => heights[n] > _gaps[i + n] ? _gaps[i + n] : 0.0;
+      final both = gap(0) < gap(k) ? gap(0) : gap(k);
       var left = both - gap(0);
-      var right = k < heights.length ? both - gap(k) : 0.0;
+      var right = both - gap(k);
       for (var n = 0; n < heights.length; n++) {
         if (n < k) {
           place?.call(boxes[i + n], Offset(0, y + left));

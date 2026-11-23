@@ -104,7 +104,14 @@ void main() {
     expect(_rect(tester, 'd'), const Rect.fromLTWH(448, 140, 416, 100));
     // After the run: the note spans again, and the next run starts under it.
     expect(_rect(tester, 'note'), const Rect.fromLTWH(16, 240, 848, 30));
-    expect(_rect(tester, 'e'), const Rect.fromLTWH(16, 270, 416, 50));
+    // A run with one card leaves nothing for the right column: it takes the whole width.
+    expect(_rect(tester, 'e'), const Rect.fromLTWH(16, 270, 848, 50));
+  });
+
+  testWidgets('880 dp: a heading and its one card take the whole width, not half of it', (tester) async {
+    await _pump(tester, 880, [const SectionTitle('Taxi', key: Key('title')), _card('a', 100)]);
+    expect(_rect(tester, 'title').width, 848);
+    expect(_rect(tester, 'a'), Rect.fromLTWH(16, _rect(tester, 'title').bottom, 848, 100));
   });
 
   testWidgets('880 dp: a section title stays above its card', (tester) async {
@@ -240,6 +247,30 @@ void main() {
     expect(tester.getCenter(title(strings.eat)).dy, tester.getCenter(title(strings.halalNearby)).dy);
   });
 
+  testWidgets('Nearby > Help on a fold: 995 and 999 side by side, the two lists level under them', (tester) async {
+    const c = Condition('fold', size: Size(880, 600));
+    await applyCondition(tester, c);
+    await tester.pumpWidget(appUnder(c, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    containerOf(tester)
+      ..read(shellTabProvider.notifier).state = 1
+      ..read(nearbySectionProvider.notifier).state = 'help';
+    await settle(tester);
+    final strings = containerOf(tester).read(stringsProvider);
+    final c995 = tester.getRect(find.text(strings.call995));
+    final c999 = tester.getRect(find.text(strings.call999));
+    expect(c995.center.dy, c999.center.dy);
+    expect(c995.left, lessThan(440));
+    expect(c999.left, greaterThan(440));
+    Finder title(String t) => find.descendant(of: find.byType(SectionTitle), matching: find.text(t));
+    // The two heading rows start on one line (the test font is wider, so a title may wrap).
+    Rect row(String t) =>
+        tester.getRect(find.descendant(of: find.widgetWithText(SectionTitle, t), matching: find.byType(Row)).first);
+    expect(row(strings.helpNearby).top, row(strings.meetingPoints).top);
+    expect(tester.getCenter(title(strings.meetingPoints)).dx, greaterThan(440));
+    expect(c999.bottom, lessThan(tester.getRect(title(strings.helpNearby)).top));
+  });
+
   testWidgets('the tabs fade under the status bar as under the tab bar, and taps go through', (tester) async {
     const c = Condition('fold', size: Size(880, 600));
     await applyCondition(tester, c);
@@ -261,8 +292,10 @@ void main() {
     await settle(tester);
     final shell = tester.state(find.byType(AppShell));
     ScrollPosition today() => Scrollable.of(tester.element(find.text('MRT & LRT').first)).position;
-    // Two columns: the MRT card is beside the trip, not under it.
-    expect(tester.getTopLeft(find.text('MRT & LRT').first).dx, greaterThan(440));
+    // Two columns: the trip's MRT card is beside its bus card, not under it.
+    final strings = containerOf(tester).read(stringsProvider);
+    expect(tester.getTopLeft(find.text(strings.mrtOption).first).dx, greaterThan(440));
+    expect(tester.getTopLeft(find.text(strings.busesTo('Work')).first).dx, lessThan(440));
     today().jumpTo(120);
     await tester.pump();
     for (final size in const [Size(400, 800), Size(700, 600), Size(880, 600)]) {

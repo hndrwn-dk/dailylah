@@ -37,13 +37,18 @@ relative to `app/` unless they start with a top-level folder. File and symbol in
   100% text (then 600 dp). Only the tabs use the wide column: `isWide(context)` is true there, and
   the cards of each tab are a `CardColumns` (widgets.dart) instead of a `Column`: stacked on a
   phone, two columns when wide, in reading order (left column, then right; split where the heights
-  are closest, `splitColumns`). A child wrapped in `FullWidth` spans both columns (banners, a row of
+  are closest, `splitColumns`; a run that would leave the right column empty, one card or a heading and its
+  card, takes the whole width). A child wrapped in `FullWidth` spans both columns (banners, a row of
   tiles, a section's heading, notes; also a section widget that has its own `CardColumns`); a
   `SectionTitle`, a child wrapped in `KeepWithNext` (any other heading) or an empty `SizedBox` stays with
   the card after it; where a run splits, the column whose top heading (a `SectionTitle`, or a card that
   `OpensWithHeading` such as Today's weekend card) has more space above it is lifted by the difference, so
   both columns start level (a heading beside a card, or two headings); a section whose two lists each have a
-  heading keeps each heading with its list when wide (Nearby > Eat puts its notes above both); a
+  heading keeps each heading with its list when wide (Nearby > Eat puts its notes above both; Nearby > Help
+  puts 995 and 999 side by side above Help nearby and the meeting points); a section that is one child of the
+  page's list splits its own cards when wrapped in `FullWidth` (`CardColumns.splitsAt`): Today's commute
+  `TripSection` has its heading across the page, the mode picker and I'm leaving starting the left column,
+  and the bus and MRT cards (`_TransitBlock.withLead`) beside each other; a
   `CardColumns` inside one of
   the two columns just stacks. One and two columns are the same widgets, so fold, unfold and
   rotation keep scroll position and card state. A new tab section puts its cards in a `CardColumns`.

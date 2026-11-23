@@ -230,7 +230,9 @@ class TodayPage extends ConsumerWidget {
       if (commute && origin != null && dest != null && resting != null)
         AtPlaceCard(kind: resting, leaveAt: commuteTimes(fav, now).$2, lunch: lunchHere)
       else if (commute && origin != null && dest != null)
-        TripSection(
+        // Across both columns on a wide window: the trip splits its own cards (bus | MRT).
+        FullWidth(
+          child: TripSection(
           commute: true,
           fromKey: origin.kind.name,
           from: origin,
@@ -238,6 +240,7 @@ class TodayPage extends ConsumerWidget {
           modeKey: (kind == CardKind.morning ? dest : origin).kind.name,
           modePlace: kind == CardKind.morning ? dest : origin,
           weatherAbove: true,
+          ),
         ),
       if (resting == null && (!commute || (tripMode ?? TravelMode.transit) == TravelMode.transit))
         _MrtCard(showCrowd: kind == CardKind.evening),
