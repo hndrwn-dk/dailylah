@@ -230,7 +230,9 @@ class TodayPage extends ConsumerWidget {
       if (commute && origin != null && dest != null && resting != null)
         AtPlaceCard(kind: resting, leaveAt: commuteTimes(fav, now).$2, lunch: lunchHere)
       else if (commute && origin != null && dest != null)
-        TripSection(
+        // Across both columns on a wide window: the trip splits its own cards (bus | MRT).
+        FullWidth(
+          child: TripSection(
           commute: true,
           fromKey: origin.kind.name,
           from: origin,
@@ -238,6 +240,7 @@ class TodayPage extends ConsumerWidget {
           modeKey: (kind == CardKind.morning ? dest : origin).kind.name,
           modePlace: kind == CardKind.morning ? dest : origin,
           weatherAbove: true,
+          ),
         ),
       if (resting == null && (!commute || (tripMode ?? TravelMode.transit) == TravelMode.transit))
         _MrtCard(showCrowd: kind == CardKind.evening),
@@ -948,9 +951,14 @@ class _ReadingCell extends StatelessWidget {
 
 /// On days without a trip to work or school: a few weekend ideas near home, indoor ones
 /// first when it rains or the air is unhealthy.
-class _WeekendCard extends ConsumerWidget {
+class _WeekendCard extends ConsumerWidget implements OpensWithHeading {
   const _WeekendCard({required this.home});
   final Place home;
+
+  static const _title = EdgeInsets.fromLTRB(4, 20, 4, 10);
+
+  @override
+  double get headingGap => _title.top;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -979,6 +987,8 @@ class _WeekendCard extends ConsumerWidget {
       children: [
         SectionTitle(
           s.weekendCard,
+          padding: _title,
+          trailingAtEnd: true,
           trailing: TextButton(
             onPressed: () {
               ref.read(homeSectionProvider.notifier).state = 'weekend';

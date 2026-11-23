@@ -1,4 +1,5 @@
-import 'dart:ui' show DisplayFeature;
+import 'dart:async';
+import 'dart:ui' show DisplayFeature, DisplayFeatureState, ImageFilter;
 
 import 'package:flutter/material.dart';
 
@@ -21,6 +22,16 @@ const double kMinCardColumnWidth = 320;
 
 /// Space between the two columns of cards.
 const double kColumnGap = 16;
+
+/// How strongly the app is blurred the moment the window changes width (a foldable opening or
+/// closing, a phone turned), in logical pixels of blur.
+const double kFoldBlurSigma = 14;
+
+/// How long the blur takes to clear once the window has its new width.
+const Duration kFoldBlurClear = Duration(milliseconds: 420);
+
+/// The longest the blur waits for a foldable that is still half open to open flat or close.
+const Duration kFoldBlurHold = Duration(milliseconds: 900);
 
 /// How wide the app is in a window with [room] logical pixels after the side insets, at
 /// [textScale] (1.0 = 100% text).
@@ -182,15 +193,20 @@ class _Framed extends StatelessWidget {
               child: SizedBox(
                 // A phone: the full width, exactly as without the column.
                 width: width,
-                child: MediaQuery(
-                  // Code that asks MediaQuery for the width (the tabs, sheets, dialogs) must
-                  // get the column's width, and a fold or hinge its place as seen from it.
-                  // Wider than a phone, the column's own place counts also when it fills the
-                  // room beside a side cutout (two columns at 840 to 1040 dp).
-                  data: box.maxWidth > kMaxContentWidth
-                      ? _columnMedia(media, width, left + (box.maxWidth - width) / 2)
-                      : media,
-                  child: KeyboardRepaint(child: child),
+                child: FoldBlur(
+                  width: box.maxWidth,
+                  halfOpen: media.displayFeatures.any((f) => f.state == DisplayFeatureState.postureHalfOpened),
+                  reduceMotion: media.disableAnimations,
+                  child: MediaQuery(
+                    // Code that asks MediaQuery for the width (the tabs, sheets, dialogs) must
+                    // get the column's width, and a fold or hinge its place as seen from it.
+                    // Wider than a phone, the column's own place counts also when it fills the
+                    // room beside a side cutout (two columns at 840 to 1040 dp).
+                    data: box.maxWidth > kMaxContentWidth
+                        ? _columnMedia(media, width, left + (box.maxWidth - width) / 2)
+                        : media,
+                    child: KeyboardRepaint(child: child),
+                  ),
                 ),
               ),
             );
@@ -199,4 +215,84 @@ class _Framed extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Blurs the app for a moment when the window changes [width]: a foldable opening or closing, a
+/// phone turned on its side. The page jumps from one layout to the other (one column to two),
+/// and the blur hides the jump: it is strongest at the change, waits while the hinge is still
+/// [halfOpen] (at most [kFoldBlurHold]) and clears in [kFoldBlurClear]. With animations turned
+/// off on the phone ([reduceMotion]) there is no blur.
+///
+/// The child is the same widget with or without the blur, so its state is kept.
+class FoldBlur extends StatefulWidget {
+  const FoldBlur({
+    super.key,
+    required this.width,
+    required this.halfOpen,
+    required this.reduceMotion,
+    required this.child,
+  });
+  final double width;
+  final bool halfOpen;
+  final bool reduceMotion;
+  final Widget child;
+
+  @override
+  State<FoldBlur> createState() => _FoldBlurState();
+}
+
+class _FoldBlurState extends State<FoldBlur> with SingleTickerProviderStateMixin {
+  // 1 = clear. Running from 0 to 1 is the blur clearing.
+  late final AnimationController _clear = AnimationController(vsync: this, duration: kFoldBlurClear, value: 1);
+  Timer? _hold;
+
+  @override
+  void didUpdateWidget(FoldBlur old) {
+    super.didUpdateWidget(old);
+    if (widget.reduceMotion) {
+      _release(animate: false);
+    } else if ((old.width - widget.width).abs() >= 1) {
+      _clear.value = 0;
+      _hold?.cancel();
+      if (widget.halfOpen) {
+        _hold = Timer(kFoldBlurHold, _release);
+      } else {
+        _release();
+      }
+    } else if (_hold != null && !widget.halfOpen) {
+      _release();
+    }
+  }
+
+  void _release({bool animate = true}) {
+    _hold?.cancel();
+    _hold = null;
+    if (!mounted) return;
+    if (animate) {
+      _clear.forward();
+    } else {
+      _clear.value = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _hold?.cancel();
+    _clear.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: _clear,
+        builder: (context, child) {
+          final sigma = kFoldBlurSigma * (1 - Curves.easeOutCubic.transform(_clear.value));
+          return ImageFiltered(
+            enabled: sigma > 0.05,
+            imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma, tileMode: TileMode.clamp),
+            child: child,
+          );
+        },
+        child: widget.child,
+      );
 }

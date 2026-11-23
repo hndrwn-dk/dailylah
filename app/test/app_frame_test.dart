@@ -345,4 +345,70 @@ void main() {
     expect(seen.size.width, 880);
     expect(seen.displayFeatures.single.bounds, const Rect.fromLTWH(440, 0, 0, 600));
   });
+
+  group('fold blur', () {
+    Future<void> pumpApp(WidgetTester tester, {bool reduceMotion = false}) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(400, 800);
+      addTearDown(tester.view.reset);
+      if (reduceMotion) {
+        tester.platformDispatcher.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(disableAnimations: true);
+        addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+      }
+      await tester.pumpWidget(MaterialApp(
+        builder: (context, child) => AppFrame(child: child!),
+        home: const Scaffold(body: TextField()),
+      ));
+    }
+
+    bool blurred(WidgetTester tester) => tester.widget<ImageFiltered>(find.byType(ImageFiltered)).enabled;
+
+    testWidgets('unfolding blurs the app for a moment, then it is sharp, the page kept', (tester) async {
+      await pumpApp(tester);
+      await tester.enterText(find.byType(TextField), 'Bedok');
+      final state = tester.state(find.byType(TextField));
+      expect(blurred(tester), isFalse);
+      tester.view.physicalSize = const Size(880, 600);
+      await tester.pump();
+      expect(blurred(tester), isTrue);
+      await tester.pump(kFoldBlurClear ~/ 2);
+      expect(blurred(tester), isTrue);
+      await tester.pumpAndSettle();
+      expect(blurred(tester), isFalse);
+      expect(tester.state(find.byType(TextField)), same(state));
+      // The keyboard (a height change) does not blur.
+      tester.view.physicalSize = const Size(880, 300);
+      await tester.pump();
+      expect(blurred(tester), isFalse);
+    });
+
+    testWidgets('a hinge still half open keeps the blur until it opens flat', (tester) async {
+      await pumpApp(tester);
+      DisplayFeature fold(DisplayFeatureState state) =>
+          DisplayFeature(bounds: const Rect.fromLTWH(440, 0, 0, 600), type: DisplayFeatureType.fold, state: state);
+      tester.view.displayFeatures = [fold(DisplayFeatureState.postureHalfOpened)];
+      tester.view.physicalSize = const Size(880, 600);
+      await tester.pump();
+      await tester.pump(kFoldBlurClear * 2);
+      expect(blurred(tester), isTrue);
+      tester.view.displayFeatures = [fold(DisplayFeatureState.postureFlat)];
+      await tester.pumpAndSettle();
+      expect(blurred(tester), isFalse);
+      // Held half open (a laptop-like pose): the blur gives up after kFoldBlurHold.
+      tester.view.displayFeatures = [fold(DisplayFeatureState.postureHalfOpened)];
+      tester.view.physicalSize = const Size(400, 800);
+      await tester.pump();
+      expect(blurred(tester), isTrue);
+      await tester.pump(kFoldBlurHold);
+      await tester.pumpAndSettle();
+      expect(blurred(tester), isFalse);
+    });
+
+    testWidgets('with animations off there is no blur', (tester) async {
+      await pumpApp(tester, reduceMotion: true);
+      tester.view.physicalSize = const Size(880, 600);
+      await tester.pump();
+      expect(blurred(tester), isFalse);
+    });
+  });
 }

@@ -2,6 +2,7 @@
 import 'package:dailylah/ui/app_frame.dart';
 import 'package:dailylah/ui/widgets.dart';
 import 'package:flutter/material.dart';
+import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/shell.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,6 +26,18 @@ Future<void> _pump(WidgetTester tester, double width, List<Widget> children) asy
       ),
     ),
   ));
+}
+
+/// A card with its own heading and 20 dp of space above it, like Today's weekend card.
+class _Headed extends StatelessWidget implements OpensWithHeading {
+  const _Headed({super.key, required this.height});
+  final double height;
+
+  @override
+  double get headingGap => 20;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(height: height);
 }
 
 Rect _rect(WidgetTester tester, String name) => tester.getRect(find.byKey(Key(name)));
@@ -92,7 +105,14 @@ void main() {
     expect(_rect(tester, 'd'), const Rect.fromLTWH(448, 140, 416, 100));
     // After the run: the note spans again, and the next run starts under it.
     expect(_rect(tester, 'note'), const Rect.fromLTWH(16, 240, 848, 30));
-    expect(_rect(tester, 'e'), const Rect.fromLTWH(16, 270, 416, 50));
+    // A run with one card leaves nothing for the right column: it takes the whole width.
+    expect(_rect(tester, 'e'), const Rect.fromLTWH(16, 270, 848, 50));
+  });
+
+  testWidgets('880 dp: a heading and its one card take the whole width, not half of it', (tester) async {
+    await _pump(tester, 880, [const SectionTitle('Taxi', key: Key('title')), _card('a', 100)]);
+    expect(_rect(tester, 'title').width, 848);
+    expect(_rect(tester, 'a'), Rect.fromLTWH(16, _rect(tester, 'title').bottom, 848, 100));
   });
 
   testWidgets('880 dp: a section title stays above its card', (tester) async {
@@ -108,6 +128,48 @@ void main() {
     expect(two.left, greaterThanOrEqualTo(448));
     expect(two.bottom, lessThanOrEqualTo(b.top));
     expect(tester.getRect(find.text('One')).left, lessThan(448));
+  });
+
+  testWidgets('880 dp: a heading on top of the right column lines up with the card on the left', (tester) async {
+    await _pump(tester, 880, [
+      _card('a', 300),
+      const SectionTitle('Weekend', key: Key('title')),
+      _card('b', 260),
+    ]);
+    // Without the lift the title's 20 dp of space above it would leave it floating below a's top.
+    expect(_rect(tester, 'title').left, greaterThan(440));
+    expect(_rect(tester, 'title').top, _rect(tester, 'a').top - 20);
+    expect(_rect(tester, 'b').top, _rect(tester, 'title').bottom);
+  });
+
+  testWidgets('880 dp: a card that opens with its own heading is lifted the same way', (tester) async {
+    await _pump(tester, 880, [_card('a', 300), const _Headed(key: Key('headed'), height: 260)]);
+    expect(_rect(tester, 'headed').left, greaterThan(440));
+    expect(_rect(tester, 'headed').top, _rect(tester, 'a').top - 20);
+  });
+
+  testWidgets('880 dp: headings on top of both columns line up, an empty card is not lifted', (tester) async {
+    await _pump(tester, 880, [
+      const SectionTitle('Left', key: Key('left')),
+      _card('a', 280),
+      const SectionTitle('Right', key: Key('right')),
+      _card('b', 280),
+    ]);
+    expect(_rect(tester, 'right').top, _rect(tester, 'left').top);
+    // Already level: neither is lifted.
+    expect(_rect(tester, 'left').top, 0);
+    await _pump(tester, 880, [_card('a', 300), const _Headed(key: Key('empty'), height: 0), _card('b', 260)]);
+    expect(_rect(tester, 'b').top, _rect(tester, 'a').top);
+  });
+
+  testWidgets('880 dp: a heading on top of the left column lines up with the card on the right', (tester) async {
+    await _pump(tester, 880, [
+      const SectionTitle('Help', key: Key('title')),
+      _card('a', 200),
+      _card('b', 260),
+    ]);
+    expect(_rect(tester, 'b').left, greaterThan(440));
+    expect(_rect(tester, 'title').top, _rect(tester, 'b').top - 20);
   });
 
   testWidgets('880 dp: a heading marked KeepWithNext stays above its card', (tester) async {
@@ -168,6 +230,97 @@ void main() {
     }
   });
 
+  testWidgets('Nearby > Eat on a fold: hawkers left, halal right, the two headings level', (tester) async {
+    const c = Condition('fold', size: Size(880, 600));
+    await applyCondition(tester, c);
+    await tester.pumpWidget(appUnder(c, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    containerOf(tester)
+      ..read(shellTabProvider.notifier).state = 1
+      ..read(nearbySectionProvider.notifier).state = 'eat';
+    await settle(tester);
+    final strings = containerOf(tester).read(stringsProvider);
+    final eat = tester.getRect(find.widgetWithText(SectionTitle, strings.eat));
+    final halal = tester.getRect(find.widgetWithText(SectionTitle, strings.halalNearby));
+    expect(eat.right, lessThan(440));
+    expect(halal.left, greaterThan(440));
+    Finder title(String t) => find.descendant(of: find.byType(SectionTitle), matching: find.text(t));
+    expect(tester.getCenter(title(strings.eat)).dy, tester.getCenter(title(strings.halalNearby)).dy);
+  });
+
+  testWidgets('Nearby > Help on a fold: 995 and 999 side by side, the two lists level under them', (tester) async {
+    const c = Condition('fold', size: Size(880, 600));
+    await applyCondition(tester, c);
+    await tester.pumpWidget(appUnder(c, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    containerOf(tester)
+      ..read(shellTabProvider.notifier).state = 1
+      ..read(nearbySectionProvider.notifier).state = 'help';
+    await settle(tester);
+    final strings = containerOf(tester).read(stringsProvider);
+    final c995 = tester.getRect(find.text(strings.call995));
+    final c999 = tester.getRect(find.text(strings.call999));
+    expect(c995.center.dy, c999.center.dy);
+    expect(c995.left, lessThan(440));
+    expect(c999.left, greaterThan(440));
+    Finder title(String t) => find.descendant(of: find.byType(SectionTitle), matching: find.text(t));
+    // The two heading rows start on one line (the test font is wider, so a title may wrap).
+    Rect row(String t) =>
+        tester.getRect(find.descendant(of: find.widgetWithText(SectionTitle, t), matching: find.byType(Row)).first);
+    expect(row(strings.helpNearby).top, row(strings.meetingPoints).top);
+    expect(tester.getCenter(title(strings.meetingPoints)).dx, greaterThan(440));
+    expect(c999.bottom, lessThan(tester.getRect(title(strings.helpNearby)).top));
+  });
+
+  for (final c in const [Condition('phone'), Condition('fold', size: Size(880, 600))]) {
+    testWidgets('${c.name}: switching the trip between Bus/MRT and Car keeps the mode picker', (tester) async {
+      await applyCondition(tester, c);
+      await tester.pumpWidget(appUnder(c, householdFavorites, tuesdayMorning));
+      await settle(tester);
+      final rail = tester.state(find.byType(ModeRail));
+      final k = containerOf(tester);
+      // The morning commute's mode belongs to Work.
+      k.read(modeOverrideProvider.notifier).state = {'work': TravelMode.car};
+      await settle(tester);
+      expect(tester.state(find.byType(ModeRail)), same(rail));
+      k.read(modeOverrideProvider.notifier).state = {'work': TravelMode.transit};
+      await settle(tester);
+      expect(tester.state(find.byType(ModeRail)), same(rail));
+    });
+  }
+
+  testWidgets('scrolled down, the tabs blur and fade under the status bar; at the top they do not', (tester) async {
+    const c = Condition('phone');
+    await applyCondition(tester, c);
+    tester.view.padding = const FakeViewPadding(top: 24 * 3);
+    tester.view.viewPadding = const FakeViewPadding(top: 24 * 3);
+    await tester.pumpWidget(appUnder(c, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final fade = find.byType(StatusBarFade);
+    double opacity() =>
+        tester.widget<AnimatedOpacity>(find.descendant(of: fade, matching: find.byType(AnimatedOpacity))).opacity;
+    final box = find.descendant(of: fade, matching: find.byType(IgnorePointer));
+    expect(tester.getRect(box).top, 0);
+    expect(tester.getRect(box).height, 24 + StatusBarFade.reach);
+    expect(find.descendant(of: fade, matching: find.byType(BackdropFilter)), findsOneWidget);
+    // At the top: nothing to blur, the header has the space.
+    expect(opacity(), 0);
+    final today = Scrollable.of(tester.element(find.text('MRT & LRT').first)).position;
+    today.jumpTo(200);
+    await tester.pumpAndSettle();
+    expect(opacity(), 1);
+    // Another tab, at its top: no blur; back to Today, still scrolled: blur again.
+    containerOf(tester).read(shellTabProvider.notifier).state = 4;
+    await settle(tester);
+    expect(opacity(), 0);
+    containerOf(tester).read(shellTabProvider.notifier).state = 0;
+    await settle(tester);
+    expect(opacity(), 1);
+    today.jumpTo(0);
+    await tester.pumpAndSettle();
+    expect(opacity(), 0);
+  });
+
   testWidgets('the tabs keep their place through fold and unfold, and tap-again goes to the top', (tester) async {
     const c = Condition('fold', size: Size(880, 600));
     await applyCondition(tester, c);
@@ -175,8 +328,10 @@ void main() {
     await settle(tester);
     final shell = tester.state(find.byType(AppShell));
     ScrollPosition today() => Scrollable.of(tester.element(find.text('MRT & LRT').first)).position;
-    // Two columns: the MRT card is beside the trip, not under it.
-    expect(tester.getTopLeft(find.text('MRT & LRT').first).dx, greaterThan(440));
+    // Two columns: the trip's MRT card is beside its bus card, not under it.
+    final strings = containerOf(tester).read(stringsProvider);
+    expect(tester.getTopLeft(find.text(strings.mrtOption).first).dx, greaterThan(440));
+    expect(tester.getTopLeft(find.text(strings.busesTo('Work')).first).dx, lessThan(440));
     today().jumpTo(120);
     await tester.pump();
     for (final size in const [Size(400, 800), Size(700, 600), Size(880, 600)]) {

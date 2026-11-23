@@ -9,6 +9,7 @@ import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
 import 'address_picker.dart';
+import 'app_frame.dart' show isWide, kColumnGap;
 import 'bus_sheet.dart';
 import 'ev.dart';
 import 'home.dart' show NearGroup, NearItem;
@@ -543,13 +544,15 @@ class _EatSection extends ConsumerWidget {
           ],
         );
 
+    final eatTitle = SectionTitle(s.eat,
+        trailingAtEnd: true, trailing: _seeAll(s, () => _openFull(context, s.hawkers, _HawkerTab(place: place))));
+    // On a phone the notes sit between the heading and the hawkers. On a wide window they go above
+    // both columns, and each heading stays with its own list (hawkers left, halal right), so the
+    // two headings line up instead of one spanning the page and the other starting lower.
+    final wide = isWide(context);
     return CardColumns(
       children: [
-        FullWidth(
-          child: SectionTitle(s.eat,
-              trailingAtEnd: true,
-              trailing: _seeAll(s, () => _openFull(context, s.hawkers, _HawkerTab(place: place)))),
-        ),
+        if (!wide) eatTitle,
         if (fav.learnHabits)
           if (mealNudge(ref.watch(habitsProvider).meals, all, DateTime.now(), place.lat, place.lng) case final n?)
             FullWidth(
@@ -570,6 +573,7 @@ class _EatSection extends ConsumerWidget {
           ),
           ),
         ],
+        if (wide) eatTitle,
         Panel(
           child: Column(
             children: [
@@ -1101,12 +1105,9 @@ class _HelpSection extends ConsumerWidget {
     ];
     // Civil Defence shelters: where to go from here if something happens.
     final shelters = nearestPoints(em.of(EmergencyKind.shelter), place.lat, place.lng, limit: 2, radius: 3000);
-    return CardColumns(
-      children: [
-        SectionTitle(s.helpNearby,
-            trailingAtEnd: true,
-            trailing: _seeAll(s, () => _openFull(context, s.emergency, _EmergencyTab(place: place)))),
-        Panel(
+    final title = SectionTitle(s.helpNearby,
+        trailingAtEnd: true, trailing: _seeAll(s, () => _openFull(context, s.emergency, _EmergencyTab(place: place))));
+    final call995 = Panel(
           color: DL.stopDeep,
           child: InkWell(
             onTap: () => launchUrl(Uri(scheme: 'tel', path: '995')),
@@ -1125,8 +1126,8 @@ class _HelpSection extends ConsumerWidget {
               ),
             ),
           ),
-        ),
-        Panel(
+        );
+    final call999 = Panel(
           color: DL.amber,
           child: InkWell(
             onTap: () => launchUrl(Uri(scheme: 'tel', path: '999')),
@@ -1142,7 +1143,25 @@ class _HelpSection extends ConsumerWidget {
               ),
             ),
           ),
-        ),
+        );
+    // On a wide window the two call buttons sit side by side across the page, then the help
+    // around and the meeting points each start a column under their own heading.
+    final wide = isWide(context);
+    return CardColumns(
+      children: [
+        if (wide)
+          FullWidth(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: call995),
+                const SizedBox(width: kColumnGap),
+                Expanded(child: call999),
+              ],
+            ),
+          ),
+        title,
+        if (!wide) ...[call995, call999],
         Panel(
           child: Column(
             children: [
@@ -1168,7 +1187,11 @@ class _HelpSection extends ConsumerWidget {
             ],
           ),
         ),
-        SectionTitle(s.meetingPoints, padding: const EdgeInsets.fromLTRB(4, 4, 4, 10)),
+        SectionTitle(s.meetingPoints,
+            padding: const EdgeInsets.fromLTRB(4, 4, 4, 10),
+            // Beside Help nearby on a wide window: as tall as that heading with its See all, so the
+            // two titles sit on one line.
+            trailing: wide ? const SizedBox(height: kMinInteractiveDimension) : null),
         Panel(
           child: Column(
             children: [

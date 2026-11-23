@@ -36,6 +36,14 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   /// One scroll controller per tab's main list.
   final _scroll = List.generate(5, (_) => ScrollController());
 
+  /// Whether the open tab is scrolled down from the top: the status bar then blurs what is under it.
+  final _scrolled = ValueNotifier(false);
+
+  void _syncScrolled() {
+    final c = _scroll[ref.read(shellTabProvider)];
+    _scrolled.value = c.hasClients && c.positions.length == 1 && c.offset > 1;
+  }
+
   /// When the app last went to the background, and which card Today showed then.
   DateTime? _awaySince;
   CardKind? _cardWhenAway;
@@ -53,6 +61,9 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     WidgetsBinding.instance.addPostFrameCallback((_) => _locate());
     _widgetTaps = widgetTabTaps().listen(_openFromWidget);
     _shares = sharedPlaces().listen(_openShared);
+    for (final c in _scroll) {
+      c.addListener(_syncScrolled);
+    }
   }
 
   /// Opens the trip planner with a shared place as the destination, above Today.
@@ -80,6 +91,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     for (final c in _scroll) {
       c.dispose();
     }
+    _scrolled.dispose();
     super.dispose();
   }
 
@@ -188,20 +200,30 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     ref.listen(cardKindProvider, (before, now) {
       if (before != null && before != now && ref.read(shellTabProvider) != 0) _toTop(0, animate: false);
     });
+    // Another tab has its own place: the status bar follows it.
+    ref.listen(shellTabProvider, (before, now) => WidgetsBinding.instance.addPostFrameCallback((frame) {
+          if (mounted) _syncScrolled();
+        }));
     final s = ref.watch(stringsProvider);
     final index = ref.watch(shellTabProvider);
     final paper = Theme.of(context).scaffoldBackgroundColor;
     return Scaffold(
       // Content scrolls behind the floating pill instead of stopping at a hard edge.
       extendBody: true,
-      body: IndexedStack(
-        index: index,
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          TodayPage(controller: _scroll[0]),
-          NearbyPage(controller: _scroll[1]),
-          HomePage(controller: _scroll[2]),
-          HistoryPage(controller: _scroll[3]),
-          MorePage(controller: _scroll[4]),
+          IndexedStack(
+            index: index,
+            children: [
+              TodayPage(controller: _scroll[0]),
+              NearbyPage(controller: _scroll[1]),
+              HomePage(controller: _scroll[2]),
+              HistoryPage(controller: _scroll[3]),
+              MorePage(controller: _scroll[4]),
+            ],
+          ),
+          StatusBarFade(scrolled: _scrolled),
         ],
       ),
       bottomNavigationBar: DecoratedBox(
