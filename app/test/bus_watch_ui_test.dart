@@ -4,6 +4,7 @@ import 'package:dailylah/bus_watch.dart';
 import 'package:dailylah/l10n.dart';
 import 'package:dailylah/logic.dart';
 import 'package:dailylah/models.dart';
+import 'package:dailylah/mrt_ride.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/today.dart';
 import 'package:dailylah/ui/trip.dart';
@@ -159,6 +160,23 @@ void main() {
       expect(box.read(habitsProvider).tripTo?.name, "St. Patrick's Green");
       expect(find.byTooltip(_s.busAlertMe), findsNothing);
       expect(find.byTooltip(_s.busAlertStop), findsNothing);
+      await _end(tester, box);
+    });
+
+    testWidgets('during I\'m on the train the bus board to the same place has no bells', (tester) async {
+      // The train ride keeps where it goes too; its bus boards must not start a bus watch.
+      final box = await _plan(tester);
+      final stations = (await tester.runAsync(() => box.read(mrtStationsProvider.future)))!;
+      final ride = MrtRide(stations: stations.take(2).toList(), lines: {stations.first.codes.first.substring(0, 2)});
+      await tester.runAsync(() async {
+        await box.read(habitsProvider.notifier).startTrip(
+            'Siglap>St. Patrick', DateTime.now(), mode: TravelMode.transit.name, to: _stPatricks);
+        await box.read(rideProvider.notifier).start(ride);
+      });
+      await settle(tester);
+      expect(box.read(rideProvider), isNotNull);
+      expect(find.byTooltip(_s.busAlertMe), findsNothing);
+      box.read(rideProvider.notifier).stop();
       await _end(tester, box);
     });
 

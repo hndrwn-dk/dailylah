@@ -1139,10 +1139,11 @@ class TripBusCard extends ConsumerWidget {
                   final habits = ref.watch(habitsProvider);
                   final watch = ref.watch(busWatchProvider);
                   final tripTo = habits.tripTo;
-                  // Only on a bus trip (no mode: one timed before modes were kept): every timed trip
-                  // remembers where it goes.
+                  // Only on a bus trip (no mode: one timed before modes were kept), never during
+                  // I'm on the train: every timed trip remembers where it goes.
                   final bells = habits.tripStart != null &&
                       (habits.tripMode ?? TravelMode.transit.name) == TravelMode.transit.name &&
+                      ref.watch(rideProvider) == null &&
                       tripTo != null &&
                       ref.watch(favoritesProvider.select((f) => f.busAlerts)) &&
                       distanceMeters(tripTo.lat, tripTo.lng, to.lat, to.lng) < samePlaceMetres;
