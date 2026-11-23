@@ -1,3 +1,6 @@
+import 'dart:ui' show ImageFilter;
+
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
@@ -387,15 +390,20 @@ class HeroHeader extends StatelessWidget {
   }
 }
 
-/// The page colour fading in under the status bar, so cards scrolled up go soft under the clock
-/// and icons, as they do under the tab bar at the bottom, instead of running into them. Only
-/// where the app is drawn under the status bar (a top inset); taps go through.
+/// What scrolls under the status bar is blurred and fades into the page colour, as cards do
+/// behind the tab bar at the bottom, so it never runs into the clock and icons. It shows only
+/// while the tab is [scrolled] down (at the top the header has the space to itself) and comes and
+/// goes with a short fade. Only where the app is drawn under the status bar (a top inset); taps
+/// go through.
 class StatusBarFade extends StatelessWidget {
-  const StatusBarFade({super.key});
+  const StatusBarFade({super.key, required this.scrolled});
+  final ValueListenable<bool> scrolled;
 
-  /// How far below the status bar the fade reaches: no further than the header's own top padding,
-  /// so nothing is faded with the page at the top.
-  static const double reach = 10;
+  /// How far below the status bar the fade reaches.
+  static const double reach = 24;
+
+  /// How strongly what is under the status bar is blurred.
+  static const double blur = 8;
 
   @override
   Widget build(BuildContext context) {
@@ -409,14 +417,40 @@ class StatusBarFade extends StatelessWidget {
       right: 0,
       height: top + reach,
       child: IgnorePointer(
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [paper.withValues(alpha: 0.92), paper.withValues(alpha: 0.92), paper.withValues(alpha: 0)],
-              stops: [0, solid * 0.6, 1],
-            ),
+        child: ValueListenableBuilder(
+          valueListenable: scrolled,
+          builder: (context, on, child) => AnimatedOpacity(
+            opacity: on ? 1 : 0,
+            duration: const Duration(milliseconds: 180),
+            child: child,
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // The blur stops at the status bar; the fade below softens its edge.
+              Align(
+                alignment: Alignment.topCenter,
+                child: SizedBox(
+                  height: top,
+                  child: ClipRect(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                ),
+              ),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [paper.withValues(alpha: 0.85), paper.withValues(alpha: 0.85), paper.withValues(alpha: 0)],
+                    stops: [0, solid, 1],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

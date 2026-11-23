@@ -271,18 +271,36 @@ void main() {
     expect(c999.bottom, lessThan(tester.getRect(title(strings.helpNearby)).top));
   });
 
-  testWidgets('the tabs fade under the status bar as under the tab bar, and taps go through', (tester) async {
-    const c = Condition('fold', size: Size(880, 600));
+  testWidgets('scrolled down, the tabs blur and fade under the status bar; at the top they do not', (tester) async {
+    const c = Condition('phone');
     await applyCondition(tester, c);
     tester.view.padding = const FakeViewPadding(top: 24 * 3);
     tester.view.viewPadding = const FakeViewPadding(top: 24 * 3);
     await tester.pumpWidget(appUnder(c, householdFavorites, tuesdayMorning));
     await settle(tester);
-    final fade = find.descendant(of: find.byType(StatusBarFade), matching: find.byType(DecoratedBox));
-    expect(tester.getRect(fade), Rect.fromLTWH(0, 0, 880, 24 + StatusBarFade.reach));
-    expect(find.descendant(of: find.byType(StatusBarFade), matching: find.byType(IgnorePointer)), findsOneWidget);
-    // Nothing on the page at the top is under the fade.
-    expect(tester.getTopLeft(find.byType(StickerIconButton).first).dy, greaterThanOrEqualTo(24 + StatusBarFade.reach));
+    final fade = find.byType(StatusBarFade);
+    double opacity() =>
+        tester.widget<AnimatedOpacity>(find.descendant(of: fade, matching: find.byType(AnimatedOpacity))).opacity;
+    final box = find.descendant(of: fade, matching: find.byType(IgnorePointer));
+    expect(tester.getRect(box).top, 0);
+    expect(tester.getRect(box).height, 24 + StatusBarFade.reach);
+    expect(find.descendant(of: fade, matching: find.byType(BackdropFilter)), findsOneWidget);
+    // At the top: nothing to blur, the header has the space.
+    expect(opacity(), 0);
+    final today = Scrollable.of(tester.element(find.text('MRT & LRT').first)).position;
+    today.jumpTo(200);
+    await tester.pumpAndSettle();
+    expect(opacity(), 1);
+    // Another tab, at its top: no blur; back to Today, still scrolled: blur again.
+    containerOf(tester).read(shellTabProvider.notifier).state = 4;
+    await settle(tester);
+    expect(opacity(), 0);
+    containerOf(tester).read(shellTabProvider.notifier).state = 0;
+    await settle(tester);
+    expect(opacity(), 1);
+    today.jumpTo(0);
+    await tester.pumpAndSettle();
+    expect(opacity(), 0);
   });
 
   testWidgets('the tabs keep their place through fold and unfold, and tap-again goes to the top', (tester) async {
