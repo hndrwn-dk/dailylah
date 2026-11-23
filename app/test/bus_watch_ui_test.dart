@@ -187,9 +187,27 @@ void main() {
       await tester.runAsync(() => box.read(rideProvider.notifier).start(ride));
       await settle(tester);
       expect(box.read(rideProvider), isNotNull);
-      await tester.runAsync(() => box.read(habitsProvider.notifier).cancelTrip());
+      await tester.runAsync(
+          () => box.read(habitsProvider.notifier).arrivedNear(_stPatricks.lat, _stPatricks.lng, DateTime.now()));
       await settle(tester);
+      expect(box.read(habitsProvider).tripStart, isNull);
       expect(box.read(rideProvider), isNull);
+      await _end(tester, box);
+    });
+
+    testWidgets('a bus trip has no bells while a train ride runs over it', (tester) async {
+      // I'm on the train over a running bus trip keeps that trip; no bus watch could start now.
+      final box = await _plan(tester);
+      await _tap(tester, find.text(_s.imLeaving));
+      expect(find.byTooltip(_s.busAlertStop), findsOneWidget);
+      final stations = (await tester.runAsync(() => box.read(mrtStationsProvider.future)))!;
+      final ride = MrtRide(stations: stations.take(2).toList(), lines: {stations.first.codes.first.substring(0, 2)});
+      await tester.runAsync(() => box.read(rideProvider.notifier).start(ride));
+      await settle(tester);
+      expect(box.read(habitsProvider).tripTrain, isFalse);
+      expect(find.byTooltip(_s.busAlertMe), findsNothing);
+      expect(find.byTooltip(_s.busAlertStop), findsNothing);
+      box.read(rideProvider.notifier).stop();
       await _end(tester, box);
     });
 
