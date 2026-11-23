@@ -1,3 +1,6 @@
+import 'dart:ui' show ImageFilter;
+
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
@@ -382,6 +385,74 @@ class HeroHeader extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(18, 10, 18, 6),
         child: child,
+      ),
+    );
+  }
+}
+
+/// What scrolls under the status bar is blurred and fades into the page colour, as cards do
+/// behind the tab bar at the bottom, so it never runs into the clock and icons. It shows only
+/// while the tab is [scrolled] down (at the top the header has the space to itself) and comes and
+/// goes with a short fade. Only where the app is drawn under the status bar (a top inset); taps
+/// go through.
+class StatusBarFade extends StatelessWidget {
+  const StatusBarFade({super.key, required this.scrolled});
+  final ValueListenable<bool> scrolled;
+
+  /// How far below the status bar the fade reaches.
+  static const double reach = 24;
+
+  /// How strongly what is under the status bar is blurred.
+  static const double blur = 8;
+
+  @override
+  Widget build(BuildContext context) {
+    final top = MediaQuery.paddingOf(context).top;
+    if (top <= 0) return const SizedBox.shrink();
+    final paper = Theme.of(context).scaffoldBackgroundColor;
+    final solid = top / (top + reach);
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      height: top + reach,
+      child: IgnorePointer(
+        child: ValueListenableBuilder(
+          valueListenable: scrolled,
+          builder: (context, on, child) => AnimatedOpacity(
+            opacity: on ? 1 : 0,
+            duration: const Duration(milliseconds: 180),
+            child: child,
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // The blur stops at the status bar; the fade below softens its edge.
+              Align(
+                alignment: Alignment.topCenter,
+                child: SizedBox(
+                  height: top,
+                  child: ClipRect(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                ),
+              ),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [paper.withValues(alpha: 0.85), paper.withValues(alpha: 0.85), paper.withValues(alpha: 0)],
+                    stops: [0, solid, 1],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1762,13 +1833,24 @@ class KeepWithNext extends StatelessWidget {
   Widget build(BuildContext context) => child;
 }
 
+/// A child of [CardColumns] that opens with its own [SectionTitle] (a card with a heading and a
+/// See all link above its panel). [headingGap] is the empty space above that heading.
+abstract interface class OpensWithHeading {
+  double get headingGap;
+}
+
 /// The cards of a tab: one column on a phone, two on a wide window ([isWide]).
 ///
 /// On a phone the children are stacked and stretched to the width, like the `Column` the tabs
 /// always had. On a wide window they keep their order: each run of cards between two
 /// [FullWidth] children is split once, where the two columns come out closest in height, and
-/// reads down the left column and then down the right one. A [SectionTitle], a [KeepWithNext]
-/// child or an empty `SizedBox` spacer stays in the column of the card after it.
+/// reads down the left column and then down the right one; a run that would leave the right
+/// column empty (one card) takes the whole width. A [SectionTitle], a [KeepWithNext]
+/// child or an empty `SizedBox` spacer stays in the column of the card after it. Where a run
+/// splits into two columns, a heading (a [SectionTitle], or a child that [OpensWithHeading]) on
+/// top of one column is moved up by the extra space above it, so both columns start at the same
+/// line: a heading lines up with the card beside it instead of floating below it, and two
+/// headings line up with each other.
 ///
 /// Both layouts are the same widgets, so folding, unfolding and turning the phone keep the
 /// state of the cards (an opened list, a typed text).
@@ -1776,16 +1858,30 @@ class CardColumns extends StatelessWidget {
   const CardColumns({super.key, required this.children});
   final List<Widget> children;
 
+  /// Whether a [CardColumns] built here lays its cards in two columns: a wide window, and not
+  /// already inside one of two columns. A section that is one child of the page's list (Today's
+  /// trip) is wrapped in [FullWidth] there and splits its own cards.
+  static bool splitsAt(BuildContext context) =>
+      isWide(context) && !(context.dependOnInheritedWidgetOfExactType<_Cell>()?.inColumn ?? false);
+
   @override
   Widget build(BuildContext context) {
     // Already in one of two columns (a section's list inside a card of the page's list): stack.
     final inside = context.dependOnInheritedWidgetOfExactType<_Cell>()?.inColumn ?? false;
-    final two = isWide(context) && !inside;
+    final two = splitsAt(context);
     return _Columns(
       two: two,
       spans: [for (final c in children) c is FullWidth],
       leads: [
         for (final c in children) c is SectionTitle || c is KeepWithNext || (c is SizedBox && c.child == null),
+      ],
+      gaps: [
+        for (final c in children)
+          switch (c) {
+            SectionTitle(:final padding) => padding.top,
+            OpensWithHeading(:final headingGap) => headingGap,
+            _ => 0.0,
+          },
       ],
       // Still inside a column when this list only stacks there: a list below must not split either.
       children: [for (final c in children) c is FullWidth ? c : _Cell(inColumn: two || inside, child: c)],
@@ -1803,7 +1899,8 @@ class _Cell extends InheritedWidget {
 }
 
 class _Columns extends MultiChildRenderObjectWidget {
-  const _Columns({required this.two, required this.spans, required this.leads, required super.children});
+  const _Columns(
+      {required this.two, required this.spans, required this.leads, required this.gaps, required super.children});
 
   /// Two columns, or one.
   final bool two;
@@ -1814,12 +1911,15 @@ class _Columns extends MultiChildRenderObjectWidget {
   /// Per child: belongs to the child after it (a heading, a spacer).
   final List<bool> leads;
 
+  /// Per child: the space above its heading, 0 when it opens with none.
+  final List<double> gaps;
+
   @override
-  RenderObject createRenderObject(BuildContext context) => _RenderColumns(two, spans, leads);
+  RenderObject createRenderObject(BuildContext context) => _RenderColumns(two, spans, leads, gaps);
 
   @override
   void updateRenderObject(BuildContext context, covariant _RenderColumns renderObject) =>
-      renderObject.update(two, spans, leads);
+      renderObject.update(two, spans, leads, gaps);
 }
 
 class _ColumnsParentData extends ContainerBoxParentData<RenderBox> {}
@@ -1849,16 +1949,18 @@ class _RenderColumns extends RenderBox
     with
         ContainerRenderObjectMixin<RenderBox, _ColumnsParentData>,
         RenderBoxContainerDefaultsMixin<RenderBox, _ColumnsParentData> {
-  _RenderColumns(this._two, this._spans, this._leads);
+  _RenderColumns(this._two, this._spans, this._leads, this._gaps);
 
   bool _two;
   List<bool> _spans;
   List<bool> _leads;
+  List<double> _gaps;
 
-  void update(bool two, List<bool> spans, List<bool> leads) {
+  void update(bool two, List<bool> spans, List<bool> leads, List<double> gaps) {
     _two = two;
     _spans = spans;
     _leads = leads;
+    _gaps = gaps;
     markNeedsLayout();
   }
 
@@ -1891,8 +1993,24 @@ class _RenderColumns extends RenderBox
       }
       final heights = [for (var n = i; n < end; n++) heightOf(boxes[n], column)];
       final k = splitColumns(heights, _leads.sublist(i, end));
-      var left = 0.0;
-      var right = 0.0;
+      // Nothing would go in the right column (one card, or a heading and its card): the run
+      // takes the whole width instead of leaving half the page empty beside it.
+      if (k == heights.length) {
+        for (var n = i; n < end; n++) {
+          place?.call(boxes[n], Offset(0, y));
+          y += heightOf(boxes[n], width);
+        }
+        i = end;
+        continue;
+      }
+      // Where the run has two columns, the one whose top child has more space above its heading
+      // goes up by the difference, so both columns start at the same line: a heading beside a
+      // card goes up to the card's top; two headings stay where they are. A child that shows
+      // nothing (an empty card) is not lifted.
+      double gap(int n) => heights[n] > _gaps[i + n] ? _gaps[i + n] : 0.0;
+      final both = gap(0) < gap(k) ? gap(0) : gap(k);
+      var left = both - gap(0);
+      var right = both - gap(k);
       for (var n = 0; n < heights.length; n++) {
         if (n < k) {
           place?.call(boxes[i + n], Offset(0, y + left));

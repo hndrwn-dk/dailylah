@@ -8,6 +8,7 @@ import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
 import 'address_picker.dart';
+import 'app_frame.dart' show kColumnGap;
 import 'place_sheet.dart';
 import 'stop_picker.dart';
 import 'theme.dart';
@@ -100,7 +101,7 @@ class TripSection extends ConsumerWidget {
         ? tripRouteKey(from.kind.name, to.kind.name)
         : tripRouteKey(routeEnd(from, to, here: startsHere), routeEnd(to, from, here: endsHere));
 
-    final body = switch (mode) {
+    final Widget body = switch (mode) {
       TravelMode.transit => _TransitBlock(
           fromKey: fromKey,
           from: from,
@@ -143,28 +144,13 @@ class TripSection extends ConsumerWidget {
       );
     }
 
-    return Column(
+    // On a wide window (Today puts the trip across both columns) the heading and tips span the
+    // page, the mode picker and I'm leaving start the left column and the cards follow, so the
+    // bus card and the MRT card sit side by side. On a phone the same widgets stack as before.
+    final split = CardColumns.splitsAt(context);
+    final lead = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // The one-row mode picker shows icons only, so the heading names the picked mode.
-        LayoutBuilder(
-          builder: (context, box) =>
-              ModeRail.fits(box.maxWidth, modes.length, MediaQuery.textScalerOf(context).scale(1))
-                  ? Padding(
-                      padding: const EdgeInsets.fromLTRB(4, 6, 4, 8),
-                      child: Wrap(
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Text(title, style: t.titleLarge),
-                          Text(s.tripBy(s.modeLabel(mode.name)),
-                              style: t.titleSmall?.copyWith(color: DL.muted(context))),
-                        ],
-                      ),
-                    )
-                  : heading,
-        ),
-        for (final a in _advice(ref, mode, from, withRain: !weatherAbove))
-          AlertBanner(icon: _adviceIcon(a), text: s.tripAdvice(a)),
         Padding(
           padding: const EdgeInsets.only(bottom: 14),
           child: ModeRail(
@@ -183,10 +169,80 @@ class TripSection extends ConsumerWidget {
           ),
         ),
         timer,
-        body,
+      ],
+    );
+    // Bus/MRT puts the picker among its own cards, the other modes beside theirs: the key moves
+    // it (and I'm leaving) with its state, so the thumb springs to the new mode instead of
+    // starting over.
+    // Watched here, in this widget's build, so Riverpod keeps the subscriptions between rebuilds.
+    final advice = _advice(ref, mode, from, withRain: !weatherAbove);
+    return _KeptLead(
+      builder: (leadKey) => _tripColumns(context, leadKey: leadKey, lead: lead, body: body, split: split,
+          modes: modes, title: title, heading: heading, mode: mode, s: s, t: t, advice: advice),
+    );
+  }
+
+  Widget _tripColumns(
+    BuildContext context, {
+    required GlobalKey leadKey,
+    required Widget lead,
+    required Widget body,
+    required bool split,
+    required List<TravelMode> modes,
+    required String title,
+    required Widget heading,
+    required TravelMode mode,
+    required S s,
+    required TextTheme t,
+    required List<TripAdvice> advice,
+  }) {
+    final keptLead = KeyedSubtree(key: leadKey, child: lead);
+    return CardColumns(
+      children: [
+        // The one-row mode picker shows icons only, so the heading names the picked mode. The
+        // picker is as wide as a column, so that is the width it is checked for.
+        FullWidth(
+          child: LayoutBuilder(
+          builder: (context, box) =>
+              ModeRail.fits(split ? (box.maxWidth - kColumnGap) / 2 : box.maxWidth, modes.length,
+                      MediaQuery.textScalerOf(context).scale(1))
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 6, 4, 8),
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(title, style: t.titleLarge),
+                          Text(s.tripBy(s.modeLabel(mode.name)),
+                              style: t.titleSmall?.copyWith(color: DL.muted(context))),
+                        ],
+                      ),
+                    )
+                  : heading,
+          ),
+        ),
+        for (final a in advice)
+          FullWidth(child: AlertBanner(icon: _adviceIcon(a), text: s.tripAdvice(a))),
+        // Bus/MRT: the picker joins the bus and MRT cards, so they split into two columns together.
+        if (body is _TransitBlock) FullWidth(child: body.withLead(keptLead)) else ...[keptLead, body],
       ],
     );
   }
+}
+
+/// Holds one key for the trip's mode picker and I'm leaving for as long as the trip is shown.
+class _KeptLead extends StatefulWidget {
+  const _KeptLead({required this.builder});
+  final Widget Function(GlobalKey leadKey) builder;
+
+  @override
+  State<_KeptLead> createState() => _KeptLeadState();
+}
+
+class _KeptLeadState extends State<_KeptLead> {
+  final _key = GlobalKey(debugLabel: 'trip lead');
+
+  @override
+  Widget build(BuildContext context) => widget.builder(_key);
 }
 
 /// Walking the whole way: minutes and distance, with the route in Google Maps as a button.
@@ -470,6 +526,7 @@ class _TransitBlock extends ConsumerWidget {
     required this.toLabel,
     required this.startsHere,
     required this.route,
+    this.lead,
   });
   final bool startsHere;
 
@@ -480,6 +537,19 @@ class _TransitBlock extends ConsumerWidget {
   final String fromName;
   final Place to;
   final String toLabel;
+
+  /// What comes before the cards (the mode picker and I'm leaving), in the same columns as them.
+  final Widget? lead;
+
+  _TransitBlock withLead(Widget lead) => _TransitBlock(
+      fromKey: fromKey,
+      from: from,
+      fromName: fromName,
+      to: to,
+      toLabel: toLabel,
+      startsHere: startsHere,
+      route: route,
+      lead: lead);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -517,11 +587,13 @@ class _TransitBlock extends ConsumerWidget {
     final bad = planDisruption(plan, ref.watch(trainAlertsProvider).value);
 
     // Already there (e.g. "Here" after the ride): no walk or buses to suggest.
-    if (startsHere && straight < arrivedMetres) return _ThereNote(title: s.youAreHere, sub: s.arrivedAt(toLabel));
+    if (startsHere && straight < arrivedMetres) {
+      return CardColumns(children: [if (lead != null) lead!, _ThereNote(title: s.youAreHere, sub: s.arrivedAt(toLabel))]);
+    }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return CardColumns(
       children: [
+        if (lead != null) lead!,
         if (straight < walkInsteadMetres) _WalkCard(to: to, straight: straight),
         // No direct bus anywhere near: the train is the real answer, so show it first.
         // Within walking distance the train is never the better answer.
