@@ -285,7 +285,8 @@ feature, screen, provider or rule moves, appears or goes away.
   with no usual time yet the way back of the same trip counts, else a rough time from its distance and mode
   (`arrivalUsualMinutes`, `transitKmh`, `transitStartMinutes`). Otherwise the app was opened long after
   arriving: the trip is kept without a time (`TripLog.timed` false, JSON `nt`; `finishTrip(timed: false)`),
-  as is one where Arrived comes over 3 h late; under 3 min it is not kept. Without location nothing changes.
+  as is one where Arrived comes over 3 h late; under 3 min it is not kept. `finishTrip` says what became of
+  it (`TripEnd`), and Arrived's snackbar is `tripEndNote`. Only a bus trip has bells on its board (`tripMode`). Without location nothing changes.
   MRT: the MRT card shows the line status and "I'm on the train" (`mrtRide`/`mrtLeg`: every station from
   board to alight, change station included). The ride (`lib/mrt_ride.dart`, `rideProvider`, like the wake
   session) estimates the position from the time (`rideMinutesPerStop`, `rideTransferMinutes`,

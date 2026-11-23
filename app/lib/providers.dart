@@ -283,13 +283,13 @@ class HabitsNotifier extends Notifier<Habits> {
         HistoryKind.meal => state.copyWith(meals: [...state.meals]..remove(e.source)),
       });
 
-  /// Finishes the running trip; returns its minutes, or null when it was not timed or not kept.
-  /// A trip of under 3 minutes is not kept (a test tap). One that ran over [tripMinutes]' limit,
-  /// or ended with [timed] false, is kept without a time: Arrived was forgotten.
-  Future<int?> finishTrip(DateTime now, {bool timed = true}) async {
+  /// Finishes the running trip and says what became of it ([TripEnd]). A trip of under 3 minutes
+  /// is not kept (a test tap). One that ran over [tripMinutes]' limit, or ended with [timed]
+  /// false, is kept without a time: Arrived was forgotten.
+  Future<TripEnd> finishTrip(DateTime now, {bool timed = true}) async {
     final start = state.tripStart;
     final route = state.tripRoute;
-    if (start == null || route == null) return null;
+    if (start == null || route == null) return (kept: false, minutes: null);
     final m = timed ? tripMinutes(start, now) : null;
     final keep = m != null || now.difference(start).inMinutes >= 3;
     final trips = [
@@ -309,7 +309,7 @@ class HabitsNotifier extends Notifier<Habits> {
       trips: trips.length > Habits.maxTrips ? trips.sublist(trips.length - Habits.maxTrips) : trips,
       clearTrip: true,
     ));
-    return m;
+    return (kept: keep, minutes: m);
   }
 
   /// Logs a meal at a hawker centre ([hawkerId]) or, with [name], at another food place, with

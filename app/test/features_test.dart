@@ -620,6 +620,28 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('With History full, a late Arrived still says the trip was kept', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayEvening));
+    await settle(tester);
+    final box = containerOf(tester);
+    final habits = box.read(habitsProvider.notifier);
+    final day = DateTime.now().subtract(const Duration(days: 30));
+    await habits.restore(Habits(trips: [
+      for (var i = 0; i < Habits.maxTrips; i++)
+        TripLog(route: 'home>work', start: day.add(Duration(hours: i)), minutes: 30),
+    ]));
+    await habits.startTrip('home>Bedok Mall', DateTime.now().subtract(const Duration(hours: 4)), mode: 'transit', km: 5);
+    await settle(tester);
+    await tester.tap(find.descendant(of: find.byType(TripBanner), matching: find.text('Arrived')));
+    await settle(tester);
+    expect(find.text(_s.tripLoggedUntimed), findsOneWidget);
+    final h = box.read(habitsProvider);
+    expect(h.trips, hasLength(Habits.maxTrips));
+    expect((h.trips.last.route, h.trips.last.timed), ('home>Bedok Mall', false));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('The way back of a planned trip is logged when the app finds the phone at home', (tester) async {
     // Home is where the test phone is (Tampines Int).
     final fav = householdFavorites.copyWith(places: {

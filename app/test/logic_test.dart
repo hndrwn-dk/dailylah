@@ -3139,6 +3139,13 @@ void main() {
       expect(e.minutes, isNull);
     });
 
+    test('what Arrived says: the minutes, kept without a time, or not kept', () {
+      const s = S();
+      expect(tripEndNote(s, (kept: true, minutes: 25)), s.tripLogged(25));
+      expect(tripEndNote(s, (kept: true, minutes: null)), s.tripLoggedUntimed);
+      expect(tripEndNote(s, (kept: false, minutes: null)), s.tripTooShort);
+    });
+
     test('the greeting', () {
       const s = S();
       expect(s.atPlaceTitle('work'), 'Have a good day at work');

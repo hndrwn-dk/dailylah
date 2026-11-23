@@ -150,6 +150,18 @@ void main() {
       await _end(tester, box);
     });
 
+    testWidgets('a trip by car to the same place has no bells on its bus board', (tester) async {
+      // Every timed trip remembers where it goes now; only a bus trip may watch a bus.
+      final box = await _plan(tester);
+      await tester.runAsync(() => box.read(habitsProvider.notifier).startTrip(
+          'Siglap>St. Patrick', DateTime.now(), mode: TravelMode.car.name, to: _stPatricks));
+      await settle(tester);
+      expect(box.read(habitsProvider).tripTo?.name, "St. Patrick's Green");
+      expect(find.byTooltip(_s.busAlertMe), findsNothing);
+      expect(find.byTooltip(_s.busAlertStop), findsNothing);
+      await _end(tester, box);
+    });
+
     testWidgets('the bells fit at 200% text on a 320 dp phone', (tester) async {
       const small = Condition('small, large text', textScale: 2.0, size: Size(320, 640));
       final box = await _plan(tester, c: small);

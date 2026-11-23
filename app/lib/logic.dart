@@ -352,6 +352,16 @@ int? arrivalLogMinutes(DateTime start, DateTime now, int? usual) {
   return m == null || usual == null || m > usual + 15 ? null : m;
 }
 
+/// What became of a trip that was finished: [kept] in History, with its [minutes] when timed.
+typedef TripEnd = ({bool kept, int? minutes});
+
+/// The line said when Arrived ends a trip.
+String tripEndNote(S s, TripEnd end) => end.minutes != null
+    ? s.tripLogged(end.minutes!)
+    : end.kept
+        ? s.tripLoggedUntimed
+        : s.tripTooShort;
+
 /// The running trip's destination ([Habits.tripTo]) is where the phone is: within [arrivedMetres].
 /// Worked out on the phone; the position is not kept.
 bool atTripEnd(Place? to, double lat, double lng) =>

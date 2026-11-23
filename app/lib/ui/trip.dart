@@ -1058,7 +1058,10 @@ class TripBusCard extends ConsumerWidget {
                   final habits = ref.watch(habitsProvider);
                   final watch = ref.watch(busWatchProvider);
                   final tripTo = habits.tripTo;
+                  // Only on a bus trip (no mode: one timed before modes were kept): every timed trip
+                  // remembers where it goes.
                   final bells = habits.tripStart != null &&
+                      (habits.tripMode ?? TravelMode.transit.name) == TravelMode.transit.name &&
                       tripTo != null &&
                       ref.watch(favoritesProvider.select((f) => f.busAlerts)) &&
                       distanceMeters(tripTo.lat, tripTo.lng, to.lat, to.lng) < samePlaceMetres;
@@ -2082,11 +2085,8 @@ class TripBanner extends ConsumerWidget {
               style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
               onPressed: () async {
                 final messenger = ScaffoldMessenger.of(context);
-                final before = ref.read(habitsProvider).trips.length;
-                final m = await notifier.finishTrip(DateTime.now());
-                final kept = ref.read(habitsProvider).trips.length > before;
-                messenger.showSnackBar(SnackBar(
-                    content: Text(m != null ? s.tripLogged(m) : (kept ? s.tripLoggedUntimed : s.tripTooShort))));
+                final end = await notifier.finishTrip(DateTime.now());
+                messenger.showSnackBar(SnackBar(content: Text(tripEndNote(s, end))));
               },
               child: Text(s.arrived),
             ),
