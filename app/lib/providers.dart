@@ -227,7 +227,8 @@ class HabitsNotifier extends Notifier<Habits> {
     final start = state.tripStart;
     final route = state.tripRoute;
     if (start == null || route == null || tripRouteEnds(route)?.$2 != at.name) return;
-    if (arrivalLogMinutes(start, now, tripStats(state.trips, route).usual) == null) return cancelTrip();
+    final usual = arrivalUsualMinutes(state.trips, route, mode: state.tripMode, km: state.tripKm);
+    if (arrivalLogMinutes(start, now, usual) == null) return cancelTrip();
     await finishTrip(now);
   }
 

@@ -1096,7 +1096,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Trips: after I'm leaving, DailyLah watches your bus and tells you when it is 2 minutes away and when it arrives. Tap the trip bar to see the buses again; the bell on a bus picks another one.",
+        "History: the trip back of a planned trip is kept now. When you open DailyLah at home after I'm leaving, the way back is logged like the way there, also the first time you make that trip.",
       ];
 
   // about

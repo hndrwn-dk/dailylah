@@ -3099,6 +3099,26 @@ void main() {
       expect(arrivalLogMinutes(start, tue(18, 2), 38), isNull);
     });
 
+    test('a trip ended by being there with no usual time yet: the way there, else an estimate', () {
+      final start = tue(18);
+      TripLog log(String route, int m) => TripLog(route: route, start: start, minutes: m);
+      final there = [for (final m in [30, 32, 34]) log('home>Bedok Mall', m)];
+      final back = [for (final m in [40, 40, 40]) log('Bedok Mall>home', m)];
+      // Its own usual time first, else the way there.
+      expect(arrivalUsualMinutes([...there, ...back], 'Bedok Mall>home'), 40);
+      expect(arrivalUsualMinutes(there, 'Bedok Mall>home'), 32);
+      // Never timed either way: a rough time from the distance and mode.
+      expect(arrivalUsualMinutes(const [], 'x>home', mode: 'transit', km: 5), 30);
+      expect(arrivalUsualMinutes(const [], 'x>home', mode: 'car', km: 5), 13);
+      expect(arrivalUsualMinutes(const [], 'x>home', mode: 'walk', km: 1), walkMinutesTo(1000));
+      expect(arrivalUsualMinutes(const [], 'x>home', km: 5), 30, reason: 'no mode: bus/MRT');
+      // Nothing to go by: dropped as before.
+      expect(arrivalUsualMinutes(const [], 'x>home'), isNull);
+      final usual = arrivalUsualMinutes(const [], 'x>home', mode: 'transit', km: 5);
+      expect(arrivalLogMinutes(start, tue(18, 22), usual), 22);
+      expect(arrivalLogMinutes(start, tue(19, 30), usual), isNull);
+    });
+
     test('the greeting', () {
       const s = S();
       expect(s.atPlaceTitle('work'), 'Have a good day at work');

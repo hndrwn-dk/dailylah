@@ -352,6 +352,28 @@ int? arrivalLogMinutes(DateTime start, DateTime now, int? usual) {
   return m == null || usual == null || m > usual + 15 ? null : m;
 }
 
+/// Rough door-to-door bus/MRT speed for a trip with no usual time yet, in km/h of route, plus
+/// the walk to the stop and the wait there.
+const transitKmh = 20.0;
+const transitStartMinutes = 10;
+
+/// The time [arrivalLogMinutes] compares a trip ended by being there with: the usual time of
+/// [route], else of the same trip the other way (the way back takes about as long as the way
+/// there), else a rough time from the straight [km] and [mode] the trip was timed with. Null
+/// when none is known. Without it the way back of a planned trip (there by Arrived, back found
+/// at home) was dropped, never logged.
+int? arrivalUsualMinutes(List<TripLog> logs, String route, {String? mode, double? km}) {
+  final usual = tripStats(logs, route).usual;
+  if (usual != null) return usual;
+  if (tripRouteEnds(route) case (final from, final to)) {
+    final back = tripStats(logs, tripRouteKey(to, from)).usual;
+    if (back != null) return back;
+  }
+  if (km == null || km <= 0) return null;
+  final m = TravelMode.values.where((x) => x.name == mode).firstOrNull ?? TravelMode.transit;
+  return modeMinutes(m, km * 1000) ?? transitStartMinutes + (routeMetres(km * 1000) / 1000 / transitKmh * 60).round();
+}
+
 bool isQuietHour(DateTime now) => now.hour >= 22 || now.hour < 6;
 
 /// True when now is within [leave - 60 min, leave].

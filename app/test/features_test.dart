@@ -618,6 +618,37 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('The way back of a planned trip is logged when the app finds the phone at home', (tester) async {
+    // Home is where the test phone is (Tampines Int).
+    final fav = householdFavorites.copyWith(places: {
+      ...householdFavorites.places,
+      PlaceKind.home: Place(
+        kind: PlaceKind.home,
+        stops: const [tampinesInt],
+        address: '156 TAMPINES ST 12',
+        addrLat: tampinesInt.lat,
+        addrLng: tampinesInt.lng,
+      ),
+    });
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, fav, tuesdayEvening));
+    await settle(tester);
+    final box = containerOf(tester);
+    final habits = box.read(habitsProvider.notifier);
+    // There: Arrived was tapped. Back: I'm leaving, then the app opened at home; never timed before.
+    final now = DateTime.now();
+    await habits.startTrip('home>Bedok Mall', now.subtract(const Duration(minutes: 60)), mode: 'transit', km: 5);
+    await habits.finishTrip(now.subtract(const Duration(minutes: 35)));
+    await habits.startTrip('Bedok Mall>home', now.subtract(const Duration(minutes: 22)), mode: 'transit', km: 5);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await settle(tester);
+    final h = box.read(habitsProvider);
+    expect(h.tripStart, isNull);
+    expect([for (final t in h.trips) t.route], ['home>Bedok Mall', 'Bedok Mall>home']);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Lunch: switched on in More, Today suggests a hawker at the office and opens Nearby on Eat', (tester) async {
     // The office is where the test phone is (Tampines Int), so Today greets instead of showing the trip.
     final atOffice = householdFavorites.copyWith(places: {

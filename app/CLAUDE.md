@@ -280,7 +280,9 @@ feature, screen, provider or rule moves, appears or goes away.
   usual time to leave); "Show my trip anyway" (`showTripAnywayProvider`) brings the trip back until the app
   is next opened. A trip being timed to that place ends (`HabitsNotifier.arrivedAt`): logged only when its
   time is at most 15 min over that trip's usual time (`arrivalLogMinutes`), dropped otherwise, since the
-  app may be opened long after arriving. Without location nothing changes.
+  app may be opened long after arriving. With no usual time yet the way back of the same trip counts, else a
+  rough time from its distance and mode (`arrivalUsualMinutes`, `transitKmh`, `transitStartMinutes`), so the
+  way back of a planned trip is logged like the way there. Without location nothing changes.
   MRT: the MRT card shows the line status and "I'm on the train" (`mrtRide`/`mrtLeg`: every station from
   board to alight, change station included). The ride (`lib/mrt_ride.dart`, `rideProvider`, like the wake
   session) estimates the position from the time (`rideMinutesPerStop`, `rideTransferMinutes`,
