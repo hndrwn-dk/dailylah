@@ -109,6 +109,7 @@ class TripSection extends ConsumerWidget {
           to: to,
           toLabel: toLabel,
           startsHere: startsHere,
+          endsHere: endsHere,
           route: route),
       TravelMode.car => _DriveBlock(from: from, to: to, toLabel: toLabel, lotType: 'C', endsHere: endsHere),
       TravelMode.motorcycle => _DriveBlock(from: from, to: to, toLabel: toLabel, lotType: 'Y', endsHere: endsHere),
@@ -526,9 +527,13 @@ class _TransitBlock extends ConsumerWidget {
     required this.toLabel,
     required this.startsHere,
     required this.route,
+    this.endsHere = false,
     this.lead,
   });
   final bool startsHere;
+
+  /// The destination is the phone's position: "I'm on the train" keeps no destination for it.
+  final bool endsHere;
 
   /// The key this trip is logged under ([tripRouteKey]), also when it starts with "I'm on the train".
   final String route;
@@ -549,6 +554,7 @@ class _TransitBlock extends ConsumerWidget {
       toLabel: toLabel,
       startsHere: startsHere,
       route: route,
+      endsHere: endsHere,
       lead: lead);
 
   @override
@@ -580,7 +586,7 @@ class _TransitBlock extends ConsumerWidget {
           walkCard: st == trip.stops.first,
         ),
     ];
-    final mrt = _MrtOption(from: from, to: to, route: route);
+    final mrt = _MrtOption(from: from, to: to, route: route, endsHere: endsHere);
     // Plan B: when the train on this trip is disrupted, buses come first with a note.
     final stations = ref.watch(mrtStationsProvider).value ?? const <MrtStation>[];
     final plan = stations.isEmpty ? null : mrtPlan(stations, from, to);
@@ -631,10 +637,11 @@ class _TransitBlock extends ConsumerWidget {
 
 /// Nearest MRT/LRT station at each end, with the line if no change is needed.
 class _MrtOption extends ConsumerWidget {
-  const _MrtOption({required this.from, required this.to, required this.route});
+  const _MrtOption({required this.from, required this.to, required this.route, this.endsHere = false});
   final Place from;
   final Place to;
   final String route;
+  final bool endsHere;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -807,6 +814,8 @@ class _MrtOption extends ConsumerWidget {
                           DateTime.now(),
                           mode: TravelMode.transit.name,
                           km: distanceMeters(from.lat, from.lng, to.lat, to.lng) / 1000,
+                          // So it ends by itself when the app is next opened there (never "Here").
+                          to: endsHere ? null : to,
                         );
                   }
                   await ref.read(rideProvider.notifier).start(ride);
