@@ -8,7 +8,7 @@ import 'dart:io';
 import 'package:dailylah/data.dart';
 import 'package:dailylah/l10n.dart';
 import 'package:dailylah/api.dart';
-import 'package:dailylah/logic.dart' show HistoryKind, HistoryPeriod, alertsOn, offsetMetres, parseSharedPlace, rideMinutesTo, withoutWebAddress;
+import 'package:dailylah/logic.dart' show HistoryKind, HistoryPeriod, alertsOn, offsetMetres, parseSharedPlace, rideMinutesTo, tripStats, withoutWebAddress;
 import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/mrt_ride.dart';
@@ -607,8 +607,10 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await settle(tester);
     expect(box.read(habitsProvider).tripStart, isNull);
-    // No usual time for this trip yet, so the 50 minutes are not logged as one.
-    expect(box.read(habitsProvider).trips, isEmpty);
+    // No usual time for this trip yet, so the 50 minutes are not taken as its time: the trip is
+    // kept without one.
+    final kept = box.read(habitsProvider).trips.single;
+    expect((kept.route, kept.timed), ('work>home', false));
 
     // Heading out again: the trip is one tap away.
     await tester.tap(find.text('Show my trip anyway'));
@@ -646,6 +648,46 @@ void main() {
     final h = box.read(habitsProvider);
     expect(h.tripStart, isNull);
     expect([for (final t in h.trips) t.route], ['home>Bedok Mall', 'Bedok Mall>home']);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Forgot Arrived at a planned place: opening the app there ends the trip and History keeps it',
+      (tester) async {
+    // The test phone is at Tampines Int; the mall picked in the planner is there too.
+    final mall = Place(kind: PlaceKind.other, name: 'Tampines Mall', addrLat: tampinesInt.lat, addrLng: tampinesInt.lng);
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayEvening));
+    await settle(tester);
+    final box = containerOf(tester);
+    final habits = box.read(habitsProvider.notifier);
+    final now = DateTime.now();
+
+    // Opened 25 min after I'm leaving: about the trip's time, so it is logged with it.
+    await habits.startTrip('home>Tampines Mall', now.subtract(const Duration(minutes: 25)),
+        mode: 'transit', km: 5, to: mall);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await settle(tester);
+    expect(box.read(habitsProvider).tripStart, isNull);
+    final timed = box.read(habitsProvider).trips.single;
+    expect((timed.route, timed.timed), ('home>Tampines Mall', true));
+    expect(timed.minutes, inInclusiveRange(25, 26));
+
+    // Opened only hours later, about to go back: kept, without a time, and not counted as usual.
+    await habits.startTrip('home>Tampines Mall', now.subtract(const Duration(hours: 4)),
+        mode: 'transit', km: 5, to: mall);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await settle(tester);
+    final h = box.read(habitsProvider);
+    expect(h.tripStart, isNull);
+    expect([for (final t in h.trips) t.timed], [true, false]);
+    expect(tripStats(h.trips, 'home>Tampines Mall').count, 1);
+
+    // History lists both, the second with no time.
+    box.read(shellTabProvider.notifier).state = 3;
+    await settle(tester);
+    expect(find.textContaining(_s.tripNotTimed), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

@@ -362,7 +362,9 @@ class _TripTimer extends ConsumerWidget {
           rainy: rainy,
           mode: mode.name,
           km: distanceMeters(from.lat, from.lng, to.lat, to.lng) / 1000,
-          to: bus ? to : null,
+          // Where it goes, so the trip ends by itself when the app is next opened there (never
+          // the phone's own position).
+          to: endsHere ? null : to,
           stop: leave?.stop.code,
           bus: leave?.service,
         );
@@ -2080,8 +2082,11 @@ class TripBanner extends ConsumerWidget {
               style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
               onPressed: () async {
                 final messenger = ScaffoldMessenger.of(context);
+                final before = ref.read(habitsProvider).trips.length;
                 final m = await notifier.finishTrip(DateTime.now());
-                messenger.showSnackBar(SnackBar(content: Text(m == null ? s.tripTooShort : s.tripLogged(m))));
+                final kept = ref.read(habitsProvider).trips.length > before;
+                messenger.showSnackBar(SnackBar(
+                    content: Text(m != null ? s.tripLogged(m) : (kept ? s.tripLoggedUntimed : s.tripTooShort))));
               },
               child: Text(s.arrived),
             ),

@@ -278,11 +278,14 @@ feature, screen, provider or rule moves, appears or goes away.
   work", "You're home. Take a rest.") instead of the commute `TripSection` and the MRT card (`restingAt`: at
   the trip's destination, or still at work or school on the evening card until `leaveSoonMinutes` before the
   usual time to leave); "Show my trip anyway" (`showTripAnywayProvider`) brings the trip back until the app
-  is next opened. A trip being timed to that place ends (`HabitsNotifier.arrivedAt`): logged only when its
-  time is at most 15 min over that trip's usual time (`arrivalLogMinutes`), dropped otherwise, since the
-  app may be opened long after arriving. With no usual time yet the way back of the same trip counts, else a
-  rough time from its distance and mode (`arrivalUsualMinutes`, `transitKmh`, `transitStartMinutes`), so the
-  way back of a planned trip is logged like the way there. Without location nothing changes.
+  is next opened. A trip being timed to that place ends (`HabitsNotifier.arrivedAt`), and so does one found at
+  its own destination (`Habits.tripTo`, kept for every trip but a "Here" destination; `arrivedNear`,
+  `atTripEnd`, within `arrivedMetres`), so a planned trip ends at the mall when Arrived was forgotten. It is
+  logged with its time only when that is at most 15 min over the trip's usual time (`arrivalLogMinutes`);
+  with no usual time yet the way back of the same trip counts, else a rough time from its distance and mode
+  (`arrivalUsualMinutes`, `transitKmh`, `transitStartMinutes`). Otherwise the app was opened long after
+  arriving: the trip is kept without a time (`TripLog.timed` false, JSON `nt`; `finishTrip(timed: false)`),
+  as is one where Arrived comes over 3 h late; under 3 min it is not kept. Without location nothing changes.
   MRT: the MRT card shows the line status and "I'm on the train" (`mrtRide`/`mrtLeg`: every station from
   board to alight, change station included). The ride (`lib/mrt_ride.dart`, `rideProvider`, like the wake
   session) estimates the position from the time (`rideMinutesPerStop`, `rideTransferMinutes`,
@@ -315,7 +318,8 @@ feature, screen, provider or rule moves, appears or goes away.
   shrink together at large text) and the totals of the period are the filter (`_KindTiles`: All with what was
   spent, Trips, Parking and Meals, each a tile with its figure; four in a row, two at large text; they count the
   whole period whatever kind is shown, and are hidden with nothing logged, when only the note shows). A row is
-  a `PlaceRow` in a `Dismissible`: the time and duration under the name, the cost large with "estimate" under
+  a `PlaceRow` in a `Dismissible`: the time and duration under the name ("time not known" for a trip that was
+  not timed, `S.tripNotTimed`; such trips count in History but not in `tripStats`), the cost large with "estimate" under
   an estimated one, or "Add price" / "Add cost" (`PlaceRow.action`) where there is none; swipe to remove with
   Undo. Under the list: the swipe hint once, "Remove these N entries" in red, "Delete all my history" (everything
   logged in any period and the parked car, after a question), then the cost note. Costs: an
@@ -345,7 +349,7 @@ feature, screen, provider or rule moves, appears or goes away.
   above the tabs (inline on the planner page, which hides the tabs) with Arrived / Stop timing; its buttons
   go under the text when they would not fit beside it (large text, 320 dp).
   Bus arriving (`lib/bus_watch.dart`, `busWatchProvider`, like the wake session; `Favorites.busAlerts`): on a
-  bus trip I'm leaving (`_TripTimer._leave`) remembers on the phone where the trip goes, the stop of its first
+  bus trip I'm leaving (`_TripTimer._leave`) remembers on the phone where the trip goes (on every trip), the stop of its first
   stop card and the bus to leave for (`tripLeave`, from `stopPlan`, the rule `TripBusCard` also uses;
   `Habits.tripTo`, `tripStop`, `tripBus`, cleared with the trip; never a "Here" destination) and watches that
   bus without asking for any permission: with location already allowed on geolocator's foreground service,

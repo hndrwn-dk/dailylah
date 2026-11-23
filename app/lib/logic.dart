@@ -352,6 +352,11 @@ int? arrivalLogMinutes(DateTime start, DateTime now, int? usual) {
   return m == null || usual == null || m > usual + 15 ? null : m;
 }
 
+/// The running trip's destination ([Habits.tripTo]) is where the phone is: within [arrivedMetres].
+/// Worked out on the phone; the position is not kept.
+bool atTripEnd(Place? to, double lat, double lng) =>
+    to != null && distanceMeters(lat, lng, to.lat, to.lng) <= arrivedMetres;
+
 /// Rough door-to-door bus/MRT speed for a trip with no usual time yet, in km/h of route, plus
 /// the walk to the stop and the wait there.
 const transitKmh = 20.0;
@@ -3086,7 +3091,7 @@ List<HistoryEntry> historyEntries(Habits h, {DateTime? since}) {
   final out = <HistoryEntry>[
     for (final t in h.trips)
       HistoryEntry(HistoryKind.trip, t.start, t,
-          minutes: t.minutes, costCents: t.costCents ?? tripFareEstimate(t), estimated: t.costCents == null),
+          minutes: t.timed ? t.minutes : null, costCents: t.costCents ?? tripFareEstimate(t), estimated: t.costCents == null),
     for (final p in h.parkings)
       HistoryEntry(HistoryKind.parking, p.start, p,
           minutes: p.minutes, costCents: p.costCents ?? parkingEstimate(p), estimated: p.costCents == null),
@@ -3280,7 +3285,8 @@ int? historyPreviousCents(Habits h, HistoryPeriod period, DateTime now, Set<Hist
 /// Usual door-to-door minutes on a route ("home>work") from logged trips: the median once
 /// there are 3 trips, and the rainy-day median once there are 2 rainy ones.
 ({int? usual, int? rainy, int count}) tripStats(List<TripLog> logs, String route) {
-  final mine = [for (final t in logs) if (t.route == route) t];
+  // A trip that was not timed says nothing about how long the trip takes.
+  final mine = [for (final t in logs) if (t.route == route && t.timed) t];
   final wet = [for (final t in mine) if (t.rainy) t.minutes];
   return (
     usual: mine.length >= 3 ? _median([for (final t in mine) t.minutes]) : null,

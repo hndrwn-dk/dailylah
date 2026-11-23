@@ -140,7 +140,9 @@ Future<void> finishRide(BuildContext context, WidgetRef ref) async {
   final habits = ref.read(habitsProvider);
   if (habits.tripStart != null) {
     final m = await ref.read(habitsProvider.notifier).finishTrip(DateTime.now());
-    messenger?.showSnackBar(SnackBar(content: Text(m == null ? s.tripTooShort : s.tripLogged(m))));
+    final kept = ref.read(habitsProvider).trips.length > habits.trips.length;
+    messenger?.showSnackBar(
+        SnackBar(content: Text(m != null ? s.tripLogged(m) : (kept ? s.tripLoggedUntimed : s.tripTooShort))));
   }
   if (onPage && nav.canPop()) nav.maybePop();
 }

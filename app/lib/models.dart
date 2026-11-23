@@ -667,11 +667,19 @@ class TripLog {
     this.mode,
     this.km,
     this.costCents,
+    this.timed = true,
   });
   final String route;
   final DateTime start;
+
+  /// Door to door; 0 when the trip was not [timed].
   final int minutes;
   final bool rainy;
+
+  /// False when Arrived was not tapped in time and the trip ended long after it was over (the
+  /// app found the phone at its destination later, or Arrived came hours late): it happened, so
+  /// History keeps it, but how long it took is not known and it does not count for the usual time.
+  final bool timed;
 
   /// How the trip was made ([TravelMode] name), and the straight-line distance in km.
   /// Kept for cost estimates; null on trips logged before these were recorded.
@@ -689,6 +697,7 @@ class TripLog {
         if (mode != null) 'md': mode,
         if (km != null) 'km': km,
         if (costCents != null) 'c': costCents,
+        if (!timed) 'nt': true,
       };
 
   factory TripLog.fromJson(Map<String, dynamic> j) => TripLog(
@@ -699,11 +708,12 @@ class TripLog {
         mode: j['md'] as String?,
         km: (j['km'] as num?)?.toDouble(),
         costCents: (j['c'] as num?)?.toInt(),
+        timed: j['nt'] != true,
       );
 
   /// Same trip with the cost the user set (null clears it, back to the estimate).
-  TripLog withCost(int? cents) =>
-      TripLog(route: route, start: start, minutes: minutes, rainy: rainy, mode: mode, km: km, costCents: cents);
+  TripLog withCost(int? cents) => TripLog(
+      route: route, start: start, minutes: minutes, rainy: rainy, mode: mode, km: km, costCents: cents, timed: timed);
 }
 
 /// One finished parking: from "I parked here" to "Picked up".

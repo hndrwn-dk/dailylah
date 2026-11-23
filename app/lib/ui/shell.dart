@@ -96,6 +96,9 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
         );
         if (!mounted) return;
         at = savedPlaceAt(ref.read(favoritesProvider), pos.latitude, pos.longitude);
+        // A trip still being timed to a place picked in the planner ends there too.
+        await ref.read(habitsProvider.notifier).arrivedNear(pos.latitude, pos.longitude, DateTime.now());
+        if (!mounted) return;
       }
     } on Object {
       // No location (denied, switched off, no fix in time): Today shows the trip as usual.

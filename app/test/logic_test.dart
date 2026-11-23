@@ -3119,6 +3119,26 @@ void main() {
       expect(arrivalLogMinutes(start, tue(19, 30), usual), isNull);
     });
 
+    test('the running trip ends at its own destination; a trip not timed stays out of the usual time', () {
+      const mall = Place(kind: PlaceKind.other, name: 'Mall', addrLat: 1.3526, addrLng: 103.9447);
+      expect(atTripEnd(mall, 1.3526, 103.9447), isTrue);
+      expect(atTripEnd(mall, 1.3526 + 0.0012, 103.9447), isTrue); // 133 m
+      expect(atTripEnd(mall, 1.3526 + 0.0016, 103.9447), isFalse); // 178 m
+      expect(atTripEnd(null, 1.3526, 103.9447), isFalse);
+      final start = tue(18);
+      final logs = [
+        for (final m in [20, 22, 24]) TripLog(route: 'a>b', start: start, minutes: m),
+        TripLog(route: 'a>b', start: start, minutes: 0, timed: false),
+      ];
+      expect(tripStats(logs, 'a>b'), (usual: 22, rainy: null, count: 3));
+      final back = TripLog.fromJson(logs.last.toJson());
+      expect((back.timed, back.minutes), (false, 0));
+      expect(TripLog.fromJson(logs.first.toJson()).timed, isTrue);
+      expect(logs.first.toJson().containsKey('nt'), isFalse);
+      final e = historyEntries(Habits(trips: logs)).where((e) => !(e.source as TripLog).timed).single;
+      expect(e.minutes, isNull);
+    });
+
     test('the greeting', () {
       const s = S();
       expect(s.atPlaceTitle('work'), 'Have a good day at work');
