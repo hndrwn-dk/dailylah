@@ -2,6 +2,7 @@
 import 'package:dailylah/ui/app_frame.dart';
 import 'package:dailylah/ui/widgets.dart';
 import 'package:flutter/material.dart';
+import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/shell.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -270,6 +271,23 @@ void main() {
     expect(tester.getCenter(title(strings.meetingPoints)).dx, greaterThan(440));
     expect(c999.bottom, lessThan(tester.getRect(title(strings.helpNearby)).top));
   });
+
+  for (final c in const [Condition('phone'), Condition('fold', size: Size(880, 600))]) {
+    testWidgets('${c.name}: switching the trip between Bus/MRT and Car keeps the mode picker', (tester) async {
+      await applyCondition(tester, c);
+      await tester.pumpWidget(appUnder(c, householdFavorites, tuesdayMorning));
+      await settle(tester);
+      final rail = tester.state(find.byType(ModeRail));
+      final k = containerOf(tester);
+      // The morning commute's mode belongs to Work.
+      k.read(modeOverrideProvider.notifier).state = {'work': TravelMode.car};
+      await settle(tester);
+      expect(tester.state(find.byType(ModeRail)), same(rail));
+      k.read(modeOverrideProvider.notifier).state = {'work': TravelMode.transit};
+      await settle(tester);
+      expect(tester.state(find.byType(ModeRail)), same(rail));
+    });
+  }
 
   testWidgets('scrolled down, the tabs blur and fade under the status bar; at the top they do not', (tester) async {
     const c = Condition('phone');

@@ -171,6 +171,30 @@ class TripSection extends ConsumerWidget {
         timer,
       ],
     );
+    // Bus/MRT puts the picker among its own cards, the other modes beside theirs: the key moves
+    // it (and I'm leaving) with its state, so the thumb springs to the new mode instead of
+    // starting over.
+    return _KeptLead(
+      builder: (leadKey) => _tripColumns(context, leadKey: leadKey, lead: lead, body: body, split: split,
+          modes: modes, title: title, heading: heading, mode: mode, s: s, t: t, ref: ref),
+    );
+  }
+
+  Widget _tripColumns(
+    BuildContext context, {
+    required GlobalKey leadKey,
+    required Widget lead,
+    required Widget body,
+    required bool split,
+    required List<TravelMode> modes,
+    required String title,
+    required Widget heading,
+    required TravelMode mode,
+    required S s,
+    required TextTheme t,
+    required WidgetRef ref,
+  }) {
+    final keptLead = KeyedSubtree(key: leadKey, child: lead);
     return CardColumns(
       children: [
         // The one-row mode picker shows icons only, so the heading names the picked mode. The
@@ -197,10 +221,26 @@ class TripSection extends ConsumerWidget {
         for (final a in _advice(ref, mode, from, withRain: !weatherAbove))
           FullWidth(child: AlertBanner(icon: _adviceIcon(a), text: s.tripAdvice(a))),
         // Bus/MRT: the picker joins the bus and MRT cards, so they split into two columns together.
-        if (body is _TransitBlock) FullWidth(child: body.withLead(lead)) else ...[lead, body],
+        if (body is _TransitBlock) FullWidth(child: body.withLead(keptLead)) else ...[keptLead, body],
       ],
     );
   }
+}
+
+/// Holds one key for the trip's mode picker and I'm leaving for as long as the trip is shown.
+class _KeptLead extends StatefulWidget {
+  const _KeptLead({required this.builder});
+  final Widget Function(GlobalKey leadKey) builder;
+
+  @override
+  State<_KeptLead> createState() => _KeptLeadState();
+}
+
+class _KeptLeadState extends State<_KeptLead> {
+  final _key = GlobalKey(debugLabel: 'trip lead');
+
+  @override
+  Widget build(BuildContext context) => widget.builder(_key);
 }
 
 /// Walking the whole way: minutes and distance, with the route in Google Maps as a button.
