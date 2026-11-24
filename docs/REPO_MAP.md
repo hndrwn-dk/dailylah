@@ -60,7 +60,7 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 - Types: `AddressPickerPage`
 
 ### `lib/ui/app_frame.dart`
-- Types: `PhoneColumn`, `ColumnPageTransitionsBuilder`, `AppFrame`, `FoldBlur`
+- Types: `PhoneColumn`, `ColumnPageTransitionsBuilder`, `AppFrame`, `FoldFlap`
 - Functions: `frameWidth`, `isWide`
 
 ### `lib/ui/block_commute.dart`

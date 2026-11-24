@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show DisplayFeature, DisplayFeatureState, DisplayFeatureType;
 
 import 'package:dailylah/ui/app_frame.dart';
@@ -346,10 +347,10 @@ void main() {
     expect(seen.displayFeatures.single.bounds, const Rect.fromLTWH(440, 0, 0, 600));
   });
 
-  group('fold blur', () {
-    Future<void> pumpApp(WidgetTester tester, {bool reduceMotion = false}) async {
+  group('fold flap', () {
+    Future<void> pumpApp(WidgetTester tester, {bool reduceMotion = false, Size size = const Size(400, 800)}) async {
       tester.view.devicePixelRatio = 1;
-      tester.view.physicalSize = const Size(400, 800);
+      tester.view.physicalSize = size;
       addTearDown(tester.view.reset);
       if (reduceMotion) {
         tester.platformDispatcher.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(disableAnimations: true);
@@ -361,81 +362,93 @@ void main() {
       ));
     }
 
-    Finder blurs() => find.descendant(of: find.byType(FoldBlur), matching: find.byType(BackdropFilter));
-    bool blurred(WidgetTester tester) => blurs().evaluate().isNotEmpty;
+    bool covered(WidgetTester tester) => find.byKey(FoldFlap.coverKey).evaluate().isNotEmpty;
 
-    /// The parts of the app still blurred (the soft band at the edge, then the rest), as clipped.
-    List<Rect> blurredParts(WidgetTester tester) => [
-          for (final clip in tester.widgetList<ClipRect>(
-              find.descendant(of: find.byType(FoldBlur), matching: find.byType(ClipRect))))
-            clip.clipper!.getClip(const Size(880, 600)),
-        ];
+    /// How far the flap is still turned away from flat, in degrees (90 = edge on).
+    double turned(WidgetTester tester) {
+      final m = tester.widget<Transform>(find.byKey(FoldFlap.flapKey)).transform;
+      return math.acos(m.storage[0].clamp(-1.0, 1.0)) * 180 / math.pi;
+    }
 
-    /// Where the sharp part ends: the left edge of the blur that is left.
-    double wipeEdge(WidgetTester tester) => blurredParts(tester).first.left;
-
-    /// The whole app is blurred: no sharp part on the left, the rest reaching the right edge.
-    bool wholeBlurred(WidgetTester tester) =>
-        blurredParts(tester).first.right <= 0 && blurredParts(tester).last.left <= 0 && blurredParts(tester).last.right >= 880;
-
-    testWidgets('unfolding blurs the whole app, then the blur wipes off from the left, the page kept',
-        (tester) async {
+    testWidgets('unfolding swings the right half open from the fold line, the page kept', (tester) async {
       await pumpApp(tester);
       await tester.enterText(find.byType(TextField), 'Bedok');
       final state = tester.state(find.byType(TextField));
-      expect(blurred(tester), isFalse);
+      expect(covered(tester), isFalse);
       tester.view.physicalSize = const Size(880, 600);
       await tester.pump();
-      expect(blurred(tester), isTrue);
-      // Held whole while the phone switches screens.
-      await tester.pump(kFoldBlurSettle - const Duration(milliseconds: 50));
-      expect(blurred(tester), isTrue);
-      expect(wholeBlurred(tester), isTrue);
-      // Then the left side clears first and the edge moves right.
+      // The right half is the page colour at once; the snapshot of the new layout comes next frame.
+      expect(covered(tester), isTrue);
+      expect(tester.getRect(find.byKey(FoldFlap.coverKey)), const Rect.fromLTRB(440, 0, 880, 600));
+      await tester.pump();
+      expect(turned(tester), closeTo(90, 0.5));
+      // Held edge on while the phone switches screens.
+      await tester.pump(kFoldFlapSettle - const Duration(milliseconds: 50));
+      expect(turned(tester), closeTo(90, 0.5));
+      // Then it swings towards flat, about the fold line in the middle.
       await tester.pump(const Duration(milliseconds: 50));
-      await tester.pump(kFoldBlurClear ~/ 2);
-      final halfway = wipeEdge(tester);
-      expect(halfway, greaterThan(0));
-      expect(halfway, lessThan(880));
-      await tester.pump(kFoldBlurClear ~/ 4);
-      expect(wipeEdge(tester), greaterThan(halfway));
+      await tester.pump(kFoldFlapOpen ~/ 4);
+      final early = turned(tester);
+      expect(early, inExclusiveRange(1, 89));
+      await tester.pump(kFoldFlapOpen ~/ 4);
+      expect(turned(tester), lessThan(early));
+      expect(tester.getRect(find.byKey(FoldFlap.flapKey)).left, 440);
       await tester.pumpAndSettle();
-      expect(blurred(tester), isFalse);
+      expect(covered(tester), isFalse);
       expect(tester.state(find.byType(TextField)), same(state));
-      // The keyboard (a height change) does not blur.
+      expect(find.text('Bedok'), findsOneWidget);
+      // The keyboard (a height change) does nothing.
       tester.view.physicalSize = const Size(880, 300);
       await tester.pump();
-      expect(blurred(tester), isFalse);
+      expect(covered(tester), isFalse);
     });
 
-    testWidgets('a hinge still half open keeps the blur until it opens flat', (tester) async {
+    testWidgets('folding, and widening into one column only, have no flap', (tester) async {
+      await pumpApp(tester, size: const Size(880, 600));
+      tester.view.physicalSize = const Size(400, 800);
+      await tester.pump();
+      expect(covered(tester), isFalse);
+      // 700 dp is one 600 dp column: nothing opens beside it.
+      tester.view.physicalSize = const Size(700, 600);
+      await tester.pump();
+      expect(covered(tester), isFalse);
+    });
+
+    testWidgets('a hinge still half open keeps the flap folded until it opens flat', (tester) async {
       await pumpApp(tester);
       DisplayFeature fold(DisplayFeatureState state) =>
           DisplayFeature(bounds: const Rect.fromLTWH(440, 0, 0, 600), type: DisplayFeatureType.fold, state: state);
       tester.view.displayFeatures = [fold(DisplayFeatureState.postureHalfOpened)];
       tester.view.physicalSize = const Size(880, 600);
       await tester.pump();
-      // Past the settle time but still half open: the whole app stays blurred.
-      await tester.pump(kFoldBlurSettle * 2);
-      expect(wholeBlurred(tester), isTrue);
+      await tester.pump(kFoldFlapSettle * 2);
+      expect(turned(tester), closeTo(90, 0.5));
       tester.view.displayFeatures = [fold(DisplayFeatureState.postureFlat)];
-      await tester.pumpAndSettle();
-      expect(blurred(tester), isFalse);
-      // Held half open (a laptop-like pose): the blur gives up after kFoldBlurHold.
-      tester.view.displayFeatures = [fold(DisplayFeatureState.postureHalfOpened)];
-      tester.view.physicalSize = const Size(400, 800);
       await tester.pump();
-      expect(blurred(tester), isTrue);
-      await tester.pump(kFoldBlurHold);
+      await tester.pump(kFoldFlapOpen ~/ 2);
+      expect(turned(tester), lessThan(89));
       await tester.pumpAndSettle();
-      expect(blurred(tester), isFalse);
+      expect(covered(tester), isFalse);
     });
 
-    testWidgets('with animations off there is no blur', (tester) async {
+    testWidgets('held half open, the flap opens after kFoldFlapHold anyway', (tester) async {
+      await pumpApp(tester);
+      tester.view.displayFeatures = [
+        const DisplayFeature(
+            bounds: Rect.fromLTWH(440, 0, 0, 600), type: DisplayFeatureType.fold, state: DisplayFeatureState.postureHalfOpened),
+      ];
+      tester.view.physicalSize = const Size(880, 600);
+      await tester.pump();
+      await tester.pump(kFoldFlapHold);
+      await tester.pumpAndSettle();
+      expect(covered(tester), isFalse);
+    });
+
+    testWidgets('with animations off there is no flap', (tester) async {
       await pumpApp(tester, reduceMotion: true);
       tester.view.physicalSize = const Size(880, 600);
       await tester.pump();
-      expect(blurred(tester), isFalse);
+      expect(covered(tester), isFalse);
     });
   });
 }

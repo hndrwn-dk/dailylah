@@ -1098,7 +1098,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        'Foldables: when you open or close the phone, the screen now stays blurred until the inner screen is on, then the blur clears from left to right.',
+        'Foldables: when you open the phone, the right side of the screen now swings open from the fold like a sheet of paper.',
       ];
 
   // about
