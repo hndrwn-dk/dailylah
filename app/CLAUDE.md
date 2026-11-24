@@ -96,8 +96,10 @@ Each feature with its screens, rules (logic.dart) and providers. Update it in th
 feature, screen, provider or rule moves, appears or goes away.
 - Routines: each place has travel modes (`Place.modes`, first = default) and custom places a
   `when`; work/school places carry their own `days` and `go`/`back` times (`commutePlace`,
-  `commuteTimes` in logic.dart). MRT: all lines show on Today; `Favorites.lines` are the
-  starred ones (max 3), and alerts cover every line when none is starred (`watchedLines`). Today shows the commute trip
+  `commuteTimes` in logic.dart). MRT: the Today card (`_MrtCard` in `ui/today.dart`) leads with
+  one status pill (all running, lines disrupted, or closed at night), a red box per disrupted
+  line, the starred lines as tiles with their crowd level (`crowdLevel` in logic.dart) and the
+  other lines as plates to star; `Favorites.lines` are the starred ones (max 3), and alerts cover every line when none is starred (`watchedLines`). Today shows the commute trip
   (`TripSection` in `ui/trip.dart`) and a "Go somewhere" picker. "Buses to X" uses the
   `bus_routes.json` bundle (`directRides` in logic.dart; trip start stops are filtered to the
   side of the road with a direct bus, or nearby stops with one are suggested, `tripStops`;

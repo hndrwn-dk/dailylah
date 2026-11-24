@@ -4359,6 +4359,10 @@ List<String> compareCandidates({
 // What each alert shows: wording, pills and the small picture. The rules for when an alert
 // fires are in background.dart and above; a pill whose value is not known is left out.
 
+/// How full a line's platforms are, from LTA's crowd share (the part of its stations reported
+/// high): 1 quiet (under 10%), 2 busy (under 30%), 3 packed. The MRT card's bars and words read this.
+int crowdLevel(double share) => share >= 0.3 ? 3 : share >= 0.1 ? 2 : 1;
+
 /// Official MRT/LRT line colours, 0xRRGGBB (DL.lineColors in ui/theme.dart reads this).
 const mrtLineColors = <String, int>{
   'NSL': 0xD42E12,
