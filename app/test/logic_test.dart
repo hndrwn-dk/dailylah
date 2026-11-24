@@ -2696,6 +2696,58 @@ void main() {
     expect(crowdLevel(1), 3);
   });
 
+  group('Plan a trip chips', () {
+    test('saved places in order, not the one the phone is at', () {
+      final now = DateTime(2026, 10, 20, 8);
+      final keys = planChipKeys(householdFavorites, now);
+      expect(keys.take(3), ['home', 'work', 'school']);
+      expect(keys.skip(3), everyElement(startsWith('extra:')));
+      expect(planChipKeys(householdFavorites, now, at: PlaceKind.home), isNot(contains('home')));
+    });
+
+    test('a destination keeps the start, unless it is the same place', () {
+      expect(pickDestination('home', 'work'), (from: 'home', to: 'work'));
+      expect(pickDestination('work', 'work'), (from: 'here', to: 'work'));
+    });
+  });
+
+  group('By MRT card', () {
+    MrtStation st(String name, List<String> codes, double lat) =>
+        MrtStation(name: name, codes: codes, lat: lat, lng: 103.85);
+
+    test('a ride on one line is one leg with its stops and minutes', () {
+      final r = MrtRide(
+          stations: [st('A', ['EW1'], 1.30), st('B', ['EW2'], 1.31), st('C', ['EW3'], 1.32)], lines: const {'EWL'});
+      final legs = mrtRideLegs(r);
+      expect(legs, hasLength(1));
+      expect(legs.single.line, 'EWL');
+      expect((legs.single.from, legs.single.to, legs.single.stops), (0, 2, 2));
+      expect(legs.single.minutes, 2 * rideMinutesPerStop);
+    });
+
+    test('a change gives two legs, each on its own line, without the time to change', () {
+      final r = MrtRide(stations: [
+        st('A', ['DT1'], 1.30),
+        st('B', ['DT2', 'EW5'], 1.31),
+        st('C', ['EW6'], 1.32),
+        st('D', ['EW7'], 1.33),
+      ], lines: const {'DTL', 'EWL'}, viaIndex: 1);
+      final legs = mrtRideLegs(r);
+      expect([for (final l in legs) l.line], ['DTL', 'EWL']);
+      expect([for (final l in legs) l.stops], [1, 2]);
+      expect(legs[0].minutes + legs[1].minutes + rideTransferMinutes, rideMinutesTo(r, r.stops));
+    });
+
+    test('door to door adds both walks to the ride', () {
+      final stations = [st('A', ['EW1'], 1.30), st('B', ['EW2'], 1.31)];
+      final plan = MrtPlan(
+          board: stations.first, walkToBoard: 400, alight: stations.last, walkFromAlight: 80, line: 'EWL', stops: 1);
+      final r = MrtRide(stations: stations, lines: const {'EWL'});
+      expect(mrtDoorMinutes(plan, r, null), walkMinutesTo(400) + rideMinutesPerStop + walkMinutesTo(80));
+      expect(mrtDoorMinutes(plan, null, null), isNull);
+    });
+  });
+
   group('rich notes', () {
     const s = S();
     List<String> texts(RichNote n) => [for (final p in n.pills) p.text];

@@ -238,7 +238,7 @@ void main() {
     testWidgets('"Use my current location" in the search is Here too: nothing is sent for it', (tester) async {
       await _plan(tester, _siglap, _stPatricks);
       // The start's search field, then the location row of the address picker.
-      await _tap(tester, find.text('Siglap Sth CC').last);
+      await _tap(tester, find.text('Siglap Sth CC').first);
       await settle(tester);
       await tester.tap(find.text(_s.useMyLocation));
       await settle(tester);

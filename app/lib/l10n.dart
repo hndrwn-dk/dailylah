@@ -405,7 +405,7 @@ class S {
   String get changeStop => 'Change stop';
   String get goSomewhere => 'Go somewhere';
   String get planTrip => 'Plan a trip';
-  String get planTripSub => 'From here or a saved place to anywhere, by bus, MRT, car or taxi.';
+  String get whereTo => 'Where to?';
   String get tooSoon => 'Too soon';
   String leaveInHead(String service, int minutes) => noOrphan(
       minutes == 0 ? 'Leave now to catch $service' : 'Leave in $minutes min to catch $service');
@@ -499,6 +499,11 @@ class S {
   String get changeTrains => 'Change trains on the way';
   String alightAt(String station, String dist) => 'Get off at $station · $dist walk';
   String get mrtRouteInMaps => 'MRT route in Google Maps';
+  String get mrtRunning => 'Running';
+  String mrtDoor(int minutes, int stops) => '~$minutes min · ${stops == 1 ? '1 stop' : '$stops stops'}';
+  String get mrtDoorNote => 'Door to door, walks included';
+  String walkStep(String dist, int minutes) => 'Walk $dist · $minutes min';
+  String rideStep(int stops, int minutes) => '${stops == 1 ? '1 stop' : '$stops stops'} · ~$minutes min';
   // pick a line for today
   String get changeLine => 'Change line';
   String get changeLineTitle => 'How do you want to go today?';
@@ -1103,7 +1108,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        'Fixed: while a trip runs, the end of Today and the other tabs no longer hide behind the trip bar above the tabs.',
+        'On a foldable or tablet, Today now fills both sides evenly. The By MRT card draws your trip as a line, with minutes door to door, and Plan a trip lets you search Where to? or tap a saved place right on Today.',
       ];
 
   // about

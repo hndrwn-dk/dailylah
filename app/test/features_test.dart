@@ -1729,7 +1729,7 @@ void main() {
     expect(box.read(goKeyProvider), 'adhoc');
     final name = box.read(goAdhocDestProvider)!.name!;
     // Searching again on the same end (the field now shows the place) keeps a destination.
-    await tester.tap(find.text(name).last);
+    await tester.tap(find.text(name).first);
     await settle(tester);
     expect(find.byType(AddressPickerPage), findsOneWidget);
     await tester.enterText(find.descendant(of: find.byType(AddressPickerPage), matching: find.byType(TextField)), '189630');
@@ -1807,7 +1807,7 @@ void main() {
     box.read(goKeyProvider.notifier).state = 'adhoc';
     await settle(tester);
     expect(find.text('Start A → End B'), findsOneWidget);
-    await tester.tap(find.text('End B').last);
+    await tester.tap(find.text('End B').first);
     await settle(tester);
     await tester.enterText(find.descendant(of: find.byType(AddressPickerPage), matching: find.byType(TextField)), '189630');
     await tester.pump(const Duration(milliseconds: 500));

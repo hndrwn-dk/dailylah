@@ -283,6 +283,18 @@ bool isCommuteDay(Favorites fav, DateTime now, [DaysOff off = const DaysOff()]) 
 Set<String> watchedLines(Favorites fav) => fav.lines.isEmpty ? trainLines.keys.toSet() : fav.lines;
 
 /// Custom places that fit today (weekday or weekend).
+/// The saved places "Plan a trip" on Today offers as destinations, as the planner's keys: Home,
+/// Work, School, then the custom places for today ([extrasForToday]); not the one the phone is [at].
+List<String> planChipKeys(Favorites fav, DateTime now, {PlaceKind? at}) => [
+      for (final k in [PlaceKind.home, PlaceKind.work, PlaceKind.school])
+        if (fav.places[k] != null && k != at) k.name,
+      for (final i in extrasForToday(fav, now)) 'extra:$i',
+    ];
+
+/// A destination picked from Today's chips: the planner's start stays, unless it is that same
+/// place, then the trip starts from the phone's position ("here").
+({String from, String to}) pickDestination(String from, String key) => (from: from == key ? 'here' : from, to: key);
+
 List<int> extrasForToday(Favorites fav, DateTime now) {
   final weekend = now.weekday >= 6;
   return [
@@ -2101,7 +2113,9 @@ FeederBus? feederBus(BusRoutes routes, List<BusStop> stops, Place from, MrtStati
   return best;
 }
 
-int? _choiceMinutes(MrtPlan plan, MrtRide? ride, FeederBus? feeder) {
+/// Door to door minutes by MRT: the walk (or the bus) to the boarding station, the ride with its
+/// change, and the walk from the last station; null when the stations in between are not known.
+int? mrtDoorMinutes(MrtPlan plan, MrtRide? ride, FeederBus? feeder) {
   if (ride == null) return null;
   final start = feeder == null
       ? walkMinutesTo(plan.walkToBoard)
@@ -2114,7 +2128,7 @@ MrtChoice? usualMrtChoice(List<MrtStation> stations, Place from, Place to) {
   final plan = mrtPlan(stations, from, to);
   if (plan == null) return null;
   final ride = mrtRide(stations, plan);
-  return MrtChoice(plan: plan, ride: ride, minutes: _choiceMinutes(plan, ride, null));
+  return MrtChoice(plan: plan, ride: ride, minutes: mrtDoorMinutes(plan, ride, null));
 }
 
 /// The trip starting on [line]: its nearest station to [from] (walked, or by a direct bus
@@ -2140,7 +2154,7 @@ MrtChoice? lineMrtChoice(List<MrtStation> stations, Place from, Place to, String
     feeder = feederBus(routes, stops, from, a.$1);
     if (feeder == null) return null;
   }
-  return MrtChoice(plan: plan, ride: ride, line: line, feeder: feeder, minutes: _choiceMinutes(plan, ride, feeder));
+  return MrtChoice(plan: plan, ride: ride, line: line, feeder: feeder, minutes: mrtDoorMinutes(plan, ride, feeder));
 }
 
 /// Every way to make the trip by MRT: the usual route first, then one per line (quickest
@@ -2200,6 +2214,28 @@ int? rideFixIndex(MrtRide r, double lat, double lng, {double radius = 300}) {
     if (d <= radius && (bestD == null || d < bestD)) (best, bestD) = (i, d);
   }
   return best;
+}
+
+/// One part of a ride on one line: from station [from] to station [to] of the ride.
+typedef MrtRideLeg = ({String? line, int from, int to, int stops, int minutes});
+
+/// The ride as one leg per line (two with a change), for the line drawn on the MRT card.
+List<MrtRideLeg> mrtRideLegs(MrtRide r) {
+  if (r.stops < 1) return const [];
+  final via = r.viaIndex;
+  if (via == null || via <= 0 || via >= r.stops) {
+    return [(line: rideLineAt(r, 0), from: 0, to: r.stops, stops: r.stops, minutes: rideMinutesTo(r, r.stops))];
+  }
+  return [
+    (line: rideLineAt(r, 0), from: 0, to: via, stops: via, minutes: rideMinutesTo(r, via)),
+    (
+      line: rideLineAt(r, via),
+      from: via,
+      to: r.stops,
+      stops: r.stops - via,
+      minutes: rideMinutesTo(r, r.stops) - rideMinutesTo(r, via) - rideTransferMinutes,
+    ),
+  ];
 }
 
 /// The line (e.g. "EWL") between station [i] and the next (the previous for the last).
