@@ -27,11 +27,20 @@ const double kColumnGap = 16;
 /// closing, a phone turned), in logical pixels of blur.
 const double kFoldBlurSigma = 14;
 
-/// How long the blur takes to clear once the window has its new width.
-const Duration kFoldBlurClear = Duration(milliseconds: 420);
+/// How long the blur stays whole before it starts to clear. A foldable switches to its other
+/// screen while the app is already drawing at the new width, and the system plays its own
+/// unfold animation; without this wait the blur was over before the screen showed it.
+const Duration kFoldBlurSettle = Duration(milliseconds: 350);
 
-/// The longest the blur waits for a foldable that is still half open to open flat or close.
+/// How long the blur takes to wipe off, from the left edge to the right one.
+const Duration kFoldBlurClear = Duration(milliseconds: 650);
+
+/// The longest the blur waits, from the change, for a foldable that is still half open to open
+/// flat or close.
 const Duration kFoldBlurHold = Duration(milliseconds: 900);
+
+/// The softer band at the edge of the wipe, between the sharp left part and the blurred rest.
+const double kFoldBlurEdge = 72;
 
 /// How wide the app is in a window with [room] logical pixels after the side insets, at
 /// [textScale] (1.0 = 100% text).
@@ -219,11 +228,14 @@ class _Framed extends StatelessWidget {
 
 /// Blurs the app for a moment when the window changes [width]: a foldable opening or closing, a
 /// phone turned on its side. The page jumps from one layout to the other (one column to two),
-/// and the blur hides the jump: it is strongest at the change, waits while the hinge is still
-/// [halfOpen] (at most [kFoldBlurHold]) and clears in [kFoldBlurClear]. With animations turned
-/// off on the phone ([reduceMotion]) there is no blur.
+/// and the blur hides the jump: the whole app is blurred at the change, stays so for
+/// [kFoldBlurSettle] (and while the hinge is still [halfOpen], at most [kFoldBlurHold] in all),
+/// then the blur wipes off from the left edge to the right in [kFoldBlurClear], with a softer
+/// band at the moving edge. With animations turned off on the phone ([reduceMotion]) there is
+/// no blur.
 ///
-/// The child is the same widget with or without the blur, so its state is kept.
+/// The blur is a layer over the app ([BackdropFilter]); the app itself is the same widget with or
+/// without it, so its state is kept.
 class FoldBlur extends StatefulWidget {
   const FoldBlur({
     super.key,
@@ -242,9 +254,11 @@ class FoldBlur extends StatefulWidget {
 }
 
 class _FoldBlurState extends State<FoldBlur> with SingleTickerProviderStateMixin {
-  // 1 = clear. Running from 0 to 1 is the blur clearing.
+  // 1 = clear. Running from 0 to 1 is the blur wiping off.
   late final AnimationController _clear = AnimationController(vsync: this, duration: kFoldBlurClear, value: 1);
-  Timer? _hold;
+  Timer? _settle;
+  Timer? _limit;
+  bool _settled = true;
 
   @override
   void didUpdateWidget(FoldBlur old) {
@@ -252,24 +266,38 @@ class _FoldBlurState extends State<FoldBlur> with SingleTickerProviderStateMixin
     if (widget.reduceMotion) {
       _release(animate: false);
     } else if ((old.width - widget.width).abs() >= 1) {
+      _cancelTimers();
       _clear.value = 0;
-      _hold?.cancel();
-      if (widget.halfOpen) {
-        _hold = Timer(kFoldBlurHold, _release);
-      } else {
-        _release();
-      }
-    } else if (_hold != null && !widget.halfOpen) {
-      _release();
+      _settled = false;
+      _settle = Timer(kFoldBlurSettle, () {
+        _settled = true;
+        _maybeRelease();
+      });
+      _limit = Timer(kFoldBlurHold, _release);
+    } else {
+      _maybeRelease();
     }
   }
 
+  bool get _waiting => _settle != null || _limit != null;
+
+  void _maybeRelease() {
+    if (_waiting && _settled && !widget.halfOpen) _release();
+  }
+
+  void _cancelTimers() {
+    _settle?.cancel();
+    _limit?.cancel();
+    _settle = null;
+    _limit = null;
+  }
+
   void _release({bool animate = true}) {
-    _hold?.cancel();
-    _hold = null;
+    _cancelTimers();
+    _settled = true;
     if (!mounted) return;
     if (animate) {
-      _clear.forward();
+      if (_clear.value < 1) _clear.forward();
     } else {
       _clear.value = 1;
     }
@@ -277,22 +305,66 @@ class _FoldBlurState extends State<FoldBlur> with SingleTickerProviderStateMixin
 
   @override
   void dispose() {
-    _hold?.cancel();
+    _cancelTimers();
     _clear.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-        animation: _clear,
-        builder: (context, child) {
-          final sigma = kFoldBlurSigma * (1 - Curves.easeOutCubic.transform(_clear.value));
-          return ImageFiltered(
-            enabled: sigma > 0.05,
-            imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma, tileMode: TileMode.clamp),
-            child: child,
-          );
-        },
-        child: widget.child,
+  Widget build(BuildContext context) => Stack(
+        fit: StackFit.passthrough,
+        children: [
+          widget.child,
+          Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedBuilder(
+                animation: _clear,
+                builder: (context, _) {
+                  if (_clear.value >= 1) return const SizedBox.shrink();
+                  final wipe = Curves.easeInOutCubic.transform(_clear.value);
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _blurFrom(wipe, edge: true),
+                      _blurFrom(wipe, edge: false),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       );
+
+  /// The blurred part right of the wipe: the soft band at its edge ([edge]) or the rest.
+  Widget _blurFrom(double wipe, {required bool edge}) {
+    final sigma = edge ? kFoldBlurSigma / 2 : kFoldBlurSigma;
+    return ClipRect(
+      clipper: _WipeClipper(wipe, edge: edge),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma, tileMode: TileMode.clamp),
+        child: const SizedBox.expand(),
+      ),
+    );
+  }
+}
+
+/// Where the blur still is, [wipe] (0 to 1) of the way through: everything right of the moving
+/// edge, or only the soft band at the edge ([edge]). The edge starts left of the screen, so at
+/// 0 the whole width is fully blurred, and ends right of it, so at 1 nothing is.
+class _WipeClipper extends CustomClipper<Rect> {
+  const _WipeClipper(this.wipe, {required this.edge});
+  final double wipe;
+  final bool edge;
+
+  @override
+  Rect getClip(Size size) {
+    final x = wipe * (size.width + kFoldBlurEdge) - kFoldBlurEdge;
+    return edge
+        ? Rect.fromLTRB(x, 0, x + kFoldBlurEdge, size.height)
+        : Rect.fromLTRB(x + kFoldBlurEdge, 0, size.width + 1, size.height);
+  }
+
+  @override
+  bool shouldReclip(_WipeClipper old) => old.wipe != wipe || old.edge != edge;
 }

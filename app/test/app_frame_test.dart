@@ -361,9 +361,25 @@ void main() {
       ));
     }
 
-    bool blurred(WidgetTester tester) => tester.widget<ImageFiltered>(find.byType(ImageFiltered)).enabled;
+    Finder blurs() => find.descendant(of: find.byType(FoldBlur), matching: find.byType(BackdropFilter));
+    bool blurred(WidgetTester tester) => blurs().evaluate().isNotEmpty;
 
-    testWidgets('unfolding blurs the app for a moment, then it is sharp, the page kept', (tester) async {
+    /// The parts of the app still blurred (the soft band at the edge, then the rest), as clipped.
+    List<Rect> blurredParts(WidgetTester tester) => [
+          for (final clip in tester.widgetList<ClipRect>(
+              find.descendant(of: find.byType(FoldBlur), matching: find.byType(ClipRect))))
+            clip.clipper!.getClip(const Size(880, 600)),
+        ];
+
+    /// Where the sharp part ends: the left edge of the blur that is left.
+    double wipeEdge(WidgetTester tester) => blurredParts(tester).first.left;
+
+    /// The whole app is blurred: no sharp part on the left, the rest reaching the right edge.
+    bool wholeBlurred(WidgetTester tester) =>
+        blurredParts(tester).first.right <= 0 && blurredParts(tester).last.left <= 0 && blurredParts(tester).last.right >= 880;
+
+    testWidgets('unfolding blurs the whole app, then the blur wipes off from the left, the page kept',
+        (tester) async {
       await pumpApp(tester);
       await tester.enterText(find.byType(TextField), 'Bedok');
       final state = tester.state(find.byType(TextField));
@@ -371,8 +387,18 @@ void main() {
       tester.view.physicalSize = const Size(880, 600);
       await tester.pump();
       expect(blurred(tester), isTrue);
-      await tester.pump(kFoldBlurClear ~/ 2);
+      // Held whole while the phone switches screens.
+      await tester.pump(kFoldBlurSettle - const Duration(milliseconds: 50));
       expect(blurred(tester), isTrue);
+      expect(wholeBlurred(tester), isTrue);
+      // Then the left side clears first and the edge moves right.
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump(kFoldBlurClear ~/ 2);
+      final halfway = wipeEdge(tester);
+      expect(halfway, greaterThan(0));
+      expect(halfway, lessThan(880));
+      await tester.pump(kFoldBlurClear ~/ 4);
+      expect(wipeEdge(tester), greaterThan(halfway));
       await tester.pumpAndSettle();
       expect(blurred(tester), isFalse);
       expect(tester.state(find.byType(TextField)), same(state));
@@ -389,8 +415,9 @@ void main() {
       tester.view.displayFeatures = [fold(DisplayFeatureState.postureHalfOpened)];
       tester.view.physicalSize = const Size(880, 600);
       await tester.pump();
-      await tester.pump(kFoldBlurClear * 2);
-      expect(blurred(tester), isTrue);
+      // Past the settle time but still half open: the whole app stays blurred.
+      await tester.pump(kFoldBlurSettle * 2);
+      expect(wholeBlurred(tester), isTrue);
       tester.view.displayFeatures = [fold(DisplayFeatureState.postureFlat)];
       await tester.pumpAndSettle();
       expect(blurred(tester), isFalse);
