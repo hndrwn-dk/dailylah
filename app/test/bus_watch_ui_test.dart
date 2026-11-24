@@ -4,6 +4,7 @@ import 'package:dailylah/bus_watch.dart';
 import 'package:dailylah/l10n.dart';
 import 'package:dailylah/logic.dart';
 import 'package:dailylah/models.dart';
+import 'package:dailylah/mrt_ride.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/today.dart';
 import 'package:dailylah/ui/trip.dart';
@@ -147,6 +148,66 @@ void main() {
       expect(box.read(habitsProvider).tripTo, isNull);
       expect(box.read(busWatchProvider), isNull);
       expect(find.byTooltip(_s.busAlertMe), findsNothing);
+      await _end(tester, box);
+    });
+
+    testWidgets('a trip by car to the same place has no bells on its bus board', (tester) async {
+      // Every timed trip remembers where it goes now; only a bus trip may watch a bus.
+      final box = await _plan(tester);
+      await tester.runAsync(() => box.read(habitsProvider.notifier).startTrip(
+          'Siglap>St. Patrick', DateTime.now(), mode: TravelMode.car.name, to: _stPatricks));
+      await settle(tester);
+      expect(box.read(habitsProvider).tripTo?.name, "St. Patrick's Green");
+      expect(find.byTooltip(_s.busAlertMe), findsNothing);
+      expect(find.byTooltip(_s.busAlertStop), findsNothing);
+      await _end(tester, box);
+    });
+
+    testWidgets('a trip started with I\'m on the train has no bells, also once the ride has stopped',
+        (tester) async {
+      // The train ride keeps where it goes too; its bus boards must not start a bus watch.
+      final box = await _plan(tester);
+      final stations = (await tester.runAsync(() => box.read(mrtStationsProvider.future)))!;
+      final ride = MrtRide(stations: stations.take(2).toList(), lines: {stations.first.codes.first.substring(0, 2)});
+      await tester.runAsync(() async {
+        await box.read(habitsProvider.notifier).startTrip(
+            'Siglap>St. Patrick', DateTime.now(), mode: TravelMode.transit.name, to: _stPatricks, train: true);
+        await box.read(rideProvider.notifier).start(ride);
+      });
+      await settle(tester);
+      expect(box.read(rideProvider), isNotNull);
+      expect(find.byTooltip(_s.busAlertMe), findsNothing);
+      // Stop on the ride page (or its 2 h limit, or the app reopened) leaves the trip running.
+      box.read(rideProvider.notifier).stop();
+      await settle(tester);
+      expect(box.read(habitsProvider).tripStart, isNotNull);
+      expect(find.byTooltip(_s.busAlertMe), findsNothing);
+
+      // A trip that ends by itself at its destination stops the ride with it.
+      await tester.runAsync(() => box.read(rideProvider.notifier).start(ride));
+      await settle(tester);
+      expect(box.read(rideProvider), isNotNull);
+      await tester.runAsync(
+          () => box.read(habitsProvider.notifier).arrivedNear(_stPatricks.lat, _stPatricks.lng, DateTime.now()));
+      await settle(tester);
+      expect(box.read(habitsProvider).tripStart, isNull);
+      expect(box.read(rideProvider), isNull);
+      await _end(tester, box);
+    });
+
+    testWidgets('a bus trip has no bells while a train ride runs over it', (tester) async {
+      // I'm on the train over a running bus trip keeps that trip; no bus watch could start now.
+      final box = await _plan(tester);
+      await _tap(tester, find.text(_s.imLeaving));
+      expect(find.byTooltip(_s.busAlertStop), findsOneWidget);
+      final stations = (await tester.runAsync(() => box.read(mrtStationsProvider.future)))!;
+      final ride = MrtRide(stations: stations.take(2).toList(), lines: {stations.first.codes.first.substring(0, 2)});
+      await tester.runAsync(() => box.read(rideProvider.notifier).start(ride));
+      await settle(tester);
+      expect(box.read(habitsProvider).tripTrain, isFalse);
+      expect(find.byTooltip(_s.busAlertMe), findsNothing);
+      expect(find.byTooltip(_s.busAlertStop), findsNothing);
+      box.read(rideProvider.notifier).stop();
       await _end(tester, box);
     });
 

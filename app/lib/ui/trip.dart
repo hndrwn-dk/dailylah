@@ -109,6 +109,7 @@ class TripSection extends ConsumerWidget {
           to: to,
           toLabel: toLabel,
           startsHere: startsHere,
+          endsHere: endsHere,
           route: route),
       TravelMode.car => _DriveBlock(from: from, to: to, toLabel: toLabel, lotType: 'C', endsHere: endsHere),
       TravelMode.motorcycle => _DriveBlock(from: from, to: to, toLabel: toLabel, lotType: 'Y', endsHere: endsHere),
@@ -418,7 +419,9 @@ class _TripTimer extends ConsumerWidget {
           rainy: rainy,
           mode: mode.name,
           km: distanceMeters(from.lat, from.lng, to.lat, to.lng) / 1000,
-          to: bus ? to : null,
+          // Where it goes, so the trip ends by itself when the app is next opened there (never
+          // the phone's own position).
+          to: endsHere ? null : to,
           stop: leave?.stop.code,
           bus: leave?.service,
         );
@@ -524,9 +527,13 @@ class _TransitBlock extends ConsumerWidget {
     required this.toLabel,
     required this.startsHere,
     required this.route,
+    this.endsHere = false,
     this.lead,
   });
   final bool startsHere;
+
+  /// The destination is the phone's position: "I'm on the train" keeps no destination for it.
+  final bool endsHere;
 
   /// The key this trip is logged under ([tripRouteKey]), also when it starts with "I'm on the train".
   final String route;
@@ -547,6 +554,7 @@ class _TransitBlock extends ConsumerWidget {
       toLabel: toLabel,
       startsHere: startsHere,
       route: route,
+      endsHere: endsHere,
       lead: lead);
 
   @override
@@ -578,7 +586,7 @@ class _TransitBlock extends ConsumerWidget {
           walkCard: st == trip.stops.first,
         ),
     ];
-    final mrt = _MrtOption(from: from, to: to, route: route);
+    final mrt = _MrtOption(from: from, to: to, route: route, endsHere: endsHere);
     // Plan B: when the train on this trip is disrupted, buses come first with a note.
     final stations = ref.watch(mrtStationsProvider).value ?? const <MrtStation>[];
     final plan = stations.isEmpty ? null : mrtPlan(stations, from, to);
@@ -629,10 +637,11 @@ class _TransitBlock extends ConsumerWidget {
 
 /// Nearest MRT/LRT station at each end, with the line if no change is needed.
 class _MrtOption extends ConsumerWidget {
-  const _MrtOption({required this.from, required this.to, required this.route});
+  const _MrtOption({required this.from, required this.to, required this.route, this.endsHere = false});
   final Place from;
   final Place to;
   final String route;
+  final bool endsHere;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -805,6 +814,9 @@ class _MrtOption extends ConsumerWidget {
                           DateTime.now(),
                           mode: TravelMode.transit.name,
                           km: distanceMeters(from.lat, from.lng, to.lat, to.lng) / 1000,
+                          // So it ends by itself when the app is next opened there (never "Here").
+                          to: endsHere ? null : to,
+                          train: true,
                         );
                   }
                   await ref.read(rideProvider.notifier).start(ride);
@@ -1128,7 +1140,13 @@ class TripBusCard extends ConsumerWidget {
                   final habits = ref.watch(habitsProvider);
                   final watch = ref.watch(busWatchProvider);
                   final tripTo = habits.tripTo;
+                  // Only on a bus trip (no mode: one timed before modes were kept), never on one
+                  // started with I'm on the train nor while a ride runs (a bus watch would not
+                  // start then): every timed trip remembers where it goes.
                   final bells = habits.tripStart != null &&
+                      (habits.tripMode ?? TravelMode.transit.name) == TravelMode.transit.name &&
+                      !habits.tripTrain &&
+                      ref.watch(rideProvider) == null &&
                       tripTo != null &&
                       ref.watch(favoritesProvider.select((f) => f.busAlerts)) &&
                       distanceMeters(tripTo.lat, tripTo.lng, to.lat, to.lng) < samePlaceMetres;
@@ -2152,8 +2170,8 @@ class TripBanner extends ConsumerWidget {
               style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
               onPressed: () async {
                 final messenger = ScaffoldMessenger.of(context);
-                final m = await notifier.finishTrip(DateTime.now());
-                messenger.showSnackBar(SnackBar(content: Text(m == null ? s.tripTooShort : s.tripLogged(m))));
+                final end = await notifier.finishTrip(DateTime.now());
+                messenger.showSnackBar(SnackBar(content: Text(tripEndNote(s, end))));
               },
               child: Text(s.arrived),
             ),

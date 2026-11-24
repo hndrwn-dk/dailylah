@@ -658,7 +658,7 @@ class _EntryTile extends ConsumerWidget {
       final TripLog t => (
           _modeIcon(t.mode),
           _route(s, t.route),
-          [s.durationShort(t.minutes), if (t.rainy) s.rainyTag].join(' · '),
+          [t.timed ? s.durationShort(t.minutes) : s.tripNotTimed, if (t.rainy) s.rainyTag].join(' · '),
         ),
       final ParkLog p => (Icons.local_parking, p.name.isEmpty ? s.historyParking : p.name, s.durationShort(p.minutes)),
       final MealLog m => (Icons.ramen_dining_outlined, hawkers[m.hawkerId] ?? m.name ?? s.historyMeals, ''),

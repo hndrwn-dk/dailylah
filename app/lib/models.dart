@@ -667,11 +667,19 @@ class TripLog {
     this.mode,
     this.km,
     this.costCents,
+    this.timed = true,
   });
   final String route;
   final DateTime start;
+
+  /// Door to door; 0 when the trip was not [timed].
   final int minutes;
   final bool rainy;
+
+  /// False when Arrived was not tapped in time and the trip ended long after it was over (the
+  /// app found the phone at its destination later, or Arrived came hours late): it happened, so
+  /// History keeps it, but how long it took is not known and it does not count for the usual time.
+  final bool timed;
 
   /// How the trip was made ([TravelMode] name), and the straight-line distance in km.
   /// Kept for cost estimates; null on trips logged before these were recorded.
@@ -689,6 +697,7 @@ class TripLog {
         if (mode != null) 'md': mode,
         if (km != null) 'km': km,
         if (costCents != null) 'c': costCents,
+        if (!timed) 'nt': true,
       };
 
   factory TripLog.fromJson(Map<String, dynamic> j) => TripLog(
@@ -699,11 +708,12 @@ class TripLog {
         mode: j['md'] as String?,
         km: (j['km'] as num?)?.toDouble(),
         costCents: (j['c'] as num?)?.toInt(),
+        timed: j['nt'] != true,
       );
 
   /// Same trip with the cost the user set (null clears it, back to the estimate).
-  TripLog withCost(int? cents) =>
-      TripLog(route: route, start: start, minutes: minutes, rainy: rainy, mode: mode, km: km, costCents: cents);
+  TripLog withCost(int? cents) => TripLog(
+      route: route, start: start, minutes: minutes, rainy: rainy, mode: mode, km: km, costCents: cents, timed: timed);
 }
 
 /// One finished parking: from "I parked here" to "Picked up".
@@ -802,6 +812,7 @@ class Habits {
     this.tripTo,
     this.tripStop,
     this.tripBus,
+    this.tripTrain = false,
     this.parkings = const [],
   });
   final ParkedCar? parked;
@@ -829,6 +840,10 @@ class Habits {
   final String? tripStop;
   final String? tripBus;
 
+  /// The trip in progress was started with "I'm on the train": no bus is watched for it, also
+  /// after the ride itself has stopped or the app was reopened.
+  final bool tripTrain;
+
   static const empty = Habits();
   static const maxTrips = 120;
   static const maxMeals = 200;
@@ -848,6 +863,7 @@ class Habits {
     String? tripStop,
     String? tripBus,
     bool clearTripBus = false,
+    bool? tripTrain,
     bool clearTrip = false,
     List<ParkLog>? parkings,
   }) =>
@@ -863,6 +879,7 @@ class Habits {
         tripTo: clearTrip ? null : (tripTo ?? this.tripTo),
         tripStop: clearTrip ? null : (tripStop ?? this.tripStop),
         tripBus: clearTrip || clearTripBus ? null : (tripBus ?? this.tripBus),
+        tripTrain: clearTrip ? false : (tripTrain ?? this.tripTrain),
         parkings: parkings ?? this.parkings,
       );
 
@@ -878,6 +895,7 @@ class Habits {
         if (tripTo != null) 'tt': tripTo!.toJson(),
         if (tripStop != null) 'tp': tripStop,
         if (tripBus != null) 'tb': tripBus,
+        if (tripTrain) 'tn': true,
         if (parkings.isNotEmpty) 'parks': [for (final p in parkings) p.toJson()],
       };
 
@@ -893,6 +911,7 @@ class Habits {
         tripTo: j['tt'] is Map ? Place.fromJson((j['tt'] as Map).cast<String, dynamic>()) : null,
         tripStop: j['tp'] as String?,
         tripBus: j['tb'] as String?,
+        tripTrain: j['tn'] == true,
         parkings: [
           for (final p in (j['parks'] as List? ?? const [])) ParkLog.fromJson((p as Map).cast<String, dynamic>()),
         ],

@@ -201,6 +201,7 @@ class HabitsNotifier extends Notifier<Habits> {
     Place? to,
     String? stop,
     String? bus,
+    bool train = false,
   }) =>
       // A trip started over another one must not keep the earlier trip's destination or bus.
       _set(state.copyWith(clearTrip: true).copyWith(
@@ -211,6 +212,7 @@ class HabitsNotifier extends Notifier<Habits> {
           tripKm: km,
           tripTo: to,
           tripStop: stop,
+          tripTrain: train,
           tripBus: bus == null || bus.isEmpty ? null : bus));
 
   /// The bus watched on the running trip changed ([bus] null: none is watched now).
@@ -221,14 +223,31 @@ class HabitsNotifier extends Notifier<Habits> {
         : state.copyWith(tripStop: stop, tripBus: bus));
   }
 
-  /// The phone was found at the saved place [at]: a running trip that ends there is over. It is
-  /// logged when the time can be trusted ([arrivalLogMinutes]), dropped otherwise.
+  /// The phone was found at the saved place [at]: a running trip that ends there is over.
   Future<void> arrivedAt(PlaceKind at, DateTime now) async {
-    final start = state.tripStart;
     final route = state.tripRoute;
-    if (start == null || route == null || tripRouteEnds(route)?.$2 != at.name) return;
-    if (arrivalLogMinutes(start, now, tripStats(state.trips, route).usual) == null) return cancelTrip();
-    await finishTrip(now);
+    if (state.tripStart == null || route == null || tripRouteEnds(route)?.$2 != at.name) return;
+    await _endAtDestination(now);
+  }
+
+  /// The phone was found at the running trip's destination ([Habits.tripTo]: a place picked in
+  /// the planner too, not only Home, Work or School): Arrived was forgotten, the trip is over.
+  Future<void> arrivedNear(double lat, double lng, DateTime now) async {
+    if (state.tripStart == null || !atTripEnd(state.tripTo, lat, lng)) return;
+    await _endAtDestination(now);
+  }
+
+  /// Ends a trip found over at its destination: with its time when that can be trusted
+  /// ([arrivalLogMinutes]); otherwise the app was opened long after arriving, so it is kept
+  /// without a time ([TripLog.timed]).
+  Future<void> _endAtDestination(DateTime now) async {
+    final start = state.tripStart!;
+    final usual = arrivalUsualMinutes(state.trips, state.tripRoute!, mode: state.tripMode, km: state.tripKm);
+    if (arrivalLogMinutes(start, now, usual) == null) {
+      await finishTrip(now, timed: false);
+    } else {
+      await finishTrip(now);
+    }
   }
 
   /// Stops timing the running trip without logging it.
@@ -266,22 +285,33 @@ class HabitsNotifier extends Notifier<Habits> {
         HistoryKind.meal => state.copyWith(meals: [...state.meals]..remove(e.source)),
       });
 
-  /// Finishes the running trip; returns its minutes, or null when it was not kept.
-  Future<int?> finishTrip(DateTime now) async {
+  /// Finishes the running trip and says what became of it ([TripEnd]). A trip of under 3 minutes
+  /// is not kept (a test tap). One that ran over [tripMinutes]' limit, or ended with [timed]
+  /// false, is kept without a time: Arrived was forgotten.
+  Future<TripEnd> finishTrip(DateTime now, {bool timed = true}) async {
     final start = state.tripStart;
     final route = state.tripRoute;
-    if (start == null || route == null) return null;
-    final m = tripMinutes(start, now);
+    if (start == null || route == null) return (kept: false, minutes: null);
+    final m = timed ? tripMinutes(start, now) : null;
+    final keep = m != null || now.difference(start).inMinutes >= 3;
     final trips = [
       ...state.trips,
-      if (m != null)
-        TripLog(route: route, start: start, minutes: m, rainy: state.tripRainy, mode: state.tripMode, km: state.tripKm),
+      if (keep)
+        TripLog(
+          route: route,
+          start: start,
+          minutes: m ?? 0,
+          timed: m != null,
+          rainy: state.tripRainy,
+          mode: state.tripMode,
+          km: state.tripKm,
+        ),
     ];
     await _set(state.copyWith(
       trips: trips.length > Habits.maxTrips ? trips.sublist(trips.length - Habits.maxTrips) : trips,
       clearTrip: true,
     ));
-    return m;
+    return (kept: keep, minutes: m);
   }
 
   /// Logs a meal at a hawker centre ([hawkerId]) or, with [name], at another food place, with

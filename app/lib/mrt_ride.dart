@@ -80,6 +80,10 @@ class RideNotifier extends Notifier<RideState?> {
   @override
   RideState? build() {
     ref.onDispose(_cancel);
+    // The ride ends with its timed trip, also when the trip ended by itself at its destination.
+    ref.listen(habitsProvider.select((h) => h.tripStart), (before, start) {
+      if (before != null && start == null && state != null) stop();
+    });
     return null;
   }
 

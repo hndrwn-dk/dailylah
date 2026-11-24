@@ -3099,6 +3099,58 @@ void main() {
       expect(arrivalLogMinutes(start, tue(18, 2), 38), isNull);
     });
 
+    test('a trip ended by being there with no usual time yet: the way there, else an estimate', () {
+      final start = tue(18);
+      TripLog log(String route, int m) => TripLog(route: route, start: start, minutes: m);
+      final there = [for (final m in [30, 32, 34]) log('home>Bedok Mall', m)];
+      final back = [for (final m in [40, 40, 40]) log('Bedok Mall>home', m)];
+      // Its own usual time first, else the way there.
+      expect(arrivalUsualMinutes([...there, ...back], 'Bedok Mall>home'), 40);
+      expect(arrivalUsualMinutes(there, 'Bedok Mall>home'), 32);
+      // Never timed either way: a rough time from the distance and mode.
+      expect(arrivalUsualMinutes(const [], 'x>home', mode: 'transit', km: 5), 30);
+      expect(arrivalUsualMinutes(const [], 'x>home', mode: 'car', km: 5), 13);
+      expect(arrivalUsualMinutes(const [], 'x>home', mode: 'walk', km: 1), walkMinutesTo(1000));
+      expect(arrivalUsualMinutes(const [], 'x>home', km: 5), 30, reason: 'no mode: bus/MRT');
+      // Nothing to go by: dropped as before.
+      expect(arrivalUsualMinutes(const [], 'x>home'), isNull);
+      final usual = arrivalUsualMinutes(const [], 'x>home', mode: 'transit', km: 5);
+      expect(arrivalLogMinutes(start, tue(18, 22), usual), 22);
+      expect(arrivalLogMinutes(start, tue(19, 30), usual), isNull);
+    });
+
+    test('the running trip ends at its own destination; a trip not timed stays out of the usual time', () {
+      const mall = Place(kind: PlaceKind.other, name: 'Mall', addrLat: 1.3526, addrLng: 103.9447);
+      expect(atTripEnd(mall, 1.3526, 103.9447), isTrue);
+      expect(atTripEnd(mall, 1.3526 + 0.0012, 103.9447), isTrue); // 133 m
+      expect(atTripEnd(mall, 1.3526 + 0.0016, 103.9447), isFalse); // 178 m
+      expect(atTripEnd(null, 1.3526, 103.9447), isFalse);
+      final start = tue(18);
+      final logs = [
+        for (final m in [20, 22, 24]) TripLog(route: 'a>b', start: start, minutes: m),
+        TripLog(route: 'a>b', start: start, minutes: 0, timed: false),
+      ];
+      expect(tripStats(logs, 'a>b'), (usual: 22, rainy: null, count: 3));
+      // A train trip stays one after the app is reopened.
+      final train = Habits(tripRoute: 'a>b', tripStart: start, tripTrain: true);
+      expect(Habits.fromJson(train.toJson()).tripTrain, isTrue);
+      expect(Habits.fromJson(const Habits().toJson()).tripTrain, isFalse);
+      expect(train.copyWith(clearTrip: true).tripTrain, isFalse);
+      final back = TripLog.fromJson(logs.last.toJson());
+      expect((back.timed, back.minutes), (false, 0));
+      expect(TripLog.fromJson(logs.first.toJson()).timed, isTrue);
+      expect(logs.first.toJson().containsKey('nt'), isFalse);
+      final e = historyEntries(Habits(trips: logs)).where((e) => !(e.source as TripLog).timed).single;
+      expect(e.minutes, isNull);
+    });
+
+    test('what Arrived says: the minutes, kept without a time, or not kept', () {
+      const s = S();
+      expect(tripEndNote(s, (kept: true, minutes: 25)), s.tripLogged(25));
+      expect(tripEndNote(s, (kept: true, minutes: null)), s.tripLoggedUntimed);
+      expect(tripEndNote(s, (kept: false, minutes: null)), s.tripTooShort);
+    });
+
     test('the greeting', () {
       const s = S();
       expect(s.atPlaceTitle('work'), 'Have a good day at work');

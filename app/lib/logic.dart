@@ -352,6 +352,43 @@ int? arrivalLogMinutes(DateTime start, DateTime now, int? usual) {
   return m == null || usual == null || m > usual + 15 ? null : m;
 }
 
+/// What became of a trip that was finished: [kept] in History, with its [minutes] when timed.
+typedef TripEnd = ({bool kept, int? minutes});
+
+/// The line said when Arrived ends a trip.
+String tripEndNote(S s, TripEnd end) => end.minutes != null
+    ? s.tripLogged(end.minutes!)
+    : end.kept
+        ? s.tripLoggedUntimed
+        : s.tripTooShort;
+
+/// The running trip's destination ([Habits.tripTo]) is where the phone is: within [arrivedMetres].
+/// Worked out on the phone; the position is not kept.
+bool atTripEnd(Place? to, double lat, double lng) =>
+    to != null && distanceMeters(lat, lng, to.lat, to.lng) <= arrivedMetres;
+
+/// Rough door-to-door bus/MRT speed for a trip with no usual time yet, in km/h of route, plus
+/// the walk to the stop and the wait there.
+const transitKmh = 20.0;
+const transitStartMinutes = 10;
+
+/// The time [arrivalLogMinutes] compares a trip ended by being there with: the usual time of
+/// [route], else of the same trip the other way (the way back takes about as long as the way
+/// there), else a rough time from the straight [km] and [mode] the trip was timed with. Null
+/// when none is known. Without it the way back of a planned trip (there by Arrived, back found
+/// at home) was dropped, never logged.
+int? arrivalUsualMinutes(List<TripLog> logs, String route, {String? mode, double? km}) {
+  final usual = tripStats(logs, route).usual;
+  if (usual != null) return usual;
+  if (tripRouteEnds(route) case (final from, final to)) {
+    final back = tripStats(logs, tripRouteKey(to, from)).usual;
+    if (back != null) return back;
+  }
+  if (km == null || km <= 0) return null;
+  final m = TravelMode.values.where((x) => x.name == mode).firstOrNull ?? TravelMode.transit;
+  return modeMinutes(m, km * 1000) ?? transitStartMinutes + (routeMetres(km * 1000) / 1000 / transitKmh * 60).round();
+}
+
 bool isQuietHour(DateTime now) => now.hour >= 22 || now.hour < 6;
 
 /// True when now is within [leave - 60 min, leave].
@@ -3064,7 +3101,7 @@ List<HistoryEntry> historyEntries(Habits h, {DateTime? since}) {
   final out = <HistoryEntry>[
     for (final t in h.trips)
       HistoryEntry(HistoryKind.trip, t.start, t,
-          minutes: t.minutes, costCents: t.costCents ?? tripFareEstimate(t), estimated: t.costCents == null),
+          minutes: t.timed ? t.minutes : null, costCents: t.costCents ?? tripFareEstimate(t), estimated: t.costCents == null),
     for (final p in h.parkings)
       HistoryEntry(HistoryKind.parking, p.start, p,
           minutes: p.minutes, costCents: p.costCents ?? parkingEstimate(p), estimated: p.costCents == null),
@@ -3258,7 +3295,8 @@ int? historyPreviousCents(Habits h, HistoryPeriod period, DateTime now, Set<Hist
 /// Usual door-to-door minutes on a route ("home>work") from logged trips: the median once
 /// there are 3 trips, and the rainy-day median once there are 2 rainy ones.
 ({int? usual, int? rainy, int count}) tripStats(List<TripLog> logs, String route) {
-  final mine = [for (final t in logs) if (t.route == route) t];
+  // A trip that was not timed says nothing about how long the trip takes.
+  final mine = [for (final t in logs) if (t.route == route && t.timed) t];
   final wet = [for (final t in mine) if (t.rainy) t.minutes];
   return (
     usual: mine.length >= 3 ? _median([for (final t in mine) t.minutes]) : null,

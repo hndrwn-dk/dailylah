@@ -658,7 +658,9 @@ class S {
   /// A trip end at the phone's position, named after the MRT station or bus stop beside it.
   String nearPlace(String name) => 'Near $name';
   String stationName(String name) => '$name station';
-  String get tripTooShort => 'Not logged: that trip looked too short or too long.';
+  String get tripTooShort => 'Not logged: that trip looked too short.';
+  String get tripLoggedUntimed => 'Logged without a time: it ran too long to be the trip itself.';
+  String get tripNotTimed => 'time not known';
   String usualTrip(int minutes, int count) => 'Usually $minutes min door to door ($count trips).';
   String rainyTrip(int minutes) => 'On rainy days $minutes min.';
   String arriveAbout(String time) => 'Leave now and you arrive about $time.';
@@ -1096,7 +1098,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        'Foldables: opening or closing the phone softly blurs the screen until the new layout is in place, Today and Nearby use both halves of the screen (your bus and MRT side by side, headings level), and cards blur under the status bar as they do above the tab bar.',
+        'History: a planned trip is kept even when you forget Arrived. Open DailyLah at the place you went to and the trip ends there by itself; when it is opened much later, the trip stays in History marked "time not known". The way back home is logged too, also the first time you make it.',
       ];
 
   // about
