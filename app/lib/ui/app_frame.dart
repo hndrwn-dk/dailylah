@@ -204,7 +204,7 @@ class _Framed extends StatelessWidget {
                 // A phone: the full width, exactly as without the column.
                 width: width,
                 child: FoldFlap(
-                  width: box.maxWidth,
+                  width: width,
                   twoColumns: width >= kTwoColumnMinWidth,
                   halfOpen: media.displayFeatures.any((f) => f.state == DisplayFeatureState.postureHalfOpened),
                   reduceMotion: media.disableAnimations,
@@ -249,6 +249,7 @@ class FoldFlap extends StatefulWidget {
     required this.reduceMotion,
     required this.child,
   });
+  /// The app's frame width ([frameWidth]); a run ends when it changes.
   final double width;
 
   /// Whether the app is laid out in two columns now ([frameWidth] at or above
@@ -289,8 +290,8 @@ class _FoldFlapState extends State<FoldFlap> with SingleTickerProviderStateMixin
       _finish();
     } else if (widget.twoColumns && !old.twoColumns) {
       _start();
-    } else if (!widget.twoColumns || old.width - widget.width >= 1) {
-      // Back to one column, or narrower while it runs: the snapshot no longer fits.
+    } else if (!widget.twoColumns || (widget.width - old.width).abs() >= 1) {
+      // Back to one column, or the frame resized while it runs: the snapshot no longer fits.
       _finish();
     } else {
       _maybeRelease();

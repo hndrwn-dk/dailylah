@@ -456,6 +456,19 @@ void main() {
       expect(find.text('Bedok'), findsOneWidget);
     });
 
+    testWidgets('a window that keeps widening while the flap runs ends it, so no stretched snapshot',
+        (tester) async {
+      await pumpApp(tester);
+      tester.view.physicalSize = const Size(880, 600);
+      await tester.pump();
+      await tester.pump(); // the snapshot is taken at 880 dp
+      expect(find.byKey(FoldFlap.flapKey), findsOneWidget);
+      tester.view.physicalSize = const Size(1000, 600);
+      await tester.pump();
+      expect(covered(tester), isFalse);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('a hinge still half open keeps the flap folded until it opens flat', (tester) async {
       await pumpApp(tester);
       DisplayFeature fold(DisplayFeatureState state) =>
