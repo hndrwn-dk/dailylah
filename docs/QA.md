@@ -460,6 +460,11 @@ enough users for vitals to say something.
 Every six hours (04:17, 10:17, 16:17 and 22:17 Singapore time), for the release that is staged on
 production:
 
+GitHub starts scheduled runs late and drops some when it is busy (on 24 Nov 2026 the guard ran
+about every 11 to 15 hours), so a release can take two days to reach 100% rather than one. Run
+the workflow by hand (dry run first) when it should not wait. A guard run while a promote waits
+for approval or runs does nothing (job `free`, "Tooling and keys").
+
 | Production holds | Health | The guard |
 | --- | --- | --- |
 | in progress, at this fraction for less than `ROLLOUT_HOLD_HOURS` | OK or unknown | waits |
@@ -575,10 +580,17 @@ A run that changes nothing says so.
   concurrency group `play-promote`. A second run waits; a third replaces the waiting one. If two
   edits ever commit at the same moment, Google Play refuses the later one and that run fails with
   nothing changed.
-  A run that waits for the owner's approval can hold the group (certain for `promote.yml`, whose
-  group is on the workflow; expected, not yet seen, for the promote job of `app.yml`): the
-  guard's scheduled runs (every six hours) and a manual `halt` then only queue behind it, and a
-  later queued run cancels the earlier one: a queued `halt` is replaced within six hours. So approve or reject a waiting promote first; do not leave it.
+  A run that waits for the owner's approval holds the group (`promote.yml`, and the promote job of
+  `app.yml`: seen on 24 Nov 2026, when 2.19.0 waited for hours). Anything else then only queues
+  behind it, and GitHub keeps one queued run per group: a later queued run cancels the earlier
+  one. That is how a scheduled guard run cancelled the promote of 2.19.1, which was queued behind
+  the waiting 2.19.0. So the guard asks first: its job `free` (token with `actions: read`, no
+  environment, no key; `rollout_guard.py --promote-busy`) lists the promote jobs of `app.yml` and
+  the runs of `promote.yml` on `main` that are not done, and while one is waiting, queued or
+  running the guard job does not start (the summary says which). The staged release then stays at
+  its fraction until the promote is approved or rejected; the next scheduled run goes on. A
+  manual `halt` still queues behind a waiting promote, and a queued `halt` can still be replaced
+  by a newer promote. So approve or reject a waiting promote first; do not leave it.
 
 ## What CI enforces before production
 

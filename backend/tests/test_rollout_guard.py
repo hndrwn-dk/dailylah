@@ -951,15 +951,28 @@ def test_the_guard_workflow_keeps_the_key_in_play_rollout_and_cannot_run_for_a_p
     assert list(triggers["workflow_dispatch"]["inputs"]) == ["dry_run"]
     assert triggers["workflow_dispatch"]["inputs"]["dry_run"]["default"] is False
     assert workflow["permissions"] == {}
-    assert workflow["concurrency"] == {"group": "play-promote", "cancel-in-progress": False}
-    (job,) = workflow["jobs"].values()
+    # The group is on the guard job, not the workflow: the check before it never waits in it.
+    assert "concurrency" not in workflow
+    assert list(workflow["jobs"]) == ["free", "guard"]
+    free, job = workflow["jobs"]["free"], workflow["jobs"]["guard"]
+    assert job["concurrency"] == {"group": "play-promote", "cancel-in-progress": False}
+    switch = (
+        "vars.AUTO_ROLLOUT == 'on' || (github.event_name == 'workflow_dispatch' && inputs.dry_run)"
+    )
+    # The check: a read-only token, no environment, no secret, only the guard script's own mode.
+    assert free["permissions"] == {"actions": "read"}
+    assert "environment" not in free and "concurrency" not in free
+    assert "secrets." not in json.dumps(free)
+    assert free["if"] == switch
+    assert free["steps"][-1]["run"] == "python3 -I scripts/rollout_guard.py --promote-busy"
+    assert free["outputs"] == {"free": "${{ steps.check.outputs.free }}"}
     # An environment of its own (no reviewer): the first 20% and the manual workflow keep theirs.
     assert job["environment"] == "play-rollout"
     assert job["permissions"] == {"contents": "read", "issues": "write"}
-    # Its own switch: a scheduled run does not even start the job while AUTO_ROLLOUT is off.
-    assert job["if"] == (
-        "vars.AUTO_ROLLOUT == 'on' || (github.event_name == 'workflow_dispatch' && inputs.dry_run)"
-    )
+    # Only when nothing waits to promote, and its own switch: while AUTO_ROLLOUT is off a
+    # scheduled run starts neither job.
+    assert job["needs"] == "free"
+    assert job["if"] == f"needs.free.outputs.free == 'true' && ({switch})"
     others = {
         name: yaml.safe_load((ROOT / ".github" / "workflows" / name).read_text())
         for name in ("app.yml", "promote.yml")
@@ -973,10 +986,148 @@ def test_the_guard_workflow_keeps_the_key_in_play_rollout_and_cannot_run_for_a_p
     assert rg.read_config({"ROLLOUT_HOLD_HOURS": "6"}).hold_hours == 6.0
     with_secret = [s for s in job["steps"] if "secrets." in json.dumps(s)]
     assert len(with_secret) == 1 and "rollout_guard.py" in with_secret[0]["run"]
-    assert text.count("secrets.") == 1 and text.count("github.token") == 1
+    assert text.count("secrets.") == 1 and text.count("github.token") == 2
     assert "github.token" in json.dumps(with_secret[0]["env"])
     assert with_secret[0]["env"]["AUTO_ROLLOUT"] == "${{ vars.AUTO_ROLLOUT }}"
     assert "AUTO_PROMOTE" not in text
     uses = [s["uses"] for s in job["steps"] if "uses" in s]
     assert all(u.startswith("actions/checkout@") and len(u.split("@")[1]) == 40 for u in uses)
     assert "pip" not in text
+
+
+# --- is a promote waiting? (job `free`) ------------------------------------------------------
+
+
+class FakeActions:
+    """GitHub's Actions API for --promote-busy: workflow runs and the jobs of a run."""
+
+    def __init__(self, runs=None, jobs=None):
+        self.runs = runs or {}  # workflow file -> list of runs
+        self.jobs = jobs or {}  # run id -> list of jobs
+        self.paths: list[str] = []
+
+    def get(self, path: str):
+        self.paths.append(path)
+        if path.startswith("/actions/workflows/"):
+            name = path.split("/")[3]
+            return {"workflow_runs": self.runs.get(name, [])}
+        run = int(path.split("/")[3])
+        return {"jobs": self.jobs.get(run, [])}
+
+
+def run_(id_, number, status="in_progress"):
+    return {"id": id_, "run_number": number, "status": status}
+
+
+def job_(name, status):
+    return {"name": name, "status": status}
+
+
+def test_no_promote_waiting_when_runs_are_done_or_have_no_promote_job_yet():
+    gh = FakeActions(
+        runs={
+            "app.yml": [run_(1, 1046, "completed"), run_(2, 1054)],
+            "promote.yml": [run_(9, 5, "completed")],
+        },
+        jobs={2: [job_("analyze", "in_progress"), job_("upload to Google Play (alpha)", "queued")]},
+    )
+    assert rg.promotes_busy(gh) == []
+    # Only main's runs are asked for, and only the run that is not done is looked into.
+    assert all("branch=main" in p for p in gh.paths if p.startswith("/actions/workflows/"))
+    assert [p for p in gh.paths if p.startswith("/actions/runs/")] == [
+        "/actions/runs/2/jobs?filter=latest&per_page=100"
+    ]
+
+
+def test_a_promote_waiting_for_approval_or_running_is_busy():
+    gh = FakeActions(
+        runs={
+            "app.yml": [run_(2, 1046, "waiting"), run_(3, 1049)],
+            "promote.yml": [run_(9, 6, "waiting")],
+        },
+        jobs={
+            2: [
+                job_("tag the release", "completed"),
+                job_("promote to production (staged, 20%)", "waiting"),
+            ],
+            3: [job_("promote to production (staged, 20%)", "in_progress")],
+        },
+    )
+    assert rg.promotes_busy(gh) == [
+        "the promote job of app run 1046 is waiting",
+        "the promote job of app run 1049 is in_progress",
+        "promote.yml run 6 is waiting",
+    ]
+
+
+def test_a_finished_promote_job_in_a_running_run_is_not_busy():
+    gh = FakeActions(
+        runs={"app.yml": [run_(3, 1049)]},
+        jobs={
+            3: [
+                job_("promote to production (staged, 20%)", "completed"),
+                job_("app result", "queued"),
+            ]
+        },
+    )
+    assert rg.promotes_busy(gh) == []
+
+
+def test_an_answer_without_a_list_fails_rather_than_says_free():
+    class Broken(FakeActions):
+        def get(self, path):
+            return {"message": "Not Found"}
+
+    with pytest.raises(pp.PromoteError, match="gave no list"):
+        rg.promotes_busy(Broken())
+
+
+@pytest.fixture
+def busy_cli(tmp_path, monkeypatch, capsys):
+    out, summary = tmp_path / "output", tmp_path / "summary.md"
+    actions = FakeActions()
+    monkeypatch.setenv("GITHUB_TOKEN", "ghs_SECRET")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "hndrwn-dk/dailylah")
+    monkeypatch.setenv("GITHUB_OUTPUT", str(out))
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    # The check reads no Play key and works whatever the guard's switch says.
+    monkeypatch.delenv("PLAY_SERVICE_ACCOUNT_JSON", raising=False)
+    monkeypatch.delenv("AUTO_ROLLOUT", raising=False)
+    monkeypatch.setattr(rg, "GitHub", lambda token, repo: actions)
+    monkeypatch.setattr(pp, "access_token", lambda *a, **k: pytest.fail("no Play token here"))
+
+    def run() -> tuple[int, str, str]:
+        code = rg.main(["--promote-busy"])
+        capsys.readouterr()
+        return (
+            code,
+            out.read_text(encoding="utf-8") if out.exists() else "",
+            summary.read_text(encoding="utf-8") if summary.exists() else "",
+        )
+
+    run.actions = actions
+    return run
+
+
+def test_promote_busy_says_free_when_nothing_waits(busy_cli):
+    code, output, summary = busy_cli()
+    assert (code, output) == (0, "free=true\n")
+    assert "No promote is waiting" in summary
+
+
+def test_promote_busy_says_not_free_and_why_while_a_promote_waits(busy_cli):
+    busy_cli.actions.runs = {"promote.yml": [run_(9, 6, "waiting")]}
+    code, output, summary = busy_cli()
+    assert (code, output) == (0, "free=false\n")
+    assert "promote.yml run 6 is waiting" in summary and "Skipped" in summary
+
+
+def test_promote_busy_fails_and_writes_no_answer_when_github_cannot_be_read(busy_cli, monkeypatch):
+    def broken(path):
+        raise pp.PromoteError("GET /repos/o/r/actions/workflows/app.yml/runs: HTTP 403: no")
+
+    monkeypatch.setattr(busy_cli.actions, "get", broken)
+    code, output, summary = busy_cli()
+    # The job fails (the owner sees a red run) and the guard job, with no answer, does not run.
+    assert (code, output) == (1, "")
+    assert "HTTP 403" in summary
