@@ -48,7 +48,10 @@ relative to `app/` unless they start with a top-level folder. File and symbol in
   puts 995 and 999 side by side above Help nearby and the meeting points); a section that is one child of the
   page's list splits its own cards when wrapped in `FullWidth` (`CardColumns.splitsAt`): Today's commute
   `TripSection` has its heading across the page, the mode picker and I'm leaving starting the left column,
-  and the bus and MRT cards (`_TransitBlock.withLead`) beside each other; a
+  and the bus and MRT cards (`_TransitBlock.withLead`) beside each other; when such a section ends with its two
+  columns uneven, the cards after it carry on under them (`splitColumnsFrom`: the shorter column is filled first,
+  reading order kept; a `FullWidth` child closes the columns), so a short bus card no longer leaves an empty
+  block beside By MRT; a
   `CardColumns` inside one of
   the two columns just stacks. One and two columns are the same widgets, so fold, unfold and
   rotation keep scroll position and card state. A new tab section puts its cards in a `CardColumns`.
@@ -306,7 +309,12 @@ feature, screen, provider or rule moves, appears or goes away.
   arriving: the trip is kept without a time (`TripLog.timed` false, JSON `nt`; `finishTrip(timed: false)`),
   as is one where Arrived comes over 3 h late; under 3 min it is not kept. `finishTrip` says what became of
   it (`TripEnd`), and Arrived's snackbar is `tripEndNote`. Only a bus trip has bells on its board (`tripMode`), never one started with I'm on the train (`Habits.tripTrain`, JSON `tn`, kept after the ride stops or the app is reopened) nor while a ride runs (`rideProvider`); the ride (`RideNotifier`) stops when its trip ends, also by itself at the destination. Without location nothing changes.
-  MRT: the MRT card shows the line status and "I'm on the train" (`mrtRide`/`mrtLeg`: every station from
+  MRT: the trip's By MRT card (`_MrtOption` in ui/trip.dart) leads with the same status pill and red disruption box
+  as Today's MRT & LRT card (`MrtStatusPill`, `MrtDisruptionBox` in widgets.dart), then the minutes door to door
+  (`mrtDoorMinutes`) and the route drawn as a line (`_RouteStep`: start, the walk or feeder bus dotted, the boarding
+  station with its crowd, the ride in the line's colour, one leg per line with `mrtRideLegs`, striped red when that
+  line is disrupted, the last station, the walk, the end), then "I'm on the train" with Change line and the Maps
+  route as links (`mrtRide`/`mrtLeg`: every station from
   board to alight, change station included). The ride (`lib/mrt_ride.dart`, `rideProvider`, like the wake
   session) estimates the position from the time (`rideMinutesPerStop`, `rideTransferMinutes`,
   `rideIndexAt`; GPS fixes near a station correct it, `rideFixIndex`), checks LTA train alerts every
@@ -387,7 +395,11 @@ feature, screen, provider or rule moves, appears or goes away.
   stops; a bus watched in the app only (no location yet) first asks on that tap (`BusWatchState.asked`). The bar's second line is the watched bus ("197 in 5 min · 4 stops away"), a tap on its text opens
   `RunningTripPage` (the bar, the `TripBusCard` of the remembered stop and "Change this trip"), and once the
   bus has gone the bar offers Wake me before its stop. Today (`todayTripSlot`): the same card sits right under
-  the weather tiles while such a trip runs and is not the commute card already shown; a destination picked in
+  the weather tiles while such a trip runs and is not the commute card already shown; `PlanTripCard` at the end
+  of Today (one card, so on a wide window it fills the shorter column) is a "Where to?" field that opens the planner on its place search
+  (`TripPlannerPage(searchTo:)`, `GoSomewhere.searchDestination`) and the saved places as chips that open it with
+  that destination (`planChipKeys`, not the place the phone is at; `pickDestination`), its heading opening the
+  planner as it is; a destination picked in
   the planner but not left for (`plannerPlace`) moves `PlanTripCard` up there as "To <place> · See buses and
   leave", until I'm leaving is tapped for it (`goLeftForProvider`; a new pick offers it again). Tests: `test/bus_watch_test.dart`, `test/bus_watch_session_test.dart`, `test/bus_watch_ui_test.dart`. Commute
   keys stay "home>work"; planned trips keep the names shown (`tripRouteKey`, `S.routeEnd`), and an end at the phone's position is named on the phone (`hereName`: the saved place it is at, else "Near <station> station" or "Near <bus stop>" within `hereNameMetres`, else "Current location"; the position is not kept).

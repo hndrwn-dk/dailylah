@@ -196,6 +196,65 @@ void main() {
     expect(_rect(tester, 'b'), const Rect.fromLTWH(448, 0, 416, 200));
   });
 
+  group('splitColumnsFrom', () {
+    test('cards under uneven columns go to the shorter one first, in order', () {
+      // Left ends at 100, right at 400: one 200 card fills the left; nothing goes right.
+      expect(splitColumnsFrom([200], [false], 100, 400), 1);
+      // Right is the shorter: everything goes there.
+      expect(splitColumnsFrom([200], [false], 400, 100), 0);
+      // Two cards: both fill the left gap while that stays lower (550 < 600 if split)...
+      expect(splitColumnsFrom([250, 200], [false, false], 100, 400), 2);
+      // ...and the second goes right once that is lower (350 | 450 against 650 | 150).
+      expect(splitColumnsFrom([250, 300], [false, false], 100, 150), 1);
+    });
+
+    test('a heading never ends the left column without its card', () {
+      expect(splitColumnsFrom([20, 280], [true, false], 100, 400), 2);
+    });
+  });
+
+  testWidgets('880 dp: the cards after an uneven section fill its shorter column', (tester) async {
+    await _pump(tester, 880, [
+      // A section with its own two columns (Today's trip): 100 on the left, 400 on the right.
+      FullWidth(child: CardColumns(children: [_card('s1', 100), _card('s2', 400)])),
+      _card('next', 250),
+      _card('last', 100),
+    ]);
+    final s1 = _rect(tester, 's1'), s2 = _rect(tester, 's2');
+    expect(s2.left, greaterThan(s1.right));
+    // "next" goes on under the short left column instead of below the whole section.
+    expect(_rect(tester, 'next').left, s1.left);
+    expect(_rect(tester, 'next').top, s1.bottom);
+    // Both columns then end at 350 and 400: "last" goes under the left one, which is shorter.
+    expect(_rect(tester, 'last').left, s1.left);
+    expect(_rect(tester, 'last').top, _rect(tester, 'next').bottom);
+  });
+
+  testWidgets('880 dp: after an even section, or a full-width child, the next run starts level', (tester) async {
+    await _pump(tester, 880, [
+      FullWidth(child: CardColumns(children: [_card('s1', 200), _card('s2', 200)])),
+      _card('a', 100),
+      _card('b', 100),
+      FullWidth(child: CardColumns(children: [_card('t1', 100), _card('t2', 300)])),
+      FullWidth(child: _card('note', 20)),
+      _card('c', 100),
+      _card('d', 100),
+    ]);
+    expect(_rect(tester, 'a').top, _rect(tester, 's1').bottom);
+    expect(_rect(tester, 'b').top, _rect(tester, 'a').top);
+    // The note closes the uneven section, so c and d start level under it.
+    expect(_rect(tester, 'c').top, _rect(tester, 'note').bottom);
+    expect(_rect(tester, 'd').top, _rect(tester, 'c').top);
+  });
+
+  testWidgets('on a phone a section and the cards after it just stack', (tester) async {
+    await _pump(tester, 400, [
+      FullWidth(child: CardColumns(children: [_card('s1', 100), _card('s2', 400)])),
+      _card('next', 250),
+    ]);
+    expect(_rect(tester, 'next').top, _rect(tester, 's2').bottom);
+  });
+
   testWidgets('880 dp: a list inside one of the columns does not split again', (tester) async {
     await _pump(tester, 880, [
       CardColumns(children: [_card('a1', 100), _card('a2', 100)]),

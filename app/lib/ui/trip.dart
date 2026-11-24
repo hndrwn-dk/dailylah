@@ -678,186 +678,354 @@ class _MrtOption extends ConsumerWidget {
         ? null
         : ref.watch(stationCrowdProvider(boardLine)).value?[boardCode];
 
-    Widget stationRow(IconData icon, String text, MrtStation st) => Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Row(
-            children: [
-              Icon(icon, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [Text(text, style: t.bodyMedium), for (final c in st.codes) StationChip(c)],
-                ),
-              ),
-            ],
-          ),
-        );
+    final statuses = alerts == null ? const <LineStatus>[] : [for (final l in lineStatuses(alerts, lines)) if (l.disrupted) l];
+    final minutes = mrtDoorMinutes(plan, ride, feeder);
+    final legs = ride == null ? const <MrtRideLeg>[] : mrtRideLegs(ride);
+    final stops = ride?.stops ?? plan.stops;
+
+    // The route as a line diagram: where you start, the walk (or bus), the boarding station, the
+    // ride in the line's colour (two with a change), the last station, the walk, the end.
+    final steps = <Widget>[
+      _RouteStep(
+        node: _RouteNode.end,
+        rail: _RouteRail.walk,
+        title: placeTitle(s.placeLabel, from),
+        lines: [
+          if (feeder != null)
+            (Icons.directions_bus_outlined,
+                s.feederStep(feeder.ride.service, feeder.stop.name, plan.board.name, feeder.ride.stops))
+          else
+            (Icons.directions_walk, s.walkStep(s.metres(plan.walkToBoard), walkMinutesTo(plan.walkToBoard))),
+        ],
+      ),
+      _RouteStep(
+        node: _RouteNode.station,
+        rail: _RouteRail.line,
+        railLine: legs.firstOrNull?.line ?? plan.line,
+        railDown: disrupted.contains(legs.firstOrNull?.line ?? plan.line),
+        title: plan.board.name,
+        codes: plan.board.codes,
+        crowd: crowd == null ? null : s.crowdNow(plan.board.name, crowd),
+        crowdLevel: crowd,
+        ride: legs.isNotEmpty
+            ? (legs.first.line, s.rideStep(legs.first.stops, legs.first.minutes))
+            : plan.direct
+                ? (plan.line, s.rideLine(s.lineName(plan.line!), plan.stops))
+                : (null, plan.via == null ? s.changeTrains : s.changeAt(plan.via!.name)),
+      ),
+      if (plan.via != null && legs.length > 1)
+        _RouteStep(
+          node: _RouteNode.change,
+          rail: _RouteRail.line,
+          railLine: legs[1].line,
+          railDown: disrupted.contains(legs[1].line),
+          title: s.changeAt(plan.via!.name),
+          codes: plan.via!.codes,
+          ride: (legs[1].line, s.rideStep(legs[1].stops, legs[1].minutes)),
+        ),
+      _RouteStep(
+        node: _RouteNode.station,
+        rail: _RouteRail.walk,
+        title: plan.alight.name,
+        codes: plan.alight.codes,
+        lines: [(Icons.directions_walk, s.walkStep(s.metres(plan.walkFromAlight), walkMinutesTo(plan.walkFromAlight)))],
+      ),
+      _RouteStep(node: _RouteNode.end, rail: _RouteRail.none, title: placeTitle(s.placeLabel, to)),
+    ];
 
     return Panel(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.subway_outlined),
-              const SizedBox(width: 8),
-              Text(s.mrtOption, style: t.titleMedium),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (resting) AlertBanner(icon: Icons.bedtime_outlined, text: s.trainsResting, tone: AlertTone.info),
-          if (choice != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                children: [
-                  LineChip(choice.line!),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(s.todayOnLine(choice.line!), style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w700))),
-                  TextButton(
-                    onPressed: () => showMrtLineSheet(context, from: from, to: to),
-                    child: Text(s.changeChoice),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // The answer first, the same pill as the MRT & LRT card.
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.subway_outlined),
+                    const SizedBox(width: 8),
+                    Text(s.mrtOption, style: t.titleMedium),
+                  ],
+                ),
+                if (alerts != null || resting)
+                  MrtStatusPill(
+                    text: statuses.isNotEmpty
+                        ? s.mrtLinesDown(statuses.length)
+                        : resting
+                            ? s.mrtResting
+                            : s.mrtRunning,
+                    bad: statuses.isNotEmpty,
                   ),
-                ],
-              ),
+              ],
             ),
-          if (alerts != null && disrupted.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                children: [
-                  Icon(Icons.check_circle, color: DL.goText(context), size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      [for (final l in lines) s.lineRunningNormally(s.lineName(l))].join(' · '),
-                      style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ...[
-            if (feeder != null) ...[
+            if (resting && statuses.isEmpty)
+              Padding(padding: const EdgeInsets.only(top: 6), child: Text(s.trainsResting, style: t.bodySmall)),
+            for (final st in statuses) MrtDisruptionBox(status: st, s: s),
+            if (choice != null)
               Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.only(top: 10),
                 child: Row(
                   children: [
-                    const Icon(Icons.directions_bus_outlined, size: 20),
+                    LineChip(choice.line!),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        s.feederStep(feeder.ride.service, feeder.stop.name, plan.board.name, feeder.ride.stops),
-                        style: t.bodyMedium,
-                      ),
+                        child: Text(s.todayOnLine(choice.line!),
+                            style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w700))),
+                    TextButton(
+                      onPressed: () => showMrtLineSheet(context, from: from, to: to),
+                      child: Text(s.changeChoice),
                     ),
                   ],
                 ),
               ),
-              stationRow(Icons.subway_outlined, s.boardAt(plan.board.name), plan.board),
-            ] else
-              stationRow(Icons.directions_walk, s.walkTo(plan.board.name, s.metres(plan.walkToBoard)), plan.board),
-            if (crowd != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    CrowdPeople(crowd),
-                    const SizedBox(width: 10),
-                    Expanded(child: Text(s.crowdNow(plan.board.name, crowd), style: t.bodyMedium)),
-                  ],
+            if (minutes != null && stops != null) ...[
+              const SizedBox(height: 10),
+              Text(s.mrtDoor(minutes, stops), style: t.displaySmall?.copyWith(fontSize: 28)),
+              Text(s.mrtDoorNote, style: t.bodySmall),
+            ],
+            const SizedBox(height: 12),
+            ...steps,
+            if (ride != null) ...[
+              const SizedBox(height: 12),
+              if (riding == null)
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                  icon: const Icon(Icons.subway),
+                  label: Text(s.imOnTrain),
+                  onPressed: () async {
+                    final nav = Navigator.of(context);
+                    final fav = ref.read(favoritesProvider);
+                    if (fav.learnHabits && ref.read(habitsProvider).tripStart == null) {
+                      await ref.read(habitsProvider.notifier).startTrip(
+                            route,
+                            DateTime.now(),
+                            mode: TravelMode.transit.name,
+                            km: distanceMeters(from.lat, from.lng, to.lat, to.lng) / 1000,
+                            // So it ends by itself when the app is next opened there (never "Here").
+                            to: endsHere ? null : to,
+                            train: true,
+                          );
+                    }
+                    await ref.read(rideProvider.notifier).start(ride);
+                    await nav.push(MaterialPageRoute<void>(builder: (_) => const MrtRidePage()));
+                  },
+                )
+              else
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                  icon: const Icon(Icons.subway),
+                  label: Text(s.rideTo(riding.ride.alight.name)),
+                  onPressed: () =>
+                      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const MrtRidePage())),
                 ),
-              ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  Icon(plan.direct ? Icons.trending_flat : Icons.swap_horiz, size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                        plan.direct
-                            ? s.rideLine(s.lineName(plan.line!), plan.stops)
-                            : plan.via == null
-                                ? s.changeTrains
-                                : s.changeAt(plan.via!.name),
-                        style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
-                  ),
-                ],
-              ),
-            ),
-            stationRow(Icons.place_outlined, s.alightAt(plan.alight.name, s.metres(plan.walkFromAlight)), plan.alight),
-            for (final l in disrupted)
               Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(s.mrtLineDisrupted(s.lineName(l)), style: t.bodySmall?.copyWith(color: DL.stopText(context))),
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(s.imOnTrainSub, style: t.bodySmall, textAlign: TextAlign.center),
               ),
-          ],
-          if (ride != null) ...[
-            const SizedBox(height: 4),
-            if (riding == null)
-              FilledButton.icon(
-                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                icon: const Icon(Icons.subway),
-                label: Text(s.imOnTrain),
-                onPressed: () async {
-                  final nav = Navigator.of(context);
-                  final fav = ref.read(favoritesProvider);
-                  if (fav.learnHabits && ref.read(habitsProvider).tripStart == null) {
-                    await ref.read(habitsProvider.notifier).startTrip(
-                          route,
-                          DateTime.now(),
-                          mode: TravelMode.transit.name,
-                          km: distanceMeters(from.lat, from.lng, to.lat, to.lng) / 1000,
-                          // So it ends by itself when the app is next opened there (never "Here").
-                          to: endsHere ? null : to,
-                          train: true,
-                        );
-                  }
-                  await ref.read(rideProvider.notifier).start(ride);
-                  await nav.push(MaterialPageRoute<void>(builder: (_) => const MrtRidePage()));
-                },
-              )
-            else
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                icon: const Icon(Icons.subway),
-                label: Text(s.rideTo(riding.ride.alight.name)),
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const MrtRidePage())),
-              ),
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(s.imOnTrainSub, style: t.bodySmall, textAlign: TextAlign.center),
+            ],
+            // The other ways to go as two links, so "I'm on the train" is the one button.
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              children: [
+                if (riding == null)
+                  TextButton.icon(
+                    icon: const Icon(Icons.swap_horiz),
+                    label: Text(s.changeLine),
+                    onPressed: () => showMrtLineSheet(context, from: from, to: to),
+                  ),
+                TextButton.icon(
+                  onPressed: () => openRoute(from.lat, from.lng, to.lat, to.lng),
+                  icon: const Icon(Icons.map_outlined),
+                  label: Text(s.mrtRouteInMaps),
+                ),
+              ],
             ),
           ],
-          if (riding == null)
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                icon: const Icon(Icons.swap_horiz),
-                label: Text(s.changeLine),
-                onPressed: () => showMrtLineSheet(context, from: from, to: to),
-              ),
-            ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: () => openRoute(from.lat, from.lng, to.lat, to.lng),
-              icon: const Icon(Icons.map_outlined),
-              label: Text(s.mrtRouteInMaps),
-            ),
-          ),
-        ],
-      ),
+        ),
       ),
     );
   }
+}
+
+enum _RouteNode { end, station, change }
+
+enum _RouteRail { walk, line, none }
+
+/// One stop on the drawn route: a dot on the left with the rail down to the next stop (dotted for
+/// a walk, the line's colour for a ride, striped red when that line is disrupted), and beside it
+/// the place, its station codes, the crowd there and what comes next.
+class _RouteStep extends StatelessWidget {
+  const _RouteStep({
+    required this.node,
+    required this.rail,
+    required this.title,
+    this.railLine,
+    this.railDown = false,
+    this.codes = const [],
+    this.crowd,
+    this.crowdLevel,
+    this.lines = const [],
+    this.ride,
+  });
+  final _RouteNode node;
+  final _RouteRail rail;
+  final String? railLine;
+  final bool railDown;
+  final String title;
+  final List<String> codes;
+  final String? crowd;
+  final String? crowdLevel;
+
+  /// Lines under the title, each with its icon (the walk, the bus to the station).
+  final List<(IconData, String)> lines;
+
+  /// The ride that starts here: its line and "12 stops · ~25 min".
+  final (String?, String)? ride;
+
+  static const double _railX = 13;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final ink = DL.edge(context);
+    final muted = DL.muted(context);
+    final node = switch (this.node) {
+      _RouteNode.end => _dot(16, muted, 3),
+      _RouteNode.station => _dot(18, ink, 3),
+      _RouteNode.change => _dot(22, ink, 4),
+    };
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(title, style: t.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+            for (final c in codes) StationChip(c),
+          ],
+        ),
+        if (crowd != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              children: [
+                CrowdPeople(crowdLevel!),
+                const SizedBox(width: 8),
+                Expanded(child: Text(crowd!, style: t.bodySmall)),
+              ],
+            ),
+          ),
+        for (final (icon, text) in lines)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, size: 18, color: muted),
+                const SizedBox(width: 6),
+                Expanded(child: Text(text, style: t.bodySmall)),
+              ],
+            ),
+          ),
+        if (ride case (final line, final text))
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Row(
+              children: [
+                if (line != null) ...[LineChip(line, dense: true), const SizedBox(width: 8)],
+                Expanded(
+                  child: Text(text,
+                      style: t.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700, color: railDown ? DL.stopText(context) : null)),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+    return Stack(
+      children: [
+        if (rail != _RouteRail.none)
+          Positioned(
+            left: _railX - (rail == _RouteRail.line ? 5 : 1.5),
+            top: 18,
+            bottom: 0,
+            width: rail == _RouteRail.line ? 10 : 3,
+            child: ExcludeSemantics(
+              child: rail == _RouteRail.walk
+                  ? CustomPaint(painter: _DotsPainter(muted))
+                  : DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: railLine == null ? muted : DL.lineColor(railLine!),
+                        gradient: railDown
+                            ? LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [DL.stopDeep, DL.stopDeep, DL.stopDeep.withValues(alpha: 0.3), DL.stopDeep.withValues(alpha: 0.3)],
+                                stops: const [0, 0.5, 0.5, 1],
+                                tileMode: TileMode.repeated,
+                                transform: const _StripeTransform(),
+                              )
+                            : null,
+                        borderRadius: BorderRadius.circular(5),
+                        border: Border.all(color: ink, width: 2),
+                      ),
+                    ),
+            ),
+          ),
+        Positioned(left: _railX - 11, top: 0, width: 22, height: 22, child: ExcludeSemantics(child: Center(child: node))),
+        Padding(
+          padding: EdgeInsets.only(left: 34, bottom: rail == _RouteRail.none ? 0 : 14),
+          child: content,
+        ),
+      ],
+    );
+  }
+
+  Widget _dot(double size, Color color, double width) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: DL.card,
+          border: Border.all(color: color, width: width),
+        ),
+      );
+}
+
+/// Makes the red stripes of a disrupted line 12 dp long, whatever the rail's height.
+class _StripeTransform extends GradientTransform {
+  const _StripeTransform();
+
+  @override
+  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) =>
+      Matrix4.diagonal3Values(1, 12 / (bounds.height == 0 ? 1 : bounds.height), 1);
+}
+
+/// The dotted rail of a walk.
+class _DotsPainter extends CustomPainter {
+  const _DotsPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    for (var y = 3.0; y < size.height - 2; y += 7) {
+      canvas.drawCircle(Offset(size.width / 2, y), 1.5, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DotsPainter old) => old.color != color;
 }
 
 /// The key a picked line is saved under ([Favorites.mrtLines]). An end at the phone's position
@@ -1628,7 +1796,11 @@ class GoSomewhere extends ConsumerWidget {
 
   /// The address search for one end; the hit becomes that end's one-off place and is picked
   /// there, also when that end already had a searched place.
-  Future<void> _search(BuildContext context, WidgetRef ref, {required bool isFrom, required String from}) async {
+  /// The place search for the destination, as "Where to?" on Today opens it.
+  static Future<void> searchDestination(BuildContext context, WidgetRef ref) =>
+      _search(context, ref, isFrom: false, from: ref.read(goFromKeyProvider));
+
+  static Future<void> _search(BuildContext context, WidgetRef ref, {required bool isFrom, required String from}) async {
     final s = ref.read(stringsProvider);
     final hit = await Navigator.of(context).push<AddressHit>(
       MaterialPageRoute(builder: (_) => AddressPickerPage(title: s.searchPlace, places: true)),
@@ -1656,7 +1828,7 @@ class GoSomewhere extends ConsumerWidget {
 
   /// [from] is the start as shown, which may be a saved place standing in for "Here" while the
   /// location is unknown, so a pick works on what the user sees.
-  void _pick(WidgetRef ref, {required bool isFrom, required String key, required String from, String fallback = 'here'}) {
+  static void _pick(WidgetRef ref, {required bool isFrom, required String key, required String from, String fallback = 'here'}) {
     final to = ref.read(goKeyProvider);
     final next = pickTripEnd(
       isFrom: isFrom,
@@ -1675,7 +1847,7 @@ class GoSomewhere extends ConsumerWidget {
     ref.read(goKeyProvider.notifier).state = next.to;
   }
 
-  void _swap(WidgetRef ref, String from, String to) {
+  static void _swap(WidgetRef ref, String from, String to) {
     ref.read(goPicksProvider.notifier).state++;
     final adhocFrom = ref.read(goAdhocFromProvider);
     ref.read(goAdhocFromProvider.notifier).state = ref.read(goAdhocDestProvider);
@@ -1884,10 +2056,13 @@ class _SearchField extends StatelessWidget {
 /// Trip planner on its own page, so it is not mixed up with the daily trip on Today.
 /// Starts from "Here" when location is already allowed.
 class TripPlannerPage extends ConsumerStatefulWidget {
-  const TripPlannerPage({super.key, this.shared});
+  const TripPlannerPage({super.key, this.shared, this.searchTo = false});
 
   /// A place shared from another app (Google Maps' Share): it becomes the destination.
   final SharedPlace? shared;
+
+  /// Opened from "Where to?" on Today: the place search for the destination opens at once.
+  final bool searchTo;
 
   @override
   ConsumerState<TripPlannerPage> createState() => _TripPlannerPageState();
@@ -1902,6 +2077,11 @@ class _TripPlannerPageState extends ConsumerState<TripPlannerPage> {
     if (widget.shared case final shared?) {
       _resolving = true;
       WidgetsBinding.instance.addPostFrameCallback((_) => _useShared(shared));
+    }
+    if (widget.searchTo) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) GoSomewhere.searchDestination(context, ref);
+      });
     }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // A pick the user makes while the location is coming in wins over what follows here.
@@ -2018,7 +2198,10 @@ class _TripPlannerPageState extends ConsumerState<TripPlannerPage> {
   }
 }
 
-/// Today's entry to the trip planner.
+/// "Plan a trip" on Today: where to go next, one tap away. A "Where to?" search that opens the
+/// planner on its place search, and the saved places as chips that open it with that destination
+/// already picked (`planChipKeys`, `pickDestination`). Its heading opens the planner as it is.
+/// Once a destination is picked but not left for, it names that trip instead ([toName]).
 class PlanTripCard extends ConsumerWidget {
   const PlanTripCard({super.key, this.toName});
 
@@ -2029,26 +2212,175 @@ class PlanTripCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
+    void open({bool search = false}) =>
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => TripPlannerPage(searchTo: search)));
+    if (toName != null) {
+      return Panel(
+        color: DL.mint,
+        child: InkWell(
+          onTap: open,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                const Icon(Icons.alt_route, color: DL.ink),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(s.planTripTo(toName!), style: t.titleMedium?.copyWith(color: DL.ink)),
+                      Text(s.planTripSee, style: t.bodySmall?.copyWith(color: DL.ink)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: DL.ink),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    final fav = ref.watch(favoritesProvider);
+    final now = ref.watch(clockProvider).value ?? DateTime.now();
+    final keys = planChipKeys(fav, now, at: ref.watch(phoneAtProvider));
+    final field = Semantics(
+      button: true,
+      label: s.whereTo,
+      hint: s.searchPlace,
+      // The InkWell below is excluded with the rest, so the button keeps its own tap for TalkBack.
+      onTap: () => open(search: true),
+      excludeSemantics: true,
+      child: Material(
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: DL.edge(context), width: 2),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => open(search: true),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 52),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Row(
+                children: [
+                  const Icon(Icons.search),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(s.whereTo, style: t.titleSmall?.copyWith(color: DL.muted(context)))),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final chips = Wrap(
+      spacing: 8,
+      runSpacing: 0,
+      children: [
+        for (final k in keys)
+          _PlaceChip(
+            icon: k.startsWith('extra:') ? Icons.star_outline : PlaceSelector.iconOf(PlaceKind.values.byName(k)),
+            label: k.startsWith('extra:')
+                ? placeTitle(s.placeLabel, fav.extraPlaces[int.parse(k.substring(6))])
+                : s.placeLabel(k),
+            onTap: () {
+              final next = pickDestination(ref.read(goFromKeyProvider), k);
+              ref.read(goPicksProvider.notifier).state++;
+              ref.read(goFromKeyProvider.notifier).state = next.from;
+              ref.read(goKeyProvider.notifier).state = next.to;
+              open();
+            },
+          ),
+      ],
+    );
     return Panel(
-      child: InkWell(
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TripPlannerPage())),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              const Icon(Icons.alt_route),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(toName == null ? s.planTrip : s.planTripTo(toName!), style: t.titleMedium),
-                    Text(toName == null ? s.planTripSub : s.planTripSee, style: t.bodySmall),
-                  ],
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 6, 16, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // The heading is the way into the planner as it is (and what Maestro taps).
+            InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: open,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.alt_route),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text(s.planTrip, style: t.titleMedium)),
+                      const Icon(Icons.chevron_right),
+                    ],
+                  ),
                 ),
               ),
-              const Icon(Icons.chevron_right),
-            ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 8, top: 4),
+              // Across a wide page the chips go beside the search, on a phone under it.
+              child: LayoutBuilder(
+                builder: (context, box) => box.maxWidth >= 600 && keys.isNotEmpty
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(child: field),
+                          const SizedBox(width: 12),
+                          Flexible(child: chips),
+                        ],
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [field, if (keys.isNotEmpty) ...[const SizedBox(height: 8), chips]],
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A saved place to go to, as a pill: 48 dp to tap, 40 dp drawn.
+class _PlaceChip extends StatelessWidget {
+  const _PlaceChip({required this.icon, required this.label, required this.onTap});
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(999),
+      side: BorderSide(color: DL.edge(context), width: 2),
+    );
+    return Semantics(
+      button: true,
+      child: InkWell(
+        customBorder: shape,
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: kMinInteractiveDimension, minWidth: kMinInteractiveDimension),
+          child: Center(
+            widthFactor: 1,
+            child: Ink(
+              decoration: ShapeDecoration(shape: shape),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 18),
+                  const SizedBox(width: 6),
+                  Flexible(child: Text(label, style: Theme.of(context).textTheme.labelLarge)),
+                ],
+              ),
+            ),
           ),
         ),
       ),

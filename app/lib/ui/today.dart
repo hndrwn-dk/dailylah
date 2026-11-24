@@ -245,6 +245,7 @@ class TodayPage extends ConsumerWidget {
       if (resting == null && (!commute || (tripMode ?? TravelMode.transit) == TravelMode.transit))
         _MrtCard(showCrowd: kind == CardKind.evening),
       if (!commute && fav.places[PlaceKind.home] != null) _WeekendCard(home: fav.places[PlaceKind.home]!),
+      // One card like the others: on a wide window it fills the shorter column under the trip.
       if (planned == null) const PlanTripCard(),
       if (fav.carparks.isNotEmpty) const _SavedParking(),
       const FullWidth(child: SizedBox(height: 8)),
@@ -527,7 +528,7 @@ class _MrtCard extends ConsumerWidget {
                   runSpacing: 6,
                   children: [
                     Text(s.mrtLinesAll, style: t.titleMedium),
-                    _MrtStatusPill(
+                    MrtStatusPill(
                       text: down.isNotEmpty
                           ? s.mrtLinesDown(down.length)
                           : resting
@@ -541,7 +542,7 @@ class _MrtCard extends ConsumerWidget {
                   const SizedBox(height: 6),
                   Text(s.trainsResting, style: t.bodySmall),
                 ],
-                for (final st in down) _MrtDisruption(status: st),
+                for (final st in down) MrtDisruptionBox(status: st, s: s),
                 if (mine.isNotEmpty) ...[
                   const SizedBox(height: 14),
                   _StarredLineTiles(
@@ -581,81 +582,6 @@ class _MrtCard extends ConsumerWidget {
             );
           },
         ),
-      ),
-    );
-  }
-}
-
-/// The MRT card's answer: "All 9 running" on mint, "1 line disrupted" in red, or the night.
-class _MrtStatusPill extends StatelessWidget {
-  const _MrtStatusPill({required this.text, required this.bad});
-  final String text;
-  final bool bad;
-
-  @override
-  Widget build(BuildContext context) {
-    final fg = bad ? Colors.white : DL.ink;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      decoration: BoxDecoration(
-        color: bad ? DL.stopDeep : DL.mint,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: DL.edge(context), width: 2),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (!bad) ...[
-            const Icon(Icons.circle, size: 8, color: Color(0xFF2E9E5B)),
-            const SizedBox(width: 6),
-          ],
-          Flexible(
-            child: Text(text,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(color: fg, fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// One disrupted line, in its own red box above everything else: what LTA says about it.
-class _MrtDisruption extends ConsumerWidget {
-  const _MrtDisruption({required this.status});
-  final LineStatus status;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final s = ref.watch(stringsProvider);
-    final t = Theme.of(context).textTheme;
-    final red = DL.stopText(context);
-    final detail = status.detail?.isNotEmpty == true ? status.detail! : null;
-    return Container(
-      margin: const EdgeInsets.only(top: 12),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: DL.stopDeep.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: red, width: 2),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          LineChip(status.line),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${trainLines[status.line] ?? status.line} · ${s.mrtDisrupted}',
-                    style: t.labelLarge?.copyWith(color: red)),
-                if (detail != null) Text(detail, style: t.bodySmall),
-                if (status.freeBus && !(detail ?? '').toLowerCase().contains('bus'))
-                  Text(s.freeBusAvailable, style: t.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -766,6 +692,8 @@ class _LineTile extends ConsumerWidget {
             selected: true,
             label: s.starredLineLabel(name, stateText),
             hint: s.unstarLine,
+            // The InkWell below is excluded with the rest, so the button keeps its own tap for TalkBack.
+            onTap: onTap,
             excludeSemantics: true,
             child: Material(
               color: down ? DL.stopDeep.withValues(alpha: 0.12) : Theme.of(context).colorScheme.surfaceContainerLowest,

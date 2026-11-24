@@ -562,6 +562,31 @@ void main() {
     });
   });
 
+  group('Homemaker, a day out from Today', () {
+    testWidgets('Taps a saved place on Plan a trip: the planner opens going there, and By MRT draws the route',
+        (tester) async {
+      await applyCondition(tester, _normal);
+      await tester.pumpWidget(appUnder(_normal, householdFavorites, saturdayMorning));
+      await settle(tester);
+      final box = containerOf(tester);
+      final keys = planChipKeys(householdFavorites, saturdayMorning);
+      expect(keys, contains('work'));
+      final card = find.byType(PlanTripCard);
+      await tester.scrollUntilVisible(find.text(_s.whereTo), 300, scrollable: find.byType(Scrollable).first);
+      await settle(tester);
+      await tester.tap(find.descendant(of: card, matching: find.text('Work')));
+      await settle(tester);
+      expect(find.byType(TripPlannerPage), findsOneWidget);
+      expect(box.read(goKeyProvider), 'work');
+      // Bus/MRT is the trip's mode: the train card answers with the pill and the drawn route.
+      final mrt = find.text(_s.mrtOption, skipOffstage: false);
+      await tester.scrollUntilVisible(mrt, 300, scrollable: find.byType(Scrollable).last);
+      await settle(tester);
+      expect(find.text(_s.mrtDoorNote, skipOffstage: false), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   group('Homemaker, at home', () {
     testWidgets('Looks up where to take old electronics: My home > Recycling, a drop-off and its sheet',
         (tester) async {

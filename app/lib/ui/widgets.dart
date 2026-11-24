@@ -1952,6 +1952,39 @@ int splitColumns(List<double> heights, List<bool> leads) {
   return best;
 }
 
+/// Where to split a run of cards that continues two columns already started (a section above
+/// left its left column ending at [leftStart] and its right one at [rightStart]): the number of
+/// cards that go on under the left column, the rest under the right. Each card goes to the
+/// column that leaves both closest in height, so the shorter column is filled first; reading
+/// order is kept, and a card whose [leads] flag is set is never the last on the left.
+int splitColumnsFrom(List<double> heights, List<bool> leads, double leftStart, double rightStart) {
+  final total = heights.fold<double>(0, (a, b) => a + b);
+  var best = 0;
+  var bestTall = double.infinity;
+  var left = 0.0;
+  for (var k = 0; k <= heights.length; k++) {
+    if (k > 0) left += heights[k - 1];
+    if (k > 0 && leads[k - 1]) continue;
+    final l = leftStart + left, r = rightStart + total - left;
+    final tall = l > r ? l : r;
+    if (tall < bestTall - 0.5) {
+      best = k;
+      bestTall = tall;
+    }
+  }
+  return best;
+}
+
+/// The [_RenderColumns] a span child is made of (a section with its own [CardColumns], under
+/// widgets that add no render box or only pass the size on), or null.
+_RenderColumns? _columnsIn(RenderBox box) {
+  RenderObject? b = box;
+  while (b is RenderProxyBox) {
+    b = b.child;
+  }
+  return b is _RenderColumns ? b : null;
+}
+
 class _RenderColumns extends RenderBox
     with
         ContainerRenderObjectMixin<RenderBox, _ColumnsParentData>,
@@ -1976,9 +2009,14 @@ class _RenderColumns extends RenderBox
     if (child.parentData is! _ColumnsParentData) child.parentData = _ColumnsParentData();
   }
 
-  /// Lays the children out for [width] and returns the height. [heightOf] gives a child's
-  /// height at a width; [place] is told where each child goes (not when only measuring).
-  double _arrange(
+  /// Where the last run of the latest layout left its two columns (from this box's top), when
+  /// it ended in two columns of different heights: a list below can carry on under them.
+  ({double left, double right})? _open;
+
+  /// Lays the children out for [width] and returns the height, and where the two columns end
+  /// when the last run left them uneven. [heightOf] gives a child's height at a width; [place]
+  /// is told where each child goes (not when only measuring).
+  ({double height, ({double left, double right})? open}) _arrange(
     double width,
     double Function(RenderBox child, double width) heightOf,
     void Function(RenderBox child, Offset at)? place,
@@ -1987,10 +2025,22 @@ class _RenderColumns extends RenderBox
     final boxes = getChildrenAsList();
     var y = 0.0;
     var i = 0;
+    // The columns a section above left uneven (from this box's top), which the next run fills.
+    ({double left, double right})? open;
     while (i < boxes.length) {
       if (!_two || _spans[i]) {
         place?.call(boxes[i], Offset(0, y));
-        y += heightOf(boxes[i], width);
+        final h = heightOf(boxes[i], width);
+        // A section with its own two columns (Today's trip): where they end, so the cards after
+        // it carry on under the shorter one instead of leaving a hole beside the taller one.
+        final inner = _two ? _columnsIn(boxes[i]) : null;
+        final ends = inner == null
+            ? null
+            : place != null
+                ? inner._open
+                : inner._arrange(width, heightOf, null).open;
+        open = ends == null ? null : (left: y + ends.left, right: y + ends.right);
+        y += h;
         i++;
         continue;
       }
@@ -1999,6 +2049,24 @@ class _RenderColumns extends RenderBox
         end++;
       }
       final heights = [for (var n = i; n < end; n++) heightOf(boxes[n], column)];
+      if (open != null) {
+        final k = splitColumnsFrom(heights, _leads.sublist(i, end), open.left, open.right);
+        var left = open.left, right = open.right;
+        for (var n = 0; n < heights.length; n++) {
+          if (n < k) {
+            place?.call(boxes[i + n], Offset(0, left));
+            left += heights[n];
+          } else {
+            place?.call(boxes[i + n], Offset(column + kColumnGap, right));
+            right += heights[n];
+          }
+        }
+        final bottom = left > right ? left : right;
+        if (bottom > y) y = bottom;
+        open = (left - right).abs() < 1 ? null : (left: left, right: right);
+        i = end;
+        continue;
+      }
       final k = splitColumns(heights, _leads.sublist(i, end));
       // Nothing would go in the right column (one card, or a heading and its card): the run
       // takes the whole width instead of leaving half the page empty beside it.
@@ -2007,6 +2075,7 @@ class _RenderColumns extends RenderBox
           place?.call(boxes[n], Offset(0, y));
           y += heightOf(boxes[n], width);
         }
+        open = null;
         i = end;
         continue;
       }
@@ -2027,16 +2096,18 @@ class _RenderColumns extends RenderBox
           right += heights[n];
         }
       }
+      open = (left - right).abs() < 1 ? null : (left: y + left, right: y + right);
       y += left > right ? left : right;
       i = end;
     }
-    return y;
+    // Only what ends the box counts: a full-width child after the run closes the columns.
+    return (height: y, open: open != null && (open.left >= y - 0.5 || open.right >= y - 0.5) ? open : null);
   }
 
   @override
   void performLayout() {
     final width = constraints.maxWidth;
-    final height = _arrange(
+    final r = _arrange(
       width,
       (child, w) {
         child.layout(BoxConstraints.tightFor(width: w), parentUsesSize: true);
@@ -2044,24 +2115,25 @@ class _RenderColumns extends RenderBox
       },
       (child, at) => (child.parentData! as _ColumnsParentData).offset = at,
     );
-    size = constraints.constrain(Size(width, height));
+    _open = r.open;
+    size = constraints.constrain(Size(width, r.height));
   }
 
   @override
   Size computeDryLayout(BoxConstraints constraints) {
     final width = constraints.maxWidth;
     final height =
-        _arrange(width, (child, w) => child.getDryLayout(BoxConstraints.tightFor(width: w)).height, null);
+        _arrange(width, (child, w) => child.getDryLayout(BoxConstraints.tightFor(width: w)).height, null).height;
     return constraints.constrain(Size(width, height));
   }
 
   @override
   double computeMinIntrinsicHeight(double width) =>
-      _arrange(width, (child, w) => child.getMinIntrinsicHeight(w), null);
+      _arrange(width, (child, w) => child.getMinIntrinsicHeight(w), null).height;
 
   @override
   double computeMaxIntrinsicHeight(double width) =>
-      _arrange(width, (child, w) => child.getMaxIntrinsicHeight(w), null);
+      _arrange(width, (child, w) => child.getMaxIntrinsicHeight(w), null).height;
 
   double _widest(double Function(RenderBox child) widthOf) {
     var widest = 0.0;
@@ -2378,6 +2450,81 @@ class PlaceRow extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The MRT card's answer: "All 9 running" on mint, "1 line disrupted" in red, or the night.
+class MrtStatusPill extends StatelessWidget {
+  const MrtStatusPill({super.key, required this.text, required this.bad});
+  final String text;
+  final bool bad;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = bad ? Colors.white : DL.ink;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: bad ? DL.stopDeep : DL.mint,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: DL.edge(context), width: 2),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!bad) ...[
+            const Icon(Icons.circle, size: 8, color: Color(0xFF2E9E5B)),
+            const SizedBox(width: 6),
+          ],
+          Flexible(
+            child: Text(text,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(color: fg, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One disrupted line, in its own red box above everything else: what LTA says about it.
+class MrtDisruptionBox extends StatelessWidget {
+  const MrtDisruptionBox({super.key, required this.status, required this.s});
+  final LineStatus status;
+  final S s;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final red = DL.stopText(context);
+    final detail = status.detail?.isNotEmpty == true ? status.detail! : null;
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: DL.stopDeep.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: red, width: 2),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LineChip(status.line),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${trainLines[status.line] ?? status.line} · ${s.mrtDisrupted}',
+                    style: t.labelLarge?.copyWith(color: red)),
+                if (detail != null) Text(detail, style: t.bodySmall),
+                if (status.freeBus && !(detail ?? '').toLowerCase().contains('bus'))
+                  Text(s.freeBusAvailable, style: t.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
