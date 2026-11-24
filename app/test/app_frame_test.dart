@@ -414,6 +414,48 @@ void main() {
       expect(covered(tester), isFalse);
     });
 
+    testWidgets('large text that keeps one column, and a window that was two columns already, have no flap',
+        (tester) async {
+      await pumpApp(tester);
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await tester.pump();
+      // 880 dp at 200% text stays one 600 dp column.
+      tester.view.physicalSize = const Size(880, 600);
+      await tester.pump();
+      expect(covered(tester), isFalse);
+      // Back to 100% text the same window turns two columns: that one does open.
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.pump();
+      expect(covered(tester), isTrue);
+      await tester.pump(kFoldFlapHold);
+      await tester.pumpAndSettle();
+      expect(covered(tester), isFalse);
+      // Two columns already: wider still (a tablet, a window being resized) is no unfold.
+      tester.view.physicalSize = const Size(1040, 700);
+      await tester.pumpAndSettle();
+      tester.view.physicalSize = const Size(1200, 700);
+      await tester.pump();
+      expect(covered(tester), isFalse);
+    });
+
+    testWidgets('folding while the flap runs ends it at once and keeps the page', (tester) async {
+      await pumpApp(tester);
+      await tester.enterText(find.byType(TextField), 'Bedok');
+      final state = tester.state(find.byType(TextField));
+      tester.view.physicalSize = const Size(880, 600);
+      await tester.pump();
+      await tester.pump(); // the snapshot is taken
+      expect(find.byKey(FoldFlap.flapKey), findsOneWidget);
+      tester.view.physicalSize = const Size(400, 800);
+      await tester.pump();
+      expect(covered(tester), isFalse);
+      expect(tester.takeException(), isNull);
+      await tester.pumpAndSettle();
+      expect(tester.state(find.byType(TextField)), same(state));
+      expect(find.text('Bedok'), findsOneWidget);
+    });
+
     testWidgets('a hinge still half open keeps the flap folded until it opens flat', (tester) async {
       await pumpApp(tester);
       DisplayFeature fold(DisplayFeatureState state) =>

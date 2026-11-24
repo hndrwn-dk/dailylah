@@ -205,6 +205,7 @@ class _Framed extends StatelessWidget {
                 width: width,
                 child: FoldFlap(
                   width: box.maxWidth,
+                  twoColumns: width >= kTwoColumnMinWidth,
                   halfOpen: media.displayFeatures.any((f) => f.state == DisplayFeatureState.postureHalfOpened),
                   reduceMotion: media.disableAnimations,
                   child: MediaQuery(
@@ -227,7 +228,7 @@ class _Framed extends StatelessWidget {
   }
 }
 
-/// Opens the app like a sheet of paper when the window widens into two columns (a foldable
+/// Opens the app like a sheet of paper when its layout turns into two columns (a foldable
 /// opened flat, a tablet turned): the left half is the new layout at once, the right half swings
 /// open from the fold line in the middle, with a hard sticker shadow and shaded while it faces
 /// away, and lies flat in [kFoldFlapOpen]. Before it moves it waits [kFoldFlapSettle], and while
@@ -237,16 +238,23 @@ class _Framed extends StatelessWidget {
 /// The app is drawn once: the flap is a snapshot of the new layout taken on the first frame at
 /// the new width, laid over the live app, which shows through when the flap is flat. The app
 /// itself is the same widgets with or without the flap, so its state is kept. Folding, a
-/// narrower window and animations turned off on the phone ([reduceMotion]) have no flap.
+/// window that stays one column (large text) or was two columns already, and animations turned
+/// off on the phone ([reduceMotion]) have no flap.
 class FoldFlap extends StatefulWidget {
   const FoldFlap({
     super.key,
     required this.width,
+    required this.twoColumns,
     required this.halfOpen,
     required this.reduceMotion,
     required this.child,
   });
   final double width;
+
+  /// Whether the app is laid out in two columns now ([frameWidth] at or above
+  /// [kTwoColumnMinWidth]). The flap runs only when this turns on: a wider window that stays one
+  /// column (large text) or was two columns already (a tablet, a window being resized) has none.
+  final bool twoColumns;
   final bool halfOpen;
   final bool reduceMotion;
   final Widget child;
@@ -277,12 +285,12 @@ class _FoldFlapState extends State<FoldFlap> with SingleTickerProviderStateMixin
   @override
   void didUpdateWidget(FoldFlap old) {
     super.didUpdateWidget(old);
-    final widened = widget.width - old.width >= 1 && widget.width >= kTwoColumnMinWidth;
     if (widget.reduceMotion) {
       _finish();
-    } else if (widened) {
+    } else if (widget.twoColumns && !old.twoColumns) {
       _start();
-    } else if ((widget.width - old.width).abs() >= 1) {
+    } else if (!widget.twoColumns || old.width - widget.width >= 1) {
+      // Back to one column, or narrower while it runs: the snapshot no longer fits.
       _finish();
     } else {
       _maybeRelease();

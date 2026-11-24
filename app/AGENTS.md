@@ -52,12 +52,13 @@ relative to `app/` unless they start with a top-level folder. File and symbol in
   `CardColumns` inside one of
   the two columns just stacks. One and two columns are the same widgets, so fold, unfold and
   rotation keep scroll position and card state. A new tab section puts its cards in a `CardColumns`.
-  When the window widens into two columns (a foldable opened flat, a tablet turned) `FoldFlap` opens the
+  When the layout turns into two columns (a foldable opened flat, a tablet turned; `FoldFlap.twoColumns`) `FoldFlap` opens the
   app like paper: the left half is the new layout at once and the right half swings open from the fold line in
   the middle (a snapshot of the new layout, `toImageSync`, over the live app, with a hard shadow and shaded while
   it turns), after `kFoldFlapSettle` (a foldable switches screens and plays its own animation while the app
   already draws at the new width) and while the hinge reports half open (at most `kFoldFlapHold` in all), in
-  `kFoldFlapOpen`; folding, a narrower window and animations off have no flap. Scrolled down from the top, the tabs blur and fade under the status bar (`StatusBarFade` in the shell, a
+  `kFoldFlapOpen`; folding, a wider window that stays one column (large text) or was two columns already (a
+  tablet, a window being resized) and animations off have no flap. Scrolled down from the top, the tabs blur and fade under the status bar (`StatusBarFade` in the shell, a
   `BackdropFilter`; it follows the open tab's `ScrollController`) as they fade above the tab bar.
   Every pushed page is laid out for a phone: `ColumnPageTransitionsBuilder` (the theme's page
   transition) puts each `MaterialPageRoute` except the first in a `PhoneColumn` (600 dp, centred,
