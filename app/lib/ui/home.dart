@@ -112,7 +112,7 @@ class HomePage extends ConsumerWidget {
     return Scaffold(
       body: ListView(
         controller: controller,
-        padding: const EdgeInsets.only(bottom: kNavClearance),
+        padding: EdgeInsets.only(bottom: navClearance(context)),
         children: [
           HeroHeader(
             accent: const Color(0xFF2E9E7E),

@@ -257,7 +257,7 @@ class TodayPage extends ConsumerWidget {
         edgeOffset: 80,
         child: ListView(
           controller: controller,
-          padding: const EdgeInsets.only(bottom: kNavClearance),
+          padding: EdgeInsets.only(bottom: navClearance(context)),
           children: [
             HeroHeader(
               child: Column(

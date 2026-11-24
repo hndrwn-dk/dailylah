@@ -232,7 +232,7 @@ class _NearbyPageState extends ConsumerState<NearbyPage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24 + kNavClearance),
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 24 + navClearance(context)),
               child: place == null
                   ? Panel(
                       child: EmptyNote(
@@ -1253,7 +1253,7 @@ class _HalalTabState extends ConsumerState<_HalalTab> {
       final favs = ref.watch(favoritesProvider.select((f) => f.halalPlaces));
       final list = halalNear(all, place.lat, place.lng, query: _query, favs: _pinned ??= favs);
       return ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24 + kNavClearance),
+        padding: EdgeInsets.fromLTRB(16, 12, 16, 24 + navClearance(context)),
         children: [
           AlertBanner(icon: Icons.verified_outlined, text: s.halalDisclaimer, tone: AlertTone.warning),
           TextField(
@@ -1338,7 +1338,7 @@ class _HawkerTabState extends ConsumerState<_HawkerTab> {
       if (list.isEmpty) return EmptyNote(all.isEmpty ? s.bundlesLoading : s.notAvailable);
       final t = Theme.of(context).textTheme;
       return ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + kNavClearance),
+        padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + navClearance(context)),
         itemCount: list.length,
         itemBuilder: (context, i) {
           final (h, d) = list[i];
@@ -1494,7 +1494,7 @@ class _ParkingTab extends ConsumerWidget {
       final t = Theme.of(context).textTheme;
       final scheme = Theme.of(context).colorScheme;
       return ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + kNavClearance),
+        padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + navClearance(context)),
         children: [
           if (showOtherAddress)
             Padding(
@@ -1585,7 +1585,7 @@ class _PrayerTab extends ConsumerWidget {
       final t = Theme.of(context).textTheme;
       final scheme = Theme.of(context).colorScheme;
       return ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + kNavClearance),
+        padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + navClearance(context)),
         children: [
           SectionTitle(s.prayerTimes, padding: const EdgeInsets.fromLTRB(4, 4, 4, 10)),
           if (times == null)
@@ -1714,7 +1714,7 @@ class _EmergencyTab extends ConsumerWidget {
     }
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(14, 12, 18, 24 + kNavClearance),
+      padding: EdgeInsets.fromLTRB(14, 12, 18, 24 + navClearance(context)),
       children: [
         callButton('995', s.call995, DL.stopDeep),
         callButton('999', s.call999, DL.amber),

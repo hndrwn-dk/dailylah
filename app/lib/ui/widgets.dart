@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
@@ -1035,8 +1036,14 @@ class _PulseState extends State<Pulse> with SingleTickerProviderStateMixin {
 }
 
 
-/// Space to leave under scrolling content so the floating nav never covers it.
+/// Space to leave under scrolling content so the floating nav never covers it: at least the tab
+/// bar's own height.
 const kNavClearance = 96.0;
+
+/// Space under a tab's list: [kNavClearance], or more while a trip, ride or Wake me bar sits above the
+/// tabs. The shell's Scaffold (`extendBody`) gives its body the bar's real height as bottom padding.
+double navClearance(BuildContext context) =>
+    math.max(kNavClearance, MediaQuery.paddingOf(context).bottom);
 
 /// Floating pill navigation: an outlined capsule with a hard shadow; the selected tab
 /// grows into an amber pill with its label.

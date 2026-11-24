@@ -132,7 +132,7 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 
 ### `lib/ui/widgets.dart`
 - Types: `BusPlate`, `LoadMeter`, `LineChip`, `Panel`, `SectionTitle`, `AlertTone (enum)`, `AlertBanner`, `EmptyNote`, `Stat`, `PlaceSelector`, `HeroHeader`, `StatusBarFade`, `StickerIconButton`, `PageTitle`, `BentoTile`, `ModeRail`, `PillRow`, `Pulse`, `PillNav`, `StationChip`, `PaintedBlockNumber`, `BoardRow`, `BoardBell`, `LoadBars`, `BusBoard`, `ParkTimeBanner`, `InfoChips`, `FacilityIcons`, `DialogButtons`, `BigNumber`, `CrowdPeople`, `MealPricePicker`, `FullWidth`, `KeepWithNext`, `OpensWithHeading`, `CardColumns`, `WordWrapTitle`, `SectionTiles`, `PlaceRow`
-- Functions: `placeTitle`, `facilityIcon`, `showActionSnackBar`, `popAfterKeyboard`, `askMealPrice`, `splitColumns`
+- Functions: `placeTitle`, `navClearance`, `facilityIcon`, `showActionSnackBar`, `popAfterKeyboard`, `askMealPrice`, `splitColumns`
 
 ### `lib/wake_session.dart`
 - Types: `WakeState`, `WakeNotifier`

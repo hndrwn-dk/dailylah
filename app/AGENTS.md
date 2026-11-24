@@ -367,7 +367,9 @@ feature, screen, provider or rule moves, appears or goes away.
   `historyPreviousCents` (last week or month up to the same point; none when a full log no longer reaches back that far). It follows the kind filter.
   Every trip card (commute and "Go somewhere") has I'm leaving; the running trip shows in `TripBanner`
   above the tabs (inline on the planner page, which hides the tabs) with Arrived / Stop timing; its buttons
-  go under the text when they would not fit beside it (large text, 320 dp).
+  go under the text when they would not fit beside it (large text, 320 dp); every tab leaves room under its
+  list for that bar too (`navClearance` in widgets.dart: the bar's height from the shell's Scaffold, at least
+  `kNavClearance`), so it never covers the end of a tab.
   Bus arriving (`lib/bus_watch.dart`, `busWatchProvider`, like the wake session; `Favorites.busAlerts`): on a
   bus trip I'm leaving (`_TripTimer._leave`) remembers on the phone where the trip goes (on every trip), the stop of its first
   stop card and the bus to leave for (`tripLeave`, from `stopPlan`, the rule `TripBusCard` also uses;
