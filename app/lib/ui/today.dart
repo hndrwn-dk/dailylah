@@ -245,8 +245,8 @@ class TodayPage extends ConsumerWidget {
       if (resting == null && (!commute || (tripMode ?? TravelMode.transit) == TravelMode.transit))
         _MrtCard(showCrowd: kind == CardKind.evening),
       if (!commute && fav.places[PlaceKind.home] != null) _WeekendCard(home: fav.places[PlaceKind.home]!),
-      // Across both columns when wide: the search beside the chips, closing the cards above it evenly.
-      if (planned == null) const FullWidth(child: PlanTripCard()),
+      // One card like the others: on a wide window it fills the shorter column under the trip.
+      if (planned == null) const PlanTripCard(),
       if (fav.carparks.isNotEmpty) const _SavedParking(),
       const FullWidth(child: SizedBox(height: 8)),
       FullWidth(child: Text(s.pullToRefresh, style: t.bodySmall, textAlign: TextAlign.center)),

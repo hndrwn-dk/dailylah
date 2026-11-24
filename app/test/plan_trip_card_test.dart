@@ -1,6 +1,6 @@
 // "Plan a trip" on Today (`PlanTripCard` in ui/trip.dart): "Where to?" opens the planner on its
 // place search, a saved place's chip opens it with that destination picked, the heading opens it
-// as it is, and on a wide window the card spans both columns.
+// as it is, and on a wide window it is one card in one column.
 import 'package:dailylah/l10n.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/address_picker.dart';
@@ -67,8 +67,8 @@ void main() {
       await _open(tester, c);
       final card = tester.getRect(find.byType(PlanTripCard));
       if (c.name == 'fold') {
-        // Across both columns: as wide as the page's cards, not one column.
-        expect(card.width, greaterThan(700));
+        // One card like the others: it takes one column, not the whole page.
+        expect(card.width, lessThan(500));
       }
       for (final e in _inCard(find.byType(InkWell)).evaluate()) {
         final r = tester.getRect(find.byWidget(e.widget));

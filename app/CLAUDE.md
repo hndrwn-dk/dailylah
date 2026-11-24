@@ -396,7 +396,7 @@ feature, screen, provider or rule moves, appears or goes away.
   `RunningTripPage` (the bar, the `TripBusCard` of the remembered stop and "Change this trip"), and once the
   bus has gone the bar offers Wake me before its stop. Today (`todayTripSlot`): the same card sits right under
   the weather tiles while such a trip runs and is not the commute card already shown; `PlanTripCard` at the end
-  of Today (full width when wide) is a "Where to?" field that opens the planner on its place search
+  of Today (one card, so on a wide window it fills the shorter column) is a "Where to?" field that opens the planner on its place search
   (`TripPlannerPage(searchTo:)`, `GoSomewhere.searchDestination`) and the saved places as chips that open it with
   that destination (`planChipKeys`, not the place the phone is at; `pickDestination`), its heading opening the
   planner as it is; a destination picked in
