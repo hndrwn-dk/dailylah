@@ -1103,7 +1103,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        'Today\'s MRT card is new: one answer at the top, your starred lines as tiles with crowd levels, and disruptions in their own red box.',
+        'Fixed: while a trip runs, the end of Today and the other tabs no longer hide behind the trip bar above the tabs.',
       ];
 
   // about
