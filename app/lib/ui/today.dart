@@ -496,42 +496,9 @@ class _MrtCard extends ConsumerWidget {
       ref.read(favoritesProvider.notifier).toggleLine(line);
     }
 
-    Widget row(LineStatus st) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(width: 52, child: Align(alignment: Alignment.centerLeft, child: LineChip(st.line))),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(trainLines[st.line] ?? st.line, style: t.labelLarge),
-                    Text(
-                      st.disrupted
-                          ? (st.detail?.isNotEmpty == true ? st.detail! : s.mrtDisrupted)
-                          : resting
-                              ? s.mrtResting
-                              : s.mrtNormal,
-                      style: st.disrupted ? t.bodySmall?.copyWith(color: DL.stopText(context)) : t.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              if (showCrowd && starred.contains(st.line)) _CrowdBadge(line: st.line),
-              IconButton(
-                tooltip: s.starLine,
-                icon: Icon(starred.contains(st.line) ? Icons.star : Icons.star_border,
-                    color: starred.contains(st.line) ? DL.amber : null),
-                onPressed: () => toggle(st.line),
-              ),
-            ],
-          ),
-        );
-
     return Panel(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 8, 12),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
         child: alerts.when(
           loading: () => Text(s.loading),
           error: (_, __) => Row(
@@ -543,56 +510,73 @@ class _MrtCard extends ConsumerWidget {
           data: (json) {
             final all = lineStatuses(json, trainLines.keys.toSet());
             final down = all.where((x) => x.disrupted).toList();
-            final pinned = all.where((x) => !x.disrupted && starred.contains(x.line)).toList();
-            final rest = all.where((x) => !x.disrupted && !starred.contains(x.line)).toList();
+            final mine = [
+              for (final st in all)
+                if (starred.contains(st.line)) st,
+            ];
+            // Disrupted lines keep their plate too, so they can be starred for alerts.
+            final rest = all.where((x) => !starred.contains(x.line)).toList();
             return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(s.mrtLinesAll, style: t.titleMedium),
-                Text(
-                    down.isNotEmpty
-                        ? s.mrtAlert(down.map((x) => x.line).join(', '))
-                        : resting
-                            ? s.trainsResting
-                            : s.allLinesNormal,
-                    style: t.bodySmall?.copyWith(color: down.isEmpty ? null : DL.stopText(context))),
-                const SizedBox(height: 6),
-                for (final st in down) row(st),
-                for (final st in pinned) row(st),
-                const SizedBox(height: 6),
+                // The answer first: one pill instead of "running normally" on every line.
                 Wrap(
-                  spacing: 6,
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
                   runSpacing: 6,
                   children: [
-                    for (final st in rest)
-                      Tooltip(
-                        message: '${trainLines[st.line]} · ${s.starLine}',
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(8),
-                          onTap: () => toggle(st.line),
-                          // 48 dp tap target around the small chip.
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(
-                                minWidth: kMinInteractiveDimension, minHeight: kMinInteractiveDimension),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                LineChip(st.line, dense: true),
-                                const SizedBox(width: 3),
-                                const Icon(Icons.circle, size: 8, color: Color(0xFF2E9E5B)),
-                              ],
+                    Text(s.mrtLinesAll, style: t.titleMedium),
+                    _MrtStatusPill(
+                      text: down.isNotEmpty
+                          ? s.mrtLinesDown(down.length)
+                          : resting
+                              ? s.mrtResting
+                              : s.mrtAllRunning(all.length),
+                      bad: down.isNotEmpty,
+                    ),
+                  ],
+                ),
+                if (resting && down.isEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(s.trainsResting, style: t.bodySmall),
+                ],
+                for (final st in down) _MrtDisruption(status: st),
+                if (mine.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _StarredLineTiles(
+                    lines: mine,
+                    resting: resting,
+                    showCrowd: showCrowd,
+                    onTap: toggle,
+                  ),
+                ],
+                if (rest.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  const Divider(height: 1),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 2,
+                    children: [
+                      for (final st in rest)
+                        Tooltip(
+                          message: '${trainLines[st.line]} · ${s.starLine}',
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: () => toggle(st.line),
+                            // 48 dp tap target around the small plate.
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                  minWidth: kMinInteractiveDimension, minHeight: kMinInteractiveDimension),
+                              child: Center(widthFactor: 1, child: LineChip(st.line, dense: true)),
                             ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Text(starred.isEmpty ? s.starHintNone : s.starHint, style: t.bodySmall),
-                ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 4),
+                Text(starred.isEmpty ? s.starHintNone : s.starHint, style: t.bodySmall),
               ],
             );
           },
@@ -602,25 +586,278 @@ class _MrtCard extends ConsumerWidget {
   }
 }
 
-class _CrowdBadge extends ConsumerWidget {
-  const _CrowdBadge({required this.line});
-  final String line;
+/// The MRT card's answer: "All 9 running" on mint, "1 line disrupted" in red, or the night.
+class _MrtStatusPill extends StatelessWidget {
+  const _MrtStatusPill({required this.text, required this.bad});
+  final String text;
+  final bool bad;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = bad ? Colors.white : DL.ink;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: bad ? DL.stopDeep : DL.mint,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: DL.edge(context), width: 2),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!bad) ...[
+            const Icon(Icons.circle, size: 8, color: Color(0xFF2E9E5B)),
+            const SizedBox(width: 6),
+          ],
+          Flexible(
+            child: Text(text,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(color: fg, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One disrupted line, in its own red box above everything else: what LTA says about it.
+class _MrtDisruption extends ConsumerWidget {
+  const _MrtDisruption({required this.status});
+  final LineStatus status;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
-    final share = ref.watch(crowdShareProvider(line));
-    final text = share.maybeWhen(
-      data: (v) => v == null
-          ? '–'
-          : v >= 0.3
-              ? s.crowdHigh
-              : v >= 0.1
-                  ? s.crowdMid
-                  : s.crowdLow,
+    final t = Theme.of(context).textTheme;
+    final red = DL.stopText(context);
+    final detail = status.detail?.isNotEmpty == true ? status.detail! : null;
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: DL.stopDeep.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: red, width: 2),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LineChip(status.line),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${trainLines[status.line] ?? status.line} · ${s.mrtDisrupted}',
+                    style: t.labelLarge?.copyWith(color: red)),
+                if (detail != null) Text(detail, style: t.bodySmall),
+                if (status.freeBus && !(detail ?? '').toLowerCase().contains('bus'))
+                  Text(s.freeBusAvailable, style: t.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The starred lines as tiles with a star badge: the plate, the name and only what differs
+/// (crowd in the evening, the night, a disruption). As many in a row as fit, at least 96 dp
+/// each at the text scale, so large text gives two or one a row. A tap unstars the line.
+class _StarredLineTiles extends ConsumerWidget {
+  const _StarredLineTiles({required this.lines, required this.resting, required this.showCrowd, required this.onTap});
+  final List<LineStatus> lines;
+  final bool resting;
+  final bool showCrowd;
+  final void Function(String line) onTap;
+
+  static const double gap = 10;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final scale = MediaQuery.textScalerOf(context).scale(1);
+    return LayoutBuilder(
+      builder: (context, box) {
+        final fit = ((box.maxWidth + gap) / (96 * scale + gap)).floor().clamp(1, 3);
+        final cols = fit < lines.length ? fit : lines.length;
+        final rows = <List<LineStatus>>[
+          for (var i = 0; i < lines.length; i += cols) lines.sublist(i, i + cols > lines.length ? lines.length : i + cols),
+        ];
+        return Column(
+          children: [
+            for (final (r, row) in rows.indexed)
+              Padding(
+                // Room above each row for the star badges.
+                padding: EdgeInsets.only(top: r == 0 ? 8 : 14),
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (var c = 0; c < cols; c++) ...[
+                        if (c > 0) const SizedBox(width: gap),
+                        Expanded(
+                          child: c < row.length
+                              ? _LineTile(
+                                  status: row[c],
+                                  resting: resting,
+                                  showCrowd: showCrowd,
+                                  s: s,
+                                  onTap: () => onTap(row[c].line),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _LineTile extends ConsumerWidget {
+  const _LineTile({required this.status, required this.resting, required this.showCrowd, required this.s, required this.onTap});
+  final LineStatus status;
+  final bool resting;
+  final bool showCrowd;
+  final S s;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = Theme.of(context).textTheme;
+    final name = trainLines[status.line] ?? status.line;
+    final down = status.disrupted;
+    final red = DL.stopText(context);
+    final r = BorderRadius.circular(12);
+    final Widget state;
+    final String stateText;
+    if (down) {
+      stateText = s.mrtDisrupted;
+      state = Text(stateText, style: t.bodySmall?.copyWith(color: red, fontWeight: FontWeight.w700), textAlign: TextAlign.center);
+    } else if (resting) {
+      stateText = s.mrtResting;
+      state = Text(stateText, style: t.bodySmall, textAlign: TextAlign.center);
+    } else if (showCrowd) {
+      final share = ref.watch(crowdShareProvider(status.line));
+      stateText = _crowdWord(s, share);
+      state = _CrowdBadge(level: _crowdBars(share), text: stateText);
+    } else {
+      stateText = s.mrtNormalShort;
+      state = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.circle, size: 8, color: Color(0xFF2E9E5B)),
+          const SizedBox(width: 5),
+          Flexible(child: Text(stateText, style: t.bodySmall)),
+        ],
+      );
+    }
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(
+          child: Semantics(
+            button: true,
+            selected: true,
+            label: s.starredLineLabel(name, stateText),
+            hint: s.unstarLine,
+            excludeSemantics: true,
+            child: Material(
+              color: down ? DL.stopDeep.withValues(alpha: 0.12) : Theme.of(context).colorScheme.surfaceContainerLowest,
+              shape: RoundedRectangleBorder(
+                borderRadius: r,
+                side: BorderSide(color: down ? red : DL.edge(context), width: 2),
+              ),
+              child: InkWell(borderRadius: r, onTap: onTap),
+            ),
+          ),
+        ),
+        // The button above reads the name and state; this is only the picture of it.
+        ExcludeSemantics(
+          child: IgnorePointer(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(6, 12, 6, 10),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(child: LineChip(status.line)),
+                  const SizedBox(height: 6),
+                  Text(name, style: t.labelLarge, textAlign: TextAlign.center),
+                  const SizedBox(height: 2),
+                  Center(child: state),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          top: -9,
+          right: -9,
+          child: ExcludeSemantics(
+            child: Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                color: DL.amber,
+                shape: BoxShape.circle,
+                border: Border.all(color: DL.edge(context), width: 2),
+              ),
+              child: const Icon(Icons.star, size: 13, color: DL.ink),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Bars for the crowd now: 0 while loading or without data, else 1 to 3 (`crowdLevel`).
+int _crowdBars(AsyncValue<double?> share) =>
+    share.maybeWhen(data: (v) => v == null ? 0 : crowdLevel(v), orElse: () => 0);
+
+/// The crowd word: Quiet, Busy, Packed; '–' without data, '…' while loading.
+String _crowdWord(S s, AsyncValue<double?> share) => share.maybeWhen(
+      data: (v) => v == null ? '–' : [s.crowdLow, s.crowdMid, s.crowdHigh][crowdLevel(v) - 1],
       orElse: () => '…',
     );
-    return Text(text, style: Theme.of(context).textTheme.labelMedium);
+
+/// Evening crowd on a starred line now: three bars and a word (Quiet, Busy, Packed).
+class _CrowdBadge extends StatelessWidget {
+  const _CrowdBadge({required this.level, required this.text});
+  final int level;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final on = Theme.of(context).colorScheme.onSurface;
+    final off = DL.muted(context).withValues(alpha: 0.35);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ExcludeSemantics(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              for (var i = 1; i <= 3; i++)
+                Container(
+                  width: 4,
+                  height: 3.0 + 3 * i,
+                  margin: const EdgeInsets.only(right: 2),
+                  decoration: BoxDecoration(color: i <= level ? on : off, borderRadius: BorderRadius.circular(1)),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 4),
+        Flexible(child: Text(text, style: Theme.of(context).textTheme.bodySmall)),
+      ],
+    );
   }
 }
 

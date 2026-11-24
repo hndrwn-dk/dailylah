@@ -105,7 +105,7 @@ void main() {
     expect(find.textContaining('Heading to Work'), findsOneWidget);
     expect(find.text('Good morning'), findsOneWidget);
     expect(find.text('Bring an umbrella'), findsOneWidget);
-    expect(find.text('Running normally'), findsOneWidget);
+    expect(find.text(const S().mrtAllRunning(trainLines.length)), findsOneWidget);
     expect(find.text(const S().fromStop('Tampines Int')), findsWidgets);
     expect(find.text('Home → Work'), findsOneWidget);
     expect(find.text('Plan a trip'), findsOneWidget);

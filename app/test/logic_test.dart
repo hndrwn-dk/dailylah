@@ -2687,6 +2687,15 @@ void main() {
     });
   });
 
+  test('crowdLevel: quiet under 10% of stations high, busy under 30%, packed from 30%', () {
+    expect(crowdLevel(0), 1);
+    expect(crowdLevel(0.099), 1);
+    expect(crowdLevel(0.1), 2);
+    expect(crowdLevel(0.299), 2);
+    expect(crowdLevel(0.3), 3);
+    expect(crowdLevel(1), 3);
+  });
+
   group('rich notes', () {
     const s = S();
     List<String> texts(RichNote n) => [for (final p in n.pills) p.text];

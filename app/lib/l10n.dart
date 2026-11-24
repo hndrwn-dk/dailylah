@@ -187,7 +187,12 @@ class S {
   String get busesResting => 'Buses have stopped for the night. They start again from about 5:30 am.';
   String get starLine => 'Star this line';
   String get maxStarredLines => 'You can star up to 3 lines.';
-  String get starHint => 'Starred lines get alerts and evening crowd levels. Tap a line to star it.';
+  String get starHint => 'Tap a line to star it (up to 3) for alerts and crowd levels.';
+  String mrtAllRunning(int n) => 'All $n running';
+  String mrtLinesDown(int n) => n == 1 ? '1 line disrupted' : '$n lines disrupted';
+  String get mrtNormalShort => 'Normal';
+  String get unstarLine => 'Tap to unstar';
+  String starredLineLabel(String line, String status) => status.isEmpty ? '$line, starred' : '$line, starred, $status';
   String get starHintNone => 'You get alerts for any line. Tap a line to star up to 3 and keep alerts to those.';
   String get days => 'Days';
   String get showHalal => 'Halal food nearby';
@@ -1098,7 +1103,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        'Foldables: when you open the phone, the right side of the screen now swings open from the fold like a sheet of paper.',
+        'Today\'s MRT card is new: one answer at the top, your starred lines as tiles with crowd levels, and disruptions in their own red box.',
       ];
 
   // about
