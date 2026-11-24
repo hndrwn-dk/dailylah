@@ -692,6 +692,8 @@ class _LineTile extends ConsumerWidget {
             selected: true,
             label: s.starredLineLabel(name, stateText),
             hint: s.unstarLine,
+            // The InkWell below is excluded with the rest, so the button keeps its own tap for TalkBack.
+            onTap: onTap,
             excludeSemantics: true,
             child: Material(
               color: down ? DL.stopDeep.withValues(alpha: 0.12) : Theme.of(context).colorScheme.surfaceContainerLowest,

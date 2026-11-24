@@ -282,7 +282,6 @@ bool isCommuteDay(Favorites fav, DateTime now, [DaysOff off = const DaysOff()]) 
 /// MRT lines to watch for alerts: the starred ones, or every line when none is starred.
 Set<String> watchedLines(Favorites fav) => fav.lines.isEmpty ? trainLines.keys.toSet() : fav.lines;
 
-/// Custom places that fit today (weekday or weekend).
 /// The saved places "Plan a trip" on Today offers as destinations, as the planner's keys: Home,
 /// Work, School, then the custom places for today ([extrasForToday]); not the one the phone is [at].
 List<String> planChipKeys(Favorites fav, DateTime now, {PlaceKind? at}) => [
@@ -295,6 +294,7 @@ List<String> planChipKeys(Favorites fav, DateTime now, {PlaceKind? at}) => [
 /// place, then the trip starts from the phone's position ("here").
 ({String from, String to}) pickDestination(String from, String key) => (from: from == key ? 'here' : from, to: key);
 
+/// Custom places that fit today (weekday or weekend).
 List<int> extrasForToday(Favorites fav, DateTime now) {
   final weekend = now.weekday >= 6;
   return [

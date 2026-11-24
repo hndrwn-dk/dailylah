@@ -6,6 +6,7 @@ import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/address_picker.dart';
 import 'package:dailylah/ui/trip.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/harness.dart';
@@ -48,6 +49,9 @@ void main() {
 
   testWidgets('"Where to?" opens the place search for the destination', (tester) async {
     await _open(tester, const Condition('phone'));
+    // TalkBack and Switch Access can press it too: the button has a tap action of its own.
+    final data = tester.getSemantics(_inCard(find.bySemanticsLabel(s.whereTo))).getSemanticsData();
+    expect(data.hasAction(SemanticsAction.tap), isTrue);
     await tester.tap(_inCard(find.bySemanticsLabel(s.whereTo)));
     await settle(tester);
     expect(find.byType(AddressPickerPage), findsOneWidget);

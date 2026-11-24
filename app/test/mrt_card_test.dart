@@ -5,6 +5,7 @@ import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/widgets.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/harness.dart';
@@ -31,6 +32,9 @@ void main() {
     expect(_inCard(find.text(s.mrtNormal)), findsNothing);
     // householdFavorites stars DTL and EWL: two tiles with their names, the rest as plates.
     expect(_inCard(find.bySemanticsLabel(RegExp('^${trainLines['DTL']}, starred'))), findsOneWidget);
+    // A screen reader can unstar it too: the tile's button has its own tap action.
+    final tile = tester.getSemantics(_inCard(find.bySemanticsLabel(RegExp('^${trainLines['DTL']}, starred'))));
+    expect(tile.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
     expect(_inCard(find.bySemanticsLabel(RegExp('^${trainLines['EWL']}, starred'))), findsOneWidget);
     expect(_inCard(find.byTooltip('${trainLines['NSL']} · ${s.starLine}')), findsOneWidget);
     expect(_inCard(find.text(s.starHint)), findsOneWidget);

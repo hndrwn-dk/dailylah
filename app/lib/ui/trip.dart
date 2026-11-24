@@ -2248,6 +2248,8 @@ class PlanTripCard extends ConsumerWidget {
       button: true,
       label: s.whereTo,
       hint: s.searchPlace,
+      // The InkWell below is excluded with the rest, so the button keeps its own tap for TalkBack.
+      onTap: () => open(search: true),
       excludeSemantics: true,
       child: Material(
         color: Theme.of(context).colorScheme.surfaceContainerLowest,
