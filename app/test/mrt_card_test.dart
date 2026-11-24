@@ -62,6 +62,27 @@ void main() {
     expect(_inCard(find.text(s.mrtAllRunning(trainLines.length))), findsNothing);
   });
 
+  testWidgets('a disrupted line that is not starred keeps its plate, so it can be starred for alerts',
+      (tester) async {
+    await _open(tester, down: 'NSL');
+    expect(_inCard(find.text('${trainLines['NSL']} · ${s.mrtDisrupted}')), findsOneWidget);
+    await tester.tap(_inCard(find.byTooltip('${trainLines['NSL']} · ${s.starLine}')));
+    await settle(tester);
+    expect(containerOf(tester).read(favoritesProvider).lines, {'DTL', 'EWL', 'NSL'});
+  });
+
+  testWidgets('evening: a tile is read once, as one button that includes the crowd word', (tester) async {
+    await _open(tester, at: tuesdayEvening);
+    final name = trainLines['EWL']!;
+    final words = [s.crowdLow, s.crowdMid, s.crowdHigh, '–', '…'];
+    final labels = [for (final w in words) s.starredLineLabel(name, w)];
+    final tile = _inCard(find.bySemanticsLabel(RegExp('^$name, starred')));
+    expect(tile, findsOneWidget);
+    expect(labels, contains(tester.getSemantics(tile).label));
+    // The name and the state inside the tile are not read a second time.
+    expect(_inCard(find.bySemanticsLabel(name)), findsNothing);
+  });
+
   testWidgets('no starred lines: no tiles, every line a plate, and the hint about alerts for any line', (tester) async {
     await _open(tester, fav: householdFavorites.copyWith(lines: const {}));
     expect(_inCard(find.bySemanticsLabel(RegExp(', starred'))), findsNothing);

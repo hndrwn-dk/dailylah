@@ -514,7 +514,8 @@ class _MrtCard extends ConsumerWidget {
               for (final st in all)
                 if (starred.contains(st.line)) st,
             ];
-            final rest = all.where((x) => !x.disrupted && !starred.contains(x.line)).toList();
+            // Disrupted lines keep their plate too, so they can be starred for alerts.
+            final rest = all.where((x) => !starred.contains(x.line)).toList();
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -718,7 +719,7 @@ class _StarredLineTiles extends ConsumerWidget {
   }
 }
 
-class _LineTile extends StatelessWidget {
+class _LineTile extends ConsumerWidget {
   const _LineTile({required this.status, required this.resting, required this.showCrowd, required this.s, required this.onTap});
   final LineStatus status;
   final bool resting;
@@ -727,7 +728,7 @@ class _LineTile extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = Theme.of(context).textTheme;
     final name = trainLines[status.line] ?? status.line;
     final down = status.disrupted;
@@ -742,8 +743,9 @@ class _LineTile extends StatelessWidget {
       stateText = s.mrtResting;
       state = Text(stateText, style: t.bodySmall, textAlign: TextAlign.center);
     } else if (showCrowd) {
-      stateText = '';
-      state = _CrowdBadge(line: status.line);
+      final share = ref.watch(crowdShareProvider(status.line));
+      stateText = _crowdWord(s, share);
+      state = _CrowdBadge(level: _crowdBars(share), text: stateText);
     } else {
       stateText = s.mrtNormalShort;
       state = Row(
@@ -764,7 +766,7 @@ class _LineTile extends StatelessWidget {
             selected: true,
             label: s.starredLineLabel(name, stateText),
             hint: s.unstarLine,
-            excludeSemantics: !showCrowd || down || resting,
+            excludeSemantics: true,
             child: Material(
               color: down ? DL.stopDeep.withValues(alpha: 0.12) : Theme.of(context).colorScheme.surfaceContainerLowest,
               shape: RoundedRectangleBorder(
@@ -775,19 +777,22 @@ class _LineTile extends StatelessWidget {
             ),
           ),
         ),
-        IgnorePointer(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(6, 12, 6, 10),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(child: LineChip(status.line)),
-                const SizedBox(height: 6),
-                Text(name, style: t.labelLarge, textAlign: TextAlign.center),
-                const SizedBox(height: 2),
-                Center(child: state),
-              ],
+        // The button above reads the name and state; this is only the picture of it.
+        ExcludeSemantics(
+          child: IgnorePointer(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(6, 12, 6, 10),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(child: LineChip(status.line)),
+                  const SizedBox(height: 6),
+                  Text(name, style: t.labelLarge, textAlign: TextAlign.center),
+                  const SizedBox(height: 2),
+                  Center(child: state),
+                ],
+              ),
             ),
           ),
         ),
@@ -812,20 +817,24 @@ class _LineTile extends StatelessWidget {
   }
 }
 
-/// Evening crowd on a starred line now: three bars and a word (Quiet, Busy, Packed).
-class _CrowdBadge extends ConsumerWidget {
-  const _CrowdBadge({required this.line});
-  final String line;
+/// Bars for the crowd now: 0 while loading or without data, else 1 to 3 (`crowdLevel`).
+int _crowdBars(AsyncValue<double?> share) =>
+    share.maybeWhen(data: (v) => v == null ? 0 : crowdLevel(v), orElse: () => 0);
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final s = ref.watch(stringsProvider);
-    final share = ref.watch(crowdShareProvider(line));
-    final level = share.maybeWhen(data: (v) => v == null ? 0 : crowdLevel(v), orElse: () => 0);
-    final text = share.maybeWhen(
-      data: (v) => v == null ? '–' : [s.crowdLow, s.crowdMid, s.crowdHigh][level - 1],
+/// The crowd word: Quiet, Busy, Packed; '–' without data, '…' while loading.
+String _crowdWord(S s, AsyncValue<double?> share) => share.maybeWhen(
+      data: (v) => v == null ? '–' : [s.crowdLow, s.crowdMid, s.crowdHigh][crowdLevel(v) - 1],
       orElse: () => '…',
     );
+
+/// Evening crowd on a starred line now: three bars and a word (Quiet, Busy, Packed).
+class _CrowdBadge extends StatelessWidget {
+  const _CrowdBadge({required this.level, required this.text});
+  final int level;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
     final on = Theme.of(context).colorScheme.onSurface;
     final off = DL.muted(context).withValues(alpha: 0.35);
     return Row(
