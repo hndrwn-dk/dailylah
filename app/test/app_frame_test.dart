@@ -482,9 +482,12 @@ void main() {
       // The phone settles a little wider before anything of the flap was seen.
       tester.view.physicalSize = const Size(900, 600);
       await tester.pump();
+      // The 880 dp snapshot is dropped at once; the new one comes with the next frame.
+      expect(find.byKey(FoldFlap.flapKey), findsNothing);
       await tester.pump();
       expect(covered(tester), isTrue);
       expect(tester.getRect(find.byKey(FoldFlap.coverKey)).left, 450);
+      expect(tester.getRect(find.byKey(FoldFlap.flapKey)).left, 450);
       expect(turned(tester), closeTo(90, 0.5));
       await tester.pump(kFoldFlapSettle);
       await tester.pump(kFoldFlapOpen ~/ 2);
@@ -503,6 +506,27 @@ void main() {
       await tester.pump(kFoldFlapSettle * 2);
       expect(turned(tester), closeTo(90, 0.5));
       tester.view.displayFeatures = [fold(DisplayFeatureState.postureFlat)];
+      await tester.pump();
+      await tester.pump(kFoldFlapOpen ~/ 2);
+      expect(turned(tester), lessThan(89));
+      await tester.pumpAndSettle();
+      expect(covered(tester), isFalse);
+    });
+
+    testWidgets('a hinge going flat in the same update as a resize opens the flap at once', (tester) async {
+      await pumpApp(tester);
+      DisplayFeature fold(DisplayFeatureState state) =>
+          DisplayFeature(bounds: const Rect.fromLTWH(440, 0, 0, 600), type: DisplayFeatureType.fold, state: state);
+      tester.view.displayFeatures = [fold(DisplayFeatureState.postureHalfOpened)];
+      tester.view.physicalSize = const Size(880, 600);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(kFoldFlapSettle + const Duration(milliseconds: 50));
+      expect(turned(tester), closeTo(90, 0.5));
+      // Flat and a little wider together, well before kFoldFlapHold.
+      tester.view.displayFeatures = [fold(DisplayFeatureState.postureFlat)];
+      tester.view.physicalSize = const Size(900, 600);
+      await tester.pump();
       await tester.pump();
       await tester.pump(kFoldFlapOpen ~/ 2);
       expect(turned(tester), lessThan(89));

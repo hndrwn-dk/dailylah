@@ -299,6 +299,8 @@ class _FoldFlapState extends State<FoldFlap> with SingleTickerProviderStateMixin
         // later while it unfolds): take the snapshot again at the new width and keep the timers.
         _dropImage();
         WidgetsBinding.instance.addPostFrameCallback((_) => _capture());
+        // The hinge may have gone flat in this same update.
+        _maybeRelease();
       } else {
         // Already turning: the snapshot no longer fits, so the flap ends.
         _finish();
