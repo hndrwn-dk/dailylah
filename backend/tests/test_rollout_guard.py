@@ -6,6 +6,7 @@ import io
 import json
 import sys
 import urllib.error
+import urllib.parse
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
@@ -998,42 +999,77 @@ def test_the_guard_workflow_keeps_the_key_in_play_rollout_and_cannot_run_for_a_p
 # --- is a promote waiting? (job `free`) ------------------------------------------------------
 
 
-class FakeActions:
-    """GitHub's Actions API for --promote-busy: workflow runs and the jobs of a run."""
+REPO = "hndrwn-dk/dailylah"
 
-    def __init__(self, runs=None, jobs=None):
+
+class FakeActions:
+    """GitHub's Actions API for --promote-busy: workflow runs (filtered by the query string, as
+    GitHub does: `branch` matches head_branch, whatever repository the head is in) and the jobs
+    of a run."""
+
+    def __init__(self, runs=None, jobs=None, repo=REPO):
         self.runs = runs or {}  # workflow file -> list of runs
         self.jobs = jobs or {}  # run id -> list of jobs
+        self.repo = repo
         self.paths: list[str] = []
 
     def get(self, path: str):
         self.paths.append(path)
         if path.startswith("/actions/workflows/"):
             name = path.split("/")[3]
-            return {"workflow_runs": self.runs.get(name, [])}
+            query = dict(urllib.parse.parse_qsl(path.partition("?")[2]))
+            keys = {"branch": "head_branch", "event": "event", "status": "status"}
+            found = [
+                run
+                for run in self.runs.get(name, [])
+                if all(run.get(field) == query[key] for key, field in keys.items() if key in query)
+            ]
+            size, page = int(query.get("per_page", 30)), int(query.get("page", 1))
+            return {"workflow_runs": found[(page - 1) * size : page * size]}
         run = int(path.split("/")[3])
         return {"jobs": self.jobs.get(run, [])}
 
 
-def run_(id_, number, status="in_progress"):
-    return {"id": id_, "run_number": number, "status": status}
+def run_(id_, number, status="in_progress", event="push", branch="main", repo=REPO):
+    return {
+        "id": id_,
+        "run_number": number,
+        "status": status,
+        "event": event,
+        "head_branch": branch,
+        "head_repository": {"full_name": repo},
+    }
+
+
+def dispatch_(id_, number, status="in_progress", repo=REPO):
+    return run_(id_, number, status, event="workflow_dispatch", repo=repo)
 
 
 def job_(name, status):
     return {"name": name, "status": status}
 
 
+PROMOTE_WAITING = [job_("promote to production (staged, 20%)", "waiting")]
+
+
 def test_no_promote_waiting_when_runs_are_done_or_have_no_promote_job_yet():
     gh = FakeActions(
         runs={
             "app.yml": [run_(1, 1046, "completed"), run_(2, 1054)],
-            "promote.yml": [run_(9, 5, "completed")],
+            "promote.yml": [dispatch_(9, 5, "completed")],
         },
         jobs={2: [job_("analyze", "in_progress"), job_("upload to Google Play (alpha)", "queued")]},
     )
     assert rg.promotes_busy(gh) == []
-    # Only main's runs are asked for, and only the run that is not done is looked into.
-    assert all("branch=main" in p for p in gh.paths if p.startswith("/actions/workflows/"))
+    # Only main's runs of the right event are asked for, by every status that is not completed,
+    # and only the run that is not done is looked into.
+    listed = [p for p in gh.paths if p.startswith("/actions/workflows/")]
+    assert all("branch=main" in p and "per_page=100" in p for p in listed)
+    assert all("event=push" in p for p in listed if "/app.yml/" in p)
+    assert all("event=workflow_dispatch" in p for p in listed if "/promote.yml/" in p)
+    for status in ("queued", "in_progress", "waiting", "requested", "pending"):
+        assert any(f"status={status}&" in p for p in listed)
+    assert not any("status=completed" in p for p in listed)
     assert [p for p in gh.paths if p.startswith("/actions/runs/")] == [
         "/actions/runs/2/jobs?filter=latest&per_page=100"
     ]
@@ -1043,13 +1079,10 @@ def test_a_promote_waiting_for_approval_or_running_is_busy():
     gh = FakeActions(
         runs={
             "app.yml": [run_(2, 1046, "waiting"), run_(3, 1049)],
-            "promote.yml": [run_(9, 6, "waiting")],
+            "promote.yml": [dispatch_(9, 6, "waiting")],
         },
         jobs={
-            2: [
-                job_("tag the release", "completed"),
-                job_("promote to production (staged, 20%)", "waiting"),
-            ],
+            2: [job_("tag the release", "completed"), *PROMOTE_WAITING],
             3: [job_("promote to production (staged, 20%)", "in_progress")],
         },
     )
@@ -1071,6 +1104,61 @@ def test_a_finished_promote_job_in_a_running_run_is_not_busy():
         },
     )
     assert rg.promotes_busy(gh) == []
+
+
+def test_a_fork_pull_request_on_a_branch_named_main_is_not_busy():
+    fork = "someone/dailylah"
+    gh = FakeActions(
+        runs={
+            "app.yml": [
+                run_(4, 1060, "waiting", event="pull_request", repo=fork),
+                run_(5, 1061, "waiting", event="pull_request"),
+                run_(6, 1062, "waiting", repo=fork),
+                run_(7, 1063, "waiting", branch="feature"),
+            ],
+        },
+        jobs={n: PROMOTE_WAITING for n in (4, 5, 6, 7)},
+    )
+    assert rg.promotes_busy(gh) == []
+    # Even when GitHub's own filters let such a run through, it is checked again.
+    loose = FakeActions(runs=gh.runs, jobs=gh.jobs)
+    loose.get = lambda path: (
+        {"workflow_runs": loose.runs.get(path.split("/")[3], [])}
+        if path.startswith("/actions/workflows/")
+        else {"jobs": PROMOTE_WAITING}
+    )
+    assert rg.promotes_busy(loose) == []
+
+
+def test_a_waiting_promote_is_found_behind_many_other_runs():
+    others = [run_(100 + n, 2000 + n, "completed") for n in range(150)]
+    others += [run_(400 + n, 3000 + n, "queued", event="pull_request") for n in range(30)]
+    gh = FakeActions(
+        runs={"app.yml": [*others, run_(50, 1070, "waiting")]},
+        jobs={50: PROMOTE_WAITING},
+    )
+    assert rg.promotes_busy(gh) == ["the promote job of app run 1070 is waiting"]
+
+
+def test_open_runs_of_main_are_read_over_every_page():
+    runs = [run_(1000 + n, 4000 + n, "queued") for n in range(120)]
+    gh = FakeActions(runs={"app.yml": [*runs, run_(50, 1070, "waiting")]}, jobs={})
+    gh.jobs = {1119: PROMOTE_WAITING}
+    assert rg.promotes_busy(gh) == ["the promote job of app run 4119 is waiting"]
+    assert any("status=queued&" in p and "page=2" in p for p in gh.paths)
+
+
+def test_promote_yml_only_counts_when_started_by_hand_in_this_repository():
+    gh = FakeActions(
+        runs={
+            "promote.yml": [
+                dispatch_(9, 6, "waiting"),
+                dispatch_(10, 7, "waiting", repo="someone/dailylah"),
+                run_(11, 8, "waiting", event="pull_request"),
+            ]
+        }
+    )
+    assert rg.promotes_busy(gh) == ["promote.yml run 6 is waiting"]
 
 
 def test_an_answer_without_a_list_fails_rather_than_says_free():
@@ -1116,7 +1204,7 @@ def test_promote_busy_says_free_when_nothing_waits(busy_cli):
 
 
 def test_promote_busy_says_not_free_and_why_while_a_promote_waits(busy_cli):
-    busy_cli.actions.runs = {"promote.yml": [run_(9, 6, "waiting")]}
+    busy_cli.actions.runs = {"promote.yml": [dispatch_(9, 6, "waiting")]}
     code, output, summary = busy_cli()
     assert (code, output) == (0, "free=false\n")
     assert "promote.yml run 6 is waiting" in summary and "Skipped" in summary

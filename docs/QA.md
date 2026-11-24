@@ -585,8 +585,10 @@ A run that changes nothing says so.
   behind it, and GitHub keeps one queued run per group: a later queued run cancels the earlier
   one. That is how a scheduled guard run cancelled the promote of 2.19.1, which was queued behind
   the waiting 2.19.0. So the guard asks first: its job `free` (token with `actions: read`, no
-  environment, no key; `rollout_guard.py --promote-busy`) lists the promote jobs of `app.yml` and
-  the runs of `promote.yml` on `main` that are not done, and while one is waiting, queued or
+  environment, no key; `rollout_guard.py --promote-busy`) lists, by every status short of
+  completed, the promote jobs of push runs of `app.yml` on `main` and the `workflow_dispatch` runs
+  of `promote.yml` on `main`, both of this repository only (a pull request run, from a fork too,
+  never holds the group and does not count), and while one is waiting, queued or
   running the guard job does not start (the summary says which). The staged release then stays at
   its fraction until the promote is approved or rejected; the next scheduled run goes on. A
   manual `halt` still queues behind a waiting promote, and a queued `halt` can still be replaced

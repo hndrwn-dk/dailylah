@@ -292,6 +292,7 @@ class GitHub:
             raise pp.PromoteError("GITHUB_REPOSITORY is not owner/name.")
         self._token = token
         self._base = f"{GITHUB_API}/repos/{repo}"
+        self.repo = repo
         self.owner = repo.split("/")[0]
         self._opener = opener
 
@@ -738,9 +739,46 @@ def guard(
 # --- Is a promote waiting or running? --------------------------------------------------
 
 # The promote job of app.yml (by its name) and promote.yml: the two other writers to production.
+# Only runs that can reach that job count: app.yml pushed to this repository's main, and
+# promote.yml started by hand (workflow_dispatch) in this repository. A pull request run, from a
+# fork whose branch is called main as much as from here, never holds the group.
 PROMOTE_JOB = "promote to production"
-PROMOTE_WORKFLOWS = ("app.yml", "promote.yml")
-RECENT_RUNS = 20
+PROMOTE_WORKFLOWS = {"app.yml": "push", "promote.yml": "workflow_dispatch"}
+# Every status a run has before it is completed (GitHub's `status` filter of workflow runs).
+OPEN_STATUSES = ("queued", "in_progress", "waiting", "requested", "pending")
+
+
+def _open_runs(gh, workflow: str, event: str) -> list[dict]:
+    """The runs of `workflow` on main that are not completed, asked for by status, all pages."""
+    runs: dict[int, dict] = {}
+    for status in OPEN_STATUSES:
+        query = urllib.parse.urlencode({"branch": "main", "event": event, "status": status})
+        for page in range(1, MAX_PAGES + 1):
+            answer = gh.get(f"/actions/workflows/{workflow}/runs?{query}&per_page=100&page={page}")
+            batch = answer.get("workflow_runs") if isinstance(answer, dict) else None
+            if not isinstance(batch, list):
+                raise pp.PromoteError(f"GET runs of {workflow}: GitHub gave no list.")
+            for run in batch:
+                if isinstance(run, dict):
+                    runs.setdefault(int(run.get("id", 0)), run)
+            if len(batch) < 100:
+                break
+        else:
+            raise pp.PromoteError(f"GET runs of {workflow}: more than {MAX_PAGES} pages.")
+    return [runs[key] for key in sorted(runs)]
+
+
+def _can_hold_group(run: dict, event: str, repo: str) -> bool:
+    """A run of this repository's main, started by `event`, not completed (the API's filters are
+    checked again here: the branch filter alone also matches a fork's branch named main)."""
+    head = run.get("head_repository")
+    return (
+        run.get("status") != "completed"
+        and run.get("event") == event
+        and run.get("head_branch") == "main"
+        and isinstance(head, dict)
+        and head.get("full_name") == repo
+    )
 
 
 def promotes_busy(gh) -> list[str]:
@@ -752,13 +790,9 @@ def promotes_busy(gh) -> list[str]:
     guard does not queue at all while one is there (rollout-guard.yml, job `free`).
     """
     busy: list[str] = []
-    for workflow in PROMOTE_WORKFLOWS:
-        answer = gh.get(f"/actions/workflows/{workflow}/runs?branch=main&per_page={RECENT_RUNS}")
-        runs = answer.get("workflow_runs") if isinstance(answer, dict) else None
-        if not isinstance(runs, list):
-            raise pp.PromoteError(f"GET runs of {workflow}: GitHub gave no list.")
-        for run in runs:
-            if not isinstance(run, dict) or run.get("status") == "completed":
+    for workflow, event in PROMOTE_WORKFLOWS.items():
+        for run in _open_runs(gh, workflow, event):
+            if not _can_hold_group(run, event, gh.repo):
                 continue
             number = run.get("run_number")
             if workflow == "promote.yml":
