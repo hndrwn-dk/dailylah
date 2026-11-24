@@ -1,9 +1,13 @@
 import 'dart:async';
-import 'dart:ui' show DisplayFeature, DisplayFeatureState, ImageFilter;
+import 'dart:math' as math;
+import 'dart:ui' as ui show Image;
+import 'dart:ui' show DisplayFeature, DisplayFeatureState;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderRepaintBoundary;
 
 import 'keyboard.dart';
+import 'theme.dart' show DL;
 
 /// The widest a page laid out in one column gets, in logical pixels. On a wider window (an
 /// unfolded foldable upright, a small tablet, a phone on its side) the app stays in a centred
@@ -23,15 +27,21 @@ const double kMinCardColumnWidth = 320;
 /// Space between the two columns of cards.
 const double kColumnGap = 16;
 
-/// How strongly the app is blurred the moment the window changes width (a foldable opening or
-/// closing, a phone turned), in logical pixels of blur.
-const double kFoldBlurSigma = 14;
+/// How long the new right half stays folded away (edge on, the page colour in its place) before
+/// it swings open. A foldable switches to its other screen while the app already draws at the new
+/// width, and the system plays its own unfold animation; without this wait the flap would be
+/// over before the screen showed it.
+const Duration kFoldFlapSettle = Duration(milliseconds: 300);
 
-/// How long the blur takes to clear once the window has its new width.
-const Duration kFoldBlurClear = Duration(milliseconds: 420);
+/// How long the right half takes to swing open from the fold line and lie flat.
+const Duration kFoldFlapOpen = Duration(milliseconds: 650);
 
-/// The longest the blur waits for a foldable that is still half open to open flat or close.
-const Duration kFoldBlurHold = Duration(milliseconds: 900);
+/// The longest the flap waits, from the change, for a foldable that is still half open to open
+/// flat.
+const Duration kFoldFlapHold = Duration(milliseconds: 900);
+
+/// The hard sticker shadow under the flap while it turns, in logical pixels down and right.
+const double kFoldFlapShadow = 6;
 
 /// How wide the app is in a window with [room] logical pixels after the side insets, at
 /// [textScale] (1.0 = 100% text).
@@ -193,8 +203,9 @@ class _Framed extends StatelessWidget {
               child: SizedBox(
                 // A phone: the full width, exactly as without the column.
                 width: width,
-                child: FoldBlur(
-                  width: box.maxWidth,
+                child: FoldFlap(
+                  width: width,
+                  twoColumns: width >= kTwoColumnMinWidth,
                   halfOpen: media.displayFeatures.any((f) => f.state == DisplayFeatureState.postureHalfOpened),
                   reduceMotion: media.disableAnimations,
                   child: MediaQuery(
@@ -217,82 +228,246 @@ class _Framed extends StatelessWidget {
   }
 }
 
-/// Blurs the app for a moment when the window changes [width]: a foldable opening or closing, a
-/// phone turned on its side. The page jumps from one layout to the other (one column to two),
-/// and the blur hides the jump: it is strongest at the change, waits while the hinge is still
-/// [halfOpen] (at most [kFoldBlurHold]) and clears in [kFoldBlurClear]. With animations turned
-/// off on the phone ([reduceMotion]) there is no blur.
+/// Opens the app like a sheet of paper when its layout turns into two columns (a foldable
+/// opened flat, a tablet turned): the left half is the new layout at once, the right half swings
+/// open from the fold line in the middle, with a hard sticker shadow and shaded while it faces
+/// away, and lies flat in [kFoldFlapOpen]. Before it moves it waits [kFoldFlapSettle], and while
+/// the hinge is still [halfOpen], at most [kFoldFlapHold] in all; until then the right half shows
+/// the page colour.
 ///
-/// The child is the same widget with or without the blur, so its state is kept.
-class FoldBlur extends StatefulWidget {
-  const FoldBlur({
+/// The app is drawn once: the flap is a snapshot of the new layout taken on the first frame at
+/// the new width, laid over the live app, which shows through when the flap is flat. The app
+/// itself is the same widgets with or without the flap, so its state is kept. Folding, a
+/// window that stays one column (large text) or was two columns already, and animations turned
+/// off on the phone ([reduceMotion]) have no flap.
+class FoldFlap extends StatefulWidget {
+  const FoldFlap({
     super.key,
     required this.width,
+    required this.twoColumns,
     required this.halfOpen,
     required this.reduceMotion,
     required this.child,
   });
+  /// The app's frame width ([frameWidth]); a run ends when it changes.
   final double width;
+
+  /// Whether the app is laid out in two columns now ([frameWidth] at or above
+  /// [kTwoColumnMinWidth]). The flap runs only when this turns on: a wider window that stays one
+  /// column (large text) or was two columns already (a tablet, a window being resized) has none.
+  final bool twoColumns;
   final bool halfOpen;
   final bool reduceMotion;
   final Widget child;
 
+  /// The page colour over the right half while the flap is turned away (for tests).
+  static const coverKey = ValueKey('fold-flap-cover');
+
+  /// The turning flap (for tests): a [Transform] that rotates about the fold line.
+  static const flapKey = ValueKey('fold-flap');
+
   @override
-  State<FoldBlur> createState() => _FoldBlurState();
+  State<FoldFlap> createState() => _FoldFlapState();
 }
 
-class _FoldBlurState extends State<FoldBlur> with SingleTickerProviderStateMixin {
-  // 1 = clear. Running from 0 to 1 is the blur clearing.
-  late final AnimationController _clear = AnimationController(vsync: this, duration: kFoldBlurClear, value: 1);
-  Timer? _hold;
+class _FoldFlapState extends State<FoldFlap> with SingleTickerProviderStateMixin {
+  // 1 = flat (or nothing to show). Running from 0 to 1 is the flap swinging open.
+  late final AnimationController _open = AnimationController(vsync: this, duration: kFoldFlapOpen, value: 1)
+    ..addStatusListener((status) {
+      if (status == AnimationStatus.completed) _finish();
+    });
+  final _app = GlobalKey(debugLabel: 'fold flap app');
+  ui.Image? _image;
+  bool _active = false;
+  bool _settled = true;
+  Timer? _settle;
+  Timer? _limit;
 
   @override
-  void didUpdateWidget(FoldBlur old) {
+  void didUpdateWidget(FoldFlap old) {
     super.didUpdateWidget(old);
     if (widget.reduceMotion) {
-      _release(animate: false);
-    } else if ((old.width - widget.width).abs() >= 1) {
-      _clear.value = 0;
-      _hold?.cancel();
-      if (widget.halfOpen) {
-        _hold = Timer(kFoldBlurHold, _release);
+      _finish();
+    } else if (widget.twoColumns && !old.twoColumns) {
+      _start();
+    } else if (!widget.twoColumns) {
+      // Back to one column.
+      _finish();
+    } else if ((widget.width - old.width).abs() >= 1) {
+      if (_active && _open.value == 0 && !_open.isAnimating) {
+        // Still edge on, nothing of it seen yet (a phone often settles its size or insets a frame
+        // later while it unfolds): take the snapshot again at the new width and keep the timers.
+        _dropImage();
+        WidgetsBinding.instance.addPostFrameCallback((_) => _capture());
+        // The hinge may have gone flat in this same update.
+        _maybeRelease();
       } else {
-        _release();
+        // Already turning: the snapshot no longer fits, so the flap ends.
+        _finish();
       }
-    } else if (_hold != null && !widget.halfOpen) {
-      _release();
+    } else {
+      _maybeRelease();
     }
   }
 
-  void _release({bool animate = true}) {
-    _hold?.cancel();
-    _hold = null;
-    if (!mounted) return;
-    if (animate) {
-      _clear.forward();
-    } else {
-      _clear.value = 1;
+  void _start() {
+    _cancelTimers();
+    _dropImage();
+    _active = true;
+    _settled = false;
+    _open.value = 0;
+    // The new layout is painted at the end of this frame; take it then.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _capture());
+    _settle = Timer(kFoldFlapSettle, () {
+      _settled = true;
+      _maybeRelease();
+    });
+    _limit = Timer(kFoldFlapHold, _release);
+  }
+
+  void _capture() {
+    if (!mounted || !_active) return;
+    final boundary = _app.currentContext?.findRenderObject();
+    if (boundary is! RenderRepaintBoundary) return _finish();
+    try {
+      final image = boundary.toImageSync(pixelRatio: MediaQuery.devicePixelRatioOf(context));
+      setState(() => _image = image);
+    } catch (_) {
+      _finish();
     }
+  }
+
+  bool get _waiting => _settle != null || _limit != null;
+
+  void _maybeRelease() {
+    if (_waiting && _settled && !widget.halfOpen) _release();
+  }
+
+  void _release() {
+    _cancelTimers();
+    _settled = true;
+    if (!mounted || !_active) return;
+    _open.forward();
+  }
+
+  void _finish() {
+    _cancelTimers();
+    _settled = true;
+    _open.value = 1;
+    if (!_active && _image == null) return;
+    _active = false;
+    _dropImage();
+    if (mounted) setState(() {});
+  }
+
+  void _cancelTimers() {
+    _settle?.cancel();
+    _limit?.cancel();
+    _settle = null;
+    _limit = null;
+  }
+
+  void _dropImage() {
+    _image?.dispose();
+    _image = null;
   }
 
   @override
   void dispose() {
-    _hold?.cancel();
-    _clear.dispose();
+    _cancelTimers();
+    _dropImage();
+    _open.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-        animation: _clear,
-        builder: (context, child) {
-          final sigma = kFoldBlurSigma * (1 - Curves.easeOutCubic.transform(_clear.value));
-          return ImageFiltered(
-            enabled: sigma > 0.05,
-            imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma, tileMode: TileMode.clamp),
-            child: child,
-          );
-        },
-        child: widget.child,
+  Widget build(BuildContext context) => Stack(
+        fit: StackFit.passthrough,
+        children: [
+          RepaintBoundary(key: _app, child: widget.child),
+          Positioned.fill(child: _active ? _overlay(context) : const SizedBox.shrink()),
+        ],
       );
+
+  Widget _overlay(BuildContext context) {
+    final page = Theme.of(context).scaffoldBackgroundColor;
+    final image = _image;
+    return LayoutBuilder(
+      builder: (context, box) {
+        final half = box.maxWidth / 2;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // The live right half stays hidden (and takes no taps) until the flap lies flat.
+            Positioned(
+              left: half,
+              top: 0,
+              right: 0,
+              bottom: 0,
+              child: AbsorbPointer(child: ColoredBox(key: FoldFlap.coverKey, color: page)),
+            ),
+            if (image != null)
+              Positioned(
+                left: half,
+                top: 0,
+                right: 0,
+                bottom: 0,
+                child: IgnorePointer(
+                  child: AnimatedBuilder(
+                    animation: _open,
+                    builder: (context, _) {
+                      // 90 degrees (edge on) to flat.
+                      final turn = (1 - Curves.easeOutCubic.transform(_open.value)) * math.pi / 2;
+                      return Transform(
+                        key: FoldFlap.flapKey,
+                        alignment: Alignment.centerLeft,
+                        transform: Matrix4.identity()
+                          ..setEntry(3, 2, 0.0012)
+                          ..rotateY(-turn),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          clipBehavior: Clip.none,
+                          children: [
+                            Positioned(
+                              left: kFoldFlapShadow,
+                              top: kFoldFlapShadow,
+                              right: -kFoldFlapShadow,
+                              bottom: -kFoldFlapShadow,
+                              child: ColoredBox(color: DL.ink.withValues(alpha: math.sin(turn))),
+                            ),
+                            CustomPaint(painter: _RightHalf(image, half / box.maxWidth)),
+                            ColoredBox(color: Colors.black.withValues(alpha: 0.45 * math.sin(turn))),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Paints the part of [image] right of [from] (a fraction of its width) to fill the size.
+class _RightHalf extends CustomPainter {
+  const _RightHalf(this.image, this.from);
+  final ui.Image image;
+  final double from;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final left = image.width * from;
+    canvas.drawImageRect(
+      image,
+      Rect.fromLTRB(left, 0, image.width.toDouble(), image.height.toDouble()),
+      Offset.zero & size,
+      Paint()..filterQuality = FilterQuality.medium,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_RightHalf old) => old.image != image || old.from != from;
 }

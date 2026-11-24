@@ -1098,7 +1098,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        'History: a planned trip is kept even when you forget Arrived. Open DailyLah at the place you went to and the trip ends there by itself; when it is opened much later, the trip stays in History marked "time not known". The way back home is logged too, also the first time you make it.',
+        'Foldables: when you open the phone, the right side of the screen now swings open from the fold like a sheet of paper.',
       ];
 
   // about

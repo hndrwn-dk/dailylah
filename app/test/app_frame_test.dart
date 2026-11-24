@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show DisplayFeature, DisplayFeatureState, DisplayFeatureType;
 
 import 'package:dailylah/ui/app_frame.dart';
@@ -346,10 +347,10 @@ void main() {
     expect(seen.displayFeatures.single.bounds, const Rect.fromLTWH(440, 0, 0, 600));
   });
 
-  group('fold blur', () {
-    Future<void> pumpApp(WidgetTester tester, {bool reduceMotion = false}) async {
+  group('fold flap', () {
+    Future<void> pumpApp(WidgetTester tester, {bool reduceMotion = false, Size size = const Size(400, 800)}) async {
       tester.view.devicePixelRatio = 1;
-      tester.view.physicalSize = const Size(400, 800);
+      tester.view.physicalSize = size;
       addTearDown(tester.view.reset);
       if (reduceMotion) {
         tester.platformDispatcher.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(disableAnimations: true);
@@ -361,54 +362,196 @@ void main() {
       ));
     }
 
-    bool blurred(WidgetTester tester) => tester.widget<ImageFiltered>(find.byType(ImageFiltered)).enabled;
+    bool covered(WidgetTester tester) => find.byKey(FoldFlap.coverKey).evaluate().isNotEmpty;
 
-    testWidgets('unfolding blurs the app for a moment, then it is sharp, the page kept', (tester) async {
+    /// How far the flap is still turned away from flat, in degrees (90 = edge on).
+    double turned(WidgetTester tester) {
+      final m = tester.widget<Transform>(find.byKey(FoldFlap.flapKey)).transform;
+      return math.acos(m.storage[0].clamp(-1.0, 1.0)) * 180 / math.pi;
+    }
+
+    testWidgets('unfolding swings the right half open from the fold line, the page kept', (tester) async {
       await pumpApp(tester);
       await tester.enterText(find.byType(TextField), 'Bedok');
       final state = tester.state(find.byType(TextField));
-      expect(blurred(tester), isFalse);
+      expect(covered(tester), isFalse);
       tester.view.physicalSize = const Size(880, 600);
       await tester.pump();
-      expect(blurred(tester), isTrue);
-      await tester.pump(kFoldBlurClear ~/ 2);
-      expect(blurred(tester), isTrue);
+      // The right half is the page colour at once; the snapshot of the new layout comes next frame.
+      expect(covered(tester), isTrue);
+      expect(tester.getRect(find.byKey(FoldFlap.coverKey)), const Rect.fromLTRB(440, 0, 880, 600));
+      await tester.pump();
+      expect(turned(tester), closeTo(90, 0.5));
+      // Held edge on while the phone switches screens.
+      await tester.pump(kFoldFlapSettle - const Duration(milliseconds: 50));
+      expect(turned(tester), closeTo(90, 0.5));
+      // Then it swings towards flat, about the fold line in the middle.
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump(kFoldFlapOpen ~/ 4);
+      final early = turned(tester);
+      expect(early, inExclusiveRange(1, 89));
+      await tester.pump(kFoldFlapOpen ~/ 4);
+      expect(turned(tester), lessThan(early));
+      expect(tester.getRect(find.byKey(FoldFlap.flapKey)).left, 440);
       await tester.pumpAndSettle();
-      expect(blurred(tester), isFalse);
+      expect(covered(tester), isFalse);
       expect(tester.state(find.byType(TextField)), same(state));
-      // The keyboard (a height change) does not blur.
+      expect(find.text('Bedok'), findsOneWidget);
+      // The keyboard (a height change) does nothing.
       tester.view.physicalSize = const Size(880, 300);
       await tester.pump();
-      expect(blurred(tester), isFalse);
+      expect(covered(tester), isFalse);
     });
 
-    testWidgets('a hinge still half open keeps the blur until it opens flat', (tester) async {
+    testWidgets('folding, and widening into one column only, have no flap', (tester) async {
+      await pumpApp(tester, size: const Size(880, 600));
+      tester.view.physicalSize = const Size(400, 800);
+      await tester.pump();
+      expect(covered(tester), isFalse);
+      // 700 dp is one 600 dp column: nothing opens beside it.
+      tester.view.physicalSize = const Size(700, 600);
+      await tester.pump();
+      expect(covered(tester), isFalse);
+    });
+
+    testWidgets('large text that keeps one column, and a window that was two columns already, have no flap',
+        (tester) async {
+      await pumpApp(tester);
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await tester.pump();
+      // 880 dp at 200% text stays one 600 dp column.
+      tester.view.physicalSize = const Size(880, 600);
+      await tester.pump();
+      expect(covered(tester), isFalse);
+      // Back to 100% text the same window turns two columns: that one does open.
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      await tester.pump();
+      expect(covered(tester), isTrue);
+      await tester.pump(kFoldFlapHold);
+      await tester.pumpAndSettle();
+      expect(covered(tester), isFalse);
+      // Two columns already: wider still (a tablet, a window being resized) is no unfold.
+      tester.view.physicalSize = const Size(1040, 700);
+      await tester.pumpAndSettle();
+      tester.view.physicalSize = const Size(1200, 700);
+      await tester.pump();
+      expect(covered(tester), isFalse);
+    });
+
+    testWidgets('folding while the flap runs ends it at once and keeps the page', (tester) async {
+      await pumpApp(tester);
+      await tester.enterText(find.byType(TextField), 'Bedok');
+      final state = tester.state(find.byType(TextField));
+      tester.view.physicalSize = const Size(880, 600);
+      await tester.pump();
+      await tester.pump(); // the snapshot is taken
+      expect(find.byKey(FoldFlap.flapKey), findsOneWidget);
+      tester.view.physicalSize = const Size(400, 800);
+      await tester.pump();
+      expect(covered(tester), isFalse);
+      expect(tester.takeException(), isNull);
+      await tester.pumpAndSettle();
+      expect(tester.state(find.byType(TextField)), same(state));
+      expect(find.text('Bedok'), findsOneWidget);
+    });
+
+    testWidgets('a window that keeps widening while the flap runs ends it, so no stretched snapshot',
+        (tester) async {
+      await pumpApp(tester);
+      tester.view.physicalSize = const Size(880, 600);
+      await tester.pump();
+      await tester.pump(); // the snapshot is taken at 880 dp
+      expect(find.byKey(FoldFlap.flapKey), findsOneWidget);
+      // Already turning: a wider window would stretch the snapshot, so the flap ends.
+      await tester.pump(kFoldFlapSettle);
+      await tester.pump(kFoldFlapOpen ~/ 4);
+      expect(turned(tester), lessThan(89));
+      tester.view.physicalSize = const Size(1000, 600);
+      await tester.pump();
+      expect(covered(tester), isFalse);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a second resize while the flap is still edge on retakes the snapshot and still opens',
+        (tester) async {
+      await pumpApp(tester);
+      tester.view.physicalSize = const Size(880, 600);
+      await tester.pump();
+      await tester.pump();
+      // The phone settles a little wider before anything of the flap was seen.
+      tester.view.physicalSize = const Size(900, 600);
+      await tester.pump();
+      // The 880 dp snapshot is dropped at once; the new one comes with the next frame.
+      expect(find.byKey(FoldFlap.flapKey), findsNothing);
+      await tester.pump();
+      expect(covered(tester), isTrue);
+      expect(tester.getRect(find.byKey(FoldFlap.coverKey)).left, 450);
+      expect(tester.getRect(find.byKey(FoldFlap.flapKey)).left, 450);
+      expect(turned(tester), closeTo(90, 0.5));
+      await tester.pump(kFoldFlapSettle);
+      await tester.pump(kFoldFlapOpen ~/ 2);
+      expect(turned(tester), inExclusiveRange(1, 89));
+      await tester.pumpAndSettle();
+      expect(covered(tester), isFalse);
+    });
+
+    testWidgets('a hinge still half open keeps the flap folded until it opens flat', (tester) async {
       await pumpApp(tester);
       DisplayFeature fold(DisplayFeatureState state) =>
           DisplayFeature(bounds: const Rect.fromLTWH(440, 0, 0, 600), type: DisplayFeatureType.fold, state: state);
       tester.view.displayFeatures = [fold(DisplayFeatureState.postureHalfOpened)];
       tester.view.physicalSize = const Size(880, 600);
       await tester.pump();
-      await tester.pump(kFoldBlurClear * 2);
-      expect(blurred(tester), isTrue);
+      await tester.pump(kFoldFlapSettle * 2);
+      expect(turned(tester), closeTo(90, 0.5));
       tester.view.displayFeatures = [fold(DisplayFeatureState.postureFlat)];
-      await tester.pumpAndSettle();
-      expect(blurred(tester), isFalse);
-      // Held half open (a laptop-like pose): the blur gives up after kFoldBlurHold.
-      tester.view.displayFeatures = [fold(DisplayFeatureState.postureHalfOpened)];
-      tester.view.physicalSize = const Size(400, 800);
       await tester.pump();
-      expect(blurred(tester), isTrue);
-      await tester.pump(kFoldBlurHold);
+      await tester.pump(kFoldFlapOpen ~/ 2);
+      expect(turned(tester), lessThan(89));
       await tester.pumpAndSettle();
-      expect(blurred(tester), isFalse);
+      expect(covered(tester), isFalse);
     });
 
-    testWidgets('with animations off there is no blur', (tester) async {
+    testWidgets('a hinge going flat in the same update as a resize opens the flap at once', (tester) async {
+      await pumpApp(tester);
+      DisplayFeature fold(DisplayFeatureState state) =>
+          DisplayFeature(bounds: const Rect.fromLTWH(440, 0, 0, 600), type: DisplayFeatureType.fold, state: state);
+      tester.view.displayFeatures = [fold(DisplayFeatureState.postureHalfOpened)];
+      tester.view.physicalSize = const Size(880, 600);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(kFoldFlapSettle + const Duration(milliseconds: 50));
+      expect(turned(tester), closeTo(90, 0.5));
+      // Flat and a little wider together, well before kFoldFlapHold.
+      tester.view.displayFeatures = [fold(DisplayFeatureState.postureFlat)];
+      tester.view.physicalSize = const Size(900, 600);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(kFoldFlapOpen ~/ 2);
+      expect(turned(tester), lessThan(89));
+      await tester.pumpAndSettle();
+      expect(covered(tester), isFalse);
+    });
+
+    testWidgets('held half open, the flap opens after kFoldFlapHold anyway', (tester) async {
+      await pumpApp(tester);
+      tester.view.displayFeatures = [
+        const DisplayFeature(
+            bounds: Rect.fromLTWH(440, 0, 0, 600), type: DisplayFeatureType.fold, state: DisplayFeatureState.postureHalfOpened),
+      ];
+      tester.view.physicalSize = const Size(880, 600);
+      await tester.pump();
+      await tester.pump(kFoldFlapHold);
+      await tester.pumpAndSettle();
+      expect(covered(tester), isFalse);
+    });
+
+    testWidgets('with animations off there is no flap', (tester) async {
       await pumpApp(tester, reduceMotion: true);
       tester.view.physicalSize = const Size(880, 600);
       await tester.pump();
-      expect(blurred(tester), isFalse);
+      expect(covered(tester), isFalse);
     });
   });
 }
