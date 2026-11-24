@@ -463,10 +463,34 @@ void main() {
       await tester.pump();
       await tester.pump(); // the snapshot is taken at 880 dp
       expect(find.byKey(FoldFlap.flapKey), findsOneWidget);
+      // Already turning: a wider window would stretch the snapshot, so the flap ends.
+      await tester.pump(kFoldFlapSettle);
+      await tester.pump(kFoldFlapOpen ~/ 4);
+      expect(turned(tester), lessThan(89));
       tester.view.physicalSize = const Size(1000, 600);
       await tester.pump();
       expect(covered(tester), isFalse);
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a second resize while the flap is still edge on retakes the snapshot and still opens',
+        (tester) async {
+      await pumpApp(tester);
+      tester.view.physicalSize = const Size(880, 600);
+      await tester.pump();
+      await tester.pump();
+      // The phone settles a little wider before anything of the flap was seen.
+      tester.view.physicalSize = const Size(900, 600);
+      await tester.pump();
+      await tester.pump();
+      expect(covered(tester), isTrue);
+      expect(tester.getRect(find.byKey(FoldFlap.coverKey)).left, 450);
+      expect(turned(tester), closeTo(90, 0.5));
+      await tester.pump(kFoldFlapSettle);
+      await tester.pump(kFoldFlapOpen ~/ 2);
+      expect(turned(tester), inExclusiveRange(1, 89));
+      await tester.pumpAndSettle();
+      expect(covered(tester), isFalse);
     });
 
     testWidgets('a hinge still half open keeps the flap folded until it opens flat', (tester) async {

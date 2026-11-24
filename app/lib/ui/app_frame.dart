@@ -290,9 +290,19 @@ class _FoldFlapState extends State<FoldFlap> with SingleTickerProviderStateMixin
       _finish();
     } else if (widget.twoColumns && !old.twoColumns) {
       _start();
-    } else if (!widget.twoColumns || (widget.width - old.width).abs() >= 1) {
-      // Back to one column, or the frame resized while it runs: the snapshot no longer fits.
+    } else if (!widget.twoColumns) {
+      // Back to one column.
       _finish();
+    } else if ((widget.width - old.width).abs() >= 1) {
+      if (_active && _open.value == 0 && !_open.isAnimating) {
+        // Still edge on, nothing of it seen yet (a phone often settles its size or insets a frame
+        // later while it unfolds): take the snapshot again at the new width and keep the timers.
+        _dropImage();
+        WidgetsBinding.instance.addPostFrameCallback((_) => _capture());
+      } else {
+        // Already turning: the snapshot no longer fits, so the flap ends.
+        _finish();
+      }
     } else {
       _maybeRelease();
     }
