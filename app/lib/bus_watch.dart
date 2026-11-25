@@ -151,6 +151,8 @@ class BusWatchNotifier extends Notifier<BusWatchState?> {
     DateTime? now,
   }) async {
     if (!ref.read(favoritesProvider).busAlerts) return;
+    // The watch belongs to a running trip (an Undo can come after Arrived).
+    if (ref.read(habitsProvider).tripStart == null) return;
     if (ref.read(wakeProvider) != null || ref.read(rideProvider) != null) return;
     _cancel();
     final run = _run;

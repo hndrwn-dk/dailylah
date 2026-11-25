@@ -300,6 +300,15 @@ void main() {
     expect(geo.listening, 0);
   });
 
+  test('no trip running: nothing is watched (an Undo tapped after Arrived)', () async {
+    await open();
+    await box.read(habitsProvider.notifier).cancelTrip();
+    await watch('197', 5, ask: true);
+    expect(state(), isNull);
+    expect(geo.streams, 0);
+    expect(api.calls, 0);
+  });
+
   test('switch off: nothing is watched', () async {
     await open(fav: const Favorites(learnHabits: true, busAlerts: false));
     await watch('197', 5);
