@@ -534,7 +534,6 @@ class _MyBlock extends ConsumerWidget {
     // The same rent as "Prices, rent and commute": the town's quarterly median when known.
     final rents = townRents(ref.watch(whereToLiveProvider).value, ref.watch(rentProvider).value, block.town);
     final topRent = townRentFor(rents, stats.isEmpty ? null : stats.first.flatType);
-    final watching = ref.watch(favoritesProvider).watchedBlocks.containsKey(block.key);
     final year = DateTime.now().year;
 
     return Column(
@@ -548,7 +547,7 @@ class _MyBlock extends ConsumerWidget {
         ]),
         const SizedBox(height: 12),
         Panel(
-          margin: const EdgeInsets.only(bottom: 4),
+          margin: const EdgeInsets.only(bottom: 12),
           child: InkWell(
             onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => BlockPage(block: block))),
             child: Padding(
@@ -591,30 +590,6 @@ class _MyBlock extends ConsumerWidget {
                 ],
               ),
             ),
-          ),
-        ),
-        // Watching is one quiet line: what it does, and the one word that changes it.
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Row(
-            children: [
-              Icon(watching ? Icons.visibility : Icons.visibility_outlined, size: 20, color: DL.muted(context)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(watching ? s.watchingBlock : s.watchBlockHint,
-                    style: t.bodyMedium?.copyWith(color: DL.muted(context))),
-              ),
-              TextButton(
-                style: TextButton.styleFrom(
-                    foregroundColor: DL.goText(context),
-                    minimumSize: const Size(kMinInteractiveDimension, kMinInteractiveDimension)),
-                onPressed: () =>
-                    ref.read(favoritesProvider.notifier).toggleWatch(block.key, resale?.countFor(block.key) ?? 0),
-                // The word alone says too little to a screen reader.
-                child: Text(watching ? s.watchStop : s.watchStart,
-                    semanticsLabel: watching ? s.watchStopLabel : s.watchBlock),
-              ),
-            ],
           ),
         ),
       ],
@@ -662,7 +637,8 @@ class _FactStrip extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (final (i, (value, label)) in facts.indexed) ...[
-              if (i > 0) VerticalDivider(width: 1.5, thickness: 1.5, color: Theme.of(context).dividerTheme.color),
+              // As thick and dark as the outline, so each line meets the border.
+              if (i > 0) VerticalDivider(width: DL.stroke, thickness: DL.stroke, color: edge),
               Expanded(
                 // One stop for TalkBack: "1983 built".
                 child: MergeSemantics(
