@@ -1245,28 +1245,50 @@ BusWhere? busWhere(BusEta e, String stopCode, BusRoutes routes, Map<String, BusS
   if (lat == null || lng == null) return null;
   final here = stops[stopCode];
   final metres = here == null ? 0.0 : distanceMeters(lat, lng, here.lat, here.lng);
-  BusStop? bestStop;
-  int? bestAway;
-  var bestD = 400.0;
+  final m = _busOnRoute(e, stopCode, routes, stops);
+  if (m == null && here == null) return null;
+  return BusWhere(near: m == null ? null : stops[m.list[m.j].$1], stopsAway: m == null ? null : m.i - m.j, metres: metres);
+}
+
+/// Route stops this close to the nearest one are as likely to be where the bus is (GPS, and a
+/// road that passes the same street twice, such as a loop down and back up Orchard Road).
+const busPassTieMetres = 150.0;
+
+/// Where a coming bus is on its route to [stopCode]: the route ([list]), the rider's stop in it
+/// ([i]) and the stop the bus is at ([j], within 400 m and at most 40 stops back). When stops of
+/// both passes of a loop are about as near ([busPassTieMetres]), the one whose distance in stops
+/// fits the arrival time ([feederMinutesPerStop] a stop) wins, then the nearer. Null without a
+/// position or a stop near it.
+({List<(String, double)> list, int i, int j})? _busOnRoute(
+    BusEta e, String stopCode, BusRoutes routes, Map<String, BusStop> stops) {
+  final lat = e.lat, lng = e.lng;
+  if (lat == null || lng == null) return null;
   final prefix = '${e.service}|';
-  routes.routes.forEach((key, list) {
-    if (!key.startsWith(prefix)) return;
+  final found = <({List<(String, double)> list, int i, int j, double d})>[];
+  for (final entry in routes.routes.entries) {
+    if (!entry.key.startsWith(prefix)) continue;
+    final list = entry.value;
     for (var i = 0; i < list.length; i++) {
       if (list[i].$1 != stopCode) continue;
       for (var j = math.max(0, i - 40); j <= i; j++) {
         final st = stops[list[j].$1];
         if (st == null) continue;
         final d = distanceMeters(lat, lng, st.lat, st.lng);
-        if (d < bestD) {
-          bestD = d;
-          bestStop = st;
-          bestAway = i - j;
-        }
+        if (d < 400) found.add((list: list, i: i, j: j, d: d));
       }
     }
-  });
-  if (bestStop == null && here == null) return null;
-  return BusWhere(near: bestStop, stopsAway: bestAway, metres: metres);
+  }
+  if (found.isEmpty) return null;
+  final nearest = found.map((f) => f.d).reduce(math.min);
+  int misfit(({List<(String, double)> list, int i, int j, double d}) f) =>
+      ((f.i - f.j) * feederMinutesPerStop - e.minutes).abs();
+  final close = found.where((f) => f.d <= nearest + busPassTieMetres).toList()
+    ..sort((a, b) {
+      final c = misfit(a).compareTo(misfit(b));
+      return c != 0 ? c : a.d.compareTo(b.d);
+    });
+  final best = close.first;
+  return (list: best.list, i: best.i, j: best.j);
 }
 
 /// The stops a coming bus still has to pass to reach the rider's stop, for "Where's my bus?".
@@ -1300,7 +1322,6 @@ BusStrip? busStrip(BusEta e, String stopCode, BusRoutes routes, Map<String, BusS
   final lat = e.lat, lng = e.lng;
   List<(String, double)>? best, any, seg;
   var bestI = 0, bestJ = 0, anyI = 0, segI = 0, segJ = 0;
-  var bestD = 400.0;
   // Between two stops: the pair the bus is most nearly in line with. On the road from a to b the
   // two straight distances never add up to more than the road itself (400 m of GPS slack).
   var segExtra = double.infinity;
@@ -1318,12 +1339,6 @@ BusStrip? busStrip(BusEta e, String stopCode, BusRoutes routes, Map<String, BusS
         final st = stops[list[j].$1];
         if (st == null) continue;
         final d = distanceMeters(lat, lng, st.lat, st.lng);
-        if (d < bestD) {
-          bestD = d;
-          best = list;
-          bestI = i;
-          bestJ = j;
-        }
         final next = j < i ? stops[list[j + 1].$1] : null;
         if (next == null) continue;
         final via = d + distanceMeters(lat, lng, next.lat, next.lng);
@@ -1336,6 +1351,12 @@ BusStrip? busStrip(BusEta e, String stopCode, BusRoutes routes, Map<String, BusS
         }
       }
     }
+  }
+  // The stop the bus is at: the same choice as [busWhere], so the sheet and the board agree.
+  if (_busOnRoute(e, stopCode, routes, stops) case final m?) {
+    best = m.list;
+    bestI = m.i;
+    bestJ = m.j;
   }
   List<BusStop> take(List<(String, double)> list, int from, int to) => [
         for (var k = from; k <= to; k++)

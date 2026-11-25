@@ -284,7 +284,9 @@ feature, screen, provider or rule moves, appears or goes away.
   `wakeRadius` / `wakeEvent` incl. "may have passed"; foreground location only while it runs, never
   stored, auto-stops after 2 h). Live arrivals refetch every 30 s while shown (`busRefreshEvery`).
   Each arrival shows where the bus is now (`busWhere`: nearest route stop within 400 m of LTA's bus GPS,
-  up to 40 stops back, else straight-line distance; `S.busLive`), or "Timetable estimate" when LTA's
+  up to 40 stops back, else straight-line distance; `S.busLive`; on a route that passes the same street twice,
+  stops within `busPassTieMetres` of the nearest are settled by which fits the arrival time, `_busOnRoute`,
+  shared with `busStrip`), or "Timetable estimate" when LTA's
   `Monitored` is 0. No map SDK. Tapping an arrival (`BusBoard` rows, `BusRow`) opens "Where's my bus?"
   (`ui/bus_sheet.dart`, `showWhereBus`): the stops left to the rider's stop with the bus on them
   (`busStrip`), Next/Then bus, load as `LoadBars` (Seats free / Standing / Packed) and "Open in Maps"
@@ -392,7 +394,7 @@ feature, screen, provider or rule moves, appears or goes away.
   memory), the trip ends, Wake me or I'm on the train starts, or after `busWatchLimit`. While the trip runs,
   each direct row of its board has a bell in place of the chevron (`BoardRow.bell`, `BoardBell`; "Alerting" on
   the watched one): a tap picks that bus (and may ask for location and notifications), a tap on the filled one
-  stops; a bus watched in the app only (no location yet) first asks on that tap (`BusWatchState.asked`). The bar's second line is the watched bus ("197 in 5 min · 4 stops away"), a tap on its text opens
+  stops and says so with Undo (`S.busAlertsOff`); a bus watched in the app only (no location yet) first asks on that tap (`BusWatchState.asked`). The bar's second line is the watched bus ("197 in 5 min · 4 stops away"), a tap on its text opens
   `RunningTripPage` (the bar, the `TripBusCard` of the remembered stop and "Change this trip"), and once the
   bus has gone the bar offers Wake me before its stop. Today (`todayTripSlot`): the same card sits right under
   the weather tiles while such a trip runs and is not the commute card already shown; `PlanTripCard` at the end

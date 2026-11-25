@@ -1333,19 +1333,29 @@ class TripBusCard extends ConsumerWidget {
                       label: on ? s.busAlerting : null,
                       onTap: () async {
                         final notifier = ref.read(busWatchProvider.notifier);
+                        Future<void> watchIt() => notifier.start(
+                              stop: stop,
+                              service: r.eta.service,
+                              minutes: r.eta.minutes,
+                              alight: byStop[rides[r.eta.service]?.alightAt],
+                              toLabel: toLabel,
+                              ask: true,
+                            );
                         if (on && !canAsk) {
+                          // A tap on a bell that is on turns the alert off: say so, with Undo, so a
+                          // tap meant to check it is not lost.
+                          final messenger = ScaffoldMessenger.of(context);
                           notifier.stop();
                           await ref.read(habitsProvider.notifier).setTripBus(stop.code, null);
+                          messenger
+                            ..hideCurrentSnackBar()
+                            ..showSnackBar(SnackBar(
+                              content: Text(s.busAlertsOff(r.eta.service)),
+                              action: SnackBarAction(label: s.undo, onPressed: watchIt),
+                            ));
                           return;
                         }
-                        await notifier.start(
-                          stop: stop,
-                          service: r.eta.service,
-                          minutes: r.eta.minutes,
-                          alight: byStop[rides[r.eta.service]?.alightAt],
-                          toLabel: toLabel,
-                          ask: true,
-                        );
+                        await watchIt();
                       },
                     );
                   }
