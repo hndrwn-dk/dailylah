@@ -474,7 +474,8 @@ feature, screen, provider or rule moves, appears or goes away.
   food, parking): its HDB block (`homeBlock`) or private project (`private_homes.json` from
   URA, `privateProjectFor`; backend `app/ura.py`, secret `URA_ACCESS_KEY`). My home is the block card
   (`_MyBlock`: built, lease left and storeys in a flat strip `_FactStrip`, one fact a line at large text; the
-  raised price card with a chevron opens `BlockPage`; watching is one line with Notify me / Stop) and "Around
+  raised price card with a chevron opens `BlockPage`, where Notify me lives; the strip's dividers are the
+  outline's colour and width) and "Around
   your home" (`_Glance`): `PlaceRow`s for the nearest primary school, hawker and AED, each opening its section,
   then Upgrading and works (`around.json` bundle from OneMap themes, `projectsNear`), Recycling and Blocks and
   agents, each on a page of its own (`HomeTopicPage`, `HomePage.topics`, `S.homeTopic`). Safety (`_Safety`) is

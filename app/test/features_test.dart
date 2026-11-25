@@ -2686,11 +2686,8 @@ void main() {
     for (final label in [_s.factBuilt, _s.factLease, _s.factStoreys]) {
       expect(find.text(label), findsOneWidget);
     }
-    expect(find.text(_s.watchingBlock), findsOneWidget);
-    await tester.tap(find.text(_s.watchStop));
-    await settle(tester);
-    expect(box.read(favoritesProvider).watchedBlocks, isEmpty);
-    expect(find.text(_s.watchStart), findsOneWidget);
+    // Watching for sales lives on the block page alone.
+    expect(find.text(_s.watching), findsNothing);
 
     // Around your home: a row opens its section...
     final school = find.widgetWithText(PlaceRow, _s.nearestPrimary);

@@ -830,10 +830,6 @@ class S {
   String get factLease => 'lease left';
   String get factStoreys => 'storeys';
   String yearsShort(int n) => '$n yrs';
-  String get watchBlockHint => 'Get a note when a flat here is sold';
-  String get watchStart => 'Notify me';
-  String get watchStop => 'Stop';
-  String get watchStopLabel => 'Stop notifying me of new sales';
   String get evChargersTitle => 'EV chargers';
   String get psfLabel => 'median per sq ft';
   String salesCount(int n, int months) => '$n ${n == 1 ? 'sale' : 'sales'} in the last ${months == 12 ? '12 months' : '3 years'}';
@@ -852,8 +848,6 @@ class S {
   String get setHome => 'Set home';
   String get notHdb => 'No HDB block or private project found at this address. Everything around your home is in the chips above.';
   String get blockDetails => 'Prices, rent and commute';
-  String get watchBlock => 'Notify me of new sales';
-  String get watchingBlock => 'Notifying you';
   String medianFor(String flatType) => '${wtlFlatName(flatType)} median';
   String rentMedian(String flatType, String amount, [String period = '']) {
     final flat = wtlFlatName(flatType);
