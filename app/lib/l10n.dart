@@ -580,6 +580,7 @@ class S {
   String get busAlertMe => 'Alert me when this bus is arriving';
   String get busAlerting => 'Alerting';
   String get busAlertStop => 'Stop alerting';
+  String busAlertsOff(String service) => 'Alerts off for $service';
   String get busAlertAsk => 'Alert me with the screen off';
   String get busNoTimePill => 'No arrival time';
   String busBannerNoTime(String service) => '$service · no arrival time';
@@ -1102,7 +1103,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        'On a foldable or tablet, Today now fills both sides evenly. The By MRT card draws your trip as a line, with minutes door to door, and Plan a trip lets you search Where to? or tap a saved place right on Today.',
+        "Bus arriving: turning a bus's bell off now says so, with Undo, so a tap meant to check it does not quietly stop the alert. On a bus that loops past the same street twice, such as the 36, the stops left to your stop no longer jump between two numbers.",
       ];
 
   // about

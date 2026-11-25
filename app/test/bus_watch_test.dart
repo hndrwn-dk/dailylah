@@ -322,4 +322,34 @@ void main() {
           TodayTripSlot.none);
     });
   });
+
+  group('a loop route that passes the same street twice', () {
+    // Service 36 (web/data) runs down Orchard Road past Winsland Hse, 17 stops before Aft Promenade
+    // Stn Exit C, and back past Concorde Hotel, 6 stops before it: the two stops are 122 m apart.
+    Object? bundle(String name) => jsonDecode(File('../web/data/$name.json').readAsStringSync());
+    final routes = BusRoutes.fromBundle(bundle('bus_routes') as Map<String, dynamic>);
+    final stops = {
+      for (final s in [
+        for (final r in bundle('bus_stops') as List) BusStop.fromBundle(r as Map<String, dynamic>),
+      ])
+        s.code: s,
+    };
+    // Between the two, a little nearer Winsland Hse.
+    BusEta bus(int minutes) =>
+        BusEta(service: '36', minutes: minutes, load: 'SEA', lat: 1.300113, lng: 103.841301);
+
+    test('the arrival time picks the pass the bus is on', () {
+      final w = busWhere(bus(11), '02161', routes, stops)!;
+      expect(w.near?.name, "Concorde Hotel S'pore");
+      expect(w.stopsAway, 6);
+      final strip = busStrip(bus(11), '02161', routes, stops)!;
+      expect(strip.stops[strip.busAt!].name, "Concorde Hotel S'pore");
+    });
+
+    test('a bus that is due late is on the earlier pass', () {
+      final w = busWhere(bus(33), '02161', routes, stops)!;
+      expect(w.near?.name, 'Winsland Hse');
+      expect(w.stopsAway, 17);
+    });
+  });
 }

@@ -107,6 +107,21 @@ void main() {
       await _end(tester, box);
     });
 
+    testWidgets('turning a bell off says so, and Undo turns it back on', (tester) async {
+      final box = await _plan(tester);
+      await _tap(tester, find.text(_s.imLeaving));
+      expect(box.read(busWatchProvider)?.service, '10');
+      await _tap(tester, find.byTooltip(_s.busAlertStop));
+      expect(box.read(busWatchProvider), isNull);
+      expect(find.text(_s.busAlertsOff('10')), findsOneWidget);
+      await tester.tap(find.text(_s.undo));
+      await settle(tester);
+      expect(box.read(busWatchProvider)?.service, '10');
+      expect(box.read(habitsProvider).tripBus, '10');
+      expect(find.byTooltip(_s.busAlertStop), findsOneWidget);
+      await _end(tester, box);
+    });
+
     testWidgets('the row still opens Where\'s my bus?', (tester) async {
       final box = await _plan(tester);
       await _tap(tester, find.text(_s.imLeaving));
