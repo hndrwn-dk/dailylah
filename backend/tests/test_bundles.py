@@ -607,6 +607,33 @@ def test_parse_halal_page():
     assert b.parse_halal_page("<html>no results</html>") == []
 
 
+# Nuxt turns values used more than once on a page into the arguments of its wrapper function:
+# two shops in one mall share lat, lon (and here the postal code) as variables.
+HALAL_PAGE_SHARED = """
+<div class="card-box"><div class="card-name" data-v-e>TANG TEA HOUSE</div>
+<div class="address-box" data-v-e>1 WOODLANDS SQ #07-03 CAUSEWAY POINT 738099</div></div>
+<div class="card-box"><div class="card-name" data-v-e>Jiak Papa Handmade Noodle</div>
+<div class="address-box" data-v-e>1 WOODLANDS SQ #07-03(A) CAUSEWAY POINT 738099</div></div>
+<div class="card-box"><div class="card-name" data-v-e>Same Address Twice</div>
+<div class="address-box" data-v-e>3 TEMASEK BLVD #01-341/342 SUNTEC CITY 038983</div></div>
+<script>window.__NUXT__=(function(a,b,c,d,e,f){return {data:[{halal_places:[
+{id:1,name:"x",lat:b,lon:c,address:"1 WOODLANDS SQ #07-03 CAUSEWAY POINT 738099",postal_code:d},
+{id:2,name:"y",lat:b,lon:c,address:"1 WOODLANDS SQ #07-03(A) CAUSEWAY POINT 738099"},
+{id:3,name:"z",lat:1.295712,lon:103.858553,address:f}],
+total:3}]}}(1,1.43607,103.785982,"738099",null,
+"3 TEMASEK BLVD #01-341\\u002F342 SUNTEC CITY 038983"))</script>
+"""
+
+
+def test_parse_halal_page_reads_values_nuxt_shares():
+    out = b.parse_halal_page(HALAL_PAGE_SHARED)
+    assert [(x["n"], x["la"], x["lo"]) for x in out] == [
+        ("Tang Tea House", 1.43607, 103.78598),
+        ("Jiak Papa Handmade Noodle", 1.43607, 103.78598),
+        ("Same Address Twice", 1.29571, 103.85855),
+    ]
+
+
 @respx.mock
 async def test_build_halal_walks_to_the_listed_total():
     route = respx.get(b.HALAL_URL).mock(return_value=httpx.Response(200, text=HALAL_PAGE))
