@@ -448,3 +448,24 @@ extension on TransitNet {
     return TransitOption(legs.reversed.toList());
   }
 }
+
+/// The steps of [o] to keep with the running trip: one per leg, in order.
+List<TripStep> stepsOf(TransitOption o) => [
+      for (final l in o.legs)
+        TripStep(
+          kind: switch (l.kind) {
+            LegKind.walk => StepKind.walk,
+            LegKind.bus => StepKind.bus,
+            LegKind.mrt => StepKind.mrt,
+          },
+          from: l.from,
+          to: l.to,
+          fromName: l.fromName,
+          toName: l.toName,
+          service: l.service,
+          stops: l.stops,
+          minutes: l.minutes,
+          metres: l.metres,
+          routeKey: l.routeKey,
+        ),
+    ];

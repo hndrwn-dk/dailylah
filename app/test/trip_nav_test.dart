@@ -1,5 +1,11 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:dailylah/data.dart';
+import 'package:dailylah/logic.dart';
 import 'package:dailylah/models.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:dailylah/transit.dart';
+import 'package:flutter_test/flutter_test.dart' hide within;
 
 const _steps = [
   TripStep(kind: StepKind.walk, from: '', to: '92271', fromName: '', toName: "Opp D'Ecosia", minutes: 3, metres: 180),
@@ -57,6 +63,38 @@ void main() {
       final cleared = h.copyWith(clearTrip: true);
       expect(cleared.tripSteps, isEmpty);
       expect(cleared.tripStepIndex, 0);
+    });
+  });
+
+  group('steps of a way with changes', () {
+    dynamic bundle(String name) => jsonDecode(File('../web/data/$name').readAsStringSync());
+    final net = TransitNet.build(
+      [for (final j in bundle('bus_stops.json') as List) BusStop.fromBundle(j as Map<String, dynamic>)],
+      BusRoutes.fromBundle(bundle('bus_routes.json') as Map<String, dynamic>),
+      [for (final j in bundle('mrt_stations.json') as List) MrtStation.fromBundle(j as Map<String, dynamic>)],
+    );
+    final option = transitOptions(net, const Place(kind: PlaceKind.other, addrLat: 1.3050, addrLng: 103.9085),
+            const Place(kind: PlaceKind.other, addrLat: 1.3917, addrLng: 103.8480))
+        .first;
+    final steps = stepsOf(option);
+
+    test('one step per leg, in order, with its values', () {
+      expect(steps, hasLength(option.legs.length));
+      expect(steps.map((s) => s.kind), [StepKind.walk, StepKind.bus, StepKind.bus, StepKind.walk]);
+      expect(steps.map((s) => s.service).whereType<String>(), ['966', '857']);
+      expect(steps[1].from, option.legs[1].from);
+      expect(steps[1].stops, option.legs[1].stops);
+    });
+
+    test('minutes left, the next step and the next ride', () {
+      expect(remainingMinutes(steps, 0), option.minutes);
+      expect(remainingMinutes(steps, 3), steps[3].minutes);
+      expect(stepAfter(steps, 0), 1);
+      expect(stepAfter(steps, 3), 3);
+      expect(nextRideIndex(steps, 0), 1);
+      expect(nextRideIndex(steps, 2), 2);
+      expect(nextRideIndex(steps, 3), isNull);
+      expect(remainingMinutes(const [], 0), 0);
     });
   });
 }
