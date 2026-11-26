@@ -117,7 +117,12 @@ feature, screen, provider or rule moves, appears or goes away.
   the "No direct bus" stop cards when no stop has a direct bus, followed by a live `TripBusCard` for the first bus
   of the best way (`_firstBusCard`: buses from its stop to the stop of the first change, `TripBusCard.legService`:
   "No times for bus 966 at this stop right now" instead of "No direct bus") and By MRT; ways over a disrupted MRT line
-  are left out; I'm leaving on such a trip keeps no stop or bus (`_TripTimer._leave`), so Bus arriving does not start; with direct
+  are left out (`tripWaysProvider`, the list the card and I'm leaving share); which way is open is kept per trip
+  ends (`openWayProvider`); I'm leaving on such a trip keeps no stop or bus (`_TripTimer._leave`), so Bus arriving
+  does not start, but keeps the open way's steps on the running trip (`TripStep` in models.dart, `stepsOf` in
+  transit.dart; `Habits.tripSteps` JSON `st`, `tripStepIndex` `si`, cleared with the trip; rules `stepAfter`,
+  `remainingMinutes`, `nextRideIndex`; tests `test/trip_nav_test.dart`) for trip navigation
+  (docs/superpowers/specs/2026-11-26-trip-navigation-design.md, phase 1 of 4: nothing shows them yet); with direct
   buses it shows after them on the planner page only, so Today stays short. Tests: `test/transit_test.dart`,
   "ways with changes" in `test/features_test.dart` and the screens matrix. Bus/MRT also shows the nearest MRT
   station at each end from the `mrt_stations.json` bundle (`mrtPlan`). "Plan a trip" (`TripPlannerPage`,
