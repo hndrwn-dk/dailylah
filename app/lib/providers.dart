@@ -10,6 +10,7 @@ import 'l10n.dart';
 import 'logic.dart';
 import 'models.dart';
 import 'store.dart';
+import 'transit.dart';
 
 /// Riverpod 3 retries failed providers on its own (up to 10 times). The app keeps its own retry
 /// rules instead (`_live`: once at once, then every `liveRetryEvery`), so every ProviderScope and
@@ -424,6 +425,26 @@ final whereToLiveProvider = FutureProvider<WhereToLive>((ref) async {
 final busRoutesProvider = FutureProvider<BusRoutes>((ref) async {
   final m = await _map(ref, 'bus_routes');
   return m == null ? BusRoutes.empty : BusRoutes.fromBundle(m);
+});
+
+/// The bus, MRT and walk network for options with changes, built once from the three bundles
+/// (about 40 ms on a desktop, once per app run, and only when a Bus/MRT trip asks for options).
+final transitNetProvider = FutureProvider<TransitNet>((ref) async {
+  final stops = await ref.watch(busStopsProvider.future);
+  final routes = await ref.watch(busRoutesProvider.future);
+  final stations = await ref.watch(mrtStationsProvider.future);
+  return TransitNet.build(stops, routes, stations);
+});
+
+/// Up to 3 bus, MRT and walk options between two points (from lat, lng, to lat, lng), worked
+/// out on the phone; empty while the network loads.
+final transitOptionsProvider =
+    Provider.autoDispose.family<List<TransitOption>, (double, double, double, double)>((ref, ends) {
+  final net = ref.watch(transitNetProvider).value;
+  if (net == null) return const [];
+  final (fromLat, fromLng, toLat, toLng) = ends;
+  return transitOptions(net, Place(kind: PlaceKind.other, addrLat: fromLat, addrLng: fromLng),
+      Place(kind: PlaceKind.other, addrLat: toLat, addrLng: toLng));
 });
 
 /// Private homes (URA transactions and rentals).

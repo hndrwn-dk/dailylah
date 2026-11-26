@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:dailylah/data.dart';
 import 'package:dailylah/logic.dart';
 import 'package:dailylah/models.dart';
+import 'package:dailylah/providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dailylah/transit.dart';
 import 'package:flutter_test/flutter_test.dart' hide within;
 
@@ -138,5 +140,20 @@ void main() {
       transitOptions(net, marineParade, stEngineeringHub);
       expect(watch.elapsedMilliseconds, lessThan(1500));
     });
+  });
+
+  test('the options provider finds the Marine Parade trip once the net is built', () async {
+    final box = ProviderContainer(retry: noRetry, overrides: [
+      busStopsProvider.overrideWith((ref) async => stops),
+      busRoutesProvider.overrideWith((ref) async => routes),
+      mrtStationsProvider.overrideWith((ref) async => stations),
+    ]);
+    addTearDown(box.dispose);
+    const ends = (1.3050, 103.9085, 1.3917, 103.8480);
+    final sub = box.listen(transitOptionsProvider(ends), (_, __) {});
+    expect(sub.read(), isEmpty);
+    await box.read(transitNetProvider.future);
+    expect(box.read(transitOptionsProvider(ends)), hasLength(3));
+    sub.close();
   });
 }

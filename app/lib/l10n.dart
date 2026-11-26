@@ -399,6 +399,17 @@ class S {
         if (sheltered != null) sheltered ? 'sheltered' : 'not sheltered',
       ].join(' · ');
   String get modeEtaNote => 'A rough estimate from the distance, without traffic or waiting.';
+  // ways with changes (transitOptions)
+  String get transitOptionsTitle => 'Ways with changes';
+  String get transitEstimate => 'Times after the first bus or train are estimates.';
+  String transitMinutes(int m) => '~$m min';
+  String transitWalk(String metres, int minutes) => 'Walk $metres · $minutes min';
+  String transitBus(String service, int stops, String to) =>
+      noOrphan('Bus $service · ${stops == 1 ? '1 stop' : '$stops stops'} to $to');
+  String transitTrain(String line, int stops, String to) =>
+      noOrphan('$line · ${stops == 1 ? '1 stop' : '$stops stops'} to $to');
+  String transitFrom(String name) => noOrphan('From $name');
+  String transitOptionLabel(int i, String summary, int minutes) => 'Option $i: $summary, about $minutes minutes';
   String get noDirectBus => 'No direct bus from this stop. Check the full route in Google Maps.';
   String get routeInMaps => 'Route in Google Maps';
   String get otherBuses => 'Other buses at this stop';
