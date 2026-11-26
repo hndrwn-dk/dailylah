@@ -136,7 +136,9 @@ built from data.gov.sg (NEA, HDB, CEA) and LTA DataMall. Tourist mode is out of 
   built, and only while the repository variable `AUTO_PROMOTE` is `on`) and `promote.yml` (manual
   only: the override). `play-rollout` has no reviewer and is used by `rollout-guard.yml` alone
   (schedule and manual, skipped while the variable `AUTO_ROLLOUT` is off unless a dry run;
-  `issues: write` for its log and the `release-halted` issue). Each job has `contents: read`, the
+  `issues: write` for its log and the `release-halted` issue; its job runs only after the job `free`,
+  `actions: read` and no key, finds no promote waiting for approval or running, so a guard run never
+  queues behind one). Each job has `contents: read`, the
   secret only on the step that runs `scripts/play_promote.py` or `scripts/rollout_guard.py`
   (standard library and openssl; no pip, no action besides checkout), and shares the concurrency
   group `play-promote`. Never give one of them a pull request, `workflow_run` or fork path, a

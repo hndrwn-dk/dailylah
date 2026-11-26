@@ -292,11 +292,16 @@ class GitHub:
             raise pp.PromoteError("GITHUB_REPOSITORY is not owner/name.")
         self._token = token
         self._base = f"{GITHUB_API}/repos/{repo}"
+        self.repo = repo
         self.owner = repo.split("/")[0]
         self._opener = opener
 
     def _call(self, method: str, path: str, body=None):
         return pp.call(method, self._base + path, token=self._token, body=body, opener=self._opener)
+
+    def get(self, path: str):
+        """One GET (the Actions calls of `--promote-busy`, with a token that has actions: read)."""
+        return self._call("GET", path)
 
     def _pages(self, path: str) -> list[dict]:
         items: list[dict] = []
@@ -731,6 +736,105 @@ def guard(
     return out
 
 
+# --- Is a promote waiting or running? --------------------------------------------------
+
+# The promote job of app.yml (by its name) and promote.yml: the two other writers to production.
+# Only runs that can reach that job count: app.yml pushed to this repository's main, and
+# promote.yml started by hand (workflow_dispatch) in this repository. A pull request run, from a
+# fork whose branch is called main as much as from here, never holds the group.
+PROMOTE_JOB = "promote to production"
+PROMOTE_WORKFLOWS = {"app.yml": "push", "promote.yml": "workflow_dispatch"}
+# Every status a run has before it is completed (GitHub's `status` filter of workflow runs).
+OPEN_STATUSES = ("queued", "in_progress", "waiting", "requested", "pending")
+
+
+def _open_runs(gh, workflow: str, event: str) -> list[dict]:
+    """The runs of `workflow` on main that are not completed, asked for by status, all pages."""
+    runs: dict[int, dict] = {}
+    for status in OPEN_STATUSES:
+        query = urllib.parse.urlencode({"branch": "main", "event": event, "status": status})
+        for page in range(1, MAX_PAGES + 1):
+            answer = gh.get(f"/actions/workflows/{workflow}/runs?{query}&per_page=100&page={page}")
+            batch = answer.get("workflow_runs") if isinstance(answer, dict) else None
+            if not isinstance(batch, list):
+                raise pp.PromoteError(f"GET runs of {workflow}: GitHub gave no list.")
+            for run in batch:
+                if isinstance(run, dict):
+                    runs.setdefault(int(run.get("id", 0)), run)
+            if len(batch) < 100:
+                break
+        else:
+            raise pp.PromoteError(f"GET runs of {workflow}: more than {MAX_PAGES} pages.")
+    return [runs[key] for key in sorted(runs)]
+
+
+def _can_hold_group(run: dict, event: str, repo: str) -> bool:
+    """A run of this repository's main, started by `event`, not completed (the API's filters are
+    checked again here: the branch filter alone also matches a fork's branch named main)."""
+    head = run.get("head_repository")
+    return (
+        run.get("status") != "completed"
+        and run.get("event") == event
+        and run.get("head_branch") == "main"
+        and isinstance(head, dict)
+        and head.get("full_name") == repo
+    )
+
+
+def promotes_busy(gh) -> list[str]:
+    """The promotes that are waiting for the owner's approval, queued or running, one line each.
+
+    They share the concurrency group `play-promote` with the guard, and a promote waiting for
+    approval holds it. A guard run queued behind it would wait, and GitHub keeps one waiting
+    run per group: the next one cancels it, a promote waiting behind as much as a guard. So the
+    guard does not queue at all while one is there (rollout-guard.yml, job `free`).
+    """
+    busy: list[str] = []
+    for workflow, event in PROMOTE_WORKFLOWS.items():
+        for run in _open_runs(gh, workflow, event):
+            if not _can_hold_group(run, event, gh.repo):
+                continue
+            number = run.get("run_number")
+            if workflow == "promote.yml":
+                busy.append(f"promote.yml run {number} is {run.get('status')}")
+                continue
+            jobs = gh.get(f"/actions/runs/{int(run.get('id', 0))}/jobs?filter=latest&per_page=100")
+            listed = jobs.get("jobs") if isinstance(jobs, dict) else None
+            if not isinstance(listed, list):
+                raise pp.PromoteError(f"GET jobs of app run {number}: GitHub gave no list.")
+            for job in listed:
+                if (
+                    isinstance(job, dict)
+                    and str(job.get("name", "")).startswith(PROMOTE_JOB)
+                    and job.get("status") != "completed"
+                ):
+                    busy.append(f"the promote job of app run {number} is {job.get('status')}")
+    return busy
+
+
+def check_promotes(out: list[str]) -> int:
+    """`--promote-busy`: write free=true|false for the guard job; only the GitHub API is read."""
+    out += ["## Rollout guard: is a promote waiting?", ""]
+    token = os.environ.get("GITHUB_TOKEN", "")
+    if not token:
+        raise pp.PromoteError("GITHUB_TOKEN is not set.")
+    busy = promotes_busy(GitHub(token, os.environ.get("GITHUB_REPOSITORY", "")))
+    if busy:
+        out += [f"- {line}." for line in busy]
+        out += [
+            "",
+            "**Skipped:** the guard does not queue behind a promote, so it never cancels one "
+            "that waits. Approve or reject the promote; the next scheduled run goes on.",
+        ]
+    else:
+        out.append("- No promote is waiting or running: the guard runs.")
+    path = os.environ.get("GITHUB_OUTPUT")
+    if path:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(f"free={'false' if busy else 'true'}\n")
+    return 0
+
+
 # --- Run ------------------------------------------------------------------------------
 
 GUARD_OFF = (
@@ -747,11 +851,18 @@ def auto_rollout_on() -> bool:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--promote-busy",
+        action="store_true",
+        help="only say whether a promote is waiting or running (job `free`); reads no Play key",
+    )
     args = parser.parse_args(argv)
 
     out: list[str] = []
     code = 0
     try:
+        if args.promote_busy:
+            return pp._finish(out, check_promotes(out))
         if not args.dry_run and not auto_rollout_on():
             # The kill switch: nothing is read from Google Play, not even the key.
             out += ["## Rollout guard", "", GUARD_OFF]

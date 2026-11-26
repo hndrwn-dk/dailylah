@@ -22,14 +22,46 @@ on:
         type: boolean
         default: false
 permissions: {}
-# The same group as promote.yml and the promote job of app.yml: one writer to production at a time.
-concurrency:
-  group: play-promote
-  cancel-in-progress: false
 jobs:
+  # A promote waiting for the owner's approval holds the group `play-promote`. A guard run queued
+  # behind it would wait, and GitHub keeps one waiting run per group: the next one queued cancels
+  # it, so a scheduled guard run cancelled a promote waiting behind a waiting promote (2.19.1).
+  # So the guard first asks, with a read-only token and no key, whether a promote is waiting,
+  # queued or running, and does not queue at all while one is (docs/QA.md "Tooling and keys").
+  free:
+    name: no promote waiting
+    if: vars.AUTO_ROLLOUT == 'on' || (github.event_name == 'workflow_dispatch' && inputs.dry_run)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      free: ${{ steps.check.outputs.free }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/play_promote.py
+            scripts/rollout_guard.py
+          sparse-checkout-cone-mode: false
+      - name: Is a promote waiting or running?
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 -I scripts/rollout_guard.py --promote-busy
   guard:
     name: rollout guard${{ inputs.dry_run && ' (dry run)' || '' }}
-    if: vars.AUTO_ROLLOUT == 'on' || (github.event_name == 'workflow_dispatch' && inputs.dry_run)
+    needs: free
+    # Its own switch as well, not only the job above's.
+    if: >-
+      needs.free.outputs.free == 'true'
+      && (vars.AUTO_ROLLOUT == 'on' || (github.event_name == 'workflow_dispatch' && inputs.dry_run))
+    # The same group as promote.yml and the promote job of app.yml: one writer to production at
+    # a time. On the job, not the workflow: the check above never waits in it.
+    concurrency:
+      group: play-promote
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # Environment `play-rollout`: main only, no reviewer, a key of the production service
