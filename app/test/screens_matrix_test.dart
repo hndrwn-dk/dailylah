@@ -74,6 +74,11 @@ final Map<String, Widget Function()> _pages = {
   'Plan a trip': () => const TripPlannerPage(),
   'Plan a trip (Home → Work by bus)': () => const _PlannerWith(from: 'home', to: 'work'),
   'Plan a trip (searched address → Gym)': () => const _PlannerWith(from: 'adhoc', to: 'extra:0'),
+  'Plan a trip (no direct bus: ways with changes)': () => const _PlannerWith(
+      from: 'adhoc',
+      to: 'adhoc',
+      dest: Place(
+          kind: PlaceKind.other, name: 'ST Engineering Hub', address: 'ST Engineering Hub', addrLat: 1.3917, addrLng: 103.8480)),
   'Address search (shared, no address)': () =>
       AddressPickerPage(title: 'Search', note: const S().sharedNoAddress('Putra Minang Restaurant Bencoolen')),
   'Wake me': () => const WakeMePage(service: '10', alight: fullertonSq),
@@ -191,9 +196,12 @@ class _OnTheTrainState extends ConsumerState<_OnTheTrain> {
 
 /// The trip planner with both ends already picked, as after a few taps.
 class _PlannerWith extends ConsumerStatefulWidget {
-  const _PlannerWith({required this.from, required this.to});
+  const _PlannerWith({required this.from, required this.to, this.dest});
   final String from;
   final String to;
+
+  /// The searched destination when [to] is 'adhoc'.
+  final Place? dest;
 
   @override
   ConsumerState<_PlannerWith> createState() => _PlannerWithState();
@@ -213,6 +221,7 @@ class _PlannerWithState extends ConsumerState<_PlannerWith> {
         addrLat: 1.3025,
         addrLng: 103.9071,
       );
+      if (widget.dest != null) ref.read(goAdhocDestProvider.notifier).state = widget.dest;
       ref.read(goFromKeyProvider.notifier).state = widget.from;
       ref.read(goKeyProvider.notifier).state = widget.to;
     });

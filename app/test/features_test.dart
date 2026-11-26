@@ -1157,6 +1157,39 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Plan a trip without a direct bus offers ways with changes', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    box.read(goAdhocFromProvider.notifier).state =
+        const Place(kind: PlaceKind.other, name: 'Marine Parade', address: 'Marine Parade', addrLat: 1.3050, addrLng: 103.9085);
+    box.read(goAdhocDestProvider.notifier).state = const Place(
+        kind: PlaceKind.other, name: 'ST Engineering Hub', address: 'ST Engineering Hub', addrLat: 1.3917, addrLng: 103.8480);
+    box.read(goFromKeyProvider.notifier).state = 'adhoc';
+    box.read(goKeyProvider.notifier).state = 'adhoc';
+    await settle(tester);
+    expect(find.byType(TransitOptionsCard), findsOneWidget);
+    // The dead-end cards of the two nearest stops are gone; the first bus of the best way has
+    // its own card (the fake arrivals have no 966, so that board itself says no direct bus).
+    expect(find.text(_s.fromStop('Marine Pde Stn Exit 6')), findsNothing);
+    expect(find.text(_s.fromStop("Opp D'Ecosia")), findsOneWidget);
+    // Option 1 is open: 966 from Opp D'Ecosia, then 857; its first bus has a live card.
+    expect(find.textContaining('Bus 966 ·'), findsOneWidget);
+    expect(find.textContaining('Bus 857 ·'), findsOneWidget);
+    expect(find.text(_s.busesTo("Opp St. Andrew's Village")), findsOneWidget);
+    // Tapping another option opens its legs instead.
+    final second = find.bySemanticsLabel(RegExp('^Option 2:'));
+    await tester.ensureVisible(second);
+    await settle(tester);
+    await tester.tap(second);
+    await settle(tester);
+    expect(find.textContaining('Bus 966 ·'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Need a toilet? on the train lists the next stations, with a mall when one is close', (tester) async {
     await applyCondition(tester, _normal);
     await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
