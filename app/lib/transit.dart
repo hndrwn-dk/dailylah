@@ -9,6 +9,10 @@ const transferWalkMetres = 250.0;
 
 enum LegKind { walk, bus, mrt }
 
+/// Services that run only at peak hours or at night (express "e", City Direct 650-699,
+/// NightRider, Nite): the routes bundle has no hours, so options never rely on them.
+bool peakOnlyService(String service) => RegExp(r'^(6[5-9]\d|\d+e|NR\d+|\d+N)$').hasMatch(service);
+
 /// One part of an option: a walk, a bus ride or an MRT ride.
 class TransitLeg {
   const TransitLeg({
@@ -109,7 +113,7 @@ class TransitNet {
     final patterns = <_Pattern>[];
     routes.routes.forEach((key, list) {
       final nodes = [for (final (code, _) in list) if (index[code] case final i?) i];
-      if (nodes.length >= 2) patterns.add(_Pattern(LegKind.bus, key.split('|').first, key, nodes));
+      if (nodes.length >= 2 && !peakOnlyService(key.split('|').first)) patterns.add(_Pattern(LegKind.bus, key.split('|').first, key, nodes));
     });
     for (final (prefix, line) in _mrtLines(stations)) {
       final nodes = [for (final s in line) index['mrt:${s.name}']!];
@@ -196,4 +200,235 @@ List<(String, List<MrtStation>)> _mrtLines(List<MrtStation> stations) {
     if (line.length >= 2) out.add((prefix, line));
   });
   return out;
+}
+
+// ---------------------------------------------------------------- the search
+
+/// Waits before a ride, in minutes: the first bus (until live arrivals replace it), a later
+/// bus after a change, an MRT train. A change between MRT lines at one station costs
+/// [rideTransferMinutes] instead.
+const firstBusWaitMinutes = 5;
+const busChangeWaitMinutes = 6;
+const mrtWaitMinutes = 3;
+
+/// Most rides in one option (two changes).
+const transitMaxRides = 3;
+
+/// An option this much slower than the fastest one is left out.
+const transitSlackMinutes = 40;
+
+const _startBusMetres = 500.0, _endBusMetres = 400.0, _stationMetres = 1200.0;
+const _never = 1 << 30;
+
+/// Up to [max] door-to-door options from [from] to [to], fastest first, each with a different
+/// sequence of services. Empty when the two are the same place or the bundles are missing.
+List<TransitOption> transitOptions(TransitNet net, Place from, Place to, {int max = 3}) =>
+    net._options(from, to, max);
+
+extension on TransitNet {
+  bool _isStation(int n) => _ids[n].startsWith('mrt:');
+
+  List<TransitOption> _options(Place from, Place to, int max) {
+    if (isEmpty || distanceMeters(from.lat, from.lng, to.lat, to.lng) <= samePlaceMetres) return const [];
+    // Three searches, so the answers differ: everything, buses only, and starting by train.
+    final all = [
+      ..._search(from, to, max * 4),
+      ..._search(from, to, max * 4, mrt: false),
+      ..._search(from, to, max * 4, startByTrain: true),
+    ]..sort((a, b) {
+        final m = a.minutes.compareTo(b.minutes);
+        if (m != 0) return m;
+        final c = a.changes.compareTo(b.changes);
+        return c != 0 ? c : a.walkMetres.compareTo(b.walkMetres);
+      });
+    // Keep options that start with a different ride: what to board first is the choice.
+    final out = <TransitOption>[];
+    final firsts = <String>{};
+    for (final o in all) {
+      if (out.isNotEmpty && o.minutes > out.first.minutes + transitSlackMinutes) break;
+      if (_roundabout(o, from, to)) continue;
+      if (!firsts.add('${o.rides.first.kind.name}:${o.rides.first.service}')) continue;
+      out.add(o);
+      if (out.length == max) break;
+    }
+    return out;
+  }
+
+  /// True when a later ride boards where the start could have walked to, or an earlier ride
+  /// gets off where the end is within walking: such an option goes the long way round.
+  bool _roundabout(TransitOption o, Place from, Place to) {
+    bool near(String id, Place p, double busMetres) {
+      final x = _index[id];
+      if (x == null) return false;
+      final d = distanceMeters(p.lat, p.lng, _lats[x], _lngs[x]);
+      return d <= (_isStation(x) ? _stationMetres : busMetres);
+    }
+
+    final rides = o.rides;
+    for (var i = 0; i < rides.length; i++) {
+      if (i > 0 && near(rides[i].from, from, _startBusMetres)) return true;
+      if (i < rides.length - 1 && near(rides[i].to, to, _endBusMetres)) return true;
+    }
+    return false;
+  }
+
+  List<TransitOption> _search(Place from, Place to, int max, {bool mrt = true, bool startByTrain = false}) {
+    final n = nodeCount;
+    // arr[k][x]: best minutes at x after k rides (a walk after the last ride allowed);
+    // ride[k][x]: the same, ending on the ride itself.
+    final arr = [for (var k = 0; k <= transitMaxRides; k++) List.filled(n, _never)];
+    final ride = [for (var k = 0; k <= transitMaxRides; k++) List.filled(n, _never)];
+    final rideFrom = [for (var k = 0; k <= transitMaxRides; k++) <int, (int, int, int)>{}]; // x -> (pattern, board, alight)
+    final walkFrom = [for (var k = 0; k <= transitMaxRides; k++) <int, (int, double)>{}]; // x -> (node, metres)
+    final access = <int, double>{};
+    final egress = <int, double>{};
+    for (var x = 0; x < n; x++) {
+      final station = _isStation(x);
+      final dFrom = distanceMeters(from.lat, from.lng, _lats[x], _lngs[x]);
+      if (dFrom <= (station ? _stationMetres : _startBusMetres) && (station ? mrt : !startByTrain)) {
+        access[x] = dFrom;
+        arr[0][x] = walkMinutesTo(dFrom);
+      }
+      final dTo = distanceMeters(to.lat, to.lng, _lats[x], _lngs[x]);
+      if (dTo <= (station ? _stationMetres : _endBusMetres)) egress[x] = dTo;
+    }
+    if (access.isEmpty || egress.isEmpty) return const [];
+
+    for (var k = 1; k <= transitMaxRides; k++) {
+      final prev = arr[k - 1];
+      final touched = <int>{
+        for (var x = 0; x < n; x++)
+          if (prev[x] < _never)
+            for (final (p, _) in _at[x])
+              if (mrt || _patterns[p].kind == LegKind.bus) p,
+      };
+      int wait(int p, int x) {
+        final pat = _patterns[p];
+        if (pat.kind == LegKind.bus) return k == 1 ? firstBusWaitMinutes : busChangeWaitMinutes;
+        final came = k > 1 && !walkFrom[k - 1].containsKey(x) ? rideFrom[k - 1][x] : null;
+        return came != null && _patterns[came.$1].kind == LegKind.mrt ? rideTransferMinutes : mrtWaitMinutes;
+      }
+
+      for (final p in touched) {
+        final pat = _patterns[p];
+        final per = pat.kind == LegKind.bus ? feederMinutesPerStop : rideMinutesPerStop;
+        int? board;
+        var boardAt = 0;
+        for (var j = 0; j < pat.nodes.length; j++) {
+          final x = pat.nodes[j];
+          if (board != null) {
+            final t = boardAt + per * (j - board);
+            if (t < ride[k][x]) {
+              ride[k][x] = t;
+              rideFrom[k][x] = (p, board, j);
+            }
+          }
+          if (prev[x] < _never) {
+            final t = prev[x] + wait(p, x);
+            if (board == null || t <= boardAt + per * (j - board)) {
+              board = j;
+              boardAt = t;
+            }
+          }
+        }
+      }
+      for (var x = 0; x < n; x++) {
+        if (ride[k][x] < arr[k][x]) arr[k][x] = ride[k][x];
+      }
+      for (var x = 0; x < n; x++) {
+        if (ride[k][x] == _never) continue;
+        for (final (y, d) in _walks[x]) {
+          final t = ride[k][x] + walkMinutesTo(d);
+          if (t < arr[k][y]) {
+            arr[k][y] = t;
+            walkFrom[k][y] = (x, d);
+          }
+        }
+      }
+    }
+
+    final candidates = <(int, int, int)>[]; // (minutes, rides, end node)
+    for (var k = 1; k <= transitMaxRides; k++) {
+      egress.forEach((x, d) {
+        if (ride[k][x] < _never) candidates.add((ride[k][x] + walkMinutesTo(d), k, x));
+      });
+    }
+    candidates.sort((a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : a.$2.compareTo(b.$2));
+    final built = <TransitOption>[];
+    final seen = <String>{};
+    for (final (minutes, k, x) in candidates) {
+      if (built.isNotEmpty && minutes > built.first.minutes + transitSlackMinutes) break;
+      final option = _rebuild(k, x, egress[x]!, access, rideFrom, walkFrom, ride, arr);
+      if (option == null || !seen.add(option.signature)) continue;
+      built.add(option);
+      if (built.length >= max) break;
+    }
+    return built;
+  }
+
+  TransitOption? _rebuild(
+    int rides,
+    int end,
+    double endMetres,
+    Map<int, double> access,
+    List<Map<int, (int, int, int)>> rideFrom,
+    List<Map<int, (int, double)>> walkFrom,
+    List<List<int>> ride,
+    List<List<int>> arr,
+  ) {
+    final legs = <TransitLeg>[
+      TransitLeg(
+          kind: LegKind.walk,
+          from: _ids[end],
+          to: '',
+          fromName: _names[end],
+          toName: '',
+          minutes: walkMinutesTo(endMetres),
+          metres: endMetres),
+    ];
+    var x = end;
+    var t = ride[rides][end];
+    for (var k = rides; k >= 1; k--) {
+      final r = rideFrom[k][x];
+      if (r == null) return null;
+      final (p, b, a) = r;
+      final pat = _patterns[p];
+      final boardNode = pat.nodes[b];
+      final before = arr[k - 1][boardNode];
+      legs.add(TransitLeg(
+        kind: pat.kind,
+        from: _ids[boardNode],
+        to: _ids[x],
+        fromName: _names[boardNode],
+        toName: _names[x],
+        service: pat.service,
+        stops: a - b,
+        minutes: t - before,
+        routeKey: pat.routeKey,
+      ));
+      x = boardNode;
+      t = before;
+      if (k - 1 == 0) break;
+      final w = walkFrom[k - 1][x];
+      if (w != null) {
+        final (y, d) = w;
+        final atY = ride[k - 1][y];
+        legs.add(TransitLeg(
+            kind: LegKind.walk,
+            from: _ids[y],
+            to: _ids[x],
+            fromName: _names[y],
+            toName: _names[x],
+            minutes: t - atY,
+            metres: d));
+        x = y;
+        t = atY;
+      }
+    }
+    final d = access[x];
+    if (d == null) return null;
+    legs.add(TransitLeg(
+        kind: LegKind.walk, from: '', to: _ids[x], fromName: '', toName: _names[x], minutes: t, metres: d));
+    return TransitOption(legs.reversed.toList());
+  }
 }
