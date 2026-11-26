@@ -5,7 +5,7 @@ after adding, moving, renaming or removing a file, a public class or function, a
 or an endpoint. CI (`docs` workflow) fails when this file is out of date. What each
 feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 
-## App: `app/lib` (36 files)
+## App: `app/lib` (37 files)
 
 ### `lib/api.dart`
 - Types: `DailyLahApi`, `OneMapApi`, `PlacesApi`, `BundleRepository`, `BusStopRepository`, `MapsLinks`
@@ -51,6 +51,10 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 
 ### `lib/store.dart`
 - Types: `FavoritesStore`, `HabitsStore`, `AlertLog`, `LiveCache`
+
+### `lib/transit.dart`
+- Types: `LegKind (enum)`, `TransitLeg`, `TransitOption`, `TransitNet`, `on (extension)`
+- Functions: `peakOnlyService`, `transitOptions`
 
 ### `lib/ui/about.dart`
 - Types: `DataSource`, `AboutDailyLahPage`
