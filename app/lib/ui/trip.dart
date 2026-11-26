@@ -404,7 +404,11 @@ class _TripTimer extends ConsumerWidget {
     final routes = ref.read(busRoutesProvider).value ?? BusRoutes.empty;
     final bus = mode == TravelMode.transit && !endsHere;
     final stops = bus ? tripStops(usableStops(from), all, routes, from, to).stops : const <BusStop>[];
-    final leave = stops.isEmpty
+    // No direct bus from any start stop: the trip goes with changes, so no stop or bus is kept
+    // (its board to the destination would only say "No direct bus").
+    final destStops = destinationStops(to, all);
+    final direct = routes.routes.isEmpty || stops.any((st) => tripRides(routes, st, to, destStops).isNotEmpty);
+    final leave = stops.isEmpty || !direct
         ? null
         : tripLeave(
             from: from,
@@ -571,9 +575,26 @@ class _TransitBlock extends ConsumerWidget {
     // Ways with changes: always when no stop has a direct bus; with direct buses only on the
     // planner page (Today keeps its direct buses short).
     final onPlanner = !(ModalRoute.of(context)?.isFirst ?? true);
-    final options = straight >= walkInsteadMetres && (!anyDirect || onPlanner)
-        ? ref.watch(transitOptionsProvider((from.lat, from.lng, to.lat, to.lng)))
+    final ends = (from.lat, from.lng, to.lat, to.lng);
+    final found = straight >= walkInsteadMetres && (!anyDirect || onPlanner)
+        ? ref.watch(transitOptionsProvider(ends))
         : const <TransitOption>[];
+    // A way over a disrupted MRT line is no way today.
+    final alerts = ref.watch(trainAlertsProvider).value;
+    final down = alerts == null
+        ? const <String>{}
+        : {
+            for (final st in lineStatuses(alerts, {
+              for (final o in found)
+                for (final r in o.rides)
+                  if (r.kind == LegKind.mrt) r.service!,
+            }))
+              if (st.disrupted) st.line,
+          };
+    final options = [
+      for (final o in found)
+        if (!o.rides.any((r) => r.kind == LegKind.mrt && down.contains(r.service))) o,
+    ];
 
     final buses = <Widget>[
       if (trip.stops.isEmpty)
@@ -637,12 +658,12 @@ class _TransitBlock extends ConsumerWidget {
         // bus of the best way as a live card.
         else if (!anyDirect && options.isNotEmpty)
           ...[
-            TransitOptionsCard(options: options),
+            TransitOptionsCard(key: ValueKey(ends), options: options),
             if (_firstBusCard(options.first, all, from, fromName) case final card?) card,
             mrt,
           ]
         else if (anyDirect || bad.lines.isNotEmpty)
-          ...[...buses, mrt, if (options.isNotEmpty) TransitOptionsCard(options: options)]
+          ...[...buses, mrt, if (options.isNotEmpty) TransitOptionsCard(key: ValueKey(ends), options: options)]
         else
           ...[mrt, ...buses],
       ],
@@ -672,6 +693,7 @@ Widget? _firstBusCard(TransitOption o, List<BusStop> all, Place from, String fro
     suggestedMetres: distanceMeters(from.lat, from.lng, stop.lat, stop.lng),
     from: from,
     fromName: fromName,
+    legService: ride.service,
   );
 }
 
@@ -705,7 +727,8 @@ class _TransitOptionsCardState extends ConsumerState<TransitOptionsCard> {
               if (i > 0) Divider(height: 1, color: DL.edge(context).withValues(alpha: 0.2)),
               _OptionRow(
                 option: o,
-                label: s.transitOptionLabel(i + 1, o.rides.map((r) => r.service).join(', '), o.minutes),
+                label: s.transitOptionLabel(i + 1, o.legs.first.kind == LegKind.walk ? o.legs.first.minutes : 0,
+                    o.rides.map((r) => r.service).join(', '), o.minutes),
                 selected: i == open,
                 onTap: () => setState(() => _open = i),
               ),
@@ -733,7 +756,7 @@ class _OptionRow extends ConsumerWidget {
     final arrow = Icon(Icons.chevron_right, size: 18, color: DL.muted(context));
     return Semantics(
       button: true,
-      selected: selected,
+      expanded: selected,
       label: label,
       excludeSemantics: true,
       child: InkWell(
@@ -1381,7 +1404,12 @@ class TripBusCard extends ConsumerWidget {
     this.from,
     this.fromName,
     this.walkCard = true,
+    this.legService,
   });
+
+  /// Set when this card is the first ride of a way with changes: the bus of that ride. When it has
+  /// no arrival now, the card says so instead of "No direct bus" (it goes to a change, not the end).
+  final String? legService;
 
   /// With several stops on a trip, only the first card shows the walking card beside a folded bus.
   final bool walkCard;
@@ -1632,7 +1660,9 @@ class TripBusCard extends ConsumerWidget {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (direct.isEmpty)
+                      if (direct.isEmpty && legService != null)
+                        EmptyNote(s.transitNoTimes(legService!))
+                      else if (direct.isEmpty)
                         EmptyNote(
                           s.noDirectBus,
                           action: TextButton(

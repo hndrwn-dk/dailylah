@@ -115,7 +115,9 @@ feature, screen, provider or rule moves, appears or goes away.
   the two ends) runs the search; `TransitOptionsCard` (ui/trip.dart: one 48 dp row per option, walk minutes, bus plates
   and line chips, "~N min"; the open one lists its legs; "Times after the first bus or train are estimates") replaces
   the "No direct bus" stop cards when no stop has a direct bus, followed by a live `TripBusCard` for the first bus
-  of the best way (`_firstBusCard`: buses from its stop to the stop of the first change) and By MRT; with direct
+  of the best way (`_firstBusCard`: buses from its stop to the stop of the first change, `TripBusCard.legService`:
+  "No times for bus 966 at this stop right now" instead of "No direct bus") and By MRT; ways over a disrupted MRT line
+  are left out; I'm leaving on such a trip keeps no stop or bus (`_TripTimer._leave`), so Bus arriving does not start; with direct
   buses it shows after them on the planner page only, so Today stays short. Tests: `test/transit_test.dart`,
   "ways with changes" in `test/features_test.dart` and the screens matrix. Bus/MRT also shows the nearest MRT
   station at each end from the `mrt_stations.json` bundle (`mrtPlan`). "Plan a trip" (`TripPlannerPage`,

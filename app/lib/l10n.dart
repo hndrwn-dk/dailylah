@@ -409,7 +409,9 @@ class S {
   String transitTrain(String line, int stops, String to) =>
       noOrphan('$line · ${stops == 1 ? '1 stop' : '$stops stops'} to $to');
   String transitFrom(String name) => noOrphan('From $name');
-  String transitOptionLabel(int i, String summary, int minutes) => 'Option $i: $summary, about $minutes minutes';
+  String transitNoTimes(String service) => noOrphan('No times for bus $service at this stop right now.');
+  String transitOptionLabel(int i, int walkMinutes, String summary, int minutes) =>
+      'Option $i: ${walkMinutes > 0 ? 'walk $walkMinutes min, then ' : ''}$summary, about $minutes minutes';
   String get noDirectBus => 'No direct bus from this stop. Check the full route in Google Maps.';
   String get routeInMaps => 'Route in Google Maps';
   String get otherBuses => 'Other buses at this stop';
