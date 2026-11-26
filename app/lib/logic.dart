@@ -1610,6 +1610,23 @@ List<(String, String)> incidentsOnTrip(Map<String, dynamic>? apiBody, Place from
 }
 
 
+// ---------------------------------------------------------------- trips with changes: steps
+
+/// The step after [i], or the last one when [i] is already the last.
+int stepAfter(List<TripStep> steps, int i) => steps.isEmpty ? 0 : math.min(i + 1, steps.length - 1);
+
+/// Estimated minutes from the start of step [i] to the end of the trip.
+int remainingMinutes(List<TripStep> steps, int i) =>
+    steps.skip(math.max(0, i)).fold(0, (sum, s) => sum + s.minutes);
+
+/// The first bus or MRT step at or after [i], or null when only a walk is left.
+int? nextRideIndex(List<TripStep> steps, int i) {
+  for (var j = math.max(0, i); j < steps.length; j++) {
+    if (steps[j].isRide) return j;
+  }
+  return null;
+}
+
 /// Start stops for a trip and whether they were suggested instead of the saved ones.
 class TripStops {
   const TripStops(this.stops, {this.suggested = false});

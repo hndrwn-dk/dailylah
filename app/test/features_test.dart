@@ -1157,6 +1157,82 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Plan a trip without a direct bus offers ways with changes', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    box.read(goAdhocFromProvider.notifier).state =
+        const Place(kind: PlaceKind.other, name: 'Marine Parade', address: 'Marine Parade', addrLat: 1.3050, addrLng: 103.9085);
+    box.read(goAdhocDestProvider.notifier).state = const Place(
+        kind: PlaceKind.other, name: 'ST Engineering Hub', address: 'ST Engineering Hub', addrLat: 1.3917, addrLng: 103.8480);
+    box.read(goFromKeyProvider.notifier).state = 'adhoc';
+    box.read(goKeyProvider.notifier).state = 'adhoc';
+    await settle(tester);
+    expect(find.byType(TransitOptionsCard), findsOneWidget);
+    // The dead-end cards of the two nearest stops are gone; the first bus of the best way has
+    // its own card (the fake arrivals have no 966, so that board itself says no direct bus).
+    expect(find.text(_s.fromStop('Marine Pde Stn Exit 6')), findsNothing);
+    expect(find.text(_s.fromStop("Opp D'Ecosia")), findsOneWidget);
+    // That card goes to the change, not the end: without a 966 now it says so, not "No direct bus".
+    expect(find.text(_s.transitNoTimes('966')), findsOneWidget);
+    expect(find.text(_s.noDirectBus), findsNothing);
+    // Option 1 is open: 966 from Opp D'Ecosia, then 857; its first bus has a live card.
+    expect(find.textContaining('Bus 966 ·'), findsOneWidget);
+    expect(find.textContaining('Bus 857 ·'), findsOneWidget);
+    expect(find.text(_s.busesTo("Opp St. Andrew's Village")), findsOneWidget);
+    // Tapping another option opens its legs instead.
+    final second = find.bySemanticsLabel(RegExp('^Option 2:'));
+    await tester.ensureVisible(second);
+    await settle(tester);
+    await tester.tap(second);
+    await settle(tester);
+    expect(find.textContaining('Bus 966 ·'), findsNothing);
+    // I'm leaving keeps no stop: the nearest stop's board would only say "No direct bus".
+    final leave = find.text("I'm leaving");
+    await tester.ensureVisible(leave);
+    await settle(tester);
+    await tester.tap(leave);
+    await settle(tester);
+    expect(box.read(habitsProvider).tripStart, isNotNull);
+    expect(box.read(habitsProvider).tripStop, isNull);
+    // It keeps the steps of the way that was open (option 2), starting at the first.
+    final second2 = tester.widget<TransitOptionsCard>(find.byType(TransitOptionsCard)).options[1];
+    final h = box.read(habitsProvider);
+    expect([for (final st in h.tripSteps) if (st.isRide) st.service], [for (final r in second2.rides) r.service]);
+    expect(h.tripStepIndex, 0);
+    // Arrived ends the trip and its steps.
+    final arrived = find.text('Arrived');
+    await tester.ensureVisible(arrived.first);
+    await settle(tester);
+    await tester.tap(arrived.first);
+    await settle(tester);
+    expect(box.read(habitsProvider).tripSteps, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Ways with changes leave out a disrupted MRT line', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning, disruptedLine: 'TEL'));
+    await settle(tester);
+    final box = containerOf(tester);
+    Navigator.of(tester.element(find.byType(TodayPage))).push(MaterialPageRoute<void>(builder: (_) => const TripPlannerPage()));
+    await settle(tester);
+    box.read(goAdhocFromProvider.notifier).state =
+        const Place(kind: PlaceKind.other, name: 'Marine Parade', address: 'Marine Parade', addrLat: 1.3050, addrLng: 103.9085);
+    box.read(goAdhocDestProvider.notifier).state = const Place(
+        kind: PlaceKind.other, name: 'ST Engineering Hub', address: 'ST Engineering Hub', addrLat: 1.3917, addrLng: 103.8480);
+    box.read(goFromKeyProvider.notifier).state = 'adhoc';
+    box.read(goKeyProvider.notifier).state = 'adhoc';
+    await settle(tester);
+    final card = tester.widget<TransitOptionsCard>(find.byType(TransitOptionsCard));
+    expect(card.options, isNotEmpty);
+    expect(card.options.expand((o) => o.rides).where((r) => r.service == 'TEL'), isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Need a toilet? on the train lists the next stations, with a mall when one is close', (tester) async {
     await applyCondition(tester, _normal);
     await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));

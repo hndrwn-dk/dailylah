@@ -399,6 +399,19 @@ class S {
         if (sheltered != null) sheltered ? 'sheltered' : 'not sheltered',
       ].join(' · ');
   String get modeEtaNote => 'A rough estimate from the distance, without traffic or waiting.';
+  // ways with changes (transitOptions)
+  String get transitOptionsTitle => 'Ways with changes';
+  String get transitEstimate => 'Times after the first bus or train are estimates.';
+  String transitMinutes(int m) => '~$m min';
+  String transitWalk(String metres, int minutes) => 'Walk $metres · $minutes min';
+  String transitBus(String service, int stops, String to) =>
+      noOrphan('Bus $service · ${stops == 1 ? '1 stop' : '$stops stops'} to $to');
+  String transitTrain(String line, int stops, String to) =>
+      noOrphan('$line · ${stops == 1 ? '1 stop' : '$stops stops'} to $to');
+  String transitFrom(String name) => noOrphan('From $name');
+  String transitNoTimes(String service) => noOrphan('No times for bus $service at this stop right now.');
+  String transitOptionLabel(int i, int walkMinutes, String summary, int minutes) =>
+      'Option $i: ${walkMinutes > 0 ? 'walk $walkMinutes min, then ' : ''}$summary, about $minutes minutes';
   String get noDirectBus => 'No direct bus from this stop. Check the full route in Google Maps.';
   String get routeInMaps => 'Route in Google Maps';
   String get otherBuses => 'Other buses at this stop';
@@ -1103,7 +1116,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Bus arriving: turning a bus's bell off now says so, with Undo, so a tap meant to check it does not quietly stop the alert. On a bus that loops past the same street twice, such as the 36, the stops left to your stop no longer jump between two numbers.",
+        "Plan a trip: when no bus goes straight there, DailyLah now shows up to three ways with changes, mixing buses, MRT and short walks (such as 966 then 857), with live times for the first bus. All worked out on your phone. Also fixed: opening the app from its home screen widget no longer shows the running trip's bar twice.",
       ];
 
   // about

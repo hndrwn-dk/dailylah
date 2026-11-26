@@ -1,1 +1,1 @@
-Bus arriving: turning a bus's bell off now says so, with Undo, so a tap meant to check it does not quietly stop the alert. On a bus that loops past the same street twice, such as the 36, the stops left to your stop no longer jump between two numbers.
+Plan a trip: when no bus goes straight there, DailyLah now shows up to three ways with changes, mixing buses, MRT and short walks (such as 966 then 857), with live times for the first bus. All worked out on your phone. Also fixed: opening the app from its home screen widget no longer shows the running trip's bar twice.

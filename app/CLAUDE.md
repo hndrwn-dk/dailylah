@@ -106,7 +106,25 @@ feature, screen, provider or rule moves, appears or goes away.
   (`TripSection` in `ui/trip.dart`) and a "Go somewhere" picker. "Buses to X" uses the
   `bus_routes.json` bundle (`directRides` in logic.dart; trip start stops are filtered to the
   side of the road with a direct bus, or nearby stops with one are suggested, `tripStops`;
-  loop services that go the long way are dropped, `tripRides`). Bus/MRT also shows the nearest MRT
+  loop services that go the long way are dropped, `tripRides`). Options with changes (`lib/transit.dart`, pure Dart): `TransitNet` is
+  built from the bus stops, bus routes and MRT stations bundles (MRT extensions and LRT loops joined to their trunk
+  station, walks up to `transferWalkMetres`), and `transitOptions` finds up to 3 door-to-door options (bus, MRT and
+  walks, at most 3 rides) on estimated minutes: three searches (all, buses only, starting by train), options that
+  board the same first ride or go the long way round (`_roundabout`) dropped, peak-only and night services left
+  out (`peakOnlyService`). `transitNetProvider` builds the net once per run, `transitOptionsProvider` (family on
+  the two ends) runs the search; `TransitOptionsCard` (ui/trip.dart: one 48 dp row per option, walk minutes, bus plates
+  and line chips, "~N min"; the open one lists its legs; "Times after the first bus or train are estimates") replaces
+  the "No direct bus" stop cards when no stop has a direct bus, followed by a live `TripBusCard` for the first bus
+  of the best way (`_firstBusCard`: buses from its stop to the stop of the first change, `TripBusCard.legService`:
+  "No times for bus 966 at this stop right now" instead of "No direct bus") and By MRT; ways over a disrupted MRT line
+  are left out (`tripWaysProvider`, the list the card and I'm leaving share); which way is open is kept per trip
+  ends (`openWayProvider`); I'm leaving on such a trip keeps no stop or bus (`_TripTimer._leave`), so Bus arriving
+  does not start, but keeps the open way's steps on the running trip (`TripStep` in models.dart, `stepsOf` in
+  transit.dart; `Habits.tripSteps` JSON `st`, `tripStepIndex` `si`, cleared with the trip; rules `stepAfter`,
+  `remainingMinutes`, `nextRideIndex`; tests `test/trip_nav_test.dart`) for trip navigation
+  (docs/superpowers/specs/2026-11-26-trip-navigation-design.md, phase 1 of 4: nothing shows them yet); with direct
+  buses it shows after them on the planner page only, so Today stays short. Tests: `test/transit_test.dart`,
+  "ways with changes" in `test/features_test.dart` and the screens matrix. Bus/MRT also shows the nearest MRT
   station at each end from the `mrt_stations.json` bundle (`mrtPlan`). "Plan a trip" (`TripPlannerPage`,
   `GoSomewhere`) is one route card: From on top, To below, both with the same choices (Current location = `S.hereNow`, called Here below, Home, Work,
   School, saved places, and a search field, `goAdhocFromProvider`/`goAdhocDestProvider`) and a

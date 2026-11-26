@@ -33,6 +33,10 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- Off: widget and alert taps carry dailylah:// links that home_widget and the app read
+                 themselves. Flutter's own deep linking turned such a link into a push of "/" while
+                 the app was open, a second copy of the tabs with the trip bar twice. -->
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="false" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>

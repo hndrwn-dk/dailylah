@@ -1440,10 +1440,19 @@ def parse_halal_page(text: str) -> list[dict]:
     coords: dict[str, tuple[float, float]] = {}
     i = text.find("halal_places:")
     if i >= 0:
+        shared = _nuxt_values(text)
+        value = r"(-?[\d.]+|[A-Za-z_$][\w$]*)"
         for la, lo, addr in re.findall(
-            r'lat:(-?[\d.]+),\s*lon:(-?[\d.]+),\s*address:"((?:[^"\\]|\\.)*)"', text[i:]
+            rf'lat:{value},\s*lon:{value},\s*address:("(?:[^"\\]|\\.)*"|[A-Za-z_$][\w$]*)',
+            text[i:],
         ):
-            coords[_norm_addr(_js_string(addr))] = (float(la), float(lo))
+            lat, lng, where = (shared.get(v, v) for v in (la, lo, addr))
+            if isinstance(where, str) and where.startswith('"'):
+                where = _js_string(where[1:-1])
+            try:
+                coords[_norm_addr(str(where))] = (float(lat), float(lng))
+            except (TypeError, ValueError):
+                continue
     out = []
     for card in text.split('class="card-box"')[1:]:
         name = re.search(r'<div class="card-name"[^>]*>(.*?)</div>', card, re.S)
@@ -1464,6 +1473,35 @@ def parse_halal_page(text: str) -> list[dict]:
             }
         )
     return out
+
+
+_JS_TOKEN = re.compile(r'\s*("(?:[^"\\]|\\.)*"|[^,]+)\s*(?:,|$)')
+
+
+def _nuxt_values(text: str) -> dict[str, object]:
+    """Values Nuxt shares on a page: `window.__NUXT__=(function(a,b,...){...}(1,1.43,"x",...))`
+    passes every value used more than once as an argument, so `lat:b` means the second one."""
+    head = re.search(r"window\.__NUXT__=\(function\(([^)]*)\)\{", text)
+    if not head:
+        return {}
+    names = [n.strip() for n in head.group(1).split(",") if n.strip()]
+    end = text.find("</script>", head.end())
+    body = text[head.end() : end if end >= 0 else len(text)]
+    # The call's arguments: after the last "}(" of the script, up to its closing "))".
+    start = body.rfind("}(")
+    stop = body.rfind("))")
+    if start < 0 or stop <= start:
+        return {}
+    values: list[object] = []
+    for tok in _JS_TOKEN.findall(body[start + 2 : stop]):
+        tok = tok.strip()
+        if tok.startswith('"'):
+            values.append(tok)  # kept quoted: decoded where it is used
+        elif tok in ("null", "true", "false", "void 0"):
+            values.append(None)
+        else:
+            values.append(tok)
+    return dict(zip(names, values, strict=False))
 
 
 def _norm_addr(a: str) -> str:

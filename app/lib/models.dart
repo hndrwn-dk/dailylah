@@ -797,6 +797,76 @@ class MealLog {
       );
 }
 
+enum StepKind { walk, bus, mrt }
+
+/// One step of a trip with changes (a walk, a bus or an MRT ride), kept with the running trip so
+/// the app can walk the rider through it. On the phone only.
+class TripStep {
+  const TripStep({
+    required this.kind,
+    required this.from,
+    required this.to,
+    required this.fromName,
+    required this.toName,
+    this.service,
+    this.stops = 0,
+    this.minutes = 0,
+    this.metres = 0,
+    this.routeKey = '',
+  });
+  final StepKind kind;
+
+  /// A bus stop code, `mrt:<station name>`, or '' for the trip's own start or end.
+  final String from;
+  final String to;
+  final String fromName;
+  final String toName;
+
+  /// Bus number or MRT line ("TEL"); null for a walk.
+  final String? service;
+  final int stops;
+
+  /// Estimated minutes, the wait before a ride included.
+  final int minutes;
+
+  /// Walking distance (walk steps only).
+  final double metres;
+  final String routeKey;
+
+  bool get isRide => kind != StepKind.walk;
+
+  Map<String, dynamic> toJson() => {
+        'k': kind.name,
+        'f': from,
+        't': to,
+        'fn': fromName,
+        'tn': toName,
+        if (service != null) 's': service,
+        if (stops != 0) 'n': stops,
+        'm': minutes,
+        if (metres != 0) 'd': metres,
+        if (routeKey.isNotEmpty) 'r': routeKey,
+      };
+
+  /// Null for an entry this version cannot read (an unknown kind).
+  static TripStep? fromJson(Map<String, dynamic> j) {
+    final kind = StepKind.values.asNameMap()['${j['k']}'];
+    if (kind == null) return null;
+    return TripStep(
+      kind: kind,
+      from: '${j['f'] ?? ''}',
+      to: '${j['t'] ?? ''}',
+      fromName: '${j['fn'] ?? ''}',
+      toName: '${j['tn'] ?? ''}',
+      service: j['s'] as String?,
+      stops: (j['n'] as num?)?.toInt() ?? 0,
+      minutes: (j['m'] as num?)?.toInt() ?? 0,
+      metres: (j['d'] as num?)?.toDouble() ?? 0,
+      routeKey: '${j['r'] ?? ''}',
+    );
+  }
+}
+
 /// What the user chose to log, kept on the phone for "know me" insights.
 /// Never shared (not part of the family share code) and never sent to the server.
 class Habits {
@@ -813,6 +883,8 @@ class Habits {
     this.tripStop,
     this.tripBus,
     this.tripTrain = false,
+    this.tripSteps = const [],
+    this.tripStepIndex = 0,
     this.parkings = const [],
   });
   final ParkedCar? parked;
@@ -844,6 +916,11 @@ class Habits {
   /// after the ride itself has stopped or the app was reopened.
   final bool tripTrain;
 
+  /// The steps of the trip in progress when it goes with changes, and the one the rider is on;
+  /// empty for a trip with a direct bus or none.
+  final List<TripStep> tripSteps;
+  final int tripStepIndex;
+
   static const empty = Habits();
   static const maxTrips = 120;
   static const maxMeals = 200;
@@ -864,6 +941,8 @@ class Habits {
     String? tripBus,
     bool clearTripBus = false,
     bool? tripTrain,
+    List<TripStep>? tripSteps,
+    int? tripStepIndex,
     bool clearTrip = false,
     List<ParkLog>? parkings,
   }) =>
@@ -880,6 +959,8 @@ class Habits {
         tripStop: clearTrip ? null : (tripStop ?? this.tripStop),
         tripBus: clearTrip || clearTripBus ? null : (tripBus ?? this.tripBus),
         tripTrain: clearTrip ? false : (tripTrain ?? this.tripTrain),
+        tripSteps: clearTrip ? const [] : (tripSteps ?? this.tripSteps),
+        tripStepIndex: clearTrip ? 0 : (tripStepIndex ?? this.tripStepIndex),
         parkings: parkings ?? this.parkings,
       );
 
@@ -896,6 +977,8 @@ class Habits {
         if (tripStop != null) 'tp': tripStop,
         if (tripBus != null) 'tb': tripBus,
         if (tripTrain) 'tn': true,
+        if (tripSteps.isNotEmpty) 'st': [for (final st in tripSteps) st.toJson()],
+        if (tripStepIndex != 0) 'si': tripStepIndex,
         if (parkings.isNotEmpty) 'parks': [for (final p in parkings) p.toJson()],
       };
 
@@ -912,6 +995,12 @@ class Habits {
         tripStop: j['tp'] as String?,
         tripBus: j['tb'] as String?,
         tripTrain: j['tn'] == true,
+        tripSteps: [
+          for (final st in (j['st'] as List? ?? const []))
+            if (st is Map)
+              if (TripStep.fromJson(st.cast<String, dynamic>()) case final step?) step,
+        ],
+        tripStepIndex: (j['si'] as num?)?.toInt() ?? 0,
         parkings: [
           for (final p in (j['parks'] as List? ?? const [])) ParkLog.fromJson((p as Map).cast<String, dynamic>()),
         ],
