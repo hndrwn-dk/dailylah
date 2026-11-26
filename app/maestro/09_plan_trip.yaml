@@ -35,7 +35,7 @@ name: 09 Plan a trip
     timeout: 30000
 # Buses (the bus to leave for first), the train, or a note when nothing runs now.
 - scrollUntilVisible:
-    element: "(?s).*(Leave (now|in \\d+ min) to catch|Buses to Work|No direct bus|No buses right now|Buses have stopped|By MRT).*"
+    element: "(?s).*(Leave (now|in \\d+ min) to catch|Buses to Work|No direct bus|Ways with changes|No buses right now|Buses have stopped|By MRT).*"
     direction: DOWN
     timeout: 60000
     centerElement: true

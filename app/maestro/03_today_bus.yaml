@@ -37,12 +37,12 @@ name: 03 Today bus arrivals
       # When the next bus is far off (the first buses of the day), the card folds the buses into
       # "Bus 88 · 9 stops · not faster than walking": an answer too.
       - extendedWaitUntil:
-          visible: "(?s)(.*(Tap a bus to see where it is|No direct bus|No buses right now|Buses have stopped|Bus times not available|not faster than walking|Leave (now|in \\d+ min) to catch).*|\\w+\\n(Arr|\\d+ min)\\n.*)"
+          visible: "(?s)(.*(Tap a bus to see where it is|No direct bus|Ways with changes|No buses right now|Buses have stopped|Bus times not available|not faster than walking|Leave (now|in \\d+ min) to catch).*|\\w+\\n(Arr|\\d+ min)\\n.*)"
           timeout: 90000
       - assertNotVisible: "(?s).*Bus times not available.*"
       # Bring the board on screen when the leave card pushed it down.
       - scrollUntilVisible:
-          element: "(?s)(.*(Tap a bus to see where it is|No direct bus|No buses right now|Buses have stopped|not faster than walking).*|\\w+\\n(Arr|\\d+ min)\\n.*)"
+          element: "(?s)(.*(Tap a bus to see where it is|No direct bus|Ways with changes|No buses right now|Buses have stopped|not faster than walking).*|\\w+\\n(Arr|\\d+ min)\\n.*)"
           direction: DOWN
           timeout: 15000
           optional: true

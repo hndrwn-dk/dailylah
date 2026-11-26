@@ -44,7 +44,7 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 ### `lib/providers.dart`
 - Types: `FavoritesNotifier`, `HabitsNotifier`, `ExtrasQuery (typedef)`
 - Functions: `noRetry`, `nowOf`
-- Providers: 79 (listed below)
+- Providers: 81 (listed below)
 
 ### `lib/share_intake.dart`
 - Functions: `sharedPlaces`
@@ -128,7 +128,7 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 - Functions: `showToiletSheet`
 
 ### `lib/ui/trip.dart`
-- Types: `TripSection`, `MrtLineSheet`, `TripBusCard`, `GoSomewhere`, `TripPlannerPage`, `PlanTripCard`, `TripBanner`, `RunningTripPage`
+- Types: `TripSection`, `TransitOptionsCard`, `MrtLineSheet`, `TripBusCard`, `GoSomewhere`, `TripPlannerPage`, `PlanTripCard`, `TripBanner`, `RunningTripPage`
 - Functions: `modeIcon`, `mrtRouteKey`, `showMrtLineSheet`
 
 ### `lib/ui/wake.dart`
@@ -142,7 +142,7 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 - Types: `WakeState`, `WakeNotifier`
 - Providers: 2 (listed below)
 
-## Riverpod providers (86)
+## Riverpod providers (88)
 
 | Provider | Kind | File |
 | --- | --- | --- |
@@ -176,6 +176,8 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 | `rentProvider` | `FutureProvider` | `lib/providers.dart` |
 | `whereToLiveProvider` | `FutureProvider` | `lib/providers.dart` |
 | `busRoutesProvider` | `FutureProvider` | `lib/providers.dart` |
+| `transitNetProvider` | `FutureProvider` | `lib/providers.dart` |
+| `transitOptionsProvider` | `Provider.autoDispose.family` | `lib/providers.dart` |
 | `privateHomesProvider` | `FutureProvider` | `lib/providers.dart` |
 | `homeSectionProvider` | `StateProvider` | `lib/providers.dart` |
 | `nearbySectionProvider` | `StateProvider` | `lib/providers.dart` |

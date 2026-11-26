@@ -1,6 +1,6 @@
 # DailyLah Privacy Policy
 
-**Last updated: 22 November 2026**
+**Last updated: 26 November 2026**
 App: DailyLah (Android, package `com.tursinalabs.dailylah`)
 Published at: https://www.tursinalabs.com/dailylah/privacy
 
@@ -38,7 +38,7 @@ To show live information, the app sends requests to the DailyLah API operated by
 - When you pick **Car, Motorbike, Bicycle or Taxi** for a trip: the **destination of that trip** (for Taxi, its start) as a point rounded to about 11 metres, to get the nearest car parks with free lots, the nearest bicycle parking or the number of free taxis from LTA DataMall. This point can be a saved place, such as your home or work, when it is an end of that trip. It is never the position your phone reads for "Current location": for a trip that starts or ends at "Current location", the phone works this out itself from the full public lists. (A place you saved with "Use my current location" is a saved place like any other: its saved point is what is sent.) Our server uses the point for that one answer and does not log or store it; for bicycle parking it asks LTA for the surrounding area of about 1 km, not for the point
 - Requests for the weather forecast, haze (PSI and PM2.5), heat stress, lightning, train service alerts, HDB car park availability, car park availability for LTA, URA and HDB car parks, traffic incidents and taxi availability, which contain no personal data
 
-Which buses go to your destination and incidents on the way are worked out on your phone; the server only sends the full public lists. Parking, taxis and other places in the Nearby and Home tabs are worked out on your phone too. Searching HDB blocks, comparing blocks, nearby hawker centres, dengue clusters and weekend ideas are all computed on your phone from the public data bundles, so the server does not learn which places you look at.
+Which buses go to your destination, the ways to get there with changes (bus, MRT and walking, from the public bus route and station lists downloaded to your phone) and incidents on the way are worked out on your phone; the server only sends the full public lists, and neither your position nor your trip is sent for them. Parking, taxis and other places in the Nearby and Home tabs are worked out on your phone too. Searching HDB blocks, comparing blocks, nearby hawker centres, dengue clusters and weekend ideas are all computed on your phone from the public data bundles, so the server does not learn which places you look at.
 
 The app also downloads these public data bundles from our website. Like any web service, our hosting providers record technical request logs (IP address, time, requested path and app version) for operations and security, and keep them for a limited period. We do not combine these logs with any other data and we do not use them to identify you. The server never receives your phone's live position. Apart from the trip point described above, it never receives your saved places or your home or work location.
 
