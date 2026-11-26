@@ -254,20 +254,36 @@ extension on TransitNet {
     return out;
   }
 
-  /// True when a later ride boards where the start could have walked to, or an earlier ride
-  /// gets off where the end is within walking: such an option goes the long way round.
+  /// True when a later ride boards where walking from the start would get to no later, or an
+  /// earlier ride gets off where walking to the end would arrive no later: such an option goes
+  /// the long way round. A feeder bus to a station 1 km away is quicker than the walk, so it stays.
   bool _roundabout(TransitOption o, Place from, Place to) {
-    bool near(String id, Place p, double busMetres) {
+    int? walkFrom(String id, Place p, double busMetres) {
       final x = _index[id];
-      if (x == null) return false;
+      if (x == null) return null;
       final d = distanceMeters(p.lat, p.lng, _lats[x], _lngs[x]);
-      return d <= (_isStation(x) ? _stationMetres : busMetres);
+      return d <= (_isStation(x) ? _stationMetres : busMetres) ? walkMinutesTo(d) : null;
     }
 
-    final rides = o.rides;
-    for (var i = 0; i < rides.length; i++) {
-      if (i > 0 && near(rides[i].from, from, _startBusMetres)) return true;
-      if (i < rides.length - 1 && near(rides[i].to, to, _endBusMetres)) return true;
+    final legs = o.legs;
+    var before = 0;
+    var rideIndex = 0;
+    final last = o.rides.length - 1;
+    for (var i = 0; i < legs.length; i++) {
+      final leg = legs[i];
+      if (leg.isRide) {
+        if (rideIndex > 0) {
+          final walk = walkFrom(leg.from, from, _startBusMetres);
+          if (walk != null && walk <= before) return true;
+        }
+        if (rideIndex < last) {
+          final after = legs.skip(i + 1).fold(0, (sum, l) => sum + l.minutes);
+          final walk = walkFrom(leg.to, to, _endBusMetres);
+          if (walk != null && walk <= after) return true;
+        }
+        rideIndex++;
+      }
+      before += leg.minutes;
     }
     return false;
   }

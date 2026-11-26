@@ -89,6 +89,17 @@ void main() {
       }
     });
 
+    test('a station over 1 km away can be reached by a feeder bus', () {
+      const gulCircle = Place(kind: PlaceKind.other, addrLat: 1.31796, addrLng: 103.676608); // 1.1 km from the station
+      const rafflesPlace = Place(kind: PlaceKind.other, addrLat: 1.2837, addrLng: 103.8515);
+      final found = transitOptions(net, gulCircle, rafflesPlace);
+      expect(
+        found.any((o) => o.rides.first.kind == LegKind.bus && o.rides.skip(1).any((r) => r.kind == LegKind.mrt)),
+        isTrue,
+        reason: found.map((o) => o.signature).join(', '),
+      );
+    });
+
     test('the same place gives no options', () {
       expect(transitOptions(net, marineParade, marineParade), isEmpty);
     });
