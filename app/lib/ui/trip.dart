@@ -408,6 +408,11 @@ class _TripTimer extends ConsumerWidget {
     // (its board to the destination would only say "No direct bus").
     final destStops = destinationStops(to, all);
     final direct = routes.routes.isEmpty || stops.any((st) => tripRides(routes, st, to, destStops).isNotEmpty);
+    // Without a direct bus, the trip keeps the steps of the way open on its card.
+    final ends = (from.lat, from.lng, to.lat, to.lng);
+    final ways = bus && !direct ? ref.read(tripWaysProvider(ends)) : const <TransitOption>[];
+    final open = ref.read(openWayProvider(ends));
+    final steps = ways.isEmpty ? const <TripStep>[] : stepsOf(ways[open < ways.length ? open : 0]);
     final leave = stops.isEmpty || !direct
         ? null
         : tripLeave(
@@ -429,6 +434,7 @@ class _TripTimer extends ConsumerWidget {
           to: endsHere ? null : to,
           stop: leave?.stop.code,
           bus: leave?.service,
+          steps: steps,
         );
     // The planned trip has been left for: Today no longer offers it as a trip to plan (the planner
     // keeps its ends; a new pick there offers it again).
@@ -576,25 +582,9 @@ class _TransitBlock extends ConsumerWidget {
     // planner page (Today keeps its direct buses short).
     final onPlanner = !(ModalRoute.of(context)?.isFirst ?? true);
     final ends = (from.lat, from.lng, to.lat, to.lng);
-    final found = straight >= walkInsteadMetres && (!anyDirect || onPlanner)
-        ? ref.watch(transitOptionsProvider(ends))
+    final options = straight >= walkInsteadMetres && (!anyDirect || onPlanner)
+        ? ref.watch(tripWaysProvider(ends))
         : const <TransitOption>[];
-    // A way over a disrupted MRT line is no way today.
-    final alerts = ref.watch(trainAlertsProvider).value;
-    final down = alerts == null
-        ? const <String>{}
-        : {
-            for (final st in lineStatuses(alerts, {
-              for (final o in found)
-                for (final r in o.rides)
-                  if (r.kind == LegKind.mrt) r.service!,
-            }))
-              if (st.disrupted) st.line,
-          };
-    final options = [
-      for (final o in found)
-        if (!o.rides.any((r) => r.kind == LegKind.mrt && down.contains(r.service))) o,
-    ];
 
     final buses = <Widget>[
       if (trip.stops.isEmpty)
@@ -658,12 +648,12 @@ class _TransitBlock extends ConsumerWidget {
         // bus of the best way as a live card.
         else if (!anyDirect && options.isNotEmpty)
           ...[
-            TransitOptionsCard(key: ValueKey(ends), options: options),
+            TransitOptionsCard(key: ValueKey(ends), ends: ends, options: options),
             if (_firstBusCard(options.first, all, from, fromName) case final card?) card,
             mrt,
           ]
         else if (anyDirect || bad.lines.isNotEmpty)
-          ...[...buses, mrt, if (options.isNotEmpty) TransitOptionsCard(key: ValueKey(ends), options: options)]
+          ...[...buses, mrt, if (options.isNotEmpty) TransitOptionsCard(key: ValueKey(ends), ends: ends, options: options)]
         else
           ...[mrt, ...buses],
       ],
@@ -699,7 +689,10 @@ Widget? _firstBusCard(TransitOption o, List<BusStop> all, Place from, String fro
 
 /// Up to three ways to go with changes (bus, MRT and walks), the open one with its legs.
 class TransitOptionsCard extends ConsumerStatefulWidget {
-  const TransitOptionsCard({super.key, required this.options});
+  const TransitOptionsCard({super.key, required this.ends, required this.options});
+
+  /// The trip's two ends: which way is open is kept per trip ([openWayProvider]).
+  final (double, double, double, double) ends;
   final List<TransitOption> options;
 
   @override
@@ -707,13 +700,12 @@ class TransitOptionsCard extends ConsumerStatefulWidget {
 }
 
 class _TransitOptionsCardState extends ConsumerState<TransitOptionsCard> {
-  var _open = 0;
-
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    final open = _open < widget.options.length ? _open : 0;
+    final picked = ref.watch(openWayProvider(widget.ends));
+    final open = picked < widget.options.length ? picked : 0;
     return Panel(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -730,7 +722,7 @@ class _TransitOptionsCardState extends ConsumerState<TransitOptionsCard> {
                 label: s.transitOptionLabel(i + 1, o.legs.first.kind == LegKind.walk ? o.legs.first.minutes : 0,
                     o.rides.map((r) => r.service).join(', '), o.minutes),
                 selected: i == open,
-                onTap: () => setState(() => _open = i),
+                onTap: () => ref.read(openWayProvider(widget.ends).notifier).state = i,
               ),
               if (i == open) _OptionLegs(option: o),
             ],

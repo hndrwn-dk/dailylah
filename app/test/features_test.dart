@@ -1198,6 +1198,18 @@ void main() {
     await settle(tester);
     expect(box.read(habitsProvider).tripStart, isNotNull);
     expect(box.read(habitsProvider).tripStop, isNull);
+    // It keeps the steps of the way that was open (option 2), starting at the first.
+    final second2 = tester.widget<TransitOptionsCard>(find.byType(TransitOptionsCard)).options[1];
+    final h = box.read(habitsProvider);
+    expect([for (final st in h.tripSteps) if (st.isRide) st.service], [for (final r in second2.rides) r.service]);
+    expect(h.tripStepIndex, 0);
+    // Arrived ends the trip and its steps.
+    final arrived = find.text('Arrived');
+    await tester.ensureVisible(arrived.first);
+    await settle(tester);
+    await tester.tap(arrived.first);
+    await settle(tester);
+    expect(box.read(habitsProvider).tripSteps, isEmpty);
     expect(tester.takeException(), isNull);
   });
 
