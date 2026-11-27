@@ -23,8 +23,9 @@ final tripNavigationOnProvider = Provider<bool>((ref) => true);
 /// A faster way from where the rider waits, offered on the trip page (null: none now).
 final betterWayProvider = StateProvider<TransitOption?>((ref) => null);
 
-/// What [TripNavigator.switchToBetter] replaced, for Undo.
-typedef TripPlanBefore = ({List<TripStep> steps, int index, DateTime? at});
+/// What [TripNavigator.switchToBetter] replaced, for Undo: the trip it belongs to, the earlier
+/// plan, and the way switched to (Undo works only while the rider is still on its first step).
+typedef TripPlanBefore = ({DateTime trip, List<TripStep> steps, int index, DateTime? at, List<TripStep> switchedTo});
 
 /// The step the navigator drives (null when there is no trip with changes or it is off).
 final tripNavProvider = NotifierProvider<TripNavigator, int?>(TripNavigator.new);
@@ -43,6 +44,20 @@ class TripNavigator extends Notifier<int?> {
   /// The faster-way alert went out, or the rider kept their way, for this trip and step.
   (DateTime, int)? _toldBetter;
   (DateTime, int)? _keptMine;
+
+  /// The ways from the stop being walked to, worked out once per trip and step (they do not change).
+  (DateTime, int)? _waysKey;
+  List<TransitOption> _ways = const [];
+
+  /// A new plan for the same trip (Switch, Undo): every per-step memory goes and its tool starts.
+  void _replanned() {
+    _started = null;
+    _toldGetOff = null;
+    _toldBetter = null;
+    _keptMine = null;
+    _waysKey = null;
+    _drive();
+  }
 
   @override
   int? build() {
@@ -233,11 +248,18 @@ class TripNavigator extends Notifier<int?> {
     if (lat == null || lng == null) return;
     // The plan from that stop on: what is left of it after the walk there.
     final planned = [...steps.sublist(j)];
-    final options = transitOptions(net, Place(kind: PlaceKind.other, addrLat: lat, addrLng: lng), to);
+    if (_waysKey != key) {
+      _waysKey = key;
+      _ways = transitOptions(net, Place(kind: PlaceKind.other, addrLat: lat, addrLng: lng), to);
+    }
+    // Like with like: the plan's ride counts its own wait (longer at a change), an option's first
+    // ride the wait of a first bus or train.
+    final options = withoutDisrupted(_ways, ref.read(trainAlertsProvider).value);
     final better = betterWay(
         [TripStep(kind: StepKind.walk, from: '', to: id, fromName: '', toName: steps[j].fromName, minutes: 0), ...planned],
         0,
-        options);
+        options,
+        extraMinutes: rideWaitMinutes(steps, j) - (steps[j].kind == StepKind.mrt ? mrtWaitMinutes : firstBusWaitMinutes));
     ref.read(betterWayProvider.notifier).state = better;
     if (better == null || _toldBetter == key) return;
     final background = inBackground ?? WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed;
@@ -258,18 +280,25 @@ class TripNavigator extends Notifier<int?> {
     final better = ref.read(betterWayProvider);
     if (!_running || better == null) return null;
     final h = _h;
-    final before = (steps: h.tripSteps, index: h.tripStepIndex, at: h.tripStepAt);
+    final next = stepsOf(better);
+    final before = (trip: h.tripStart!, steps: h.tripSteps, index: h.tripStepIndex, at: h.tripStepAt, switchedTo: next);
     _stopTool();
     ref.read(betterWayProvider.notifier).state = null;
-    await ref.read(habitsProvider.notifier).replaceTripSteps(stepsOf(better), 0, now ?? DateTime.now());
+    await ref.read(habitsProvider.notifier).replaceTripSteps(next, 0, now ?? DateTime.now());
+    _replanned();
     return before;
   }
 
   /// Undo of [switchToBetter]: the earlier plan again, and no offer of the same way for that step.
   Future<void> undoSwitch(TripPlanBefore before) async {
     if (!_running) return;
+    final h = _h;
+    // Only for the same trip, still on the first step of the way switched to.
+    String plan(List<TripStep> steps) => steps.map((st) => st.toJson().toString()).join('|');
+    if (h.tripStart != before.trip || h.tripStepIndex != 0 || plan(h.tripSteps) != plan(before.switchedTo)) return;
     _stopTool();
     await ref.read(habitsProvider.notifier).replaceTripSteps(before.steps, before.index, before.at ?? DateTime.now());
+    _replanned();
     keepMine();
   }
 

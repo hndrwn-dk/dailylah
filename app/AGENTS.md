@@ -127,7 +127,12 @@ feature, screen, provider or rule moves, appears or goes away.
   and `betterWay` (transit.dart: at least `betterWayMinutes` sooner than the rest of the plan, other rides) puts a
   faster way in `betterWayProvider`; `BetterWayCard` on the trip page offers Switch (`switchToBetter`, the rest of
   the trip becomes its steps, `replaceTripSteps`; Undo `undoSwitch`) and Keep my way (`keepMine`, not offered again
-  on that step); with the app in the background one `betterWayNote` (ID 25) a step. Never switches by itself. The trip bar says the step
+  on that step); with the app in the background one `betterWayNote` (ID 25) a step. Never switches by itself. The ways
+  from that stop are worked out once a step, drop disrupted MRT lines like the planner (`withoutDisrupted`, shared
+  with `tripWaysProvider`), and are compared like with like (`rideWaitMinutes`: the plan's wait at a change against
+  an option's first wait, `betterWay(extraMinutes:)`); Switch and Undo start the new first step's tool and clear the
+  per-step memories (`_replanned`), and Undo (an 8 s snackbar) works only on the same trip's first step of the way
+  switched to. The trip bar says the step
   ("Step 2 of 4 · 966 in 4 min", `S.stepOf`, `stepLabel`) and opens `RunningTripPage`, which for a trip with steps
   shows `TripStepsCard` (every step: done ones dimmed, the active one amber with a critically damped spring,
   `_Settle`, none with animations off; the step button from `stepAction`: I'm on 966 / I'm on the train / Got off,

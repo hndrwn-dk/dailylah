@@ -466,23 +466,8 @@ final transitOptionsProvider =
 /// The ways with changes shown for a trip: [transitOptionsProvider] without those over an MRT line
 /// that is disrupted now. The card and I'm leaving read the same list.
 final tripWaysProvider =
-    Provider.autoDispose.family<List<TransitOption>, (double, double, double, double)>((ref, ends) {
-  final found = ref.watch(transitOptionsProvider(ends));
-  final alerts = ref.watch(trainAlertsProvider).value;
-  if (alerts == null || found.isEmpty) return found;
-  final down = {
-    for (final st in lineStatuses(alerts, {
-      for (final o in found)
-        for (final r in o.rides)
-          if (r.kind == LegKind.mrt) r.service!,
-    }))
-      if (st.disrupted) st.line,
-  };
-  return [
-    for (final o in found)
-      if (!o.rides.any((r) => r.kind == LegKind.mrt && down.contains(r.service))) o,
-  ];
-});
+    Provider.autoDispose.family<List<TransitOption>, (double, double, double, double)>((ref, ends) =>
+        withoutDisrupted(ref.watch(transitOptionsProvider(ends)), ref.watch(trainAlertsProvider).value));
 
 /// Which way with changes is open on a trip's card (by its two ends), kept by the way's
 /// signature ("966>857") so I'm leaving follows it even when the list changed meanwhile; null:

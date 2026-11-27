@@ -204,4 +204,48 @@ void main() {
       expect(n.pills.map((p) => p.text), ['70', '15 min sooner']);
     });
   });
+
+  test('a way that is only quicker because of a shorter wait at the change is not a faster way', () {
+    const plan = [
+      TripStep(kind: StepKind.walk, from: '', to: 'A', fromName: '', toName: 'A', minutes: 0),
+      TripStep(kind: StepKind.bus, from: 'A', to: 'B', fromName: 'A', toName: 'B', service: '966', minutes: 20),
+      TripStep(kind: StepKind.walk, from: 'B', to: '', fromName: 'B', toName: '', minutes: 0),
+    ];
+    final o = TransitOption(const [
+      TransitLeg(kind: LegKind.walk, from: '', to: 'A', fromName: '', toName: 'A', minutes: 0),
+      TransitLeg(kind: LegKind.bus, from: 'A', to: 'C', fromName: 'A', toName: 'C', service: '70', minutes: 15),
+      TransitLeg(kind: LegKind.walk, from: 'C', to: '', fromName: 'C', toName: '', minutes: 0),
+    ]);
+    expect(betterWay(plan, 0, [o])?.signature, '70');
+    // Waiting 6 min at a change in the plan against 5 for a first bus: the option is one minute
+    // nearer than it looks, so 15 against 20 no longer clears the 5-minute bar.
+    expect(betterWay(plan, 0, [o], extraMinutes: 1), isNull);
+  });
+
+  test('a way over a disrupted MRT line is left out, by the planner and by the faster-way offer alike', () {
+    final train = TransitOption(const [
+      TransitLeg(kind: LegKind.walk, from: '', to: 'mrt:A', fromName: '', toName: 'A', minutes: 1),
+      TransitLeg(kind: LegKind.mrt, from: 'mrt:A', to: 'mrt:B', fromName: 'A', toName: 'B', service: 'TEL', minutes: 10),
+      TransitLeg(kind: LegKind.walk, from: 'mrt:B', to: '', fromName: 'B', toName: '', minutes: 1),
+    ]);
+    final bus = TransitOption(const [
+      TransitLeg(kind: LegKind.walk, from: '', to: 'X', fromName: '', toName: 'X', minutes: 1),
+      TransitLeg(kind: LegKind.bus, from: 'X', to: 'Y', fromName: 'X', toName: 'Y', service: '70', minutes: 20),
+      TransitLeg(kind: LegKind.walk, from: 'Y', to: '', fromName: 'Y', toName: '', minutes: 1),
+    ]);
+    Map<String, dynamic> down(String line) => {
+          'data': {
+            'value': {
+              'Status': 2,
+              'AffectedSegments': [
+                {'Line': line, 'Direction': 'x', 'Stations': 'TE1', 'FreePublicBus': '', 'FreeMRTShuttle': ''},
+              ],
+              'Message': [],
+            },
+          },
+        };
+    expect(withoutDisrupted([train, bus], null), [train, bus]);
+    expect(withoutDisrupted([train, bus], down('TEL')), [bus]);
+    expect(withoutDisrupted([train, bus], down('NSL')), [train, bus]);
+  });
 }

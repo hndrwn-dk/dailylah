@@ -2831,6 +2831,9 @@ class BetterWayCard extends ConsumerWidget {
                     final before = await nav.switchToBetter();
                     if (before == null) return;
                     messenger.showSnackBar(SnackBar(
+                      // Undo is for second thoughts right after the tap, not later in the trip.
+                      persist: false,
+                      duration: const Duration(seconds: 8),
                       content: Text(s.betterWaySwitched),
                       action: SnackBarAction(label: s.undo, onPressed: () => nav.undoSwitch(before)),
                     ));

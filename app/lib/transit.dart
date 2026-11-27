@@ -473,14 +473,44 @@ List<TripStep> stepsOf(TransitOption o) => [
 /// While walking to the first ride of what is left of a trip with changes, or waiting for it:
 /// a way from [options] that ends at least [betterWayMinutes] sooner than the rest of the plan
 /// (estimates) and rides something else. Null on a ride, on the last walk, or when none is.
-TransitOption? betterWay(List<TripStep> steps, int i, List<TransitOption> options) {
+/// [extraMinutes] is added to every option (the plan may wait longer at a change than an
+/// option waits for its first ride; see [rideWaitMinutes]).
+TransitOption? betterWay(List<TripStep> steps, int i, List<TransitOption> options, {int extraMinutes = 0}) {
   if (i < 0 || i >= steps.length || steps[i].kind != StepKind.walk) return null;
   if (nextRideIndex(steps, i) == null) return null;
   final left = remainingMinutes(steps, i);
   final mine = [for (final st in steps.skip(i)) if (st.isRide) st.service].join('>');
   for (final o in [...options]..sort((a, b) => a.minutes.compareTo(b.minutes))) {
     if (o.signature == mine) continue;
-    if (o.minutes <= left - betterWayMinutes) return o;
+    if (o.minutes + extraMinutes <= left - betterWayMinutes) return o;
   }
   return null;
+}
+
+/// The wait counted before the ride at [steps][j]: a first bus or train, a bus after a change, or a
+/// change of MRT line. An option's first ride counts [firstBusWaitMinutes] or [mrtWaitMinutes].
+int rideWaitMinutes(List<TripStep> steps, int j) {
+  final first = nextRideIndex(steps, 0) == j;
+  final ride = steps[j];
+  if (ride.kind == StepKind.mrt) {
+    return !first && j > 0 && steps[j - 1].kind == StepKind.mrt ? rideTransferMinutes : mrtWaitMinutes;
+  }
+  return first ? firstBusWaitMinutes : busChangeWaitMinutes;
+}
+
+/// [ways] without those over an MRT line that LTA's [alerts] report as disrupted now.
+List<TransitOption> withoutDisrupted(List<TransitOption> ways, Map<String, dynamic>? alerts) {
+  if (alerts == null || ways.isEmpty) return ways;
+  final down = {
+    for (final st in lineStatuses(alerts, {
+      for (final o in ways)
+        for (final r in o.rides)
+          if (r.kind == LegKind.mrt) r.service!,
+    }))
+      if (st.disrupted) st.line,
+  };
+  return [
+    for (final o in ways)
+      if (!o.rides.any((r) => r.kind == LegKind.mrt && down.contains(r.service))) o,
+  ];
 }

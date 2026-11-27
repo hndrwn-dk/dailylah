@@ -9,6 +9,7 @@ import 'package:dailylah/logic.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/mrt_ride.dart';
 import 'package:dailylah/providers.dart';
+import 'package:dailylah/transit.dart';
 import 'package:dailylah/trip_nav.dart';
 import 'package:dailylah/wake_session.dart';
 import 'package:flutter/services.dart';
@@ -288,6 +289,38 @@ void main() {
     expect(box.read(habitsProvider).tripSteps.map((st) => st.service), slow.map((st) => st.service));
     await nav().checkBetter(_t0, inBackground: false);
     expect(box.read(betterWayProvider), isNull, reason: 'kept the way after Undo');
+  });
+
+  test('Switch on the first walk watches the new first bus; a late Undo does nothing', () async {
+    const slow = [
+      TripStep(kind: StepKind.walk, from: '', to: '92271', fromName: '', toName: "Opp D'Ecosia", minutes: 3),
+      TripStep(
+          kind: StepKind.bus,
+          from: '92271',
+          to: '60089',
+          fromName: "Opp D'Ecosia",
+          toName: "Opp St. Andrew's Village",
+          service: '13',
+          minutes: 80,
+          routeKey: '13|1'),
+      TripStep(kind: StepKind.walk, from: '60089', to: '', fromName: 'x', toName: '', minutes: 30),
+    ];
+    await open(slow,
+        real: true, to: const Place(kind: PlaceKind.other, name: 'ST Engineering Hub', addrLat: 1.3917, addrLng: 103.8480));
+    await box.read(transitNetProvider.future);
+    await nav().checkBetter(_t0, inBackground: false);
+    final better = box.read(betterWayProvider)!;
+    final before = await nav().switchToBetter(now: _t0);
+    await pumpEventQueue();
+    final first = better.rides.first;
+    if (first.kind == LegKind.bus) {
+      expect(box.read(busWatchProvider)?.service, first.service, reason: "the new way's first bus is watched");
+    }
+    // The rider boards the new bus: Undo no longer puts the old plan back.
+    await nav().next(now: _t0.add(const Duration(minutes: 5)));
+    await nav().undoSwitch(before!);
+    await pumpEventQueue();
+    expect(box.read(habitsProvider).tripSteps.any((st) => st.service == '13'), isFalse);
   });
 
   test('no faster way is offered on a ride', () async {
