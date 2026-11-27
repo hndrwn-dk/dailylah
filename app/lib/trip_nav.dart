@@ -14,8 +14,8 @@ import 'mrt_ride.dart';
 import 'providers.dart';
 import 'wake_session.dart';
 
-/// Trip navigation is on: off until the trip bar and page can show and change the steps.
-final tripNavigationOnProvider = Provider<bool>((ref) => false);
+/// Trip navigation is on (the trip bar and page show and change the steps); tests turn it off.
+final tripNavigationOnProvider = Provider<bool>((ref) => true);
 
 /// The step the navigator drives (null when there is no trip with changes or it is off).
 final tripNavProvider = NotifierProvider<TripNavigator, int?>(TripNavigator.new);

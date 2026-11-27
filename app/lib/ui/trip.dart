@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -8,6 +10,7 @@ import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
 import '../transit.dart';
+import '../trip_nav.dart';
 import 'address_picker.dart';
 import 'app_frame.dart' show kColumnGap;
 import 'place_sheet.dart';
@@ -2647,9 +2650,17 @@ class TripBanner extends ConsumerWidget {
                 eta.minutes <= 0 ? s.busBannerArriving(watch.service) : s.busBannerIn(watch.service, eta.minutes),
                 if (eta.minutes > 0 && watch.stopsAway != null) s.busStopsAwayPill(watch.stopsAway!),
               ].join(' · ');
-    final wakeAt = watch != null && watch.done ? watch.alight : null;
-    // The board can be shown again when the trip's stop and destination are remembered.
-    final canOpen = opens && h.tripTo != null && ref.watch(busStopsByCodeProvider).containsKey(h.tripStop);
+    // A trip with changes: the second line says the step ("Step 2 of 4 · 966 in 4 min").
+    final steps = h.tripSteps;
+    final stepAt = steps.isEmpty ? null : h.tripStepIndex.clamp(0, steps.length - 1);
+    final stepLine = stepAt == null
+        ? null
+        : '${s.stepOf(stepAt + 1, steps.length)} · ${busLine ?? stepLabel(s, steps[stepAt])}';
+    final wakeAt = steps.isEmpty && watch != null && watch.done ? watch.alight : null;
+    // The board can be shown again when the trip's stop and destination are remembered; a trip
+    // with changes opens its steps.
+    final canOpen = opens &&
+        (steps.isNotEmpty || (h.tripTo != null && ref.watch(busStopsByCodeProvider).containsKey(h.tripStop)));
     return Panel(
       margin: const EdgeInsets.only(bottom: 10),
       color: DL.mint,
@@ -2668,7 +2679,10 @@ class TripBanner extends ConsumerWidget {
                         style: t.titleSmall?.copyWith(color: DL.ink), maxLines: 2, overflow: TextOverflow.ellipsis),
                     // The Wake me offer takes this line's place once the bus has gone.
                     if (wakeAt == null)
-                      Text(busLine ?? s.onTheWay(clockLabel(start), s.durationShort(now.difference(start).inMinutes)),
+                      Text(
+                          stepLine ??
+                              busLine ??
+                              s.onTheWay(clockLabel(start), s.durationShort(now.difference(start).inMinutes)),
                           style: t.bodySmall?.copyWith(color: DL.ink)),
                   ],
                 ),
@@ -2747,6 +2761,131 @@ class TripBanner extends ConsumerWidget {
   }
 }
 
+/// On a trip with changes, the live card of the bus being walked to or waited for: buses from its
+/// stop to the stop where that ride ends.
+Widget? _waitedBusCard(S s, Habits h, Map<String, BusStop> stops) {
+  final steps = h.tripSteps;
+  final i = h.tripStepIndex;
+  if (i < 0 || i >= steps.length) return null;
+  final (:tool, :at) = navToolFor(steps, i);
+  if (tool != NavTool.watchBus) return null;
+  final ride = steps[at];
+  final stop = stops[ride.from], alight = stops[ride.to];
+  if (stop == null || alight == null) return null;
+  return TripBusCard(
+    stop: stop,
+    fromKey: null,
+    to: Place(kind: PlaceKind.other, name: alight.name, address: alight.name, addrLat: alight.lat, addrLng: alight.lng),
+    toLabel: alight.name,
+    walkCard: false,
+    legService: ride.service,
+  );
+}
+
+/// A critically damped spring (no overshoot) as a curve: the active step settles like the rest of
+/// the app's springs.
+class _Settle extends Curve {
+  const _Settle();
+  static final _sim = SpringSimulation(
+      SpringDescription.withDampingRatio(mass: 1, stiffness: 320, ratio: 1), 0, 1, 0);
+
+  @override
+  double transformInternal(double t) => t >= 1 ? 1 : _sim.x(t * 0.35).clamp(0.0, 1.0);
+}
+
+/// The steps of a trip with changes: done ones dimmed, the active one large with its button
+/// (I'm on 966 / I'm on the train / Got off), the rest plain.
+class TripStepsCard extends ConsumerWidget {
+  const TripStepsCard({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final h = ref.watch(habitsProvider);
+    final steps = h.tripSteps;
+    if (steps.isEmpty) return const SizedBox.shrink();
+    final active = h.tripStepIndex.clamp(0, steps.length - 1);
+    final calm = MediaQuery.of(context).disableAnimations;
+    final move = calm ? Duration.zero : const Duration(milliseconds: 350);
+    final action = stepAction(steps, active);
+    IconData icon(TripStep st) => switch (st.kind) {
+          StepKind.walk => Icons.directions_walk,
+          StepKind.bus => Icons.directions_bus,
+          StepKind.mrt => Icons.train,
+        };
+    return Panel(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(s.stepsTitle, style: t.titleMedium),
+            const SizedBox(height: 8),
+            for (final (i, st) in steps.indexed)
+              Semantics(
+                label: i < active
+                    ? s.stepDone(stepLabel(s, st))
+                    : i == active
+                        ? s.stepNow(stepLabel(s, st))
+                        : stepLabel(s, st),
+                excludeSemantics: true,
+                child: AnimatedOpacity(
+                  opacity: i < active ? 0.5 : 1,
+                  duration: move,
+                  curve: const _Settle(),
+                  child: AnimatedContainer(
+                    duration: move,
+                    curve: const _Settle(),
+                    margin: const EdgeInsets.symmetric(vertical: 3),
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: i == active ? 12 : 6),
+                    decoration: BoxDecoration(
+                      color: i == active ? DL.amber : Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: i == active ? DL.edge(context) : Colors.transparent, width: 2),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(icon(st), color: i == active ? DL.ink : null),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(stepLabel(s, st),
+                              style: (i == active ? t.titleSmall : t.bodyMedium)
+                                  ?.copyWith(color: i == active ? DL.ink : null)),
+                        ),
+                        if (st.isRide) ...[
+                          const SizedBox(width: 8),
+                          st.kind == StepKind.bus ? BusPlate(st.service ?? '') : LineChip(st.service ?? '', dense: true),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            if (action != StepAction.none) ...[
+              const SizedBox(height: 10),
+              FilledButton(
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                onPressed: () async {
+                  // Felt at once; a phone without haptics must not hold up the step.
+                  if (action == StepAction.gotOff) HapticFeedback.mediumImpact().ignore();
+                  await ref.read(tripNavProvider.notifier).next();
+                },
+                child: Text(switch (action) {
+                  StepAction.onBus => s.stepOnBus(steps[active + 1].service ?? ''),
+                  StepAction.onTrain => s.stepOnTrain,
+                  _ => s.stepGotOff,
+                }),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// The running trip's bus board, one tap from the trip bar: the bar itself (this page hides the
 /// tabs), the buses at the stop the trip starts at with their bells, and a way to the planner.
 /// Built from what the phone remembers of the trip ([Habits.tripTo], [Habits.tripStop]), so it
@@ -2778,7 +2917,10 @@ class RunningTripPage extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
         children: [
           const TripBanner(opens: false),
-          if (to != null && stop != null)
+          if (h.tripSteps.isNotEmpty) ...[
+            const TripStepsCard(),
+            if (_waitedBusCard(s, h, ref.watch(busStopsByCodeProvider)) case final card?) card,
+          ] else if (to != null && stop != null)
             TripBusCard(
               stop: stop,
               fromKey: null,
