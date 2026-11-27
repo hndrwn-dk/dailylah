@@ -469,3 +469,18 @@ List<TripStep> stepsOf(TransitOption o) => [
           routeKey: l.routeKey,
         ),
     ];
+
+/// While walking to the first ride of what is left of a trip with changes, or waiting for it:
+/// a way from [options] that ends at least [betterWayMinutes] sooner than the rest of the plan
+/// (estimates) and rides something else. Null on a ride, on the last walk, or when none is.
+TransitOption? betterWay(List<TripStep> steps, int i, List<TransitOption> options) {
+  if (i < 0 || i >= steps.length || steps[i].kind != StepKind.walk) return null;
+  if (nextRideIndex(steps, i) == null) return null;
+  final left = remainingMinutes(steps, i);
+  final mine = [for (final st in steps.skip(i)) if (st.isRide) st.service].join('>');
+  for (final o in [...options]..sort((a, b) => a.minutes.compareTo(b.minutes))) {
+    if (o.signature == mine) continue;
+    if (o.minutes <= left - betterWayMinutes) return o;
+  }
+  return null;
+}

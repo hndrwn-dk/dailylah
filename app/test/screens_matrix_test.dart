@@ -11,6 +11,8 @@ import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/mrt_ride.dart';
 import 'package:dailylah/providers.dart';
+import 'package:dailylah/trip_nav.dart';
+import 'package:dailylah/transit.dart';
 import 'package:dailylah/wake_session.dart';
 import 'package:dailylah/ui/about.dart';
 import 'package:dailylah/ui/address_picker.dart';
@@ -83,6 +85,27 @@ final Map<String, Widget Function()> _pages = {
       AddressPickerPage(title: 'Search', note: const S().sharedNoAddress('Putra Minang Restaurant Bencoolen')),
   'Wake me': () => const WakeMePage(service: '10', alight: fullertonSq),
   'Running trip': () => const _RunningTrip(),
+  'Running trip (a faster way offered)': () => const _RunningTrip(
+      better: TransitOption([
+        TransitLeg(kind: LegKind.walk, from: '', to: '75009', fromName: '', toName: 'Tampines Int', minutes: 1),
+        TransitLeg(
+            kind: LegKind.bus, from: '75009', to: '03011', fromName: 'Tampines Int', toName: 'Fullerton Sq', service: '12e', minutes: 30),
+        TransitLeg(kind: LegKind.walk, from: '03011', to: '', fromName: 'Fullerton Sq', toName: '', minutes: 3),
+      ]),
+      steps: [
+        TripStep(kind: StepKind.walk, from: '', to: '75009', fromName: '', toName: 'Tampines Int', minutes: 4),
+        TripStep(
+            kind: StepKind.bus,
+            from: '75009',
+            to: '03011',
+            fromName: 'Tampines Int',
+            toName: 'Fullerton Sq',
+            service: '10',
+            stops: 30,
+            minutes: 48,
+            routeKey: '10|1'),
+        TripStep(kind: StepKind.walk, from: '03011', to: '', fromName: 'Fullerton Sq', toName: '', minutes: 3),
+      ]),
   'Running trip (step by step)': () => const _RunningTrip(steps: [
         TripStep(kind: StepKind.walk, from: '', to: '75009', fromName: '', toName: 'Tampines Int', minutes: 4),
         TripStep(
@@ -159,7 +182,10 @@ class _ToiletSheetOnBusState extends ConsumerState<_ToiletSheetOnBus> {
 
 /// The board of a trip being timed from Tampines Int to Fullerton, one tap from the trip bar.
 class _RunningTrip extends ConsumerStatefulWidget {
-  const _RunningTrip({this.steps = const []});
+  const _RunningTrip({this.steps = const [], this.better});
+
+  /// A faster way offered while waiting.
+  final TransitOption? better;
 
   /// A trip with changes shows its steps.
   final List<TripStep> steps;
@@ -178,7 +204,9 @@ class _RunningTripState extends ConsumerState<_RunningTrip> {
           to: const Place(kind: PlaceKind.other, name: 'Fullerton', addrLat: 1.285618, addrLng: 103.853422),
           stop: widget.steps.isEmpty ? tampinesInt.code : null,
           steps: widget.steps,
-        ));
+        ).then((_) {
+          if (widget.better != null) ref.read(betterWayProvider.notifier).state = widget.better;
+        }));
   }
 
   @override

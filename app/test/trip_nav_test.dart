@@ -172,4 +172,36 @@ void main() {
       expect(s.stepOf(2, 5), 'Step 2 of 5');
     });
   });
+
+  group('a faster way while waiting', () {
+    const slow = [
+      TripStep(kind: StepKind.walk, from: '', to: 'A', fromName: '', toName: 'A', minutes: 3),
+      TripStep(kind: StepKind.bus, from: 'A', to: 'B', fromName: 'A', toName: 'B', service: '966', minutes: 40),
+      TripStep(kind: StepKind.walk, from: 'B', to: '', fromName: 'B', toName: '', minutes: 2),
+    ];
+    TransitOption way(String service, int minutes) => TransitOption([
+          const TransitLeg(kind: LegKind.walk, from: '', to: 'A', fromName: '', toName: 'A', minutes: 1),
+          TransitLeg(
+              kind: LegKind.bus, from: 'A', to: 'C', fromName: 'A', toName: 'C', service: service, minutes: minutes - 2),
+          const TransitLeg(kind: LegKind.walk, from: 'C', to: '', fromName: 'C', toName: '', minutes: 1),
+        ]);
+
+    test('offers a way at least 5 min quicker than the rest of the trip, not the same buses', () {
+      expect(betterWay(slow, 0, [way('966', 20)]), isNull, reason: 'the same bus is not another way');
+      expect(betterWay(slow, 0, [way('70', 41)]), isNull, reason: 'only 4 min quicker');
+      expect(betterWay(slow, 0, [way('70', 40), way('854', 30)])?.signature, '854', reason: 'the fastest one');
+    });
+
+    test('only while walking to the first ride or waiting for it, never on a ride', () {
+      expect(betterWay(slow, 1, [way('70', 10)]), isNull);
+      expect(betterWay(slow, 2, [way('70', 1)]), isNull);
+      expect(betterWay(const [], 0, [way('70', 1)]), isNull);
+    });
+
+    test('its alert says the bus and the minutes saved', () {
+      final n = betterWayNote(const S(), first: '70', rides: '70', saved: 15);
+      expect(n.id, betterWayNoteId);
+      expect(n.pills.map((p) => p.text), ['70', '15 min sooner']);
+    });
+  });
 }

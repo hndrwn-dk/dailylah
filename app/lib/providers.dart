@@ -220,6 +220,12 @@ class HabitsNotifier extends Notifier<Habits> {
           tripStepAt: steps.isEmpty ? null : now,
           tripBus: bus == null || bus.isEmpty ? null : bus));
 
+  /// The rest of the running trip goes another way: [steps] from its first step, since [at].
+  Future<void> replaceTripSteps(List<TripStep> steps, int index, DateTime at) async {
+    if (state.tripStart == null || steps.isEmpty) return;
+    await _set(state.copyWith(tripSteps: steps, tripStepIndex: index.clamp(0, steps.length - 1), tripStepAt: at));
+  }
+
   /// The rider is on step [i] of the running trip since [at].
   Future<void> setTripStep(int i, DateTime at) async {
     if (state.tripStart == null || i < 0 || i >= state.tripSteps.length) return;
