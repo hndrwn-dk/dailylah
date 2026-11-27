@@ -410,7 +410,9 @@ class _TripTimer extends ConsumerWidget {
     final direct = routes.routes.isEmpty || stops.any((st) => tripRides(routes, st, to, destStops).isNotEmpty);
     // Without a direct bus, the trip keeps the steps of the way open on its card.
     final ends = (from.lat, from.lng, to.lat, to.lng);
-    final ways = bus && !direct ? ref.read(tripWaysProvider(ends)) : const <TransitOption>[];
+    // Only where the card shows ways (not on a trip short enough to walk).
+    final far = distanceMeters(from.lat, from.lng, to.lat, to.lng) >= walkInsteadMetres;
+    final ways = bus && !direct && far ? ref.read(tripWaysProvider(ends)) : const <TransitOption>[];
     final open = ref.read(openWayProvider(ends));
     final steps = ways.isEmpty ? const <TripStep>[] : stepsOf(ways[open < ways.length ? open : 0]);
     final leave = stops.isEmpty || !direct

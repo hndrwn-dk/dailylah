@@ -69,7 +69,12 @@ class WakeNotifier extends Notifier<WakeState?> {
     return null;
   }
 
+  /// Counts starts and stops: a start that waited (the permission check) goes on only while it
+  /// is still the latest, so a step that moved on is never followed by an old start.
+  int _run = 0;
+
   void _cancel() {
+    _run++;
     _sub?.cancel();
     _sub = null;
     _limit?.cancel();
@@ -78,13 +83,26 @@ class WakeNotifier extends Notifier<WakeState?> {
   }
 
   /// Starts watching for [alight] on bus [service]; replaces any ride already running.
-  Future<void> start(String service, BusStop alight, BusStop? before, {BusStop? from}) async {
+  /// [ask]: the Wake me page may ask for location; the trip navigator never does, and without
+  /// location already allowed it starts nothing.
+  Future<void> start(String service, BusStop alight, BusStop? before, {BusStop? from, bool ask = true}) async {
     _cancel();
+    final run = _run;
     final s = ref.read(stringsProvider);
+    if (!ask) {
+      try {
+        final perm = await Geolocator.checkPermission();
+        if (run != _run) return;
+        if (perm != LocationPermission.always && perm != LocationPermission.whileInUse) return;
+      } on Object {
+        return;
+      }
+    }
     state = WakeState(service: service, alight: alight, from: from);
     try {
       var perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
+      if (ask && perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
+      if (run != _run) return;
       if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
         state = state?.copyWith(error: s.locationDenied);
         return;

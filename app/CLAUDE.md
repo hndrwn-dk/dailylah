@@ -122,7 +122,14 @@ feature, screen, provider or rule moves, appears or goes away.
   does not start, but keeps the open way's steps on the running trip (`TripStep` in models.dart, `stepsOf` in
   transit.dart; `Habits.tripSteps` JSON `st`, `tripStepIndex` `si`, cleared with the trip; rules `stepAfter`,
   `remainingMinutes`, `nextRideIndex`; tests `test/trip_nav_test.dart`) for trip navigation
-  (docs/superpowers/specs/2026-11-26-trip-navigation-design.md, phase 1 of 4: nothing shows them yet); with direct
+  (docs/superpowers/specs/2026-11-26-trip-navigation-design.md; phases 1-2 of 4: nothing shows them yet). The
+  navigator (`lib/trip_nav.dart`, `tripNavProvider`, off behind `tripNavigationOnProvider` until the UI comes)
+  runs each step's tool once (`navToolFor`: Bus arriving while walking to a bus, Wake me on a bus with
+  `start(ask: false)`, the train ride over an MRT run, `mrtRunEnd`), moves on when Bus arriving ends with the
+  rider over `busLeftStopMetres` from the stop, when Wake me fires, or when a run is over by time
+  (`navRideOver`), posts the get-off note by estimate without location (`navGetOffDue`), keeps when the step began
+  (`Habits.tripStepAt`, JSON `sa`; `setTripStep`) and stops each tool as its step ends (`next()` for taps); tests
+  `test/trip_nav_session_test.dart`; with direct
   buses it shows after them on the planner page only, so Today stays short. Tests: `test/transit_test.dart`,
   "ways with changes" in `test/features_test.dart` and the screens matrix. Bus/MRT also shows the nearest MRT
   station at each end from the `mrt_stations.json` bundle (`mrtPlan`). "Plan a trip" (`TripPlannerPage`,
