@@ -122,8 +122,13 @@ feature, screen, provider or rule moves, appears or goes away.
   does not start, but keeps the open way's steps on the running trip (`TripStep` in models.dart, `stepsOf` in
   transit.dart; `Habits.tripSteps` JSON `st`, `tripStepIndex` `si`, cleared with the trip; rules `stepAfter`,
   `remainingMinutes`, `nextRideIndex`; tests `test/trip_nav_test.dart`) for trip navigation
-  (docs/superpowers/specs/2026-11-26-trip-navigation-design.md; phases 1-2 of 4: nothing shows them yet). The
-  navigator (`lib/trip_nav.dart`, `tripNavProvider`, off behind `tripNavigationOnProvider` until the UI comes)
+  (docs/superpowers/specs/2026-11-26-trip-navigation-design.md; phases 1-3 of 4). The trip bar says the step
+  ("Step 2 of 4 · 966 in 4 min", `S.stepOf`, `stepLabel`) and opens `RunningTripPage`, which for a trip with steps
+  shows `TripStepsCard` (every step: done ones dimmed, the active one amber with a critically damped spring,
+  `_Settle`, none with animations off; the step button from `stepAction`: I'm on 966 / I'm on the train / Got off,
+  haptic on Got off) and the live card of the bus being walked to (`_waitedBusCard`); the open way is kept by
+  signature (`openWayProvider`, `openWayIndex`). The navigator (`lib/trip_nav.dart`, `tripNavProvider`, kept
+  alive by the shell; `tripNavigationOnProvider`, on, tests turn it off)
   runs each step's tool once (`navToolFor`: Bus arriving while walking to a bus, Wake me on a bus with
   `start(ask: false)`, the train ride over an MRT run, `mrtRunEnd`), moves on when Bus arriving ends with the
   rider over `busLeftStopMetres` from the stop, when Wake me fires, or when a run is over by time
