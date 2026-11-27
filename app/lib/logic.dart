@@ -1627,6 +1627,49 @@ int? nextRideIndex(List<TripStep> steps, int i) {
   return null;
 }
 
+/// What the trip navigator runs on a step: Bus arriving while walking to a bus, Wake me on a
+/// bus, the train ride on MRT, nothing on a walk to a station or to the end.
+enum NavTool { none, watchBus, wake, ride }
+
+/// The tool for step [i] and the step it is about (the bus being walked to, or [i] itself).
+({NavTool tool, int at}) navToolFor(List<TripStep> steps, int i) {
+  if (i < 0 || i >= steps.length) return (tool: NavTool.none, at: i);
+  final step = steps[i];
+  switch (step.kind) {
+    case StepKind.bus:
+      return (tool: NavTool.wake, at: i);
+    case StepKind.mrt:
+      return (tool: NavTool.ride, at: i);
+    case StepKind.walk:
+      final j = nextRideIndex(steps, i);
+      if (j != null && j == i + 1 && steps[j].kind == StepKind.bus) return (tool: NavTool.watchBus, at: j);
+      return (tool: NavTool.none, at: i);
+  }
+}
+
+/// The last of the MRT steps that follow on from [i] (one ride, changes of line included).
+int mrtRunEnd(List<TripStep> steps, int i) {
+  var j = i;
+  while (j + 1 < steps.length && steps[j + 1].kind == StepKind.mrt) {
+    j++;
+  }
+  return j;
+}
+
+/// Without location, the get-off alert on a bus step: one stop before the bus is due at the stop
+/// to get off, by the step's estimate from when it began ([at]).
+bool navGetOffDue(TripStep bus, DateTime at, DateTime now) =>
+    now.difference(at).inMinutes >= bus.minutes - feederMinutesPerStop;
+
+/// The train run from step [i] is over by its estimate (from when it began, [at]).
+bool navRideOver(List<TripStep> steps, int i, DateTime at, DateTime now) {
+  var minutes = 0;
+  for (var j = i; j <= mrtRunEnd(steps, i); j++) {
+    minutes += steps[j].minutes;
+  }
+  return now.difference(at).inMinutes >= minutes;
+}
+
 /// Start stops for a trip and whether they were suggested instead of the saved ones.
 class TripStops {
   const TripStops(this.stops, {this.suggested = false});

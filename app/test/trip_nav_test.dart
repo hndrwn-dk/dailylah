@@ -97,4 +97,50 @@ void main() {
       expect(remainingMinutes(const [], 0), 0);
     });
   });
+
+  group('which tool runs on each step', () {
+    const bus2 = [
+      TripStep(kind: StepKind.walk, from: '', to: 'A', fromName: '', toName: 'A', minutes: 3),
+      TripStep(kind: StepKind.bus, from: 'A', to: 'B', fromName: 'A', toName: 'B', service: '966', stops: 8, minutes: 21),
+      TripStep(kind: StepKind.bus, from: 'B', to: 'C', fromName: 'B', toName: 'C', service: '857', stops: 3, minutes: 12),
+      TripStep(kind: StepKind.walk, from: 'C', to: '', fromName: 'C', toName: '', minutes: 2),
+    ];
+    const mrt2 = [
+      TripStep(kind: StepKind.walk, from: '', to: 'mrt:Marine Parade', fromName: '', toName: 'Marine Parade', minutes: 4),
+      TripStep(kind: StepKind.mrt, from: 'mrt:Marine Parade', to: 'mrt:Marina Bay', fromName: 'Marine Parade', toName: 'Marina Bay', service: 'TEL', stops: 5, minutes: 13),
+      TripStep(kind: StepKind.mrt, from: 'mrt:Marina Bay', to: 'mrt:Yio Chu Kang', fromName: 'Marina Bay', toName: 'Yio Chu Kang', service: 'NSL', stops: 12, minutes: 29),
+      TripStep(kind: StepKind.walk, from: 'mrt:Yio Chu Kang', to: '', fromName: 'Yio Chu Kang', toName: '', minutes: 16),
+    ];
+    final at = DateTime(2026, 11, 27, 8);
+
+    test('walking to a bus watches it, a bus wakes at its stop, a train rides, the last walk has none', () {
+      expect(navToolFor(bus2, 0), (tool: NavTool.watchBus, at: 1));
+      expect(navToolFor(bus2, 1), (tool: NavTool.wake, at: 1));
+      expect(navToolFor(bus2, 2), (tool: NavTool.wake, at: 2));
+      expect(navToolFor(bus2, 3), (tool: NavTool.none, at: 3));
+      expect(navToolFor(mrt2, 0), (tool: NavTool.none, at: 0));
+      expect(navToolFor(mrt2, 1), (tool: NavTool.ride, at: 1));
+      expect(navToolFor(const [], 0), (tool: NavTool.none, at: 0));
+    });
+
+    test('a train run covers the MRT steps that follow on', () {
+      expect(mrtRunEnd(mrt2, 1), 2);
+      expect(mrtRunEnd(mrt2, 2), 2);
+      expect(mrtRunEnd(bus2, 1), 1);
+    });
+
+    test('get off one stop before the bus is due at its stop, and a run is over after its minutes', () {
+      expect(navGetOffDue(bus2[1], at, at.add(const Duration(minutes: 18))), isFalse);
+      expect(navGetOffDue(bus2[1], at, at.add(const Duration(minutes: 19))), isTrue);
+      expect(navRideOver(mrt2, 1, at, at.add(const Duration(minutes: 41))), isFalse);
+      expect(navRideOver(mrt2, 1, at, at.add(const Duration(minutes: 42))), isTrue);
+    });
+
+    test('the step clock is kept with the trip', () {
+      final h = Habits(tripRoute: 'a>b', tripStart: at, tripSteps: bus2, tripStepIndex: 1, tripStepAt: at);
+      final back = Habits.fromJson(h.toJson());
+      expect(back.tripStepAt, at);
+      expect(back.copyWith(clearTrip: true).tripStepAt, isNull);
+    });
+  });
 }

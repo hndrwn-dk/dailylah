@@ -217,7 +217,14 @@ class HabitsNotifier extends Notifier<Habits> {
           tripTrain: train,
           tripSteps: steps,
           tripStepIndex: 0,
+          tripStepAt: steps.isEmpty ? null : now,
           tripBus: bus == null || bus.isEmpty ? null : bus));
+
+  /// The rider is on step [i] of the running trip since [at].
+  Future<void> setTripStep(int i, DateTime at) async {
+    if (state.tripStart == null || i < 0 || i >= state.tripSteps.length) return;
+    await _set(state.copyWith(tripStepIndex: i, tripStepAt: at));
+  }
 
   /// The bus watched on the running trip changed ([bus] null: none is watched now).
   Future<void> setTripBus(String stop, String? bus) async {

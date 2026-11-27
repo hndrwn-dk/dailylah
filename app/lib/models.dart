@@ -885,6 +885,7 @@ class Habits {
     this.tripTrain = false,
     this.tripSteps = const [],
     this.tripStepIndex = 0,
+    this.tripStepAt,
     this.parkings = const [],
   });
   final ParkedCar? parked;
@@ -921,6 +922,9 @@ class Habits {
   final List<TripStep> tripSteps;
   final int tripStepIndex;
 
+  /// When the active step began (for the step's estimates).
+  final DateTime? tripStepAt;
+
   static const empty = Habits();
   static const maxTrips = 120;
   static const maxMeals = 200;
@@ -943,6 +947,7 @@ class Habits {
     bool? tripTrain,
     List<TripStep>? tripSteps,
     int? tripStepIndex,
+    DateTime? tripStepAt,
     bool clearTrip = false,
     List<ParkLog>? parkings,
   }) =>
@@ -961,6 +966,7 @@ class Habits {
         tripTrain: clearTrip ? false : (tripTrain ?? this.tripTrain),
         tripSteps: clearTrip ? const [] : (tripSteps ?? this.tripSteps),
         tripStepIndex: clearTrip ? 0 : (tripStepIndex ?? this.tripStepIndex),
+        tripStepAt: clearTrip ? null : (tripStepAt ?? this.tripStepAt),
         parkings: parkings ?? this.parkings,
       );
 
@@ -979,6 +985,7 @@ class Habits {
         if (tripTrain) 'tn': true,
         if (tripSteps.isNotEmpty) 'st': [for (final st in tripSteps) st.toJson()],
         if (tripStepIndex != 0) 'si': tripStepIndex,
+        if (tripStepAt != null) 'sa': tripStepAt!.toIso8601String(),
         if (parkings.isNotEmpty) 'parks': [for (final p in parkings) p.toJson()],
       };
 
@@ -1001,6 +1008,7 @@ class Habits {
               if (TripStep.fromJson(st.cast<String, dynamic>()) case final step?) step,
         ],
         tripStepIndex: (j['si'] as num?)?.toInt() ?? 0,
+        tripStepAt: DateTime.tryParse('${j['sa'] ?? ''}'),
         parkings: [
           for (final p in (j['parks'] as List? ?? const [])) ParkLog.fromJson((p as Map).cast<String, dynamic>()),
         ],
