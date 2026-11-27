@@ -14,8 +14,8 @@ import 'mrt_ride.dart';
 import 'providers.dart';
 import 'wake_session.dart';
 
-/// Trip navigation is on: off until the trip bar and page can show and change the steps.
-final tripNavigationOnProvider = Provider<bool>((ref) => false);
+/// Trip navigation is on (the trip bar and page show and change the steps); tests turn it off.
+final tripNavigationOnProvider = Provider<bool>((ref) => true);
 
 /// The step the navigator drives (null when there is no trip with changes or it is off).
 final tripNavProvider = NotifierProvider<TripNavigator, int?>(TripNavigator.new);
@@ -181,8 +181,11 @@ class TripNavigator extends Notifier<int?> {
     if (!_running || w == null || !w.done) return;
     final steps = _h.tripSteps;
     final i = _h.tripStepIndex;
-    if (steps[i].kind != StepKind.bus || steps[i].service != w.service) return;
-    if (i + 1 < steps.length) unawaited(_go(i + 1, DateTime.now()));
+    // On the bus step, or still on the walk to it when Wake me was started by hand from its card.
+    final (:tool, :at) = navToolFor(steps, i);
+    final bus = steps[i].kind == StepKind.bus ? i : (tool == NavTool.watchBus ? at : null);
+    if (bus == null || steps[bus].service != w.service) return;
+    if (bus + 1 < steps.length) unawaited(_go(bus + 1, DateTime.now()));
     // On the last step nothing follows: Wake me has said its piece and stops with the trip.
   }
 

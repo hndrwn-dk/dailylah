@@ -13,8 +13,10 @@ import 'package:dailylah/bus_watch.dart';
 import 'package:dailylah/l10n.dart';
 import 'package:dailylah/logic.dart';
 import 'package:dailylah/main.dart';
+import 'package:dailylah/mrt_ride.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
+import 'package:dailylah/trip_nav.dart';
 import 'package:dailylah/ui/history.dart';
 import 'package:dailylah/ui/home.dart';
 import 'package:dailylah/ui/more.dart';
@@ -171,6 +173,51 @@ void main() {
       expect(containerOf(tester).read(wakeProvider)!.left, isNull);
       expect(alerts, isEmpty);
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets("A trip by train then bus: I've arrived at the change station moves on, it does not end the trip",
+        (tester) async {
+      await applyCondition(tester, _normal);
+      await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+      await settle(tester);
+      final box = containerOf(tester);
+      await box.read(habitsProvider.notifier).startTrip('Ang Mo Kio>ST Engineering Hub', DateTime.now(),
+          mode: 'transit',
+          to: const Place(kind: PlaceKind.other, name: 'ST Engineering Hub', addrLat: 1.3917, addrLng: 103.8480),
+          steps: const [
+            TripStep(kind: StepKind.walk, from: '', to: 'mrt:Ang Mo Kio', fromName: '', toName: 'Ang Mo Kio', minutes: 4),
+            TripStep(
+                kind: StepKind.mrt,
+                from: 'mrt:Ang Mo Kio',
+                to: 'mrt:Yio Chu Kang',
+                fromName: 'Ang Mo Kio',
+                toName: 'Yio Chu Kang',
+                service: 'NSL',
+                stops: 1,
+                minutes: 5),
+            TripStep(
+                kind: StepKind.bus,
+                from: '55059',
+                to: '55051',
+                fromName: 'Yio Chu Kang Stn',
+                toName: 'ST Engineering',
+                service: '857',
+                stops: 3,
+                minutes: 9,
+                routeKey: '857|1'),
+            TripStep(kind: StepKind.walk, from: '55051', to: '', fromName: 'ST Engineering', toName: '', minutes: 2),
+          ]);
+      await settle(tester);
+      await box.read(tripNavProvider.notifier).next();
+      await settle(tester);
+      expect(box.read(rideProvider), isNotNull);
+      await tester.tap(find.text(_s.arrived).first);
+      await settle(tester);
+      final h = box.read(habitsProvider);
+      expect(h.tripStart, isNotNull, reason: 'the trip goes on to its bus');
+      expect(h.tripStepIndex, 2);
+      expect(h.trips.where((t) => t.route == 'Ang Mo Kio>ST Engineering Hub'), isEmpty);
+      expect(box.read(rideProvider), isNull);
     });
 
     testWidgets('A trip being timed is still there after the app is killed and opened again', (tester) async {

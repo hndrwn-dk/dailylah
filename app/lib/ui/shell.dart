@@ -9,6 +9,7 @@ import '../background.dart';
 import '../logic.dart';
 import '../models.dart';
 import '../providers.dart';
+import '../trip_nav.dart';
 import '../share_intake.dart';
 import 'history.dart';
 import 'home.dart';
@@ -200,6 +201,8 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   Widget build(BuildContext context) {
     // Today's card switched (morning to evening) while another tab was open: start Today at
     // the top. If Today is on screen, leave the reader where they are.
+    // Trip navigation runs while the app is open, for a trip with changes.
+    ref.listen(tripNavProvider, (_, __) {});
     ref.listen(cardKindProvider, (before, now) {
       if (before != null && before != now && ref.read(shellTabProvider) != 0) _toTop(0, animate: false);
     });

@@ -83,6 +83,20 @@ final Map<String, Widget Function()> _pages = {
       AddressPickerPage(title: 'Search', note: const S().sharedNoAddress('Putra Minang Restaurant Bencoolen')),
   'Wake me': () => const WakeMePage(service: '10', alight: fullertonSq),
   'Running trip': () => const _RunningTrip(),
+  'Running trip (step by step)': () => const _RunningTrip(steps: [
+        TripStep(kind: StepKind.walk, from: '', to: '75009', fromName: '', toName: 'Tampines Int', minutes: 4),
+        TripStep(
+            kind: StepKind.bus,
+            from: '75009',
+            to: '03011',
+            fromName: 'Tampines Int',
+            toName: 'Fullerton Sq',
+            service: '10',
+            stops: 30,
+            minutes: 48,
+            routeKey: '10|1'),
+        TripStep(kind: StepKind.walk, from: '03011', to: '', fromName: 'Fullerton Sq', toName: '', minutes: 3),
+      ]),
   'Need a toilet? (bus)': () => const _ToiletSheetOnBus(),
   'Block search': () => const BlockSearchPage(),
   'Block page': () => const BlockPage(block: _block156),
@@ -145,7 +159,10 @@ class _ToiletSheetOnBusState extends ConsumerState<_ToiletSheetOnBus> {
 
 /// The board of a trip being timed from Tampines Int to Fullerton, one tap from the trip bar.
 class _RunningTrip extends ConsumerStatefulWidget {
-  const _RunningTrip();
+  const _RunningTrip({this.steps = const []});
+
+  /// A trip with changes shows its steps.
+  final List<TripStep> steps;
 
   @override
   ConsumerState<_RunningTrip> createState() => _RunningTripState();
@@ -159,7 +176,8 @@ class _RunningTripState extends ConsumerState<_RunningTrip> {
           'Home>Fullerton',
           tuesdayMorning.subtract(const Duration(minutes: 9)),
           to: const Place(kind: PlaceKind.other, name: 'Fullerton', addrLat: 1.285618, addrLng: 103.853422),
-          stop: tampinesInt.code,
+          stop: widget.steps.isEmpty ? tampinesInt.code : null,
+          steps: widget.steps,
         ));
   }
 

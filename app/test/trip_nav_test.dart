@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dailylah/data.dart';
+import 'package:dailylah/l10n.dart';
 import 'package:dailylah/logic.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/transit.dart';
@@ -141,6 +142,34 @@ void main() {
       final back = Habits.fromJson(h.toJson());
       expect(back.tripStepAt, at);
       expect(back.copyWith(clearTrip: true).tripStepAt, isNull);
+    });
+  });
+
+  group('what each step says and asks', () {
+    const s = S();
+    const bus = [
+      TripStep(kind: StepKind.walk, from: '', to: 'A', fromName: '', toName: "Opp D'Ecosia", minutes: 3),
+      TripStep(kind: StepKind.bus, from: 'A', to: 'B', fromName: "Opp D'Ecosia", toName: "Opp St. Andrew's Village", service: '966', minutes: 21),
+      TripStep(kind: StepKind.walk, from: 'B', to: 'C', fromName: 'x', toName: 'Bef Ang Mo Kio St 64', minutes: 1),
+      TripStep(kind: StepKind.mrt, from: 'mrt:Yio Chu Kang', to: 'mrt:Khatib', fromName: 'Yio Chu Kang', toName: 'Khatib', service: 'NSL', minutes: 4),
+      TripStep(kind: StepKind.walk, from: 'C', to: '', fromName: 'Khatib', toName: '', minutes: 2),
+    ];
+
+    test('the button on each step', () {
+      expect(stepAction(bus, 0), StepAction.onBus);
+      expect(stepAction(bus, 1), StepAction.gotOff);
+      expect(stepAction(bus, 2), StepAction.onTrain);
+      expect(stepAction(bus, 3), StepAction.gotOff);
+      expect(stepAction(bus, 4), StepAction.none);
+      expect(stepAction(const [], 0), StepAction.none);
+    });
+
+    test('the words for each step', () {
+      expect(stepLabel(s, bus[0]), "Walk to Opp\u00a0D'Ecosia");
+      expect(stepLabel(s, bus[1]), "Bus 966 to Opp St. Andrew's\u00a0Village");
+      expect(stepLabel(s, bus[3]), 'NSL to\u00a0Khatib');
+      expect(stepLabel(s, bus[4]), 'Walk the rest of the way');
+      expect(s.stepOf(2, 5), 'Step 2 of 5');
     });
   });
 }

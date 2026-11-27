@@ -399,6 +399,19 @@ class S {
         if (sheltered != null) sheltered ? 'sheltered' : 'not sheltered',
       ].join(' · ');
   String get modeEtaNote => 'A rough estimate from the distance, without traffic or waiting.';
+  // trip navigation (steps of a trip with changes)
+  String get stepsTitle => 'Your trip, step by step';
+  String stepOf(int i, int n) => 'Step $i of $n';
+  String stepWalkTo(String place) => noOrphan('Walk to $place');
+  String get stepWalkEnd => 'Walk the rest of the way';
+  String stepBus(String service, String to) => noOrphan('Bus $service to $to');
+  String stepTrain(String line, String to) => noOrphan('$line to $to');
+  String stepOnBus(String service) => "I'm on $service";
+  String get stepOnTrain => "I'm on the train";
+  String get stepGotOff => 'Got off';
+  String stepDone(String step) => 'Done: $step';
+  String stepNow(String step) => 'Now: $step';
+
   // ways with changes (transitOptions)
   String get transitOptionsTitle => 'Ways with changes';
   String get transitEstimate => 'Times after the first bus or train are estimates.';
@@ -1116,7 +1129,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Plan a trip: when no bus goes straight there, DailyLah now shows up to three ways with changes, mixing buses, MRT and short walks (such as 966 then 857), with live times for the first bus. All worked out on your phone. Also fixed: opening the app from its home screen widget no longer shows the running trip's bar twice.",
+        "Plan a trip: a trip with changes now walks you through it step by step. The trip bar says which step you are on, and its page lists every step with the bus to catch, a button for I'm on 966 or Got off, and alerts from Bus arriving and Wake me at my stop when location is already allowed. Also: I'm leaving keeps the way you opened, even if the list changes.",
       ];
 
   // about

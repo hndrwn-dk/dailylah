@@ -1213,6 +1213,63 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('A trip with changes walks the rider through its steps', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    await box.read(habitsProvider.notifier).startTrip('Marine Parade>ST Engineering Hub', DateTime.now(),
+        mode: TravelMode.transit.name,
+        to: const Place(kind: PlaceKind.other, name: 'ST Engineering Hub', addrLat: 1.3917, addrLng: 103.8480),
+        steps: const [
+          TripStep(kind: StepKind.walk, from: '', to: '92271', fromName: '', toName: "Opp D'Ecosia", minutes: 3),
+          TripStep(
+              kind: StepKind.bus,
+              from: '92271',
+              to: '60089',
+              fromName: "Opp D'Ecosia",
+              toName: "Opp St. Andrew's Village",
+              service: '966',
+              stops: 8,
+              minutes: 21,
+              routeKey: '966|1'),
+          TripStep(
+              kind: StepKind.bus,
+              from: '60089',
+              to: '55059',
+              fromName: "Opp St. Andrew's Village",
+              toName: 'ST Engineering',
+              service: '857',
+              stops: 3,
+              minutes: 12,
+              routeKey: '857|1'),
+          TripStep(kind: StepKind.walk, from: '55059', to: '', fromName: 'ST Engineering', toName: '', minutes: 2),
+        ]);
+    await settle(tester);
+    // The bar says the step; a tap opens the steps.
+    expect(find.textContaining('Step 1 of 4'), findsOneWidget);
+    await tester.tap(find.textContaining('Step 1 of 4'));
+    await settle(tester);
+    expect(find.byType(TripStepsCard), findsOneWidget);
+    expect(find.text(_s.stepBus('966', "Opp St. Andrew's Village")), findsOneWidget);
+    expect(find.text(_s.stepWalkEnd), findsOneWidget);
+    // Walking to the stop: the live card of that bus, and the button to say it was boarded.
+    expect(find.text(_s.busesTo("Opp St. Andrew's Village")), findsOneWidget);
+    await tester.ensureVisible(find.text(_s.stepOnBus('966')));
+    await settle(tester);
+    await tester.tap(find.text(_s.stepOnBus('966')));
+    await settle(tester);
+    expect(box.read(habitsProvider).tripStepIndex, 1);
+    expect(find.text(_s.stepGotOff), findsOneWidget);
+    await tester.ensureVisible(find.text(_s.stepGotOff));
+    await settle(tester);
+    await tester.tap(find.text(_s.stepGotOff));
+    await settle(tester);
+    expect(box.read(habitsProvider).tripStepIndex, 2);
+    expect(find.textContaining('Step 3 of 4'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Ways with changes leave out a disrupted MRT line', (tester) async {
     await applyCondition(tester, _normal);
     await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning, disruptedLine: 'TEL'));
