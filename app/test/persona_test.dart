@@ -220,6 +220,43 @@ void main() {
       expect(box.read(rideProvider), isNull);
     });
 
+    testWidgets('Waiting at the stop, a faster way turns up; Keep my way, and it is not offered again', (tester) async {
+      await applyCondition(tester, _normal);
+      await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+      await settle(tester);
+      final box = containerOf(tester);
+      await box.read(habitsProvider.notifier).startTrip('Marine Parade>ST Engineering Hub', DateTime.now(),
+          mode: 'transit',
+          to: const Place(kind: PlaceKind.other, name: 'ST Engineering Hub', addrLat: 1.3917, addrLng: 103.8480),
+          steps: const [
+            TripStep(kind: StepKind.walk, from: '', to: '92271', fromName: '', toName: "Opp D'Ecosia", minutes: 3),
+            TripStep(
+                kind: StepKind.bus,
+                from: '92271',
+                to: '60089',
+                fromName: "Opp D'Ecosia",
+                toName: "Opp St. Andrew's Village",
+                service: '13',
+                minutes: 80,
+                routeKey: '13|1'),
+            TripStep(kind: StepKind.walk, from: '60089', to: '', fromName: 'x', toName: '', minutes: 30),
+          ]);
+      await settle(tester);
+      await tester.tap(find.textContaining('Step 1 of 3'));
+      await settle(tester);
+      await tester.runAsync(() => box.read(transitNetProvider.future));
+      await box.read(tripNavProvider.notifier).checkBetter(DateTime.now(), inBackground: false);
+      await settle(tester);
+      expect(find.text(_s.betterWayKeep), findsOneWidget);
+      await tester.tap(find.text(_s.betterWayKeep));
+      await settle(tester);
+      expect(find.text(_s.betterWaySwitch), findsNothing);
+      await box.read(tripNavProvider.notifier).checkBetter(DateTime.now(), inBackground: false);
+      await settle(tester);
+      expect(find.text(_s.betterWaySwitch), findsNothing, reason: 'kept for this step');
+      expect(box.read(habitsProvider).tripSteps.any((st) => st.service == '13'), isTrue);
+    });
+
     testWidgets('A trip being timed is still there after the app is killed and opened again', (tester) async {
       await applyCondition(tester, _normal);
       await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
