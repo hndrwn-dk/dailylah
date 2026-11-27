@@ -54,7 +54,7 @@ feature does and why: `app/CLAUDE.md` (Feature map) and `backend/CLAUDE.md`.
 
 ### `lib/transit.dart`
 - Types: `LegKind (enum)`, `TransitLeg`, `TransitOption`, `TransitNet`, `on (extension)`
-- Functions: `peakOnlyService`, `transitOptions`, `stepsOf`, `betterWay`
+- Functions: `peakOnlyService`, `transitOptions`, `stepsOf`, `betterWay`, `rideWaitMinutes`, `withoutDisrupted`
 
 ### `lib/trip_nav.dart`
 - Types: `TripPlanBefore (typedef)`, `TripNavigator`
