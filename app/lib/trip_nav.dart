@@ -23,22 +23,25 @@ final tripNavProvider = NotifierProvider<TripNavigator, int?>(TripNavigator.new)
 class TripNavigator extends Notifier<int?> {
   Timer? _tick;
 
-  /// The step whose tool was started, so it starts once per step.
-  int? _started;
+  /// The trip and step whose tool was started (and which tool), so it starts once per step
+  /// and the right one is stopped when the step or the trip changes.
+  (DateTime, int)? _started;
+  NavTool _tool = NavTool.none;
 
-  /// The get-off note without location went out for this step.
-  int? _toldGetOff;
+  /// The get-off note without location went out for this trip and step.
+  (DateTime, int)? _toldGetOff;
 
   @override
   int? build() {
     ref.onDispose(_cancel);
     if (!ref.watch(tripNavigationOnProvider)) return null;
-    ref.listen(habitsProvider.select((h) => (h.tripStart, h.tripSteps.length, h.tripStepIndex)), (_, __) => _drive(),
-        fireImmediately: true);
+    ref.listen(habitsProvider.select((h) => (h.tripStart, h.tripSteps.length, h.tripStepIndex)), (_, __) => _drive());
     ref.listen(busWatchProvider, (_, w) => watchChanged(w));
     ref.listen(wakeProvider, (_, w) => wakeChanged(w));
     _tick = Timer.periodic(const Duration(seconds: 30), (_) => tick(DateTime.now()));
-    return null;
+    // A navigator built mid-trip (the app reopened) picks the trip up after this build.
+    Future.microtask(_drive);
+    return _running ? _h.tripStepIndex : null;
   }
 
   void _cancel() {
@@ -48,20 +51,40 @@ class TripNavigator extends Notifier<int?> {
 
   Habits get _h => ref.read(habitsProvider);
 
-  bool get _running => _h.tripStart != null && _h.tripSteps.isNotEmpty;
+  bool get _running => _h.tripStart != null && _h.tripSteps.isNotEmpty && _h.tripStepIndex < _h.tripSteps.length;
+
+  /// Stops the tool this navigator started (Bus arriving and the ride also stop themselves when
+  /// the trip ends; Wake me does not, as it also runs on its own).
+  void _stopTool() {
+    switch (_tool) {
+      case NavTool.watchBus:
+        ref.read(busWatchProvider.notifier).stop();
+      case NavTool.wake:
+        ref.read(wakeProvider.notifier).stop();
+      case NavTool.ride:
+        ref.read(rideProvider.notifier).stop();
+      case NavTool.none:
+        break;
+    }
+    _tool = NavTool.none;
+  }
 
   /// Starts the tool of the active step once.
   void _drive() {
     if (!_running) {
+      if (_started != null) _stopTool();
       _started = null;
       _toldGetOff = null;
       state = null;
       return;
     }
     final i = _h.tripStepIndex;
+    final key = (_h.tripStart!, i);
     state = i;
-    if (_started == i) return;
-    _started = i;
+    if (_started == key) return;
+    // A new trip over a running one: its tool goes before the new one starts.
+    if (_started != null && _started!.$1 != key.$1) _stopTool();
+    _started = key;
     final steps = _h.tripSteps;
     final (:tool, :at) = navToolFor(steps, i);
     final stops = ref.read(busStopsByCodeProvider);
@@ -72,6 +95,7 @@ class TripNavigator extends Notifier<int?> {
         final ride = steps[at];
         final stop = stops[ride.from];
         if (stop == null || ride.service == null) return;
+        _tool = tool;
         unawaited(ref.read(busWatchProvider.notifier).start(
               stop: stop,
               service: ride.service!,
@@ -87,10 +111,13 @@ class TripNavigator extends Notifier<int?> {
         final route = ref.read(busRoutesProvider).value?.routes[ride.routeKey];
         final j = route?.indexWhere((s) => s.$1 == ride.to) ?? -1;
         final before = j > 0 ? stops[route![j - 1].$1] : null;
+        _tool = tool;
         unawaited(ref.read(wakeProvider.notifier).start(ride.service!, alight, before, from: stops[ride.from], ask: false));
       case NavTool.ride:
         final mrtRide = _rideFor(steps, at);
-        if (mrtRide != null) unawaited(ref.read(rideProvider.notifier).start(mrtRide));
+        if (mrtRide == null) return;
+        _tool = tool;
+        unawaited(ref.read(rideProvider.notifier).start(mrtRide));
     }
   }
 
@@ -122,18 +149,7 @@ class TripNavigator extends Notifier<int?> {
 
   /// Moves to step [i], stopping the tool of the step left.
   Future<void> _go(int i, DateTime now) async {
-    final from = _h.tripStepIndex;
-    final steps = _h.tripSteps;
-    if (from < steps.length) {
-      switch (steps[from].kind) {
-        case StepKind.bus:
-          ref.read(wakeProvider.notifier).stop();
-        case StepKind.mrt:
-          ref.read(rideProvider.notifier).stop();
-        case StepKind.walk:
-          ref.read(busWatchProvider.notifier).stop();
-      }
-    }
+    _stopTool();
     await ref.read(habitsProvider.notifier).setTripStep(i, now);
   }
 
@@ -154,7 +170,9 @@ class TripNavigator extends Notifier<int?> {
     final i = _h.tripStepIndex;
     final (:tool, :at) = navToolFor(steps, i);
     if (tool != NavTool.watchBus || steps[at].service != w.service) return;
-    if ((w.metresToStop ?? 0) < busLeftStopMetres) return;
+    // Seen at the stop, then well away from it: on the bus (the rule Bus arriving's "left" uses).
+    if (!w.track.wasAtStop || (w.metresToStop ?? 0) < busLeftStopMetres) return;
+    _tool = NavTool.none; // Bus arriving has ended by itself
     unawaited(ref.read(habitsProvider.notifier).setTripStep(at, DateTime.now()));
   }
 
@@ -165,6 +183,7 @@ class TripNavigator extends Notifier<int?> {
     final i = _h.tripStepIndex;
     if (steps[i].kind != StepKind.bus || steps[i].service != w.service) return;
     if (i + 1 < steps.length) unawaited(_go(i + 1, DateTime.now()));
+    // On the last step nothing follows: Wake me has said its piece and stops with the trip.
   }
 
   /// Estimates without location: the get-off note on a bus, the end of a train run.
@@ -175,8 +194,9 @@ class TripNavigator extends Notifier<int?> {
     final i = h.tripStepIndex;
     final at = h.tripStepAt ?? h.tripStart!;
     final step = steps[i];
-    if (step.kind == StepKind.bus && ref.read(wakeProvider) == null && _toldGetOff != i && navGetOffDue(step, at, now)) {
-      _toldGetOff = i;
+    final key = (h.tripStart!, i);
+    if (step.kind == StepKind.bus && ref.read(wakeProvider) == null && _toldGetOff != key && navGetOffDue(step, at, now)) {
+      _toldGetOff = key;
       final s = ref.read(stringsProvider);
       await showNote(wakeNote(s, WakeEvent.wake, step.toName), s: s);
     } else if (step.kind == StepKind.mrt && navRideOver(steps, i, at, now)) {

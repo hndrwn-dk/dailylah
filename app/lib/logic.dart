@@ -1659,7 +1659,7 @@ int mrtRunEnd(List<TripStep> steps, int i) {
 /// Without location, the get-off alert on a bus step: one stop before the bus is due at the stop
 /// to get off, by the step's estimate from when it began ([at]).
 bool navGetOffDue(TripStep bus, DateTime at, DateTime now) =>
-    now.difference(at).inMinutes >= bus.minutes - feederMinutesPerStop;
+    bus.minutes > feederMinutesPerStop && now.difference(at).inMinutes >= bus.minutes - feederMinutesPerStop;
 
 /// The train run from step [i] is over by its estimate (from when it began, [at]).
 bool navRideOver(List<TripStep> steps, int i, DateTime at, DateTime now) {

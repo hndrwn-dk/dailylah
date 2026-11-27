@@ -71,7 +71,7 @@ void main() {
   ];
 
   Future<void> open(List<TripStep> steps,
-      {bool on = true, LocationPermission permission = LocationPermission.whileInUse}) async {
+      {bool on = true, bool listen = true, LocationPermission permission = LocationPermission.whileInUse}) async {
     SharedPreferences.setMockInitialValues({});
     shown.clear();
     GeolocatorPlatform.instance = FakeGeolocator(permission);
@@ -97,7 +97,7 @@ void main() {
     await box.read(mrtStationsProvider.future);
     box.read(habitsProvider);
     await Future<void>.delayed(Duration.zero);
-    box.listen(tripNavProvider, (_, __) {});
+    if (listen) box.listen(tripNavProvider, (_, __) {});
     await box.read(habitsProvider.notifier).startTrip('Home>Office', _t0,
         mode: TravelMode.transit.name,
         to: const Place(kind: PlaceKind.other, name: 'Office', addrLat: 1.2856, addrLng: 103.8534),
@@ -137,10 +137,10 @@ void main() {
   test('Bus arriving ending without the rider leaving the stop does not guess', () async {
     await open(_busTrip);
     final w = box.read(busWatchProvider)!;
-    nav().watchChanged(w.copyWith(done: true, metresToStop: 40));
+    nav().watchChanged(w.copyWith(done: true, metresToStop: 40, track: w.track.copyWith(wasAtStop: true)));
     await pumpEventQueue();
     expect(step(), 0);
-    nav().watchChanged(w.copyWith(done: true, metresToStop: 600));
+    nav().watchChanged(w.copyWith(done: true, metresToStop: 600, track: w.track.copyWith(wasAtStop: true)));
     await pumpEventQueue();
     expect(step(), 1);
   });
@@ -185,6 +185,50 @@ void main() {
     expect(box.read(tripNavProvider), isNull);
   });
 
+  test('Arrived on a bus step stops Wake me too', () async {
+    await open(_busTrip);
+    await nav().next(now: _t0);
+    await pumpEventQueue();
+    expect(box.read(wakeProvider), isNotNull);
+    await box.read(habitsProvider.notifier).finishTrip(_t0.add(const Duration(minutes: 30)));
+    await pumpEventQueue();
+    expect(box.read(wakeProvider), isNull);
+  });
+
+  test("I'm leaving over a running trip drops the old trip's tool and starts the new one", () async {
+    await open(_busTrip);
+    expect(box.read(busWatchProvider)?.stop.code, '75009');
+    await box.read(habitsProvider.notifier).startTrip('Home>Mall', _t0.add(const Duration(minutes: 2)),
+        mode: TravelMode.transit.name,
+        to: const Place(kind: PlaceKind.other, name: 'Mall', addrLat: 1.3, addrLng: 103.9),
+        steps: [
+          const TripStep(kind: StepKind.walk, from: '', to: '99999', fromName: '', toName: 'Mid Stop', minutes: 2),
+          _busTrip[1].copyWithFrom('99999'),
+        ]);
+    await pumpEventQueue();
+    expect(box.read(busWatchProvider)?.stop.code, '99999');
+  });
+
+  test('a bus gone while the rider was still walking far away is not a ride', () async {
+    await open(_busTrip);
+    final w = box.read(busWatchProvider)!;
+    nav().watchChanged(w.copyWith(done: true, metresToStop: 900, track: w.track.copyWith(wasAtStop: false)));
+    await pumpEventQueue();
+    expect(step(), 0);
+    nav().watchChanged(w.copyWith(done: true, metresToStop: 600, track: w.track.copyWith(wasAtStop: true)));
+    await pumpEventQueue();
+    expect(step(), 1);
+  });
+
+  test('a navigator built after the trip (app reopened) says the step and starts its tool', () async {
+    await open(_busTrip, listen: false);
+    await box.read(habitsProvider.notifier).setTripStep(1, _t0);
+    box.listen(tripNavProvider, (_, __) {});
+    await pumpEventQueue();
+    expect(box.read(tripNavProvider), 1);
+    expect(box.read(wakeProvider), isNotNull);
+  });
+
   test('a step with a stop that is not known starts nothing and does not crash', () async {
     await open([
       _busTrip[0].copyWithTo('00000'),
@@ -197,4 +241,14 @@ void main() {
 extension on TripStep {
   TripStep copyWithTo(String to) =>
       TripStep(kind: kind, from: from, to: to, fromName: fromName, toName: toName, minutes: minutes);
+  TripStep copyWithFrom(String from) => TripStep(
+      kind: kind,
+      from: from,
+      to: to,
+      fromName: fromName,
+      toName: toName,
+      service: service,
+      stops: stops,
+      minutes: minutes,
+      routeKey: routeKey);
 }
