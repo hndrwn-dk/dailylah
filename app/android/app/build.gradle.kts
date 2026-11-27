@@ -6,7 +6,8 @@ plugins {
 
 android {
     namespace = "com.tursinalabs.dailylah"
-    compileSdk = flutter.compileSdkVersion
+    // flutter_local_notifications 23 needs compileSdk 37 (Flutter 3.47 defaults to 36); targetSdk stays Flutter's.
+    compileSdk = maxOf(flutter.compileSdkVersion, 37)
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
