@@ -478,8 +478,16 @@ final tripWaysProvider =
   ];
 });
 
-/// Which way with changes is open on a trip's card (by its two ends), so I'm leaving follows it.
-final openWayProvider = StateProvider.family<int, (double, double, double, double)>((ref, ends) => 0);
+/// Which way with changes is open on a trip's card (by its two ends), kept by the way's
+/// signature ("966>857") so I'm leaving follows it even when the list changed meanwhile; null:
+/// the first way.
+final openWayProvider = StateProvider.family<String?, (double, double, double, double)>((ref, ends) => null);
+
+/// The way that is open among [ways]: the one with [signature], else the first.
+int openWayIndex(List<TransitOption> ways, String? signature) {
+  final i = signature == null ? -1 : ways.indexWhere((o) => o.signature == signature);
+  return i < 0 ? 0 : i;
+}
 
 /// Private homes (URA transactions and rentals).
 final privateHomesProvider =

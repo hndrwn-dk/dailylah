@@ -1670,6 +1670,28 @@ bool navRideOver(List<TripStep> steps, int i, DateTime at, DateTime now) {
   return now.difference(at).inMinutes >= minutes;
 }
 
+/// The button the trip page shows on a step: on the bus or the train when walking to it, got off
+/// while riding, none on the last walk.
+enum StepAction { none, onBus, onTrain, gotOff }
+
+StepAction stepAction(List<TripStep> steps, int i) {
+  if (i < 0 || i >= steps.length) return StepAction.none;
+  switch (steps[i].kind) {
+    case StepKind.bus || StepKind.mrt:
+      return StepAction.gotOff;
+    case StepKind.walk:
+      if (i + 1 >= steps.length) return StepAction.none;
+      return steps[i + 1].kind == StepKind.mrt ? StepAction.onTrain : StepAction.onBus;
+  }
+}
+
+/// What a step is, in words ("Bus 966 to Opp St. Andrew's Village").
+String stepLabel(S s, TripStep step) => switch (step.kind) {
+      StepKind.walk => step.to.isEmpty ? s.stepWalkEnd : s.stepWalkTo(step.toName),
+      StepKind.bus => s.stepBus(step.service ?? '', step.toName),
+      StepKind.mrt => s.stepTrain(step.service ?? '', step.toName),
+    };
+
 /// Start stops for a trip and whether they were suggested instead of the saved ones.
 class TripStops {
   const TripStops(this.stops, {this.suggested = false});

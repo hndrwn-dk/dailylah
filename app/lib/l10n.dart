@@ -399,6 +399,19 @@ class S {
         if (sheltered != null) sheltered ? 'sheltered' : 'not sheltered',
       ].join(' · ');
   String get modeEtaNote => 'A rough estimate from the distance, without traffic or waiting.';
+  // trip navigation (steps of a trip with changes)
+  String get stepsTitle => 'Your trip, step by step';
+  String stepOf(int i, int n) => 'Step $i of $n';
+  String stepWalkTo(String place) => noOrphan('Walk to $place');
+  String get stepWalkEnd => 'Walk the rest of the way';
+  String stepBus(String service, String to) => noOrphan('Bus $service to $to');
+  String stepTrain(String line, String to) => noOrphan('$line to $to');
+  String stepOnBus(String service) => "I'm on $service";
+  String get stepOnTrain => "I'm on the train";
+  String get stepGotOff => 'Got off';
+  String stepDone(String step) => 'Done: $step';
+  String stepNow(String step) => 'Now: $step';
+
   // ways with changes (transitOptions)
   String get transitOptionsTitle => 'Ways with changes';
   String get transitEstimate => 'Times after the first bus or train are estimates.';

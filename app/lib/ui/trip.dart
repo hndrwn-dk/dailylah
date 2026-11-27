@@ -413,8 +413,7 @@ class _TripTimer extends ConsumerWidget {
     // Only where the card shows ways (not on a trip short enough to walk).
     final far = distanceMeters(from.lat, from.lng, to.lat, to.lng) >= walkInsteadMetres;
     final ways = bus && !direct && far ? ref.read(tripWaysProvider(ends)) : const <TransitOption>[];
-    final open = ref.read(openWayProvider(ends));
-    final steps = ways.isEmpty ? const <TripStep>[] : stepsOf(ways[open < ways.length ? open : 0]);
+    final steps = ways.isEmpty ? const <TripStep>[] : stepsOf(ways[openWayIndex(ways, ref.read(openWayProvider(ends)))]);
     final leave = stops.isEmpty || !direct
         ? null
         : tripLeave(
@@ -706,8 +705,7 @@ class _TransitOptionsCardState extends ConsumerState<TransitOptionsCard> {
   Widget build(BuildContext context) {
     final s = ref.watch(stringsProvider);
     final t = Theme.of(context).textTheme;
-    final picked = ref.watch(openWayProvider(widget.ends));
-    final open = picked < widget.options.length ? picked : 0;
+    final open = openWayIndex(widget.options, ref.watch(openWayProvider(widget.ends)));
     return Panel(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -724,7 +722,7 @@ class _TransitOptionsCardState extends ConsumerState<TransitOptionsCard> {
                 label: s.transitOptionLabel(i + 1, o.legs.first.kind == LegKind.walk ? o.legs.first.minutes : 0,
                     o.rides.map((r) => r.service).join(', '), o.minutes),
                 selected: i == open,
-                onTap: () => ref.read(openWayProvider(widget.ends).notifier).state = i,
+                onTap: () => ref.read(openWayProvider(widget.ends).notifier).state = o.signature,
               ),
               if (i == open) _OptionLegs(option: o),
             ],
