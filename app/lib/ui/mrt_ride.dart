@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../logic.dart';
+import '../models.dart';
 import '../mrt_ride.dart';
 import '../providers.dart';
+import '../trip_nav.dart';
 import 'theme.dart';
 import 'toilets.dart';
 import 'widgets.dart';
@@ -138,6 +140,14 @@ Future<void> finishRide(BuildContext context, WidgetRef ref) async {
   final onPage = ModalRoute.of(context)?.isFirst == false;
   ref.read(rideProvider.notifier).stop();
   final habits = ref.read(habitsProvider);
+  // A trip with changes: off the train is the next step (a bus, the walk), not the end of the trip.
+  final steps = habits.tripSteps;
+  final i = habits.tripStepIndex;
+  if (habits.tripStart != null && i < steps.length && steps[i].kind == StepKind.mrt) {
+    await ref.read(tripNavProvider.notifier).next();
+    if (onPage && nav.canPop()) nav.maybePop();
+    return;
+  }
   if (habits.tripStart != null) {
     final end = await ref.read(habitsProvider.notifier).finishTrip(DateTime.now());
     messenger?.showSnackBar(SnackBar(content: Text(tripEndNote(s, end))));

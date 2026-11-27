@@ -128,7 +128,9 @@ feature, screen, provider or rule moves, appears or goes away.
   `_Settle`, none with animations off; the step button from `stepAction`: I'm on 966 / I'm on the train / Got off,
   haptic on Got off) and the live card of the bus being walked to (`_waitedBusCard`); the open way is kept by
   signature (`openWayProvider`, `openWayIndex`). The navigator (`lib/trip_nav.dart`, `tripNavProvider`, kept
-  alive by the shell; `tripNavigationOnProvider`, on, tests turn it off)
+  alive by the shell; `tripNavigationOnProvider`, on; `test/trip_nav_session_test.dart` sets it per case, every other
+  test runs with it on; Arrived on the train bar of a trip with changes moves to the step after the ride,
+  `finishRide`, and Wake me started by hand from the bus card of a walk step moves the trip past that bus)
   runs each step's tool once (`navToolFor`: Bus arriving while walking to a bus, Wake me on a bus with
   `start(ask: false)`, the train ride over an MRT run, `mrtRunEnd`), moves on when Bus arriving ends with the
   rider over `busLeftStopMetres` from the stop, when Wake me fires, or when a run is over by time

@@ -181,8 +181,11 @@ class TripNavigator extends Notifier<int?> {
     if (!_running || w == null || !w.done) return;
     final steps = _h.tripSteps;
     final i = _h.tripStepIndex;
-    if (steps[i].kind != StepKind.bus || steps[i].service != w.service) return;
-    if (i + 1 < steps.length) unawaited(_go(i + 1, DateTime.now()));
+    // On the bus step, or still on the walk to it when Wake me was started by hand from its card.
+    final (:tool, :at) = navToolFor(steps, i);
+    final bus = steps[i].kind == StepKind.bus ? i : (tool == NavTool.watchBus ? at : null);
+    if (bus == null || steps[bus].service != w.service) return;
+    if (bus + 1 < steps.length) unawaited(_go(bus + 1, DateTime.now()));
     // On the last step nothing follows: Wake me has said its piece and stops with the trip.
   }
 

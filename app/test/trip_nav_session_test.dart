@@ -185,6 +185,17 @@ void main() {
     expect(box.read(tripNavProvider), isNull);
   });
 
+  test('Wake me started by hand while walking to the bus still moves the trip on', () async {
+    await open(_busTrip);
+    expect(step(), 0);
+    nav().wakeChanged(const WakeState(service: '10', alight: fullertonSq, event: WakeEvent.wake));
+    await pumpEventQueue();
+    expect(step(), 2, reason: 'past the bus it was started for');
+    nav().wakeChanged(const WakeState(service: '99', alight: fullertonSq, event: WakeEvent.wake));
+    await pumpEventQueue();
+    expect(step(), 2);
+  });
+
   test('Arrived on a bus step stops Wake me too', () async {
     await open(_busTrip);
     await nav().next(now: _t0);
