@@ -2793,6 +2793,67 @@ class _Settle extends Curve {
   double transformInternal(double t) => t >= 1 ? 1 : _sim.x(t * 0.35).clamp(0.0, 1.0);
 }
 
+/// A faster way from where the rider waits (trip navigation): its rides, how much sooner, Switch
+/// (with Undo) or Keep my way. Never switches by itself.
+class BetterWayCard extends ConsumerWidget {
+  const BetterWayCard({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final better = ref.watch(betterWayProvider);
+    final h = ref.watch(habitsProvider);
+    if (better == null || h.tripSteps.isEmpty) return const SizedBox.shrink();
+    final s = ref.watch(stringsProvider);
+    final t = Theme.of(context).textTheme;
+    final j = nextRideIndex(h.tripSteps, h.tripStepIndex);
+    final saved = j == null ? 0 : remainingMinutes(h.tripSteps, j) - better.minutes;
+    final rides = better.rides.map((r) => r.service).join(' > ');
+    return Panel(
+      color: DL.mint,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(s.betterWayTitle(rides), style: t.titleMedium?.copyWith(color: DL.ink)),
+            if (saved > 0) Text(s.betterWayLine(saved), style: t.bodyMedium?.copyWith(color: DL.ink)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                FilledButton(
+                  style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
+                  onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    final nav = ref.read(tripNavProvider.notifier);
+                    final before = await nav.switchToBetter();
+                    if (before == null) return;
+                    messenger.showSnackBar(SnackBar(
+                      // Undo is for second thoughts right after the tap, not later in the trip.
+                      persist: false,
+                      duration: const Duration(seconds: 8),
+                      content: Text(s.betterWaySwitched),
+                      action: SnackBarAction(label: s.undo, onPressed: () => nav.undoSwitch(before)),
+                    ));
+                  },
+                  child: Text(s.betterWaySwitch),
+                ),
+                TextButton(
+                  style: TextButton.styleFrom(minimumSize: const Size(0, 48), foregroundColor: DL.ink),
+                  onPressed: () => ref.read(tripNavProvider.notifier).keepMine(),
+                  child: Text(s.betterWayKeep),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// The steps of a trip with changes: done ones dimmed, the active one large with its button
 /// (I'm on 966 / I'm on the train / Got off), the rest plain.
 class TripStepsCard extends ConsumerWidget {
@@ -2918,6 +2979,7 @@ class RunningTripPage extends ConsumerWidget {
         children: [
           const TripBanner(opens: false),
           if (h.tripSteps.isNotEmpty) ...[
+            const BetterWayCard(),
             const TripStepsCard(),
             if (_waitedBusCard(s, h, ref.watch(busStopsByCodeProvider)) case final card?) card,
           ] else if (to != null && stop != null)

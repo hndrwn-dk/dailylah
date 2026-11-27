@@ -4785,6 +4785,23 @@ RichNote wakeWatchNote(S s, {required String service, required String stop, doub
 /// The id of the two bus alerts ([busNearNote], then [busArrivingNote], which replaces it).
 const busAlertNoteId = 24;
 
+/// A way at least this many minutes sooner is offered while waiting (trip navigation).
+const betterWayMinutes = 5;
+
+/// "Faster way" alert of trip navigation.
+const betterWayNoteId = 25;
+
+/// Trip navigation, at most once a step and only with the app in the background: a faster way
+/// from where the rider waits ([rides] "70 > 854", its first bus or line [first]).
+RichNote betterWayNote(S s, {required String first, required String rides, required int saved}) => RichNote(
+      id: betterWayNoteId,
+      title: s.betterWayTitle(rides),
+      body: s.betterWayBody(saved),
+      pills: [NotePill(first, PillTone.board), NotePill(s.betterWayPill(saved), PillTone.amber)],
+      art: NoteArt.phone,
+      link: _todayLink,
+    );
+
 /// Ongoing, while a bus of the running trip is watched: the bus, its minutes (or when the
 /// reading is from, once it is old), and how many stops away it is; without the bus's position,
 /// how far the rider is from the stop.
@@ -4917,6 +4934,7 @@ List<RichNote> sampleNotes(S s) => [
             place: s.placeLabel('work'),
             pick: LunchPick(Hawker(id: '', name: s.sampleHawkerAlt, address: '', lat: 0, lng: 0), 250, starred: true)),
         busNearNote(s, service: '197', stop: s.sampleStop, to: s.placeLabel('work'), minutes: 2, load: 'SEA'),
+        betterWayNote(s, first: '70', rides: '70 > 854', saved: 8),
       ])
         n.asSample(s.exampleTitle(n.title)),
     ];

@@ -172,4 +172,80 @@ void main() {
       expect(s.stepOf(2, 5), 'Step 2 of 5');
     });
   });
+
+  group('a faster way while waiting', () {
+    const slow = [
+      TripStep(kind: StepKind.walk, from: '', to: 'A', fromName: '', toName: 'A', minutes: 3),
+      TripStep(kind: StepKind.bus, from: 'A', to: 'B', fromName: 'A', toName: 'B', service: '966', minutes: 40),
+      TripStep(kind: StepKind.walk, from: 'B', to: '', fromName: 'B', toName: '', minutes: 2),
+    ];
+    TransitOption way(String service, int minutes) => TransitOption([
+          const TransitLeg(kind: LegKind.walk, from: '', to: 'A', fromName: '', toName: 'A', minutes: 1),
+          TransitLeg(
+              kind: LegKind.bus, from: 'A', to: 'C', fromName: 'A', toName: 'C', service: service, minutes: minutes - 2),
+          const TransitLeg(kind: LegKind.walk, from: 'C', to: '', fromName: 'C', toName: '', minutes: 1),
+        ]);
+
+    test('offers a way at least 5 min quicker than the rest of the trip, not the same buses', () {
+      expect(betterWay(slow, 0, [way('966', 20)]), isNull, reason: 'the same bus is not another way');
+      expect(betterWay(slow, 0, [way('70', 41)]), isNull, reason: 'only 4 min quicker');
+      expect(betterWay(slow, 0, [way('70', 40), way('854', 30)])?.signature, '854', reason: 'the fastest one');
+    });
+
+    test('only while walking to the first ride or waiting for it, never on a ride', () {
+      expect(betterWay(slow, 1, [way('70', 10)]), isNull);
+      expect(betterWay(slow, 2, [way('70', 1)]), isNull);
+      expect(betterWay(const [], 0, [way('70', 1)]), isNull);
+    });
+
+    test('its alert says the bus and the minutes saved', () {
+      final n = betterWayNote(const S(), first: '70', rides: '70', saved: 15);
+      expect(n.id, betterWayNoteId);
+      expect(n.pills.map((p) => p.text), ['70', '15 min sooner']);
+    });
+  });
+
+  test('a way that is only quicker because of a shorter wait at the change is not a faster way', () {
+    const plan = [
+      TripStep(kind: StepKind.walk, from: '', to: 'A', fromName: '', toName: 'A', minutes: 0),
+      TripStep(kind: StepKind.bus, from: 'A', to: 'B', fromName: 'A', toName: 'B', service: '966', minutes: 20),
+      TripStep(kind: StepKind.walk, from: 'B', to: '', fromName: 'B', toName: '', minutes: 0),
+    ];
+    final o = TransitOption(const [
+      TransitLeg(kind: LegKind.walk, from: '', to: 'A', fromName: '', toName: 'A', minutes: 0),
+      TransitLeg(kind: LegKind.bus, from: 'A', to: 'C', fromName: 'A', toName: 'C', service: '70', minutes: 15),
+      TransitLeg(kind: LegKind.walk, from: 'C', to: '', fromName: 'C', toName: '', minutes: 0),
+    ]);
+    expect(betterWay(plan, 0, [o])?.signature, '70');
+    // Waiting 6 min at a change in the plan against 5 for a first bus: the option is one minute
+    // nearer than it looks, so 15 against 20 no longer clears the 5-minute bar.
+    expect(betterWay(plan, 0, [o], extraMinutes: 1), isNull);
+  });
+
+  test('a way over a disrupted MRT line is left out, by the planner and by the faster-way offer alike', () {
+    final train = TransitOption(const [
+      TransitLeg(kind: LegKind.walk, from: '', to: 'mrt:A', fromName: '', toName: 'A', minutes: 1),
+      TransitLeg(kind: LegKind.mrt, from: 'mrt:A', to: 'mrt:B', fromName: 'A', toName: 'B', service: 'TEL', minutes: 10),
+      TransitLeg(kind: LegKind.walk, from: 'mrt:B', to: '', fromName: 'B', toName: '', minutes: 1),
+    ]);
+    final bus = TransitOption(const [
+      TransitLeg(kind: LegKind.walk, from: '', to: 'X', fromName: '', toName: 'X', minutes: 1),
+      TransitLeg(kind: LegKind.bus, from: 'X', to: 'Y', fromName: 'X', toName: 'Y', service: '70', minutes: 20),
+      TransitLeg(kind: LegKind.walk, from: 'Y', to: '', fromName: 'Y', toName: '', minutes: 1),
+    ]);
+    Map<String, dynamic> down(String line) => {
+          'data': {
+            'value': {
+              'Status': 2,
+              'AffectedSegments': [
+                {'Line': line, 'Direction': 'x', 'Stations': 'TE1', 'FreePublicBus': '', 'FreeMRTShuttle': ''},
+              ],
+              'Message': [],
+            },
+          },
+        };
+    expect(withoutDisrupted([train, bus], null), [train, bus]);
+    expect(withoutDisrupted([train, bus], down('TEL')), [bus]);
+    expect(withoutDisrupted([train, bus], down('NSL')), [train, bus]);
+  });
 }

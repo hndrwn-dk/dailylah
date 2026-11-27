@@ -9,6 +9,7 @@ import 'package:dailylah/logic.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/mrt_ride.dart';
 import 'package:dailylah/providers.dart';
+import 'package:dailylah/transit.dart';
 import 'package:dailylah/trip_nav.dart';
 import 'package:dailylah/wake_session.dart';
 import 'package:flutter/services.dart';
@@ -20,6 +21,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'support/harness.dart';
 
 final _t0 = DateTime(2026, 11, 27, 8);
+dynamic _bundle(String name) => jsonDecode(File('../web/data/$name').readAsStringSync());
 const _mid = BusStop(code: '99999', name: 'Mid Stop', road: 'Mid Rd', lat: 1.32, lng: 103.9);
 
 const _busTrip = [
@@ -71,7 +73,11 @@ void main() {
   ];
 
   Future<void> open(List<TripStep> steps,
-      {bool on = true, bool listen = true, LocationPermission permission = LocationPermission.whileInUse}) async {
+      {bool on = true,
+      bool listen = true,
+      bool real = false,
+      Place? to,
+      LocationPermission permission = LocationPermission.whileInUse}) async {
     SharedPreferences.setMockInitialValues({});
     shown.clear();
     GeolocatorPlatform.instance = FakeGeolocator(permission);
@@ -85,10 +91,14 @@ void main() {
       apiProvider.overrideWithValue(FakeApi()),
       initialFavoritesProvider.overrideWithValue(const Favorites(learnHabits: true)),
       tripNavigationOnProvider.overrideWithValue(on),
-      busRoutesProvider.overrideWith((ref) async => const BusRoutes({
-            '10|1': [('75009', 0.0), ('99999', 5.0), ('03011', 10.0)],
-          })),
-      busStopsProvider.overrideWith((ref) async => const [tampinesInt, _mid, fullertonSq]),
+      busRoutesProvider.overrideWith((ref) async => real
+          ? BusRoutes.fromBundle(_bundle('bus_routes.json') as Map<String, dynamic>)
+          : const BusRoutes({
+              '10|1': [('75009', 0.0), ('99999', 5.0), ('03011', 10.0)],
+            })),
+      busStopsProvider.overrideWith((ref) async => real
+          ? [for (final j in _bundle('bus_stops.json') as List) BusStop.fromBundle(j as Map<String, dynamic>)]
+          : const [tampinesInt, _mid, fullertonSq]),
       mrtStationsProvider.overrideWith((ref) async => stations),
     ]);
     addTearDown(box.dispose);
@@ -100,7 +110,7 @@ void main() {
     if (listen) box.listen(tripNavProvider, (_, __) {});
     await box.read(habitsProvider.notifier).startTrip('Home>Office', _t0,
         mode: TravelMode.transit.name,
-        to: const Place(kind: PlaceKind.other, name: 'Office', addrLat: 1.2856, addrLng: 103.8534),
+        to: to ?? const Place(kind: PlaceKind.other, name: 'Office', addrLat: 1.2856, addrLng: 103.8534),
         steps: steps);
     await pumpEventQueue();
   }
@@ -238,6 +248,86 @@ void main() {
     await pumpEventQueue();
     expect(box.read(tripNavProvider), 1);
     expect(box.read(wakeProvider), isNotNull);
+  });
+
+  test('a faster way while waiting: offered, one alert in the background, Switch and Undo', () async {
+    // A slow plan (estimates far above the real ones) from Opp D'Ecosia to ST Engineering Hub.
+    const slow = [
+      TripStep(kind: StepKind.walk, from: '', to: '92271', fromName: '', toName: "Opp D'Ecosia", minutes: 3),
+      TripStep(
+          kind: StepKind.bus,
+          from: '92271',
+          to: '60089',
+          fromName: "Opp D'Ecosia",
+          toName: "Opp St. Andrew's Village",
+          service: '13',
+          minutes: 80,
+          routeKey: '13|1'),
+      TripStep(kind: StepKind.walk, from: '60089', to: '', fromName: 'x', toName: '', minutes: 30),
+    ];
+    await open(slow,
+        real: true, to: const Place(kind: PlaceKind.other, name: 'ST Engineering Hub', addrLat: 1.3917, addrLng: 103.8480));
+    await box.read(transitNetProvider.future);
+    shown.clear();
+    await nav().checkBetter(_t0, inBackground: true);
+    final better = box.read(betterWayProvider);
+    expect(better, isNotNull);
+    expect(better!.signature, isNot('13'));
+    expect(shown.where((n) => n['id'] == betterWayNoteId), hasLength(1));
+    await nav().checkBetter(_t0.add(const Duration(seconds: 30)), inBackground: true);
+    expect(shown.where((n) => n['id'] == betterWayNoteId), hasLength(1), reason: 'one alert a step');
+
+    final before = await nav().switchToBetter(now: _t0);
+    await pumpEventQueue();
+    final h = box.read(habitsProvider);
+    expect([for (final st in h.tripSteps) if (st.isRide) st.service], [for (final r in better.rides) r.service]);
+    expect(h.tripStepIndex, 0);
+    expect(box.read(betterWayProvider), isNull);
+
+    await nav().undoSwitch(before!);
+    await pumpEventQueue();
+    expect(box.read(habitsProvider).tripSteps.map((st) => st.service), slow.map((st) => st.service));
+    await nav().checkBetter(_t0, inBackground: false);
+    expect(box.read(betterWayProvider), isNull, reason: 'kept the way after Undo');
+  });
+
+  test('Switch on the first walk watches the new first bus; a late Undo does nothing', () async {
+    const slow = [
+      TripStep(kind: StepKind.walk, from: '', to: '92271', fromName: '', toName: "Opp D'Ecosia", minutes: 3),
+      TripStep(
+          kind: StepKind.bus,
+          from: '92271',
+          to: '60089',
+          fromName: "Opp D'Ecosia",
+          toName: "Opp St. Andrew's Village",
+          service: '13',
+          minutes: 80,
+          routeKey: '13|1'),
+      TripStep(kind: StepKind.walk, from: '60089', to: '', fromName: 'x', toName: '', minutes: 30),
+    ];
+    await open(slow,
+        real: true, to: const Place(kind: PlaceKind.other, name: 'ST Engineering Hub', addrLat: 1.3917, addrLng: 103.8480));
+    await box.read(transitNetProvider.future);
+    await nav().checkBetter(_t0, inBackground: false);
+    final better = box.read(betterWayProvider)!;
+    final before = await nav().switchToBetter(now: _t0);
+    await pumpEventQueue();
+    final first = better.rides.first;
+    if (first.kind == LegKind.bus) {
+      expect(box.read(busWatchProvider)?.service, first.service, reason: "the new way's first bus is watched");
+    }
+    // The rider boards the new bus: Undo no longer puts the old plan back.
+    await nav().next(now: _t0.add(const Duration(minutes: 5)));
+    await nav().undoSwitch(before!);
+    await pumpEventQueue();
+    expect(box.read(habitsProvider).tripSteps.any((st) => st.service == '13'), isFalse);
+  });
+
+  test('no faster way is offered on a ride', () async {
+    await open(_busTrip);
+    await nav().next(now: _t0);
+    await nav().checkBetter(_t0, inBackground: true);
+    expect(box.read(betterWayProvider), isNull);
   });
 
   test('a step with a stop that is not known starts nothing and does not crash', () async {

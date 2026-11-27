@@ -122,7 +122,17 @@ feature, screen, provider or rule moves, appears or goes away.
   does not start, but keeps the open way's steps on the running trip (`TripStep` in models.dart, `stepsOf` in
   transit.dart; `Habits.tripSteps` JSON `st`, `tripStepIndex` `si`, cleared with the trip; rules `stepAfter`,
   `remainingMinutes`, `nextRideIndex`; tests `test/trip_nav_test.dart`) for trip navigation
-  (docs/superpowers/specs/2026-11-26-trip-navigation-design.md; phases 1-3 of 4). The trip bar says the step
+  (docs/superpowers/specs/2026-11-26-trip-navigation-design.md; phases 1-4). While walking to the next ride or
+  waiting for it, the navigator's `checkBetter` (every tick) runs `transitOptions` from that stop to `Habits.tripTo`
+  and `betterWay` (transit.dart: at least `betterWayMinutes` sooner than the rest of the plan, other rides) puts a
+  faster way in `betterWayProvider`; `BetterWayCard` on the trip page offers Switch (`switchToBetter`, the rest of
+  the trip becomes its steps, `replaceTripSteps`; Undo `undoSwitch`) and Keep my way (`keepMine`, not offered again
+  on that step); with the app in the background one `betterWayNote` (ID 25) a step. Never switches by itself. The ways
+  from that stop are worked out once a step, drop disrupted MRT lines like the planner (`withoutDisrupted`, shared
+  with `tripWaysProvider`), and are compared like with like (`rideWaitMinutes`: the plan's wait at a change against
+  an option's first wait, `betterWay(extraMinutes:)`); Switch and Undo start the new first step's tool and clear the
+  per-step memories (`_replanned`), and Undo (an 8 s snackbar) works only on the same trip's first step of the way
+  switched to. The trip bar says the step
   ("Step 2 of 4 · 966 in 4 min", `S.stepOf`, `stepLabel`) and opens `RunningTripPage`, which for a trip with steps
   shows `TripStepsCard` (every step: done ones dimmed, the active one amber with a critically damped spring,
   `_Settle`, none with animations off; the step button from `stepAction`: I'm on 966 / I'm on the train / Got off,
@@ -258,7 +268,7 @@ feature, screen, provider or rule moves, appears or goes away.
   green to 50, amber to 100 and red above, so the marker agrees with the pill),
   only `LinearLayout`/`TextView`/`ImageView`, pills filled row by row by a character budget that shrinks with
   larger text, colours as resources (values-night). The other alerts have the layout too: `parkNote` (ID 11), `dengueNote` (4), `lightningNote` (6),
-  `homesNote` (7), `holidayRichNote` (20), Bus arriving's `busNearNote` and `busArrivingNote` (24) and, for "I'm on the train", `rideNextNote` (21) and `rideDisruptedNote`
+  `homesNote` (7), `holidayRichNote` (20), Bus arriving's `busNearNote` and `busArrivingNote` (24), trip navigation's faster way `betterWayNote` (25) and, for "I'm on the train", `rideNextNote` (21) and `rideDisruptedNote`
   (22; the ride used 11 and 12 before, which replaced the parking reminder and the digest). The ongoing
   "Watching for your stop" / "Riding to" notification belongs to geolocator's foreground service, which takes
   only a title and a text: the app replaces its content with the pill layout (`wakeWatchNote`: the bus and
@@ -279,7 +289,7 @@ feature, screen, provider or rule moves, appears or goes away.
   Halal places are not suggested in the note (no room for `S.halalDisclaimer`); Nearby > Eat lists them.
   The note always has its picture (`NoteArt.lunch`, a bowl) and a pill: with no hawker centre to name, "Where to eat".
   A new alert is a new `...Note` builder; no two alerts share an ID (a test checks the samples). More > Alerts > "Show me an
-  example" (`showExampleAlerts`, `sampleNotes`) posts every alert (17) with sample values, titled "Example: ..." and
+  example" (`showExampleAlerts`, `sampleNotes`) posts every alert (18) with sample values, titled "Example: ..." and
   under their own IDs (the alert's + 100), so a sample never replaces a real alert, and never touches
   `AlertLog`. The MRT note's line pill is the trip's line the plan B bus goes around (`planBBus`), not just the
   first disrupted one. The body gives way to the pills: 9 lines with none (a long digest), two fewer per row. Tests: "rich notes" in `test/logic_test.dart`, "alerts with pills" in

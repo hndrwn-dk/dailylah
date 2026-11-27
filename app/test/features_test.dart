@@ -14,6 +14,7 @@ import 'package:dailylah/models.dart';
 import 'package:dailylah/mrt_ride.dart';
 import 'package:dailylah/wake_session.dart';
 import 'package:dailylah/providers.dart';
+import 'package:dailylah/trip_nav.dart';
 import 'package:dailylah/store.dart';
 import 'package:dailylah/ui/address_picker.dart';
 import 'package:dailylah/ui/bus_sheet.dart';
@@ -890,7 +891,7 @@ void main() {
       allowed = true;
       await openMore(tester);
       expect(rich.map((n) => n['id']).toSet(),
-          {102, 108, 109, 101, 110, 103, 105, 112, 106, 104, 111, 107, 120, 121, 122, 123, 124});
+          {102, 108, 109, 101, 110, 103, 105, 112, 106, 104, 111, 107, 120, 121, 122, 123, 124, 125});
       expect(rich.every((n) => (n['pills'] as List).isNotEmpty), isTrue);
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getStringList('alerts.sent'), isNull, reason: 'a sample must not stop the real alert');
@@ -1267,6 +1268,45 @@ void main() {
     await settle(tester);
     expect(box.read(habitsProvider).tripStepIndex, 2);
     expect(find.textContaining('Step 3 of 4'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('While waiting, a faster way is offered with Switch and Undo', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    const slow = [
+      TripStep(kind: StepKind.walk, from: '', to: '92271', fromName: '', toName: "Opp D'Ecosia", minutes: 3),
+      TripStep(
+          kind: StepKind.bus,
+          from: '92271',
+          to: '60089',
+          fromName: "Opp D'Ecosia",
+          toName: "Opp St. Andrew's Village",
+          service: '13',
+          minutes: 80,
+          routeKey: '13|1'),
+      TripStep(kind: StepKind.walk, from: '60089', to: '', fromName: 'x', toName: '', minutes: 30),
+    ];
+    await box.read(habitsProvider.notifier).startTrip('Marine Parade>ST Engineering Hub', DateTime.now(),
+        mode: TravelMode.transit.name,
+        to: const Place(kind: PlaceKind.other, name: 'ST Engineering Hub', addrLat: 1.3917, addrLng: 103.8480),
+        steps: slow);
+    await settle(tester);
+    await tester.tap(find.textContaining('Step 1 of 3'));
+    await settle(tester);
+    await tester.runAsync(() => box.read(transitNetProvider.future));
+    await box.read(tripNavProvider.notifier).checkBetter(DateTime.now(), inBackground: false);
+    await settle(tester);
+    expect(find.text(_s.betterWaySwitch), findsOneWidget);
+    await tester.tap(find.text(_s.betterWaySwitch));
+    await settle(tester);
+    expect(box.read(habitsProvider).tripSteps.any((st) => st.service == '13'), isFalse);
+    expect(find.text(_s.betterWaySwitch), findsNothing);
+    await tester.tap(find.text(_s.undo));
+    await settle(tester);
+    expect(box.read(habitsProvider).tripSteps.map((st) => st.service), slow.map((st) => st.service));
     expect(tester.takeException(), isNull);
   });
 

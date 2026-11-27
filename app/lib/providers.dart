@@ -220,6 +220,12 @@ class HabitsNotifier extends Notifier<Habits> {
           tripStepAt: steps.isEmpty ? null : now,
           tripBus: bus == null || bus.isEmpty ? null : bus));
 
+  /// The rest of the running trip goes another way: [steps] from its first step, since [at].
+  Future<void> replaceTripSteps(List<TripStep> steps, int index, DateTime at) async {
+    if (state.tripStart == null || steps.isEmpty) return;
+    await _set(state.copyWith(tripSteps: steps, tripStepIndex: index.clamp(0, steps.length - 1), tripStepAt: at));
+  }
+
   /// The rider is on step [i] of the running trip since [at].
   Future<void> setTripStep(int i, DateTime at) async {
     if (state.tripStart == null || i < 0 || i >= state.tripSteps.length) return;
@@ -460,23 +466,8 @@ final transitOptionsProvider =
 /// The ways with changes shown for a trip: [transitOptionsProvider] without those over an MRT line
 /// that is disrupted now. The card and I'm leaving read the same list.
 final tripWaysProvider =
-    Provider.autoDispose.family<List<TransitOption>, (double, double, double, double)>((ref, ends) {
-  final found = ref.watch(transitOptionsProvider(ends));
-  final alerts = ref.watch(trainAlertsProvider).value;
-  if (alerts == null || found.isEmpty) return found;
-  final down = {
-    for (final st in lineStatuses(alerts, {
-      for (final o in found)
-        for (final r in o.rides)
-          if (r.kind == LegKind.mrt) r.service!,
-    }))
-      if (st.disrupted) st.line,
-  };
-  return [
-    for (final o in found)
-      if (!o.rides.any((r) => r.kind == LegKind.mrt && down.contains(r.service))) o,
-  ];
-});
+    Provider.autoDispose.family<List<TransitOption>, (double, double, double, double)>((ref, ends) =>
+        withoutDisrupted(ref.watch(transitOptionsProvider(ends)), ref.watch(trainAlertsProvider).value));
 
 /// Which way with changes is open on a trip's card (by its two ends), kept by the way's
 /// signature ("966>857") so I'm leaving follows it even when the list changed meanwhile; null:

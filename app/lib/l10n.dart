@@ -412,6 +412,15 @@ class S {
   String stepDone(String step) => 'Done: $step';
   String stepNow(String step) => 'Now: $step';
 
+  // a faster way while waiting (trip navigation)
+  String betterWayTitle(String rides) => 'Faster: $rides from here';
+  String betterWayBody(int minutes) => 'About $minutes min sooner than your way. Open DailyLah to switch.';
+  String betterWayPill(int minutes) => '$minutes min sooner';
+  String betterWayLine(int minutes) => 'About $minutes min sooner than your way.';
+  String get betterWaySwitch => 'Switch';
+  String get betterWayKeep => 'Keep my way';
+  String get betterWaySwitched => 'Switched to the faster way.';
+
   // ways with changes (transitOptions)
   String get transitOptionsTitle => 'Ways with changes';
   String get transitEstimate => 'Times after the first bus or train are estimates.';
@@ -1129,7 +1138,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Plan a trip: a trip with changes now walks you through it step by step. The trip bar says which step you are on, and its page lists every step with the bus to catch, a button for I'm on 966 or Got off, and alerts from Bus arriving and Wake me at my stop when location is already allowed. Also: I'm leaving keeps the way you opened, even if the list changes.",
+        "Trip with changes: while you walk to your next bus or train or wait for it, DailyLah now looks for a faster way from that stop. When one gets you there at least 5 minutes sooner, the trip page offers it with Switch (and Undo) or Keep my way, and with the app in the background you get one alert. It never switches by itself, and it is all worked out on your phone.",
       ];
 
   // about

@@ -3,7 +3,9 @@
 // Everything stays on the phone; it never asks for location.
 import 'dart:async';
 
+import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import 'background.dart' show showNote;
 import 'bus_watch.dart';
@@ -12,10 +14,18 @@ import 'logic.dart';
 import 'models.dart';
 import 'mrt_ride.dart';
 import 'providers.dart';
+import 'transit.dart';
 import 'wake_session.dart';
 
 /// Trip navigation is on (the trip bar and page show and change the steps); tests turn it off.
 final tripNavigationOnProvider = Provider<bool>((ref) => true);
+
+/// A faster way from where the rider waits, offered on the trip page (null: none now).
+final betterWayProvider = StateProvider<TransitOption?>((ref) => null);
+
+/// What [TripNavigator.switchToBetter] replaced, for Undo: the trip it belongs to, the earlier
+/// plan, and the way switched to (Undo works only while the rider is still on its first step).
+typedef TripPlanBefore = ({DateTime trip, List<TripStep> steps, int index, DateTime? at, List<TripStep> switchedTo});
 
 /// The step the navigator drives (null when there is no trip with changes or it is off).
 final tripNavProvider = NotifierProvider<TripNavigator, int?>(TripNavigator.new);
@@ -30,6 +40,24 @@ class TripNavigator extends Notifier<int?> {
 
   /// The get-off note without location went out for this trip and step.
   (DateTime, int)? _toldGetOff;
+
+  /// The faster-way alert went out, or the rider kept their way, for this trip and step.
+  (DateTime, int)? _toldBetter;
+  (DateTime, int)? _keptMine;
+
+  /// The ways from the stop being walked to, worked out once per trip and step (they do not change).
+  (DateTime, int)? _waysKey;
+  List<TransitOption> _ways = const [];
+
+  /// A new plan for the same trip (Switch, Undo): every per-step memory goes and its tool starts.
+  void _replanned() {
+    _started = null;
+    _toldGetOff = null;
+    _toldBetter = null;
+    _keptMine = null;
+    _waysKey = null;
+    _drive();
+  }
 
   @override
   int? build() {
@@ -72,6 +100,7 @@ class TripNavigator extends Notifier<int?> {
   /// Starts the tool of the active step once.
   void _drive() {
     if (!_running) {
+      ref.read(betterWayProvider.notifier).state = null;
       if (_started != null) _stopTool();
       _started = null;
       _toldGetOff = null;
@@ -82,6 +111,7 @@ class TripNavigator extends Notifier<int?> {
     final key = (_h.tripStart!, i);
     state = i;
     if (_started == key) return;
+    ref.read(betterWayProvider.notifier).state = null;
     // A new trip over a running one: its tool goes before the new one starts.
     if (_started != null && _started!.$1 != key.$1) _stopTool();
     _started = key;
@@ -189,8 +219,100 @@ class TripNavigator extends Notifier<int?> {
     // On the last step nothing follows: Wake me has said its piece and stops with the trip.
   }
 
+  /// While walking to the next ride or waiting for it: is there a way from that stop to the
+  /// destination at least [betterWayMinutes] sooner? Offered on the trip page; in the background
+  /// one alert a step. Worked out on the phone; never switches by itself.
+  Future<void> checkBetter(DateTime now, {bool? inBackground}) async {
+    if (!_running) return;
+    final h = _h;
+    final i = h.tripStepIndex;
+    final key = (h.tripStart!, i);
+    final steps = h.tripSteps;
+    final to = h.tripTo;
+    final net = ref.read(transitNetProvider).value;
+    final j = nextRideIndex(steps, i);
+    if (to == null || net == null || j == null || _keptMine == key || steps[i].kind != StepKind.walk) {
+      ref.read(betterWayProvider.notifier).state = null;
+      return;
+    }
+    // From the stop or station of the next ride (where the rider waits or is walking to).
+    final id = steps[j].from;
+    double? lat, lng;
+    if (id.startsWith('mrt:')) {
+      for (final st in ref.read(mrtStationsProvider).value ?? const <MrtStation>[]) {
+        if ('mrt:${st.name}' == id) (lat, lng) = (st.lat, st.lng);
+      }
+    } else if (ref.read(busStopsByCodeProvider)[id] case final stop?) {
+      (lat, lng) = (stop.lat, stop.lng);
+    }
+    if (lat == null || lng == null) return;
+    // The plan from that stop on: what is left of it after the walk there.
+    final planned = [...steps.sublist(j)];
+    if (_waysKey != key) {
+      _waysKey = key;
+      _ways = transitOptions(net, Place(kind: PlaceKind.other, addrLat: lat, addrLng: lng), to);
+    }
+    // Like with like: the plan's ride counts its own wait (longer at a change), an option's first
+    // ride the wait of a first bus or train.
+    final options = withoutDisrupted(_ways, ref.read(trainAlertsProvider).value);
+    final better = betterWay(
+        [TripStep(kind: StepKind.walk, from: '', to: id, fromName: '', toName: steps[j].fromName, minutes: 0), ...planned],
+        0,
+        options,
+        extraMinutes: rideWaitMinutes(steps, j) - (steps[j].kind == StepKind.mrt ? mrtWaitMinutes : firstBusWaitMinutes));
+    ref.read(betterWayProvider.notifier).state = better;
+    if (better == null || _toldBetter == key) return;
+    final background = inBackground ?? WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed;
+    if (!background) return;
+    _toldBetter = key;
+    final s = ref.read(stringsProvider);
+    await showNote(
+        betterWayNote(s,
+            first: better.rides.first.service ?? '',
+            rides: better.rides.map((r) => r.service).join(' > '),
+            saved: remainingMinutes(planned, 0) - better.minutes),
+        s: s);
+  }
+
+  /// The rider takes the faster way: the rest of the trip becomes its steps (from the walk to its
+  /// first ride). Returns what was replaced, for Undo.
+  Future<TripPlanBefore?> switchToBetter({DateTime? now}) async {
+    final better = ref.read(betterWayProvider);
+    if (!_running || better == null) return null;
+    final h = _h;
+    final next = stepsOf(better);
+    final before = (trip: h.tripStart!, steps: h.tripSteps, index: h.tripStepIndex, at: h.tripStepAt, switchedTo: next);
+    _stopTool();
+    ref.read(betterWayProvider.notifier).state = null;
+    await ref.read(habitsProvider.notifier).replaceTripSteps(next, 0, now ?? DateTime.now());
+    _replanned();
+    return before;
+  }
+
+  /// Undo of [switchToBetter]: the earlier plan again, and no offer of the same way for that step.
+  Future<void> undoSwitch(TripPlanBefore before) async {
+    if (!_running) return;
+    final h = _h;
+    // Only for the same trip, still on the first step of the way switched to.
+    String plan(List<TripStep> steps) => steps.map((st) => st.toJson().toString()).join('|');
+    if (h.tripStart != before.trip || h.tripStepIndex != 0 || plan(h.tripSteps) != plan(before.switchedTo)) return;
+    _stopTool();
+    await ref.read(habitsProvider.notifier).replaceTripSteps(before.steps, before.index, before.at ?? DateTime.now());
+    _replanned();
+    keepMine();
+  }
+
+  /// The rider keeps their way: no faster way is offered again on this step.
+  void keepMine() {
+    if (!_running) return;
+    _keptMine = (_h.tripStart!, _h.tripStepIndex);
+    ref.read(betterWayProvider.notifier).state = null;
+  }
+
   /// Estimates without location: the get-off note on a bus, the end of a train run.
   Future<void> tick(DateTime now) async {
+    if (!_running) return;
+    await checkBetter(now);
     if (!_running) return;
     final h = _h;
     final steps = h.tripSteps;
