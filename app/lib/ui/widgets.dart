@@ -1517,6 +1517,23 @@ class ParkTimeBanner extends StatelessWidget {
   }
 }
 
+/// Icon for what a food place serves ([foodKindOf] reads it from the name): a cup for coffee,
+/// a croissant for a bakery, and a plain knife and fork when the name says nothing more.
+IconData foodIcon(FoodKind kind) => switch (kind) {
+      FoodKind.coffee => Icons.local_cafe_outlined,
+      FoodKind.bakery => Icons.bakery_dining_outlined,
+      FoodKind.dessert => Icons.icecream_outlined,
+      FoodKind.drink => Icons.emoji_food_beverage_outlined,
+      FoodKind.pizza => Icons.local_pizza_outlined,
+      FoodKind.fastFood => Icons.lunch_dining_outlined,
+      FoodKind.rice => Icons.rice_bowl_outlined,
+      FoodKind.noodles => Icons.dinner_dining_outlined, // ramen is the hawker centre's icon
+      FoodKind.seafood => Icons.set_meal_outlined,
+      FoodKind.soup => Icons.soup_kitchen_outlined,
+      FoodKind.grill => Icons.outdoor_grill_outlined,
+      FoodKind.restaurant => Icons.restaurant_outlined,
+    };
+
 /// Icon for a park facility label from the poi bundle ("Toilet", "Playground"...).
 IconData facilityIcon(String label) => switch (label) {
       'Playground' => Icons.toys_outlined,

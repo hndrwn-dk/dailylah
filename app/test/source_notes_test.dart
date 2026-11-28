@@ -141,7 +141,7 @@ void main() {
         await _tab(tester, c, 1, nearby: 'eat');
         await _showText(tester, find.text(_halal));
         expect(find.text(_halal), findsOneWidget);
-        final tile = find.byWidgetPredicate((w) => w is PlaceRow && w.icon == Icons.restaurant_outlined).first;
+        final tile = find.byWidgetPredicate((w) => w is PlaceRow && halalIcons.contains(w.icon)).first;
         await tester.ensureVisible(tile);
         await tester.pump();
         await tester.tap(tile);
@@ -161,8 +161,8 @@ void main() {
         await settle(tester);
         expect(find.widgetWithText(AlertBanner, _halal), findsOneWidget);
         expect(find.textContaining(_sourceNote), findsNothing);
-        await _showText(tester, find.widgetWithIcon(ListTile, Icons.restaurant_outlined));
-        final tile = find.widgetWithIcon(ListTile, Icons.restaurant_outlined).first;
+        await _showText(tester, find.byWidgetPredicate((w) => w is ListTile && w.leading is Icon && halalIcons.contains((w.leading! as Icon).icon)));
+        final tile = find.byWidgetPredicate((w) => w is ListTile && w.leading is Icon && halalIcons.contains((w.leading! as Icon).icon)).first;
         await tester.ensureVisible(tile);
         await tester.pump();
         await tester.tap(tile);

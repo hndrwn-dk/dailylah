@@ -8,11 +8,13 @@ import 'dart:io';
 
 import 'package:dailylah/api.dart';
 import 'package:dailylah/data.dart';
+import 'package:dailylah/logic.dart' show FoodKind;
 import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/providers.dart';
 import 'package:dailylah/ui/app_frame.dart';
 import 'package:dailylah/ui/theme.dart';
+import 'package:dailylah/ui/widgets.dart' show foodIcon;
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -507,3 +509,6 @@ Future<void> scrollThrough(WidgetTester tester, {int times = 8, bool accessible 
     if (accessible && i.isOdd) await expectAccessible(tester);
   }
 }
+
+/// The icons a halal place's row can have ([foodIcon]): none of them is the hawker centre's.
+final halalIcons = {for (final k in FoodKind.values) foodIcon(k)};

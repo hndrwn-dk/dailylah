@@ -2434,6 +2434,36 @@ List<(Hawker, Closure, double)> upcomingClosures(List<Hawker> all, double lat, d
   return out;
 }
 
+/// What a food place mostly serves, read from its name, for the icon in a list (halal places).
+enum FoodKind { coffee, bakery, dessert, drink, pizza, fastFood, rice, noodles, seafood, soup, grill, restaurant }
+
+/// Name rules in order: the first that matches wins (brands first, so "Kentucky Fried Chicken"
+/// is fast food and "chicken rice" is rice). Whole words only, any case.
+final _foodRules = <(FoodKind, RegExp)>[
+  (FoodKind.coffee, _words(r"coffee|cafe|café|kopi|kaffe|kopitiam|espresso|tim hortons|dunkin'?|ya kun|toast box|starbucks|flash coffee")),
+  (FoodKind.pizza, _words(r"pizza|domino'?s|pezzo|pizzeria|eatpizza")),
+  (FoodKind.rice, _words(r"chicken rice|rice|nasi|biryani|briyani|gyudon|donburi|yoshinoya|sukiya|bento|claypot|crave|nasi lemak")),
+  (FoodKind.fastFood, _words(r"mcdonald'?s|burger|burgers|kfc|kentucky|popeyes|texas chicken|4fingers|jollibee|wingstop|a&w|subway|stuff'?d|long john silver'?s|tenderbest|chicken|wings|shawarma|kebabs?|wraps?|arnold'?s")),
+  (FoodKind.bakery, _words(r"bakery|bake|bakes|bakeinc|bread|breads|baguette|delifrance|swee heng|old chang kee|polar puffs|dough|doughnuts?|donuts?|krispy kreme|croissants?|curry puffs?|famous amos|cookies?|tarts?|bakehouse|patisserie|boulangerie|primadeli|toast")),
+  (FoodKind.dessert, _words(r"ice cream|gelato|swensen'?s|dessert|desserts|waffles?|pancakes?|cakes?|strudel|llao llao|yogurt|froyo|churros|gelare")),
+  (FoodKind.drink, _words(r"mr bean|teh|teh tarik|tea|bubble tea|boba|juice|juices|smoothies?|soya|koi|liho|chicha|gong cha|playmade")),
+  (FoodKind.noodles, _words(r"noodles?|ramen|mee|mian|laksa|lanzhou|pho|udon|soba|pasta|pastamania|pastago|spaghetti|wok|wok hey")),
+  (FoodKind.grill, _words(r"steak|steaks|grill|grilled|bbq|barbecue|sear|satay|yakiniku|niku|pepper lunch")),
+  (FoodKind.seafood, _words(r"sushi|seafood|fish|fish & chips|sashimi|poke")),
+  (FoodKind.soup, _words(r"soup|yong tau foo|hot pot|hotpot|mala|steamboat|sup")),
+];
+
+RegExp _words(String alternatives) =>
+    RegExp(r"(?<![\p{L}\p{N}])(?:" + alternatives + r")(?![\p{L}\p{N}])", caseSensitive: false, unicode: true);
+
+/// The kind of food place [name] is ([FoodKind.restaurant] when nothing in it says more).
+FoodKind foodKindOf(String name) {
+  for (final (kind, rule) in _foodRules) {
+    if (rule.hasMatch(name)) return kind;
+  }
+  return FoodKind.restaurant;
+}
+
 /// Halal places near a point, optionally matching every word of [query] in the name or
 /// address ("nasi padang", "cafe tampines"). Wider radius when searching.
 /// Halal places matching [query] near a point, nearest first. Favourites ([favs], by

@@ -710,7 +710,7 @@ void main() {
       box.read(shellTabProvider.notifier).state = 1;
       box.read(nearbySectionProvider.notifier).state = 'eat';
       await settle(tester);
-      final place = find.byWidgetPredicate((w) => w is PlaceRow && w.icon == Icons.restaurant_outlined).first;
+      final place = find.byWidgetPredicate((w) => w is PlaceRow && halalIcons.contains(w.icon)).first;
       await tester.ensureVisible(place);
       await tester.pump();
       final name = tester.widget<PlaceRow>(place).title;

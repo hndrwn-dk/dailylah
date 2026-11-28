@@ -615,7 +615,7 @@ class _EatSection extends ConsumerWidget {
                 if (halalList.isEmpty) EmptyNote(halal.isEmpty ? s.bundlesLoading : s.halalNone),
                 for (final (p, d) in halalList)
                   PlaceRow(
-                    icon: Icons.restaurant_outlined,
+                    icon: foodIcon(foodKindOf(p.name)),
                     title: p.name,
                     subtitle: p.address,
                     figure: s.metresParts(d).$1,
@@ -1270,7 +1270,7 @@ class _HalalTabState extends ConsumerState<_HalalTab> {
                 children: [
                   for (final (p, d) in list)
                     ListTile(
-                      leading: const Icon(Icons.restaurant_outlined),
+                      leading: Icon(foodIcon(foodKindOf(p.name))),
                       title: Text(p.name),
                       subtitle: Text('${s.metres(d)} · ${p.address}', maxLines: 3, overflow: TextOverflow.ellipsis),
                       trailing: _HalalStar(id: halalPlaceId(p), on: favs.contains(halalPlaceId(p))),

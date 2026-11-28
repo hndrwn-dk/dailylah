@@ -12,7 +12,10 @@ relative to `app/` unless they start with a top-level folder. File and symbol in
 - Religion-neutral by default: no onboarding question about religion. Faith-specific
   features (MUIS prayer times, halal food from the `halal.json` bundle built from Muslim.sg
   listings) are opt-in under More > Extras. Halal places can be starred (`Favorites.halalPlaces`, by `mealPlaceId`) and
-  come first in `halalNear`, like favourite hawkers. Every screen that lists halal places (the Nearby card, the
+  come first in `halalNear`, like favourite hawkers. Each halal row's icon says what the place serves, read from its name
+  (`foodKindOf` in logic.dart, `FoodKind`: brands and whole words such as Coffee Bean, Tim Hortons, kopi, bakery, pizza, rice;
+  `foodIcon` in widgets.dart; noodles get `dinner_dining`, since ramen is the hawker centre's icon), else a knife and fork.
+  No brand logos: they are trademarks and the app ships no images of other companies. Every screen that lists halal places (the Nearby card, the
   See all list, Home > Food) and the sheet of a halal place (`S.halalSheetSubtitle`, `NearItem.sheetNote`) says
   `S.halalDisclaimer`, word for word: "Not affiliated with MUIS. Always verify halal status directly: look for
   the MUIS halal certificate at the premises." Never shorten it.
@@ -42,7 +45,7 @@ relative to `app/` unless they start with a top-level folder. File and symbol in
   tiles, a section's heading, notes; also a section widget that has its own `CardColumns`); a
   `SectionTitle`, a child wrapped in `KeepWithNext` (any other heading) or an empty `SizedBox` stays with
   the card after it; where a run splits, the column whose top heading (a `SectionTitle`, or a card that
-  `OpensWithHeading` such as Today's weekend card) has more space above it is lifted by the difference, so
+  `OpensWithHeading`) has more space above it is lifted by the difference, so
   both columns start level (a heading beside a card, or two headings); a section whose two lists each have a
   heading keeps each heading with its list when wide (Nearby > Eat puts its notes above both; Nearby > Help
   puts 995 and 999 side by side above Help nearby and the meeting points); a section that is one child of the
@@ -459,7 +462,7 @@ feature, screen, provider or rule moves, appears or goes away.
   holiday notification (ID 20, once a day `holiday:<day>`; `holidayNote`: the holiday's name, weather near
   home, up to 2 events near home today from `eventsNear`). School holidays get only the banner. Custom
   places can carry a usual time (`Place.go`) for a leave-by reminder (`extrasDueNow`).
-- Weekend card on Today (days without a work/school trip) and Home > Weekend: places (`weekendPicks`)
+- Weekend card on Today (days without a work/school trip; `_WeekendCard`, one `Panel` with its heading and See all inside, like the other Today cards, so two columns on a foldable start level) and Home > Weekend: places (`weekendPicks`)
   and events (`eventsNear`) from `events.json`, built daily by `backend/app/events.py` from
   Eventfinda (secrets `EVENTFINDA_USER`/`EVENTFINDA_PASSWORD`; key stays in CI). Each event links
   to its Eventfinda page with attribution. Eventbrite was left out: it has no public event search.
