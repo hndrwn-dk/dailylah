@@ -1086,6 +1086,45 @@ void main() {
     expect(out.map((e) => e.$1.name), ['Fair', 'Long show']);
   });
 
+  group('food icons from the place name', () {
+    test('coffee places get the coffee kind, also brands without the word', () {
+      for (final n in ['The Coffee Bean & Tea Leaf @ Jewel', 'Tim Hortons (Funan)', "Dunkin' Tampines", 'Kopi & Tarts', 'Kaffe & Toast', 'Ya Kun Kaya Toast']) {
+        expect(foodKindOf(n), FoodKind.coffee, reason: n);
+      }
+    });
+
+    test('other kinds by brand or word, and a plain restaurant otherwise', () {
+      expect(foodKindOf('Swee Heng Bakery Pte Ltd'), FoodKind.bakery);
+      expect(foodKindOf('Old Chang Kee'), FoodKind.bakery);
+      expect(foodKindOf('Krispy Kreme Doughnuts'), FoodKind.bakery);
+      expect(foodKindOf("Swensen's Restaurant"), FoodKind.dessert);
+      expect(foodKindOf('Munchi Pancakes'), FoodKind.dessert);
+      expect(foodKindOf('Mr Bean'), FoodKind.drink);
+      expect(foodKindOf('Mr Teh Tarik Express'), FoodKind.drink);
+      expect(foodKindOf("Domino'S Pizza Singapore Pte. Ltd."), FoodKind.pizza);
+      expect(foodKindOf('Pizza Hut Singapore Pte Ltd'), FoodKind.pizza);
+      expect(foodKindOf("McDonald's"), FoodKind.fastFood);
+      expect(foodKindOf('Kentucky Fried Chicken Management Pte Ltd'), FoodKind.fastFood);
+      expect(foodKindOf('Subway'), FoodKind.fastFood);
+      expect(foodKindOf('Fitra Chicken Rice'), FoodKind.rice); // chicken rice is rice, not fried chicken
+      expect(foodKindOf('Sukiya Gyudon • Curry'), FoodKind.rice);
+      expect(foodKindOf('Tongue Tip Lanzhou Beef Noodles'), FoodKind.noodles);
+      expect(foodKindOf('Pastamania'), FoodKind.noodles);
+      expect(foodKindOf('Super Sushi'), FoodKind.seafood);
+      expect(foodKindOf('Monster Chili Mala Hot Pot'), FoodKind.soup);
+      expect(foodKindOf('Steak 99'), FoodKind.grill);
+      expect(foodKindOf('High Kee BBQ Seafood (S11)'), FoodKind.grill);
+      expect(foodKindOf('Encik Tan'), FoodKind.restaurant);
+      expect(foodKindOf(''), FoodKind.restaurant);
+    });
+
+    test('a word inside another word does not count', () {
+      expect(foodKindOf('Teahouse Kitchen'), FoodKind.restaurant); // not "tea"
+      expect(foodKindOf('Ricebowl Express'), FoodKind.restaurant); // not "rice"
+      expect(foodKindOf('Cafeteria'), FoodKind.restaurant); // not "cafe"
+    });
+  });
+
   group('parks', () {
     test('expandPlaceName spells out short forms', () {
       expect(expandPlaceName('Jln Kebaya Pg'), 'Jalan Kebaya Playground');

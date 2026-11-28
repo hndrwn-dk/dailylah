@@ -1138,7 +1138,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Plan a trip: the steps of a way with changes are now drawn as a route line, like By MRT: dots for walks, teal for a bus and the line's colour for a train. Fixed: coming back to the app could leave the lower part of every screen blank.",
+        "Today: the weekend ideas near home are one card now, with See all inside, so they line up with the other cards, also on a foldable. Halal food lists show what each place serves: a cup for coffee (The Coffee Bean, Tim Hortons), a croissant for a bakery, a pizza, a burger, a rice bowl and more.",
       ];
 
   // about

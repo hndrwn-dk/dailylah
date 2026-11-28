@@ -350,10 +350,14 @@ class NearItem {
     this.linkLabel = '',
     this.chips = const [],
     this.sheetNote = '',
+    this.icon,
   });
 
   /// A line under the address on the place sheet only, e.g. the halal disclaimer.
   final String sheetNote;
+
+  /// This row's own icon (a halal place: what it serves, [foodIcon]); else the group's.
+  final IconData? icon;
 
   /// Labels shown as chips on the place sheet, e.g. park facilities.
   final List<String> chips;
@@ -470,7 +474,7 @@ class _NearGroupState extends ConsumerState<NearGroup> {
             children: [
               for (final it in shown)
                 PlaceRow(
-                  icon: widget.icon,
+                  icon: it.icon ?? widget.icon,
                   title: it.name,
                   // A row with its own number keeps the distance in the line under the name.
                   // A row never prints a web address (some bundles put one in the details).
@@ -1092,7 +1096,14 @@ class _Food extends ConsumerWidget {
             items: [
               for (final (p, d) in halalNear(ref.watch(halalProvider).value ?? const <EPoint>[], home.lat, home.lng,
                   limit: 15, favs: ref.watch(favoritesProvider.select((f) => f.halalPlaces))))
-                NearItem(name: p.name, detail: p.address, lat: p.lat, lng: p.lng, distance: d, sheetNote: s.halalDisclaimer),
+                NearItem(
+                    name: p.name,
+                    detail: p.address,
+                    lat: p.lat,
+                    lng: p.lng,
+                    distance: d,
+                    sheetNote: s.halalDisclaimer,
+                    icon: foodIcon(foodKindOf(p.name))),
             ],
           ),
           Text(s.halalDisclaimer, style: t.bodySmall),

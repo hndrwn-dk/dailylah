@@ -8,7 +8,7 @@ import 'dart:io';
 import 'package:dailylah/data.dart';
 import 'package:dailylah/l10n.dart';
 import 'package:dailylah/api.dart';
-import 'package:dailylah/logic.dart' show HistoryKind, HistoryPeriod, alertsOn, offsetMetres, parseSharedPlace, rideMinutesTo, tripStats, withoutWebAddress;
+import 'package:dailylah/logic.dart' show HistoryKind, foodKindOf, HistoryPeriod, alertsOn, offsetMetres, parseSharedPlace, rideMinutesTo, tripStats, withoutWebAddress;
 import 'package:dailylah/main.dart';
 import 'package:dailylah/models.dart';
 import 'package:dailylah/mrt_ride.dart';
@@ -248,6 +248,29 @@ Future<void> _scrollTo(WidgetTester tester, Finder target, {required Type page})
 Object? _bundle(String name) => jsonDecode(File('../web/data/$name.json').readAsStringSync());
 
 void main() {
+  testWidgets('The weekend card on Today is one card with its heading and See all inside', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, saturdayMorning));
+    await settle(tester);
+    // Like every other card on Today: the heading and See all sit in the card, not above it, so
+    // two columns on a foldable start level.
+    final title = find.text(_s.weekendCard);
+    expect(title, findsOneWidget);
+    final card = find.ancestor(of: title, matching: find.byType(Panel));
+    expect(card, findsOneWidget);
+    final seeAll = find.descendant(of: card, matching: find.widgetWithText(TextButton, _s.seeAll));
+    expect(seeAll, findsOneWidget);
+    expect(find.descendant(of: card, matching: find.text('Tampines Regional Library')), findsOneWidget);
+    await tester.ensureVisible(seeAll);
+    await settle(tester);
+    await tester.tap(seeAll);
+    await settle(tester);
+    final box = containerOf(tester);
+    expect(box.read(homeSectionProvider), 'weekend');
+    expect(box.read(shellTabProvider), 2);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Ate here on a halal place logs the meal with its name and it shows in History', (tester) async {
     await applyCondition(tester, _normal);
     await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
@@ -258,7 +281,7 @@ void main() {
     await settle(tester);
 
     // First place in "Halal food nearby" (Nearby starts on Here = Tampines Int).
-    final halalTile = find.byWidgetPredicate((w) => w is PlaceRow && w.icon == Icons.restaurant_outlined).first;
+    final halalTile = find.byWidgetPredicate((w) => w is PlaceRow && halalIcons.contains(w.icon)).first;
     await tester.ensureVisible(halalTile);
     await tester.pump();
     final name = tester.widget<PlaceRow>(halalTile).title;
@@ -374,7 +397,7 @@ void main() {
     box.read(nearbySectionProvider.notifier).state = 'eat';
     await settle(tester);
 
-    final halalTile = find.byWidgetPredicate((w) => w is PlaceRow && w.icon == Icons.restaurant_outlined).first;
+    final halalTile = find.byWidgetPredicate((w) => w is PlaceRow && halalIcons.contains(w.icon)).first;
     await _scrollTo(tester, halalTile, page: NearbyPage);
     final name = tester.widget<PlaceRow>(halalTile).title;
     Future<void> openSheet() async {
@@ -1045,6 +1068,38 @@ void main() {
     expect(find.descendant(of: find.byType(HistoryPage), matching: find.text(label)), findsOneWidget);
   });
 
+  testWidgets('Halal places show what they serve as their icon: a cup for coffee, a pizza for pizza', (tester) async {
+    await applyCondition(tester, _normal);
+    await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
+    await settle(tester);
+    final box = containerOf(tester);
+    box.read(shellTabProvider.notifier).state = _tabs['Nearby']!;
+    box.read(nearbySectionProvider.notifier).state = 'eat';
+    await settle(tester);
+    // The card: each row's icon is the one its name gives.
+    for (final row in tester.widgetList<PlaceRow>(find.byWidgetPredicate((w) => w is PlaceRow && halalIcons.contains(w.icon)))) {
+      expect(row.icon, foodIcon(foodKindOf(row.title)), reason: row.title);
+    }
+    final seeAll = find.descendant(of: find.widgetWithText(SectionTitle, 'Halal food nearby'), matching: find.text('See all'));
+    await tester.ensureVisible(seeAll);
+    await tester.pump();
+    await tester.tap(seeAll);
+    await settle(tester);
+    // The full list: the same rule, and more than one kind of icon (coffee, fast food, bakery...).
+    final tiles = tester.widgetList<ListTile>(find.byWidgetPredicate(
+        (w) => w is ListTile && w.leading is Icon && halalIcons.contains((w.leading! as Icon).icon)));
+    expect(tiles, isNotEmpty);
+    final icons = <IconData?>{};
+    for (final t in tiles) {
+      final name = (t.title! as Text).data!;
+      final icon = (t.leading! as Icon).icon;
+      expect(icon, foodIcon(foodKindOf(name)), reason: name);
+      icons.add(icon);
+    }
+    expect(icons.length, greaterThan(1));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('A halal place can be starred, stays put, and is listed first next time', (tester) async {
     await applyCondition(tester, _normal);
     await tester.pumpWidget(appUnder(_normal, householdFavorites, tuesdayMorning));
@@ -1060,7 +1115,7 @@ void main() {
     await settle(tester);
 
     // Star the third place: it is saved, only that row is starred, and it does not jump.
-    final rows = find.widgetWithIcon(ListTile, Icons.restaurant_outlined);
+    final rows = find.byWidgetPredicate((w) => w is ListTile && w.leading is Icon && halalIcons.contains((w.leading! as Icon).icon));
     final third = tester.widget<ListTile>(rows.at(2));
     final name = (third.title! as Text).data!;
     final star = find.descendant(of: rows.at(2), matching: find.byIcon(Icons.star_border));
@@ -1071,9 +1126,9 @@ void main() {
     expect(box.read(favoritesProvider).halalPlaces, hasLength(1));
     expect(box.read(favoritesProvider).halalPlaces.single, startsWith('p:'));
     expect(box.read(favoritesProvider).halalPlaces.single, endsWith('|$name'));
-    String titleAt(int i) => (tester.widget<ListTile>(find.widgetWithIcon(ListTile, Icons.restaurant_outlined).at(i)).title! as Text).data!;
+    String titleAt(int i) => (tester.widget<ListTile>(find.byWidgetPredicate((w) => w is ListTile && w.leading is Icon && halalIcons.contains((w.leading! as Icon).icon)).at(i)).title! as Text).data!;
     expect(titleAt(2), name);
-    expect(find.descendant(of: find.widgetWithIcon(ListTile, Icons.restaurant_outlined), matching: find.byIcon(Icons.star)),
+    expect(find.descendant(of: find.byWidgetPredicate((w) => w is ListTile && w.leading is Icon && halalIcons.contains((w.leading! as Icon).icon)), matching: find.byIcon(Icons.star)),
         findsOneWidget);
 
     // Next visit: the favourite is listed first.
@@ -1084,7 +1139,7 @@ void main() {
     await tester.tap(seeAll);
     await settle(tester);
     expect(titleAt(0), name);
-    expect(find.descendant(of: find.widgetWithIcon(ListTile, Icons.restaurant_outlined).first, matching: find.byIcon(Icons.star)),
+    expect(find.descendant(of: find.byWidgetPredicate((w) => w is ListTile && w.leading is Icon && halalIcons.contains((w.leading! as Icon).icon)).first, matching: find.byIcon(Icons.star)),
         findsOneWidget);
   });
 
