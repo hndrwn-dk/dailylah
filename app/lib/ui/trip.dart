@@ -799,40 +799,118 @@ class _OptionLegs extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(stringsProvider);
+    final legs = option.legs;
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final (i, l) in legs.indexed)
+            _LegStep(
+              leg: l,
+              first: i == 0,
+              last: i == legs.length - 1,
+              text: switch (l.kind) {
+                LegKind.walk => s.transitWalk(s.metres(l.metres), l.minutes),
+                LegKind.bus => s.transitBus(l.service!, l.stops, l.toName),
+                _ => s.transitTrain(l.service!, l.stops, l.toName),
+              },
+              under: l.isRide ? s.transitFrom(l.fromName) : null,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One leg of a way with changes, drawn like the By MRT route: a dot where the leg starts (the
+/// start, or a change) and the rail down to the next one, dotted for a walk, teal for a bus and
+/// the line's colour for a train; the last leg ends in the destination's dot.
+class _LegStep extends StatelessWidget {
+  const _LegStep({required this.leg, required this.text, this.under, this.first = false, this.last = false});
+  final TransitLeg leg;
+  final String text;
+  final String? under;
+  final bool first;
+  final bool last;
+
+  static const double _railX = _RouteStep._railX;
+
+  @override
+  Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    Widget line(IconData icon, String text, {String? under}) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
+    final ink = DL.edge(context);
+    final muted = DL.muted(context);
+    final walk = leg.kind == LegKind.walk;
+    final icon = switch (leg.kind) {
+      LegKind.walk => Icons.directions_walk,
+      LegKind.bus => Icons.directions_bus,
+      _ => Icons.train,
+    };
+    final railColor = leg.kind == LegKind.bus ? DL.teal : DL.lineColor(leg.service ?? '');
+    Widget dot(double size, Color color) => Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: DL.card,
+            border: Border.all(color: color, width: 3),
+          ),
+        );
+    return Stack(
+      children: [
+        Positioned(
+          left: _railX - (walk ? 1.5 : 5),
+          top: 18,
+          bottom: last ? 18 : 0,
+          width: walk ? 3 : 10,
+          child: ExcludeSemantics(
+            child: walk
+                ? CustomPaint(painter: _DotsPainter(muted))
+                : DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: railColor,
+                      borderRadius: BorderRadius.circular(5),
+                      border: Border.all(color: ink, width: 2),
+                    ),
+                  ),
+          ),
+        ),
+        Positioned(
+          left: _railX - 11,
+          top: 0,
+          width: 22,
+          height: 22,
+          child: ExcludeSemantics(child: Center(child: first ? dot(16, muted) : dot(18, ink))),
+        ),
+        if (last)
+          Positioned(
+            left: _railX - 11,
+            bottom: 0,
+            width: 22,
+            height: 22,
+            child: ExcludeSemantics(child: Center(child: dot(16, muted))),
+          ),
+        Padding(
+          padding: EdgeInsets.only(left: 34, bottom: last ? 30 : 14),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 20, color: DL.muted(context)),
-              const SizedBox(width: 10),
+              Icon(icon, size: 20, color: muted),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(text, style: t.bodyMedium),
-                    if (under != null) Text(under, style: t.bodySmall?.copyWith(color: DL.muted(context))),
+                    Text(text, style: t.bodyMedium?.copyWith(fontWeight: walk ? null : FontWeight.w700)),
+                    if (under != null) Text(under!, style: t.bodySmall?.copyWith(color: muted)),
                   ],
                 ),
               ),
             ],
           ),
-        );
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (final l in option.legs)
-            if (l.kind == LegKind.walk)
-              line(Icons.directions_walk, s.transitWalk(s.metres(l.metres), l.minutes))
-            else if (l.kind == LegKind.bus)
-              line(Icons.directions_bus, s.transitBus(l.service!, l.stops, l.toName), under: s.transitFrom(l.fromName))
-            else
-              line(Icons.train, s.transitTrain(l.service!, l.stops, l.toName), under: s.transitFrom(l.fromName)),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

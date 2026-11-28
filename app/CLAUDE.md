@@ -113,7 +113,7 @@ feature, screen, provider or rule moves, appears or goes away.
   board the same first ride or go the long way round (`_roundabout`) dropped, peak-only and night services left
   out (`peakOnlyService`). `transitNetProvider` builds the net once per run, `transitOptionsProvider` (family on
   the two ends) runs the search; `TransitOptionsCard` (ui/trip.dart: one 48 dp row per option, walk minutes, bus plates
-  and line chips, "~N min"; the open one lists its legs; "Times after the first bus or train are estimates") replaces
+  and line chips, "~N min"; the open one draws its legs as a route line like By MRT, `_LegStep`: walks dotted, a bus teal, a train in its line's colour, a dot at the start, each change and the end; "Times after the first bus or train are estimates") replaces
   the "No direct bus" stop cards when no stop has a direct bus, followed by a live `TripBusCard` for the first bus
   of the best way (`_firstBusCard`: buses from its stop to the stop of the first change, `TripBusCard.legService`:
   "No times for bus 966 at this stop right now" instead of "No direct bus") and By MRT; ways over a disrupted MRT line
