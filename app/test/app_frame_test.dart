@@ -33,7 +33,7 @@ void main() {
   });
 
   /// Pumps a page that fills the frame and reports the MediaQuery it sees.
-  Future<MediaQueryData> pumpFrame(WidgetTester tester, Size size, {FakeViewPadding? padding}) async {
+  Future<MediaQueryData> pumpFrame(WidgetTester tester, Size size, {FakeViewPadding? padding, bool typing = false}) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = size;
     if (padding != null) {
@@ -46,9 +46,13 @@ void main() {
       builder: (context, child) => AppFrame(child: child!),
       home: Builder(builder: (context) {
         seen = MediaQuery.of(context);
-        return const Scaffold(body: SizedBox.expand(key: Key('page')));
+        return typing
+            ? const Scaffold(
+                body: Column(children: [TextField(autofocus: true), Expanded(child: SizedBox.expand(key: Key('page')))]))
+            : const Scaffold(body: SizedBox.expand(key: Key('page')));
       }),
     ));
+    if (typing) await tester.pump();
     return seen;
   }
 
@@ -73,8 +77,9 @@ void main() {
   });
 
   testWidgets('the column keeps height, padding and the keyboard inset', (tester) async {
+    // The keyboard's height counts while a text field has focus (KeyboardRepaint drops it otherwise).
     tester.view.viewInsets = const FakeViewPadding(bottom: 300);
-    final seen = await pumpFrame(tester, const Size(700, 600), padding: const FakeViewPadding(top: 24, bottom: 48));
+    final seen = await pumpFrame(tester, const Size(700, 600), padding: const FakeViewPadding(top: 24, bottom: 48), typing: true);
     expect(seen.size, const Size(600, 600));
     expect(seen.padding.top, 24);
     expect(seen.viewInsets.bottom, 300);

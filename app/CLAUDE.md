@@ -75,7 +75,7 @@ relative to `app/` unless they start with a top-level folder. File and symbol in
   `test/card_columns_test.dart`, the "foldable landscape" and "tablet" rows of the screen matrix
   and the five `*-fold-landscape` goldens.
 - Keyboard: `KeyboardNavigatorObserver` closes it whenever a page, sheet or dialog opens or closes, and
-  `KeyboardRepaint` forces a fresh frame once it is gone (some phones left a blank area where it was);
+  `KeyboardRepaint` forces a fresh frame once it is gone (some phones left a blank area where it was) and drops the keyboard's height from `MediaQuery` while no text field has focus (back from the background Android can report a keyboard that is no longer up, and every Scaffold cut its body by that much);
   pickers pop with `popAfterKeyboard`. Both are wired in `main.dart` (`ui/keyboard.dart`).
 - Tabs keep their scroll position (`IndexedStack`, one `ScrollController` per tab in `ui/shell.dart`);
   tapping the selected tab scrolls it to the top, and Today goes back to the top after 30 min away
@@ -113,7 +113,7 @@ feature, screen, provider or rule moves, appears or goes away.
   board the same first ride or go the long way round (`_roundabout`) dropped, peak-only and night services left
   out (`peakOnlyService`). `transitNetProvider` builds the net once per run, `transitOptionsProvider` (family on
   the two ends) runs the search; `TransitOptionsCard` (ui/trip.dart: one 48 dp row per option, walk minutes, bus plates
-  and line chips, "~N min"; the open one lists its legs; "Times after the first bus or train are estimates") replaces
+  and line chips, "~N min"; the open one draws its legs as a route line like By MRT, `_LegStep`: walks dotted, a bus teal, a train in its line's colour, a dot at the start, each change and the end; "Times after the first bus or train are estimates") replaces
   the "No direct bus" stop cards when no stop has a direct bus, followed by a live `TripBusCard` for the first bus
   of the best way (`_firstBusCard`: buses from its stop to the stop of the first change, `TripBusCard.legService`:
   "No times for bus 966 at this stop right now" instead of "No direct bus") and By MRT; ways over a disrupted MRT line
