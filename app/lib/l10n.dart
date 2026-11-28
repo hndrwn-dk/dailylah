@@ -1138,7 +1138,7 @@ class S {
   String whatsNewTitle(String v) => "What's new in $v";
   String get whatsNewClose => 'Close';
   List<String> get whatsNewNotes => const [
-        "Plan a trip: the steps of a way with changes are now drawn as a route line, like By MRT: dots for walks, teal for a bus and the line's colour for a train, with a dot at every change.",
+        "Plan a trip: the steps of a way with changes are now drawn as a route line, like By MRT: dots for walks, teal for a bus and the line's colour for a train. Fixed: coming back to the app could leave the lower part of every screen blank.",
       ];
 
   // about

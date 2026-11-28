@@ -22,6 +22,11 @@ class KeyboardNavigatorObserver extends NavigatorObserver {
 /// Draws a fresh frame of the whole app once the keyboard has gone, so no screen keeps a
 /// blank area where the keyboard was. A forced frame lays out, paints and composites the
 /// full layer tree again, even when nothing in the app changed.
+///
+/// It also ignores a keyboard height while no text field has focus: back from the background,
+/// Android can still report the height of a keyboard that is no longer up, and every Scaffold
+/// then shrank its body by that much, leaving the lower part of each tab blank. Only a focused
+/// text field shows a keyboard, so without one the page keeps its full height.
 class KeyboardRepaint extends StatefulWidget {
   const KeyboardRepaint({super.key, required this.child});
   final Widget child;
@@ -37,12 +42,24 @@ class _KeyboardRepaintState extends State<KeyboardRepaint> with WidgetsBindingOb
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    FocusManager.instance.addListener(_focusChanged);
   }
 
   @override
   void dispose() {
+    FocusManager.instance.removeListener(_focusChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _focusChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// Whether the focused widget is a text field (the only thing that shows a keyboard).
+  static bool _typing() {
+    final context = FocusManager.instance.primaryFocus?.context;
+    return context != null && context.mounted && context.findAncestorStateOfType<EditableTextState>() != null;
   }
 
   @override
@@ -61,5 +78,9 @@ class _KeyboardRepaintState extends State<KeyboardRepaint> with WidgetsBindingOb
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    if (media.viewInsets.bottom <= 0 || _typing()) return widget.child;
+    return MediaQuery(data: media.removeViewInsets(removeBottom: true), child: widget.child);
+  }
 }
