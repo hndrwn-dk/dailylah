@@ -1115,15 +1115,11 @@ class _ReadingCell extends StatelessWidget {
 }
 
 /// On days without a trip to work or school: a few weekend ideas near home, indoor ones
-/// first when it rains or the air is unhealthy.
-class _WeekendCard extends ConsumerWidget implements OpensWithHeading {
+/// first when it rains or the air is unhealthy. One card like the others on Today, with its
+/// heading and See all inside, so two columns on a foldable start level.
+class _WeekendCard extends ConsumerWidget {
   const _WeekendCard({required this.home});
   final Place home;
-
-  static const _title = EdgeInsets.fromLTRB(4, 20, 4, 10);
-
-  @override
-  double get headingGap => _title.top;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1147,103 +1143,104 @@ class _WeekendCard extends ConsumerWidget implements OpensWithHeading {
     final events = eventsNear(ref.watch(eventsProvider).value ?? const <PublicEvent>[], home.lat, home.lng, now,
         days: daysToWeekendEnd(now));
     if (picks.isEmpty && events.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SectionTitle(
-          s.weekendCard,
-          padding: _title,
-          trailingAtEnd: true,
-          trailing: TextButton(
-            onPressed: () {
-              ref.read(homeSectionProvider.notifier).state = 'weekend';
-              ref.read(shellTabProvider.notifier).state = 2;
-            },
-            child: Text(s.seeAll),
-          ),
-        ),
-        if (events.isNotEmpty) ...[
-          Padding(padding: const EdgeInsets.fromLTRB(4, 0, 4, 8), child: Text(s.eventsNearby, style: t.titleSmall)),
-          Panel(
-            child: Column(
+    const tilePadding = EdgeInsets.symmetric(horizontal: 4);
+    return Panel(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
               children: [
-                for (final (e, d) in events)
-                  ListTile(
-                    leading: const Icon(Icons.event_outlined),
-                    title: Text(e.name),
-                    subtitle: Text(
-                      [
-                        if (e.when.isNotEmpty) e.when,
-                        if (e.place.isNotEmpty) e.place,
-                        s.metres(d),
-                        if (e.free) s.freeEvent,
-                      ].join(' · '),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: const Icon(Icons.open_in_new, size: 18),
-                    onTap: () => launchUrl(Uri.parse(e.url), mode: LaunchMode.externalApplication),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Text(s.weekendCard, style: t.titleMedium),
                   ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                  child: Text(s.eventsFrom({for (final (e, _) in events) e.source}.join(' and ')), style: t.bodySmall),
+                ),
+                TextButton(
+                  onPressed: () {
+                    ref.read(homeSectionProvider.notifier).state = 'weekend';
+                    ref.read(shellTabProvider.notifier).state = 2;
+                  },
+                  child: Text(s.seeAll),
                 ),
               ],
             ),
-          ),
-        ],
-        if (indoor && picks.isNotEmpty)
-          Padding(padding: const EdgeInsets.fromLTRB(4, 0, 4, 8), child: Text(s.weekendIndoor, style: t.bodySmall)),
-        if (!indoor && picks.any((x) => x.$1 == 'park' || x.$1 == 'pcn' || x.$1 == 'bbq'))
-          if (ref.watch(parkTimeProvider((home.lat, home.lng))) case final p?)
-            ParkTimeBanner(time: p, text: s.parkTimeLine(p)),
-        if (picks.isNotEmpty)
-        Panel(
-          child: Column(
-            children: [
-              for (final (k, p, d) in picks)
+            if (events.isNotEmpty) ...[
+              Padding(padding: const EdgeInsets.fromLTRB(4, 4, 4, 0), child: Text(s.eventsNearby, style: t.titleSmall)),
+              for (final (e, d) in events)
                 ListTile(
-                  leading: Icon(switch (k) {
-                    'museum' => Icons.museum_outlined,
-                    'library' => Icons.local_library_outlined,
-                    'activesg' => Icons.sports_tennis,
-                    'park' => Icons.park_outlined,
-                    'bbq' => Icons.outdoor_grill_outlined,
-                    'pcn' => Icons.directions_bike,
-                    _ => Icons.attractions_outlined,
-                  }),
-                  title: Text(p.name),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('${s.weekendKind(k)} · ${s.metres(d)}'),
-                      if (k == 'park')
-                        if (facilities[p.name] case final f?) FacilityIcons(f),
-                    ],
+                  contentPadding: tilePadding,
+                  leading: const Icon(Icons.event_outlined),
+                  title: Text(e.name),
+                  subtitle: Text(
+                    [
+                      if (e.when.isNotEmpty) e.when,
+                      if (e.place.isNotEmpty) e.place,
+                      s.metres(d),
+                      if (e.free) s.freeEvent,
+                    ].join(' · '),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  onTap: () => showPlaceSheet(
-                    context,
-                    s: s,
-                    title: p.name,
-                    subtitle: p.detail,
-                    lat: p.lat,
-                    lng: p.lng,
-                    distance: d,
-                    extra: [
-                      if (k == 'park')
-                        if (facilities[p.name] case final f?) ...[
-                          Text(s.facilities, style: t.titleSmall),
-                          const SizedBox(height: 8),
-                          InfoChips(f, icons: true),
-                          const SizedBox(height: 12),
-                        ],
-                    ],
-                  ),
+                  trailing: const Icon(Icons.open_in_new, size: 18),
+                  onTap: () => launchUrl(Uri.parse(e.url), mode: LaunchMode.externalApplication),
                 ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+                child: Text(s.eventsFrom({for (final (e, _) in events) e.source}.join(' and ')), style: t.bodySmall),
+              ),
+              if (picks.isNotEmpty) Divider(height: 1, color: DL.edge(context).withValues(alpha: 0.2)),
             ],
-          ),
+            if (indoor && picks.isNotEmpty)
+              Padding(padding: const EdgeInsets.fromLTRB(4, 4, 4, 4), child: Text(s.weekendIndoor, style: t.bodySmall)),
+            if (!indoor && picks.any((x) => x.$1 == 'park' || x.$1 == 'pcn' || x.$1 == 'bbq'))
+              if (ref.watch(parkTimeProvider((home.lat, home.lng))) case final p?)
+                ParkTimeBanner(time: p, text: s.parkTimeLine(p), margin: const EdgeInsets.symmetric(vertical: 6)),
+            for (final (k, p, d) in picks)
+              ListTile(
+                contentPadding: tilePadding,
+                leading: Icon(switch (k) {
+                  'museum' => Icons.museum_outlined,
+                  'library' => Icons.local_library_outlined,
+                  'activesg' => Icons.sports_tennis,
+                  'park' => Icons.park_outlined,
+                  'bbq' => Icons.outdoor_grill_outlined,
+                  'pcn' => Icons.directions_bike,
+                  _ => Icons.attractions_outlined,
+                }),
+                title: Text(p.name),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${s.weekendKind(k)} · ${s.metres(d)}'),
+                    if (k == 'park')
+                      if (facilities[p.name] case final f?) FacilityIcons(f),
+                  ],
+                ),
+                onTap: () => showPlaceSheet(
+                  context,
+                  s: s,
+                  title: p.name,
+                  subtitle: p.detail,
+                  lat: p.lat,
+                  lng: p.lng,
+                  distance: d,
+                  extra: [
+                    if (k == 'park')
+                      if (facilities[p.name] case final f?) ...[
+                        Text(s.facilities, style: t.titleSmall),
+                        const SizedBox(height: 8),
+                        InfoChips(f, icons: true),
+                        const SizedBox(height: 12),
+                      ],
+                  ],
+                ),
+              ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
